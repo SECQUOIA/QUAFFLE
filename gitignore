@@ -1,0 +1,4 @@
+# Ignore error, output, and results folders
+error/
+output/
+results/
