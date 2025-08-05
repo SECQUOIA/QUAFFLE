@@ -9,12 +9,15 @@ from typing import Dict, List, Tuple, Optional
 import flwr as fl
 from flwr.common import Parameters, FitRes, EvaluateRes, parameters_to_ndarrays, ndarrays_to_parameters
 from flwr.server.strategy import FedAvg
+import sys
+sys.path.append('utils')
 
-# Import utilities
+# Import utilities from utils
 from utilsJAX import (
     load_dataset, create_train_state, train_step, evaluate_model, 
     save_training_curves, visualize_results, split_data_among_clients
 )
+from unetJAX import QVUNet
 
 def get_config():
     """Get configuration for federated quantum flood segmentation."""

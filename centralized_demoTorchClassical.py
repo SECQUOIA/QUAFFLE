@@ -3,6 +3,8 @@ import os
 import torch
 import numpy as np
 from tqdm import tqdm
+import sys
+sys.path.append('utils')
 from utilsTorch import (
     FloodSegmentationDataset, get_dataloaders, UNetSegmentation,  # Changed from QVUNetSegmentation
     train_one_epoch, evaluate_model, save_training_curves, visualize_results

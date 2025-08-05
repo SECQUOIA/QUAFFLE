@@ -1,9 +1,6 @@
 error_logs/
 output_logs/
-results/
 outputs/
-ptseries/
 misc/
 __pycache__/
-gpujob.sh
-cpujob.sh
+*.py[cod]

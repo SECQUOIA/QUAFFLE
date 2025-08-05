@@ -7,6 +7,8 @@ from typing import Dict, List, Tuple, Optional
 import flwr as fl
 from flwr.common import Parameters, FitRes, EvaluateRes, parameters_to_ndarrays, ndarrays_to_parameters
 from flwr.server.strategy import FedAvg
+import sys
+sys.path.append('utils')
 
 from utilsTorch import (
     FloodSegmentationDataset, get_dataloaders, QVUNetSegmentation,

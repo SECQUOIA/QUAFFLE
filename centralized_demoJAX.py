@@ -8,11 +8,14 @@ from flax import jax_utils
 import ml_collections
 from tqdm import tqdm
 
-# Import utilities
+# Import utilities from utils
+import sys
+sys.path.append('utils')
 from utilsJAX import (
     load_dataset, create_data_iterator, create_train_state, 
     train_step, evaluate_model, save_training_curves, visualize_results
 )
+from unetJAX import QVUNet
 
 def get_config():
     """Get configuration for flood segmentation."""
