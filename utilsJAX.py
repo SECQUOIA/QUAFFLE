@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
 
 # Import quantum model
-import unetOrca as unet
+import unetJAX as unet
 
 # Disable TensorFlow GPU usage
 tf.config.experimental.set_visible_devices([], "GPU")

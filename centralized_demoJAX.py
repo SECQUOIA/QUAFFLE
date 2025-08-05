@@ -9,7 +9,7 @@ import ml_collections
 from tqdm import tqdm
 
 # Import utilities
-from utils import (
+from utilsJAX import (
     load_dataset, create_data_iterator, create_train_state, 
     train_step, evaluate_model, save_training_curves, visualize_results
 )
