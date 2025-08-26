@@ -11,8 +11,9 @@ import sys
 sys.path.append('utils')
 
 from utilsTorch import (
-    FloodSegmentationDataset, get_dataloaders, UNetSegmentation,  # Changed from QVUNetSegmentation
-    train_one_epoch, evaluate_model, save_training_curves, visualize_results
+    FloodSegmentationDataset, get_dataloaders, UNetSegmentation,
+    train_one_epoch, evaluate_model, save_training_curves, visualize_results,
+    split_data_among_clients, torch_params_to_numpy, numpy_to_torch_params
 )
 from torch.utils.data import DataLoader, Subset
 import copy
@@ -26,9 +27,7 @@ def get_config():
         'out_dim': 2,         # Output channels for binary segmentation
         'dim_mults': (1, 2, 4, 8),  # Dimension multipliers for each resolution level
         'resnet_block_groups': 4,   # Number of groups for group normalization
-        # Removed quantum-specific parameters:
-        # 'quantum_channels': 2,      # Not needed for classical U-Net
-        # 'quantum_backend': 'pennylane',  # Not needed for classical U-Net
+
         'batch_size': 8,
         'learning_rate': 1e-4,
         'seed': 42,
@@ -36,7 +35,7 @@ def get_config():
         # Federated Learning specific
         'num_clients': 4,
         'local_epochs': 4,
-        'fed_rounds': 100,  # Total federated rounds
+        'fed_rounds': 25,  # Total federated rounds
         'clients_per_round': 4,  # Number of clients participating per round
         'log_every': 5,  # Log every N federated rounds
         'eval_every': 5,  # Evaluate every N federated rounds
@@ -49,21 +48,7 @@ def get_config():
     }
     return config
 
-def torch_params_to_numpy(model) -> List[np.ndarray]:
-    """Convert PyTorch model parameters to list of numpy arrays for Flower."""
-    params = [param.detach().cpu().numpy() for param in model.parameters()]
-    if not params:
-        raise ValueError("Model has no parameters to convert")
-    return params
 
-def numpy_to_torch_params(model, numpy_params: List[np.ndarray]):
-    """Update PyTorch model parameters from numpy arrays."""
-    if not numpy_params:
-        raise ValueError("No parameters provided to update model")
-    
-    params_dict = zip(model.parameters(), numpy_params)
-    for model_param, numpy_param in params_dict:
-        model_param.data = torch.from_numpy(numpy_param).to(model_param.device)
 
 class ClassicalFlowerClient(fl.client.NumPyClient):  # Renamed from QuantumFlowerClient
     """Flower client for classical model training."""
@@ -201,7 +186,7 @@ class ClassicalFlowerClient(fl.client.NumPyClient):  # Renamed from QuantumFlowe
         
         return (loss, num_examples, eval_metrics)
 
-class ClassicalFedAvg(FedAvg):  # Renamed from QuantumFedAvg
+class ClassicalFedAvg(FedAvg): 
     """Custom FedAvg strategy with classical model evaluation."""
     
     def __init__(self, val_loader, config, template_model, device, output_dir, **kwargs):
@@ -274,32 +259,7 @@ class ClassicalFedAvg(FedAvg):  # Renamed from QuantumFedAvg
         
         return aggregated_result
 
-def create_client_datasets(full_dataset, num_clients, seed=42):
-    """Split dataset among clients for federated learning."""
-    np.random.seed(seed)
-    
-    # Get all indices
-    dataset_size = len(full_dataset)
-    indices = np.random.permutation(dataset_size)
-    
-    # Split indices among clients
-    client_datasets = []
-    samples_per_client = dataset_size // num_clients
-    
-    for i in range(num_clients):
-        start_idx = i * samples_per_client
-        if i == num_clients - 1:  # Last client gets remaining samples
-            end_idx = dataset_size
-        else:
-            end_idx = (i + 1) * samples_per_client
-        
-        client_indices = indices[start_idx:end_idx].tolist()  # Convert to list
-        client_dataset = Subset(full_dataset, client_indices)
-        client_datasets.append(client_dataset)
-        
-        print(f"Client {i}: {len(client_dataset)} samples")
-    
-    return client_datasets
+# Use the utility function for client dataset creation
 
 def create_flower_client_fn(client_datasets: List[Subset], config: Dict, device: torch.device, template_model):
     """Factory function to create Flower clients."""
@@ -313,16 +273,16 @@ def create_flower_client_fn(client_datasets: List[Subset], config: Dict, device:
 def main():
     """Run federated classical flood segmentation demo with Flower."""
     # Data paths
-    base_dir = "/anvil/projects/x-chm250024/data/flood_combined"
+    base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results_federated_pytorch_flower_classical_combined"
+    output_dir = "results/flood_federated_optical_pytorch_classical"
     
     print("=" * 60)
-    print("Federated Classical Flood Segmentation Demo with Flower")  # Updated title
-    print("Using Classical U-Net with PyTorch")  # Updated description
+    print("Federated Classical Flood Segmentation Demo with Flower")
+    print("Using Classical U-Net with PyTorch")
     print("=" * 60)
     
     # Check data
@@ -333,9 +293,7 @@ def main():
     config = get_config()
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
-    # Removed quantum-specific prints:
-    # print(f"  - Quantum channels: {config['quantum_channels']}")
-    # print(f"  - Quantum backend: {config['quantum_backend']}")
+
     print(f"  - Image size: {config['image_size']}")
     print(f"  - Batch size: {config['batch_size']}")
     print(f"  - Clients: {config['num_clients']}")
@@ -355,9 +313,9 @@ def main():
         config['image_size']
     )
     
-    # Create client datasets
+    # Create client datasets using utility function
     print(f"\nSplitting data among {config['num_clients']} clients...")
-    client_datasets = create_client_datasets(full_dataset, config['num_clients'], config['seed'])
+    client_datasets = split_data_among_clients(full_dataset, config['num_clients'], config['seed'])
     
     # Create validation set from a portion of the last client's data
     val_size = len(client_datasets[-1]) // 5  # 20% for validation
@@ -376,9 +334,9 @@ def main():
     print(f"Validation set: {len(val_dataset)} samples")
     
     # Initialize template model
-    print("\nInitializing template classical model...")  # Updated description
+    print("\nInitializing template classical model...")
     try:
-        template_model = UNetSegmentation(config)  # Changed from QVUNetSegmentation
+        template_model = UNetSegmentation(config)
         total_params = sum(p.numel() for p in template_model.parameters())
         trainable_params = sum(p.numel() for p in template_model.parameters() if p.requires_grad)
         print(f"Template model initialized successfully!")
@@ -391,7 +349,7 @@ def main():
         return
     
     # Create Flower strategy
-    strategy = ClassicalFedAvg(  # Changed from QuantumFedAvg
+    strategy = ClassicalFedAvg(
         val_loader=val_loader,
         config=config,
         template_model=template_model,
@@ -476,9 +434,9 @@ def main():
             os.makedirs(os.path.dirname(summary_path), exist_ok=True)
             
             with open(summary_path, 'w') as f:
-                f.write("Flower Federated Classical Flood Segmentation Results Summary\n")  # Updated title
+                f.write("Flower Federated Classical Flood Segmentation Results Summary\n")
                 f.write("=" * 50 + "\n\n")
-                f.write(f"Model: Classical U-Net\n")  # Updated model description
+                f.write(f"Model: Classical U-Net\n")
                 # Removed quantum-specific lines:
                 # f.write(f"Quantum channels: {config['quantum_channels']}\n")
                 f.write(f"Base channels: {config['base_channels']}\n")

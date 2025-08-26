@@ -85,14 +85,12 @@ class QVUNetSegmentation(torch.nn.Module):
         super().__init__()
         quantum_channels = config['quantum_channels']
         
-        # Use the new QuantumBlock API with ptlayer_config instead of ptlayer
         quantum_block = unet.QuantumBlock(
             backend=config.get('quantum_backend', 'pennylane'),
             quantum_channels=quantum_channels,
             ptlayer_config=config.get('ptlayer_config', None)
         )
         
-        # Use the new QVUNet API
         self.model = unet.QVUNet(
             dim=config['base_channels'],
             quantum_block=quantum_block,
@@ -113,7 +111,6 @@ class UNetSegmentation(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
         
-        # Use the new classical UNet API
         self.model = unet.UNet(
             dim=config['base_channels'],
             init_dim=config.get('init_dim', config['base_channels']),
@@ -311,3 +308,22 @@ def split_data_among_clients(images, masks, num_clients, seed=42):
         client_data.append((client_images, client_masks))
         print(f"Client {i}: {len(client_images)} samples")
     return client_data
+
+# Federated Learning Utilities
+def torch_params_to_numpy(model):
+    """Convert PyTorch model parameters to list of numpy arrays for Flower."""
+    params = [param.detach().cpu().numpy() for param in model.parameters()]
+    if not params:
+        raise ValueError("Model has no parameters to convert")
+    return params
+
+def numpy_to_torch_params(model, numpy_params):
+    """Update PyTorch model parameters from numpy arrays."""
+    if not numpy_params:
+        raise ValueError("No parameters provided to update model")
+    
+    params_dict = zip(model.parameters(), numpy_params)
+    for model_param, numpy_param in params_dict:
+        model_param.data = torch.from_numpy(numpy_param).to(model_param.device)
+
+

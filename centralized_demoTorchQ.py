@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import os
+# Disable Numba caching to avoid PTLayer import issues
+os.environ['NUMBA_CACHE_DIR'] = '/dev/null'
+os.environ['NUMBA_DISABLE_JIT'] = '1'
+
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -18,8 +22,8 @@ def get_config():
         'init_dim': 32,       # Initial dimension (can be different from base_channels)
         'out_dim': 2,         # Output channels for binary segmentation
         'dim_mults': (1, 2, 4, 8),  # Dimension multipliers for each resolution level
-        'resnet_block_groups': 2,   # Number of groups for group normalization
-        'quantum_channels': 8,      # Number of channels processed by quantum circuits
+        'resnet_block_groups': 4,   # Number of groups for group normalization
+        'quantum_channels': 32,      # Number of channels processed by quantum circuits
         'batch_size': 8,
         'num_train_steps': 100,
         'learning_rate': 1e-4,
@@ -121,12 +125,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     return model, train_metrics, val_metrics
 
 def main():
-    base_dir = "/anvil/projects/x-chm250024/data/flood_optical"
+    base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "final_final_results/flood_central_optical_ptlayer_8_8"
+    output_dir = "results/flood_central_optical_pytorch_pennylane"
     
     print("=" * 60)
     print("Quantum Flood Segmentation Demo")

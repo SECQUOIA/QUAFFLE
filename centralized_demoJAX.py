@@ -28,25 +28,24 @@ def get_config():
     config.batch_size = 8
     
     # Model
-    config.dim = 64
+    config.dim = 32 
     config.dim_mults = (1, 2, 4, 8)
-    config.resnet_block_groups = 8
-    config.quantum_channel = 4
+    config.resnet_block_groups = 4
+    config.quantum_channel = 32
     config.name_ansatz = 'FQConv_ansatz'
     config.num_layer = 2
     
     # Training
-    config.num_train_steps = 500
+    config.num_train_steps = 100
     config.learning_rate = 1e-4
     config.log_every = 10
-    config.eval_every = 100
+    config.eval_every = 10
     config.seed = 42
     
     return config
 
 def train_model(config, train_images, train_masks, val_images, val_masks, output_dir):
     """Train the model."""
-    # Convert to absolute path to fix Orbax checkpointing issue
     output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     checkpoint_dir = os.path.join(output_dir, "checkpoints")
@@ -122,12 +121,12 @@ def train_model(config, train_images, train_masks, val_images, val_masks, output
 def main():
     """Run quantum flood segmentation demo."""
     # Data paths
-    base_dir = "/anvil/projects/x-chm250024/data/flood_optical"
+    base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results_optical"
+    output_dir = "results/flood_central_optical_jax_pennylane"
     
     print("Quantum Flood Segmentation Demo")
     print("Using QVUNet with PennyLane quantum circuits")

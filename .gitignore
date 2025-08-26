@@ -4,3 +4,5 @@ outputs/
 misc/
 __pycache__/
 *.py[cod]
+results/
+data/

@@ -18,6 +18,7 @@ import ml_collections
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
+from typing import List
 
 # Import quantum model
 import unetJAX as unet
@@ -175,30 +176,8 @@ def create_train_state(rng, config):
 
 def segmentation_loss(logits, masks):
     """Compute cross entropy loss for segmentation."""
-    # Compute cross entropy loss
     masks_one_hot = jax.nn.one_hot(masks.astype(jnp.int32).squeeze(-1), num_classes=2)
     return optax.softmax_cross_entropy(logits, masks_one_hot).mean()
-    
-    return jnp.mean(loss)
-
-    # Original IoU loss implementation:
-    # # Convert logits to probabilities and get flood class probability
-    # probs = jax.nn.softmax(logits, axis=-1)
-    # pred_flood = probs[..., 1]  # Probability of flood class
-    #
-    # # Convert masks to binary (0 or 1) 
-    # target_flood = masks.astype(jnp.float32).squeeze(-1)
-    #
-    # # Compute IoU
-    # smooth = 1e-6  # Small epsilon to avoid division by zero
-    # intersection = (pred_flood * target_flood).sum()
-    # union = pred_flood.sum() + target_flood.sum() - intersection
-    # iou = (intersection + smooth) / (union + smooth)
-    #
-    # # IoU loss = 1 - IoU
-    # iou_loss = 1.0 - iou
-    #
-    # return iou_loss
 
 @jax.jit
 def train_step(state, batch):
@@ -398,3 +377,32 @@ def split_data_among_clients(images, masks, num_clients, seed=42):
         print(f"Client {i}: {len(client_images)} samples")
     
     return client_data
+
+# JAX parameter conversion functions for federated learning
+def jax_params_to_numpy(params) -> List[np.ndarray]:
+    """Convert JAX parameters to list of numpy arrays for Flower."""
+    flat_params = []
+    
+    def extract_arrays(tree):
+        for key, value in tree.items() if isinstance(tree, dict) else enumerate(tree):
+            if isinstance(value, (dict, list, tuple)):
+                extract_arrays(value)
+            else:
+                flat_params.append(np.array(value))
+    
+    extract_arrays(params)
+    return flat_params
+
+def numpy_to_jax_params(numpy_params: List[np.ndarray], template_params):
+    """Convert numpy arrays back to JAX parameter structure."""
+    flat_iter = iter(numpy_params)
+    
+    def rebuild_tree(template):
+        if isinstance(template, dict):
+            return {key: rebuild_tree(value) for key, value in template.items()}
+        elif isinstance(template, (list, tuple)):
+            return type(template)(rebuild_tree(item) for item in template)
+        else:
+            return jnp.array(next(flat_iter))
+    
+    return rebuild_tree(template_params)

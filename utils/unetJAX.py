@@ -272,14 +272,7 @@ def Basic_ansatz(theta, wires):
     qml.CNOT(wires=[N-1, 0])
 
 
-def apply_qnn1(x,circuit, param):
-        x = jax.numpy.reshape(x, (-1, 12))
-        fn = jax.vmap(lambda z: circuit(z, param))
-        h = fn(x)
-        h = jnp.asarray(h)
-        h = h.T
-        h = jax.numpy.reshape(h, (-1, 2, 2, 3))
-        return h
+
 
 def apply_qnn(x,circuit, param):
         x = jax.numpy.reshape(x, (-1, 4))
@@ -290,287 +283,293 @@ def apply_qnn(x,circuit, param):
         h = jax.numpy.reshape(h, (-1, 2, 2, 1))
         return h
 
-def quantum_circuit_creation(layers, varform, quantum_channel:13, Full:True):
-    n_qubits=12
-    quantum_circuit=[]
-    for _ in range(quantum_channel*2):
-        quantum_circuit.append(create_circuit(n_qubits, layers, varform))
-    if Full:
-        n_qubits1 = 4
-        varform= 'basic_ansatz'
-        for _ in range(2):
-            quantum_circuit.append(create_circuit(n_qubits1, 4, varform))
-    return quantum_circuit
+def create_circuit_4_qubits(layers, ansatz):
+    device = qml.device("default.qubit", wires=4)
+    ansatz_fn, params_per_layer = get_ansatz(ansatz)
+
+    @qml.qnode(device, interface='jax')
+    def circuit(x, theta):
+        # x shape: (4,)
+        embedding(x, wires=range(4))
+        for i in range(layers):
+            ansatz_fn(theta[i * params_per_layer: (i + 1) * params_per_layer], wires=range(4))
+        return [qml.expval(qml.PauliZ(wires=i)) for i in range(4)]
+
+    return jax.jit(circuit)
+
+def apply_qnn4_pooled(x, circuit, param):
+    """
+    Pooled 4-channel encoding:
+      - x: [B, H, W, 4]
+      - pool over spatial dims -> [B, 4]
+      - apply circuit batched -> [B, 4]
+      - broadcast back to [B, H, W, 4]
+    """
+    B, H, W, C = x.shape
+    assert C == 4
+    x_pooled = jnp.mean(x, axis=(1, 2))  # [B, 4]
+    fn = jax.vmap(lambda z: circuit(z, param))
+    y = fn(x_pooled)  # [B, 4]
+    y = jnp.asarray(y)
+    y = jnp.reshape(y, (B, 1, 1, 4))
+    y = jnp.tile(y, (1, H, W, 1))
+    return y
+
+
+
+def quantum_circuit_creation_4ch(layers, varform, num_groups:int):
+    """
+    Create a list of 4-qubit circuits, one per 4-channel group.
+    """
+    circuits = []
+    for _ in range(num_groups):
+        circuits.append(create_circuit_4_qubits(layers, varform))
+    return circuits
 
 
 class QResnetBlock(nn.Module):
-    """Quantum Convolutional residual block."""
+    """Quantum Convolutional residual block using 4-channel pooled groups."""
     dim: int = None
     groups: Optional[int] = 10
     dtype: Any = jnp.float32
-    quantum_channel: int = 13
-    name_ansatz: str = 'FQConv_ansatz'
-    num_layer : int =3
-    
-    def init_params(self, rng:2, num_qparams:84):
+    quantum_channel: int = 12  # total quantum channels (will use multiples of 4)
+    name_ansatz: str = 'basic_ansatz'
+    num_layer : int = 1
+
+    def init_params(self, rng:2, num_qparams:16):
         return jax.random.uniform(rng,(num_qparams,))
-    
-    def apply_qnn1_batched(self, x, circuit, param):
-        """Apply quantum processing while preserving batch dimension."""
-        original_shape = x.shape
-        B, H, W, C = original_shape
-        
-        # Apply quantum processing directly - it should handle batching correctly
-        result = apply_qnn1(x, circuit, param)
-        
-        # If result has wrong batch dimension, fix it
-        if result.shape[0] != B:
-            # The quantum output has been flattened incorrectly
-            # Reshape it to preserve the batch dimension
-            total_elements = result.size
-            elements_per_batch = total_elements // B
-            
-            # Reshape to (B, -1) first, then to proper spatial dimensions
-            result = result.reshape((B, elements_per_batch))
-            
-            # Try to infer spatial dimensions
-            # Since quantum processing outputs 2x2 spatial dims with variable channels
-            if elements_per_batch % 4 == 0:  # Can be reshaped to 2x2xC
-                C_out = elements_per_batch // 4
-                result = result.reshape((B, 2, 2, C_out))
-            else:
-                # Fallback: use 1x1 spatial with all channels
-                result = result.reshape((B, 1, 1, elements_per_batch))
-                
-        return result
+
     @nn.compact
     def __call__(self, x, time_emb):
-        """
-        Args:
-          x: jnp.ndarray of shape [B, H, W, C]
-          time_emb: jnp.ndarray of shape [B,D]
-        Returns:
-          x: jnp.ndarray of shape [B, H, W, C]
-        """
-
-        if self.name_ansatz == 'FQConv_ansatz':
-            num_qparams = 24 * self.num_layer
-        if self.name_ansatz == 'HQConv_ansatz':
-            num_qparams = 28 * self.num_layer
-        params=[]
-        for i in range(2* self.quantum_channel):
-            param_name= f"param{i}"
-            param=self.param(param_name, self.init_params, num_qparams)
-            params.append(param)
-                       
-        quantum_circuit= quantum_circuit_creation(self.num_layer, self.name_ansatz,self.quantum_channel, Full= False)
-        B, _, _, C = x.shape
+        B, H, W, C = x.shape
         assert time_emb.shape[0] == B and len(time_emb.shape) == 2
-        hs=[]
-        for i in range(self.quantum_channel):
-            y= x[:,:,:,3*i: (3)*(1+i)]
-            h= self.apply_qnn1_batched(y,quantum_circuit[i], params[i])
-            hs.append(h)
-        
-        if self.quantum_channel >1:
-            hs= jnp.asarray(hs)
-            h1= jnp.concatenate(hs, axis=-1)
+
+        # Determine effective quantum channels as multiple of 4
+        effective_qc = (self.quantum_channel // 4) * 4
+        effective_qc = int(min(effective_qc, self.dim))
+        num_groups = effective_qc // 4
+
+        # Prepare parameters and circuits for groups
+        # For basic_ansatz with 4 wires: params per layer = 4
+        params_per_layer = 4
+        num_qparams = params_per_layer * self.num_layer
+        params = []
+        circuits = quantum_circuit_creation_4ch(self.num_layer, self.name_ansatz, num_groups)
+        for i in range(num_groups):
+            param_name = f"param4_{i}"
+            p = self.param(param_name, self.init_params, num_qparams)
+            params.append(p)
+
+        # Split channels
+        x_q = x[:, :, :, :effective_qc] if effective_qc > 0 else None
+        x_c = x[:, :, :, effective_qc:] if effective_qc < self.dim else None
+
+        # Process quantum groups
+        hs = []
+        if x_q is not None and num_groups > 0:
+            for i in range(num_groups):
+                start = 4 * i
+                end = start + 4
+                y = x_q[:, :, :, start:end]
+                hq = apply_qnn4_pooled(y, circuits[i], params[i])  # [B,H,W,4]
+                hs.append(hq)
+        h_q = None
+        if hs:
+            hs = jnp.asarray(hs)
+            h_q = jnp.concatenate(hs, axis=-1)  # [B,H,W,effective_qc]
+
+        # Process classical channels
+        if x_c is not None and x_c.shape[-1] > 0:
+            h_c = WeightStandardizedConv(
+                features=self.dim - effective_qc, kernel_size=(3, 3), padding=1, name='conv_0')(x_c)
         else:
-            h1=hs[0] if isinstance(hs, list) else hs
-            h1= jnp.asarray(h1)
-        
-        # Resize quantum output to match input spatial dimensions
-        target_h, target_w = x.shape[1], x.shape[2]
-        if h1.shape[1] != target_h or h1.shape[2] != target_w:
-            # Use nearest neighbor interpolation to resize quantum output
-            h1 = jax.image.resize(h1, (h1.shape[0], target_h, target_w, h1.shape[3]), method='nearest')
-        
-        y2= x[:,:,:, 3*self.quantum_channel: ]
-        if y2.shape[-1] > 0:  # Only process if there are remaining channels
-            h2 = WeightStandardizedConv(
-                features=self.dim - 3* self.quantum_channel, kernel_size=(3, 3), padding=1, name='conv_0')(y2)
-            h= jax.numpy.concatenate((h1,h2), axis=3)
+            h_c = None
+
+        # Combine
+        if h_q is not None and h_c is not None:
+            h = jnp.concatenate((h_q, h_c), axis=3)
+        elif h_q is not None:
+            h = h_q
+        elif h_c is not None:
+            h = h_c
         else:
-            # If no remaining channels, ensure quantum output has exactly self.dim channels
-            current_channels = h1.shape[-1]
-            if current_channels < self.dim:
-                # Pad to reach desired dimension
-                remaining_channels = self.dim - current_channels
-                padding = jnp.zeros((h1.shape[0], h1.shape[1], h1.shape[2], remaining_channels), dtype=h1.dtype)
-                h = jax.numpy.concatenate((h1, padding), axis=3)
-            elif current_channels > self.dim:
-                # Truncate to desired dimension
-                h = h1[:, :, :, :self.dim]
-            else:
-                h = h1
-        
-        # Ensure h has exactly self.dim channels before GroupNorm
+            h = jnp.zeros((B, H, W, self.dim), dtype=x.dtype)
+
+        # Normalize and time embedding
+        # Ensure channels match dim
         if h.shape[-1] != self.dim:
             if h.shape[-1] > self.dim:
                 h = h[:, :, :, :self.dim]
             else:
-                remaining = self.dim - h.shape[-1]
-                padding = jnp.zeros((h.shape[0], h.shape[1], h.shape[2], remaining), dtype=h.dtype)
-                h = jax.numpy.concatenate((h, padding), axis=3)
-        
-        h =nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_0')(h)
+                pad = self.dim - h.shape[-1]
+                h = jnp.concatenate((h, jnp.zeros((B, H, W, pad), dtype=h.dtype)), axis=3)
 
-        # add in timestep embedding
-        time_emb = nn.Dense(features=2 * self.dim,dtype=self.dtype,
-                           name='time_mlp.dense_0')(nn.swish(time_emb))
-        time_emb = time_emb[:,  jnp.newaxis, jnp.newaxis, :]  # [B, H, W, C]
+        h = nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_0')(h)
+        time_emb = nn.Dense(features=2 * self.dim, dtype=self.dtype, name='time_mlp.dense_0')(nn.swish(time_emb))
+        time_emb = time_emb[:, jnp.newaxis, jnp.newaxis, :]
         scale, shift = jnp.split(time_emb, 2, axis=-1)
         h = h * (1 + scale) + shift
         h = nn.swish(h)
-        hs1=[]
-        for i,j in zip(range(self.quantum_channel), range(self.quantum_channel, 2*self.quantum_channel)):
-            y= h[:,:,:,3*i: (3)*(i+1)]
-            h3= self.apply_qnn1_batched(y,quantum_circuit[j], params[j])
-            hs1.append(h3)
-        
-        if self.quantum_channel >1:
-            hs1= jnp.asarray(hs1)
-            h1= jnp.concatenate(hs1, axis=-1)
+
+        # Second quantum/classical stage mirroring the first
+        hs2 = []
+        if h_q is not None:
+            # Recompute groups on h to keep dimensions consistent
+            for i in range(num_groups):
+                start = 4 * i
+                end = start + 4
+                y = h[:, :, :, start:end]
+                hq2 = apply_qnn4_pooled(y, circuits[i], params[i])
+                hs2.append(hq2)
+        h_q2 = None
+        if hs2:
+            hs2 = jnp.asarray(hs2)
+            h_q2 = jnp.concatenate(hs2, axis=-1)
+
+        x_c2 = h[:, :, :, effective_qc:] if effective_qc < self.dim else None
+        if x_c2 is not None and x_c2.shape[-1] > 0:
+            h_c2 = WeightStandardizedConv(
+                features=self.dim - effective_qc, kernel_size=(3, 3), padding=1, name='conv_1')(x_c2)
         else:
-                h1=hs1[0] if isinstance(hs1, list) else hs1
-                h1= jnp.asarray(h1)
-        
-        # Resize quantum output to match input spatial dimensions
-        target_h, target_w = h.shape[1], h.shape[2]
-        if h1.shape[1] != target_h or h1.shape[2] != target_w:
-            # Use nearest neighbor interpolation to resize quantum output
-            h1 = jax.image.resize(h1, (h1.shape[0], target_h, target_w, h1.shape[3]), method='nearest')
-        
-        y2= h[:,:,:, 3*self.quantum_channel: ]
-        if y2.shape[-1] > 0:  # Only process if there are remaining channels
-            h2 = WeightStandardizedConv(
-                features=self.dim- 3 * self.quantum_channel , kernel_size=(3, 3), padding=1, name='conv_1')(y2)
-            h= jax.numpy.concatenate((h1,h2), axis=3)
+            h_c2 = None
+
+        if h_q2 is not None and h_c2 is not None:
+            h2 = jnp.concatenate((h_q2, h_c2), axis=3)
+        elif h_q2 is not None:
+            h2 = h_q2
+        elif h_c2 is not None:
+            h2 = h_c2
         else:
-            # If no remaining channels, ensure quantum output has exactly self.dim channels
-            current_channels = h1.shape[-1]
-            if current_channels < self.dim:
-                # Pad to reach desired dimension
-                remaining_channels = self.dim - current_channels
-                padding = jnp.zeros((h1.shape[0], h1.shape[1], h1.shape[2], remaining_channels), dtype=h1.dtype)
-                h = jax.numpy.concatenate((h1, padding), axis=3)
-            elif current_channels > self.dim:
-                # Truncate to desired dimension
-                h = h1[:, :, :, :self.dim]
+            h2 = h
+
+        if h2.shape[-1] != self.dim:
+            if h2.shape[-1] > self.dim:
+                h2 = h2[:, :, :, :self.dim]
             else:
-                h = h1
-        
-        # Ensure h has exactly self.dim channels before GroupNorm
-        if h.shape[-1] != self.dim:
-            if h.shape[-1] > self.dim:
-                h = h[:, :, :, :self.dim]
-            else:
-                remaining = self.dim - h.shape[-1]
-                padding = jnp.zeros((h.shape[0], h.shape[1], h.shape[2], remaining), dtype=h.dtype)
-                h = jax.numpy.concatenate((h, padding), axis=3)
-        
-        h = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h))
+                pad = self.dim - h2.shape[-1]
+                h2 = jnp.concatenate((h2, jnp.zeros((B, H, W, pad), dtype=h2.dtype)), axis=3)
+
+        h2 = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h2))
 
         if C != self.dim:
-            x = nn.Conv(
-              features=self.dim, 
-              kernel_size= (1,1),
-              dtype=self.dtype,
-              name='res_conv_0')(x)
+            x = nn.Conv(features=self.dim, kernel_size=(1,1), dtype=self.dtype, name='res_conv_0')(x)
 
-        assert x.shape == h.shape
-
-        return x + h
+        assert x.shape == h2.shape
+        return x + h2
     
 class QFullResnetBlock(nn.Module):
-    """Quantum Convolutional residual block for Full Quantum Vertex"""
+    """Full-quantum residual block using 4-channel pooled groups.
+
+    Processes as many channels as possible in 4-channel quantum groups.
+    Any remainder channels (dim % 4) are passed through a classical path to
+    preserve shape, then concatenated back.
+    """
     dim: int = None
     groups: Optional[int] = 10
     dtype: Any = jnp.float32
-    quantum_channel: int = 13
-    name_ansatz: str = 'FQConv_ansatz'
-    num_layer : int = 3
+    name_ansatz: str = 'basic_ansatz'
+    num_layer: int = 1
 
-    
-    def init_params(self, rng:2, num_qparams:84): 
-        return jax.random.uniform(rng,(num_qparams,))
-    
-    
-    
+    def init_params(self, rng:2, num_qparams:16):
+        return jax.random.uniform(rng, (num_qparams,))
+
     @nn.compact
     def __call__(self, x, time_emb):
-        """
-        Args:
-          x: jnp.ndarray of shape [B, H, W, C]
-          time_emb: jnp.ndarray of shape [B,D]
-        Returns:
-          x: jnp.ndarray of shape [B, H, W, C]
-        """
-        if self.name_ansatz == 'FQConv_ansatz':
-            num_qparams = 24 * self.num_layer
-        if self.name_ansatz == 'HQConv_ansatz':
-            num_qparams = 28 * self.num_layer
-        num_qparams1 = 4 * 4 
-        params=[]
-        for i in range(2* self.quantum_channel):
-            param_name= f"param{i}"
-            param=self.param(param_name, self.init_params, num_qparams)
-            params.append(param)
-
-        for i in range(2* self.quantum_channel, 2* self.quantum_channel+2):
-            param_name= f"param{i}"
-            param=self.param(param_name, self.init_params, num_qparams1)
-            params.append(param)
-        quantum_circuit= quantum_circuit_creation(self.num_layer, self.name_ansatz, self.quantum_channel, Full=True)
-        B, _, _, C = x.shape
+        B, H, W, C = x.shape
         assert time_emb.shape[0] == B and len(time_emb.shape) == 2
-        hs=[]
-        for i in range(self.quantum_channel):
-            y= x[:,:,:,3*i: 3*(1+i)]
-            h= apply_qnn1(y,quantum_circuit[i], params[i])
-            hs.append(h)
-        y2= x[:,:,:, 3*self.quantum_channel: ]
-        h= apply_qnn(y2,quantum_circuit[-2], params[-2])
-        h= jnp.asarray(h)
-        
-        hs= jnp.asarray(hs)
-        h1= jnp.concatenate(hs,axis=-1)
-        h2= jnp.concatenate((h1,h),axis=-1)
-        
-        h =nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_0')(h2)
 
-        # add in timestep embedding
-        time_emb = nn.Dense(features=2 * self.dim,dtype=self.dtype,
-                           name='time_mlp.dense_0')(nn.swish(time_emb))
-        time_emb = time_emb[:,  jnp.newaxis, jnp.newaxis, :]  # [B, H, W, C]
+        # Use all available channels in groups of 4
+        effective_qc = (self.dim // 4) * 4
+        num_groups = effective_qc // 4
+
+        # Prepare parameters and circuits for groups
+        params_per_layer = 4  # for basic 4-qubit ansatz
+        num_qparams = params_per_layer * self.num_layer
+        params = []
+        circuits = quantum_circuit_creation_4ch(self.num_layer, self.name_ansatz, num_groups)
+        for i in range(num_groups):
+            param_name = f"param4_{i}"
+            p = self.param(param_name, self.init_params, num_qparams)
+            params.append(p)
+
+        # Split channels: all-quantum groups + optional remainder classical
+        x_q = x[:, :, :, :effective_qc] if effective_qc > 0 else None
+        x_c = x[:, :, :, effective_qc:] if effective_qc < self.dim else None
+
+        # Stage 1
+        hs = []
+        if x_q is not None and num_groups > 0:
+            for i in range(num_groups):
+                start = 4 * i
+                end = start + 4
+                y = x_q[:, :, :, start:end]
+                hq = apply_qnn4_pooled(y, circuits[i], params[i])
+                hs.append(hq)
+        h_q = jnp.concatenate(hs, axis=-1) if hs else None
+
+        if x_c is not None and x_c.shape[-1] > 0:
+            h_c = WeightStandardizedConv(
+                features=self.dim - effective_qc,
+                kernel_size=(3, 3),
+                padding=1,
+                name='conv_0')(x_c)
+        else:
+            h_c = None
+
+        if h_q is not None and h_c is not None:
+            h = jnp.concatenate((h_q, h_c), axis=3)
+        elif h_q is not None:
+            h = h_q
+        elif h_c is not None:
+            h = h_c
+        else:
+            h = jnp.zeros((B, H, W, self.dim), dtype=x.dtype)
+
+        # Normalize and add time embedding
+        h = nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_0')(h)
+        time_emb = nn.Dense(features=2 * self.dim, dtype=self.dtype, name='time_mlp.dense_0')(nn.swish(time_emb))
+        time_emb = time_emb[:, jnp.newaxis, jnp.newaxis, :]
         scale, shift = jnp.split(time_emb, 2, axis=-1)
         h = h * (1 + scale) + shift
         h = nn.swish(h)
 
-        hs1=[]
-        for i,j in zip(range(self.quantum_channel), range(self.quantum_channel, 2*self.quantum_channel)):
-            y= h[:,:,:,3*i: (3)*(i+1)]
-            h3=apply_qnn1(y,quantum_circuit[j], params[j])
-            hs1.append(h3)
-        y2=h[:,:,:, 3*self.quantum_channel: ]
-        h=apply_qnn(y2,quantum_circuit[-2], params[-2])
-        h= jnp.asarray(h)
-        hs1= jnp.asarray(hs1)
-        h1= jnp.concatenate(hs1,axis=-1)
-        h2= jnp.concatenate((h1,h),axis=-1)
-       
-        h = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h2))
+        # Stage 2 mirrors stage 1 on h
+        hs2 = []
+        if num_groups > 0:
+            for i in range(num_groups):
+                start = 4 * i
+                end = start + 4
+                y = h[:, :, :, start:end]
+                hq2 = apply_qnn4_pooled(y, circuits[i], params[i])
+                hs2.append(hq2)
+        h_q2 = jnp.concatenate(hs2, axis=-1) if hs2 else None
+
+        x_c2 = h[:, :, :, effective_qc:] if effective_qc < self.dim else None
+        if x_c2 is not None and x_c2.shape[-1] > 0:
+            h_c2 = WeightStandardizedConv(
+                features=self.dim - effective_qc,
+                kernel_size=(3, 3),
+                padding=1,
+                name='conv_1')(x_c2)
+        else:
+            h_c2 = None
+
+        if h_q2 is not None and h_c2 is not None:
+            h2 = jnp.concatenate((h_q2, h_c2), axis=3)
+        elif h_q2 is not None:
+            h2 = h_q2
+        elif h_c2 is not None:
+            h2 = h_c2
+        else:
+            h2 = h
+
+        h2 = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h2))
 
         if C != self.dim:
-            x = nn.Conv(
-              features=self.dim, 
-              kernel_size= (1,1),
-              dtype=self.dtype,
-              name='res_conv_0')(x)
+            x = nn.Conv(features=self.dim, kernel_size=(1, 1), dtype=self.dtype, name='res_conv_0')(x)
 
-        assert x.shape == h.shape
-
-        return x + h
+        assert x.shape == h2.shape
+        return x + h2
 
 
 class Attention(nn.Module):
@@ -665,111 +664,7 @@ class AttnBlock(nn.Module):
       return(out + x)
     
 
-class QuanResnetBlock(nn.Module):
-    """Quanvolutional residual block."""
-    dim: int = None
-    num_params:int= 28
-    groups: Optional[int] = 10
-    dtype: Any = jnp.float32
-    quantum_channel: int = 13
-    name_ansatz: str = 'FQConv_ansatz'
-    num_layer : int =3
-
-    def init_params(self, rng:2, num_qparams: 28):
-        return jax.random.uniform(rng,(num_qparams,))
-    @nn.compact
-    def __call__(self, x, time_emb):
-        """
-        Args:
-          x: jnp.ndarray of shape [B, H, W, C]
-          time_emb: jnp.ndarray of shape [B,D]
-        Returns:
-          x: jnp.ndarray of shape [B, H, W, C]
-        """
-        if self.name_ansatz == 'FQConv_ansatz':
-            num_qparams = 24 * self.num_layer
-    
-        if self.name_ansatz == 'HQConv_ansatz':
-            num_qparams = 28 * self.num_layer
- 
-        
-        params=[]
-        for i in range(2* self.quantum_channel):
-            param_name= f"param{i}"
-            param=self.param(param_name, self.init_params, num_qparams)
-            params.append(param)
-
-        quantum_circuit= quantum_circuit_creation(self.num_layer, self.name_ansatz,self.quantum_channel, Full= False)
-
-        B, H, W, C = x.shape
-        assert time_emb.shape[0] == B and len(time_emb.shape) == 2
-        hs=[]
-        for k in range(self.quantum_channel):
-            c= x[:,:,:,3*k:3*(k+1)]
-            y= jax.numpy.zeros_like(c)
-            for i in range(0,H,2):
-                for j in range(0,W,2):
-                    h1= x[:,i:i+2,j:j+2,3*k:3*(k+1)]
-                    h2= apply_qnn1(h1, quantum_circuit[k], params[k])
-                    y= y.at[:,i:i+2, j:j+2,:3].set(h2)
-            hs.append(y)
-        v=x[:,:,:,3*self.quantum_channel:]
-        h1 = WeightStandardizedConv(
-            features=self.dim-3, kernel_size=(3, 3), padding=1, name='conv_0')(v)
-        if self.quantum_channel >1:
-            hsf= jnp.asarray(hs)
-            hsf= jnp.concatenate(hsf, axis=-1)
-        else:
-            hsf=hs
-            hsf= jnp.asarray(hsf)
-            hsf= jnp.reshape(hsf, (B,H,W,-1))
-    
-        h= jax.numpy.concatenate((hsf,h1), axis=3)   
-        
-        h =nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_0')(h)
-
-        # add in timestep embedding
-        time_emb = nn.Dense(features=2 * self.dim,dtype=self.dtype,
-                           name='time_mlp.dense_0')(nn.swish(time_emb))
-        time_emb = time_emb[:,  jnp.newaxis, jnp.newaxis, :]  # [B, H, W, C]
-        scale, shift = jnp.split(time_emb, 2, axis=-1)
-        h = h * (1 + scale) + shift
-
-        h = nn.swish(h)
-
-        hs=[]
-        for k, l in zip(range(self.quantum_channel), range(self.quantum_channel, 2*self.quantum_channel)):
-            c= h[:,:,:,3*k:3*(k+1)]
-            y= jax.numpy.zeros_like(c)
-            for i in range(0,H,2):
-                for j in range(0,W,2):
-                    h1= x[:,i:i+2,j:j+2,3*k:3*(k+1)]
-                    h2= apply_qnn1(h1, quantum_circuit[l], params[l])
-                    y= y.at[:,i:i+2, j:j+2,:3].set(h2)
-            hs.append(y)
-        v=h[:,:,:,3*self.quantum_channel:]
-        h1 = WeightStandardizedConv(
-            features=self.dim-3, kernel_size=(3, 3), padding=1, name='conv_1')(v)
-        if self.quantum_channel >1:
-            hsf= jnp.asarray(hs)
-            hsf= jnp.concatenate(hsf, axis=-1)
-        else:
-            hsf=hs
-            hsf= jnp.asarray(hsf)
-            hsf= jnp.reshape(hsf, (B,H,W,-1))
-        h= jax.numpy.concatenate((hsf,h1), axis=3)  
-        h = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h))
-
-        if C != self.dim:
-            x = nn.Conv(
-              features=self.dim, 
-              kernel_size= (1,1),
-              dtype=self.dtype,
-              name='res_conv_0')(x)
-
-        assert x.shape == h.shape
-
-        return x + h  
+  
     
 
 class DownUnet(nn.Module):
@@ -832,73 +727,7 @@ class DownUnet(nn.Module):
         h = nn.Conv(features = mid_dim, kernel_size = (3,3), padding=1, dtype=self.dtype, name=f'down_{num_resolutions-1}.conv_0')(h)
         return h , hs ,time_emb
     
-class QuanDownUnet(nn.Module):
-    "quanvolutional Encoder part of the U-Net"
-    dim: int
-    init_dim: Optional[int] = None # if None, same as dim
-    out_dim: Optional[int] = None 
-    dim_mults: Tuple[int, int, int, int] = (1, 2, 4, 8)
-    resnet_block_groups: int = 10
-    learned_variance: bool = False
-    dtype: Any = jnp.float32
-    quantum_channel_quan: int = 1
-    name_ansatz_quan: str = 'FQConv_ansatz'
-    num_layer_quan : int =3
-    
-    @nn.compact
-    def __call__(self, x, time):
-        """
-        Args:
-          x: jnp.ndarray of shape [B, H, W, C]
-          time_emb: jnp.ndarray of shape [B,D]
-          h: jnp.ndarray of shape [B, H1, W1, C1]
-          hs: list of jnp.ndarray
-        Returns:
-          x: jnp.ndarray of shape [B, H, W, C]
-        """
-        B, H, W, C = x.shape
-        
-        init_dim = self.dim if self.init_dim is None else self.init_dim
-        hs = []
-        h = nn.Conv(
-            features= init_dim,
-            kernel_size=(7, 7),
-            padding=3,
-            name='init.conv_0',
-            dtype = self.dtype)(x)
-        
-        hs.append(h)
-        # use sinusoidal embeddings to encode timesteps
-        time_emb = SinusoidalPosEmb(self.dim, dtype=self.dtype)(time)  # [B. dim]
-        time_emb = nn.Dense(features=self.dim * 4, dtype=self.dtype, name='time_mlp.dense_0')(time_emb)
-        time_emb = nn.Dense(features=self.dim * 4, dtype=self.dtype, name='time_mlp.dense_1')(nn.gelu(time_emb))  # [B, 4*dim]
-        
-        # downsampling
-        num_resolutions = len(self.dim_mults)
-        for ind in range(num_resolutions):
-          dim_in = h.shape[-1]
-          if ind==1:
-                
-                h= QuanResnetBlock(dim=dim_in, groups=self.resnet_block_groups, dtype=self.dtype, quantum_channel= self.quantum_channel_quan, name_ansatz= self.name_ansatz_quan, num_layer=self.num_layer_quan, name=f'down_{ind}.qresblock_0')(h, time_emb)
-          else:
-                h = ResnetBlock(dim=dim_in, groups=self.resnet_block_groups, dtype=self.dtype, name=f'down_{ind}.resblock_0')(h, time_emb)
-          hs.append(h)
-          if ind==1:
-                h=QuanResnetBlock(dim=dim_in, groups=self.resnet_block_groups, dtype=self.dtype, quantum_channel= self.quantum_channel_quan, name_ansatz= self.name_ansatz_quan, num_layer=self.num_layer_quan, name=f'down_{ind}.qresblock_1')(h, time_emb)
-          else:
-                h = ResnetBlock(
-            dim=dim_in, groups=self.resnet_block_groups, dtype=self.dtype, name=f'down_{ind}.resblock_1')(h, time_emb)
-          
-          h = AttnBlock(dtype=self.dtype, name=f'down_{ind}.attnblock_0')(h)
-          hs.append(h)
 
-          if ind < num_resolutions -1:
-            # Use consistent downsampling for all layers to ensure symmetric skip connections
-                h = Downsample(dim=self.dim * self.dim_mults[ind], dtype=self.dtype, name=f'down_{ind}.downsample_0')(h)
-            
-        mid_dim = self.dim * self.dim_mults[-1]
-        h = nn.Conv(features = mid_dim, kernel_size = (3,3), padding=1, dtype=self.dtype, name=f'down_{num_resolutions-1}.conv_0')(h)
-        return h , hs ,time_emb
     
 
 class UpUnet(nn.Module):
@@ -1130,34 +959,4 @@ class FullQVUNet(nn.Module):
         return h 
 
 
-class QuanvUNet(nn.Module):
-    "Quanvolutional U-Net Hybrid Architecture"
-    dim: int
-    init_dim: Optional[int] = None # if None, same as dim
-    out_dim: Optional[int] = None 
-    dim_mults: Tuple[int, int, int, int] = (1, 2, 4, 8)
-    resnet_block_groups: int = 10
-    learned_variance: bool = False
-    dtype: Any = jnp.float32
-    quantum_channel_vertex: int = 13
-    name_ansatz_vertex: str = 'FQConv_ansatz'
-    num_layer_vertex : int =3
-    quantum_channel_quan: int = 13
-    name_ansatz_quan: str = 'FQConv_ansatz'
-    num_layer_quan : int =3
-
-    @nn.compact
-    def __call__(self, x, time):
-        """
-        Args:
-          x: jnp.ndarray of shape [B, H, W, C]
-          time_emb: jnp.ndarray of shape [B,D]
-        Returns:
-          x: jnp.ndarray of shape [B, H, W, C]
-        """
-       
-        h, hs, time_emb= QuanDownUnet(dim= self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, quantum_channel_quan= self.quantum_channel_quan, name_ansatz_quan= self.name_ansatz_quan, num_layer_quan=self.num_layer_quan,name='QuanDownUnet')(x,time)
-        h, time_emb= QVertex(dim=self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, quantum_channel= self.quantum_channel_vertex, name_ansatz= self.name_ansatz_vertex, num_layer= self.num_layer_vertex, name='Vertexquantum')(h,time_emb)
-        h= UpUnet(dim= self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, name= 'UpUnet1')(x,h,hs,time_emb)
-        
-        return h 
+ 

@@ -201,113 +201,141 @@ class AttnBlock(nn.Module):
         return out + x
 
 # --- Quantum Components ---
-def create_quantum_block(backend='ptlayer', quantum_channels=2, ptlayer_config=None):
+def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None):
     """
-    Helper function to create a QuantumBlock with internal PTLayer/PennyLane handling.
+    Create a QuantumBlock that processes channels in groups of 4.
     
     Args:
         backend: 'ptlayer' or 'pennylane'
-        quantum_channels: Number of quantum channels (also determines modes)
+        quantum_channels: Number of quantum channels (will be rounded down to multiple of 4)
         ptlayer_config: Configuration dict for PTLayer (if backend='ptlayer')
-                       Default: {'n_loops': 2, 'n_samples': 200, 'observable': 'mean'}
     
     Returns:
         QuantumBlock instance
     """
     return QuantumBlock(backend=backend, quantum_channels=quantum_channels, ptlayer_config=ptlayer_config)
 
-def pennylane_default_circuit(quantum_channels, n_qubits=None):
-    n_qubits = 8  # Fixed to 8 qubits regardless of quantum_channels
+def pennylane_default_circuit(n_qubits=4):
+    """Create PennyLane circuit for processing 4-channel groups."""
     dev = qml.device("default.qubit", wires=n_qubits)
     
     @qml.qnode(dev, interface="torch")
     def circuit(x, params=None):
-        # x: [B, C, H, W] -> process each batch item separately
-        if len(x.shape) == 4:  # [B, C, H, W]
-            x_processed = x.mean(dim=(2, 3))  # [B, C]
-        elif len(x.shape) == 3:  # [B, C, 1] or similar
-            x_processed = x.squeeze(-1)  # [B, C]
+        # x: [B, 4, H, W] -> process spatial average for each channel
+        if len(x.shape) == 4:  # [B, 4, H, W]
+            x_processed = x.mean(dim=(2, 3))  # [B, 4]
+        elif len(x.shape) == 3:  # [B, 4, 1] or similar
+            x_processed = x.squeeze(-1)  # [B, 4]
         else:
             x_processed = x
         
         # Process first batch item
-        x_item = x_processed[0]  # [C]
+        x_item = x_processed[0]  # [4]
         
         if params is None:
             params = torch.zeros(n_qubits, dtype=x_item.dtype, device=x_item.device)
-            print("Quantum parameters are not being used")
             
-        # Ensure we have the right number of qubits
-        x_padded = torch.zeros(n_qubits, dtype=x_item.dtype, device=x_item.device)
-        x_padded[:min(len(x_item), n_qubits)] = x_item[:min(len(x_item), n_qubits)]
-        
+        # Data encoding - each channel to one qubit
         for i in range(n_qubits):
-            qml.RX(x_padded[i], wires=i)
+            qml.RX(x_item[i], wires=i)
+        
+        # Parameterized gates
         for i in range(n_qubits):
             qml.RY(params[i], wires=i)
+            
+        # Entangling gates
+        for i in range(n_qubits - 1):
+            qml.CNOT(wires=[i, i + 1])
+        qml.CNOT(wires=[n_qubits - 1, 0])  # Ring connectivity
+        
         return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
     
     return circuit
 
 class QuantumBlock(nn.Module):
+    """
+    Quantum processing block that handles channels in groups of 4.
+    
+    This implementation follows the JAX approach where channels are partitioned
+    into groups of 4 and each group is processed by a separate quantum circuit.
+    No padding is used - only complete groups of 4 are processed quantum mechanically.
+    
+    Args:
+        backend: 'ptlayer' or 'pennylane'
+        quantum_channels: Total number of quantum channels (will process quantum_channels//4 groups)
+        ptlayer_config: Configuration for PTLayer backend
+    """
     def __init__(self, backend='ptlayer', quantum_channels=8, ptlayer_config=None):
         super().__init__()
         self.backend = backend
         self.quantum_channels = quantum_channels
+        
+        # Calculate number of 4-channel groups
+        self.num_groups = quantum_channels // 4
+        self.remaining_channels = quantum_channels % 4
         
         if backend == 'ptlayer':
             if not HAS_PT:
                 raise ImportError("PTLayer not available. Please install ORCA PTLayer or use 'pennylane' backend.")
             
             # Set default PTLayer configuration
-            ptlayer_config = {
-                'n_loops': 2,
-                'n_samples': 200,
-                'observable': 'mean'
-            }
+            if ptlayer_config is None:
+                ptlayer_config = {
+                    'n_loops': 2,
+                    'n_samples': 200,
+                    'observable': 'mean'
+                }
             
             try:
                 # Create TBI object
                 self.tbi = create_tbi(n_loops=ptlayer_config.get('n_loops', 2))
                 
-                # Define input state based on quantum channels
-                # Use alternating pattern for photonic states
-                self.input_state = tuple([1 if i % 2 == 0 else 0 for i in range(quantum_channels)])
-                self.m_modes = len(self.input_state)
+                # Define input state for 4 modes
+                self.input_state = (1, 0, 1, 0)  # Fixed 4-mode pattern
+                self.m_modes = 4
                 
                 # Calculate required number of parameters
                 self.n_params = self.tbi.calculate_n_beam_splitters(self.m_modes)
                 
-                # Create PTLayer with correct API
-                self.ptlayer = PTLayer(
-                    input_state=self.input_state,
-                    in_features=self.n_params,
-                    tbi=self.tbi,
-                    observable=ptlayer_config.get('observable', 'mean'),
-                    n_samples=ptlayer_config.get('n_samples', 200)
-                )
+                # Create PTLayer instances for each group
+                self.ptlayers = nn.ModuleList()
+                self.param_projections = nn.ModuleList()
                 
-                # Create parameter projection layer to map quantum_channels to n_params
-                self.param_projection = nn.Linear(quantum_channels, self.n_params)
+                for _ in range(self.num_groups):
+                    ptlayer = PTLayer(
+                        input_state=self.input_state,
+                        in_features=self.n_params,
+                        tbi=self.tbi,
+                        observable=ptlayer_config.get('observable', 'mean'),
+                        n_samples=ptlayer_config.get('n_samples', 200)
+                    )
+                    self.ptlayers.append(ptlayer)
+                    # Map 4 channels to PTLayer parameters
+                    self.param_projections.append(nn.Linear(4, self.n_params))
                 
-                print(f"PTLayer initialized: {self.m_modes} modes, {self.n_params} parameters, input_state={self.input_state}")
+                print(f"PTLayer initialized: {self.num_groups} groups, {self.m_modes} modes each, {self.n_params} parameters per group")
                 
             except Exception as e:
                 print(f"Warning: Could not initialize PTLayer: {e}")
-                self.ptlayer = None
+                self.ptlayers = None
+                self.param_projections = None
                 self.tbi = None
                 
         elif backend == 'pennylane':
             if not HAS_PENNYLANE:
                 raise ImportError("PennyLane not available. Please install PennyLane or use 'pennylane' backend.")
-            self.pennylane_circuit = pennylane_default_circuit(quantum_channels)
-            self.ptlayer = None
-            self.tbi = None
             
-            n_qubits = 8  # Fixed architecture
-            self.quantum_params = nn.Parameter(
-                torch.randn(n_qubits) * 0.1  # Small random initialization
-            )
+            # Create circuits for each 4-channel group
+            self.pennylane_circuits = []
+            self.quantum_params = nn.ParameterList()
+            
+            for _ in range(self.num_groups):
+                circuit = pennylane_default_circuit(n_qubits=4)
+                self.pennylane_circuits.append(circuit)
+                # 4 parameters per circuit (one per qubit)
+                params = nn.Parameter(torch.randn(4) * 0.1)
+                self.quantum_params.append(params)
+                
         else:
             raise ValueError(f'Unknown quantum backend: {backend}')
     
@@ -316,62 +344,79 @@ class QuantumBlock(nn.Module):
         B, C, H, W = x.shape
         
         if self.backend == 'ptlayer':
-            if self.ptlayer is None:
-                raise ValueError('PTLayer instance not initialized for PTLayer backend')
+            if self.ptlayers is None:
+                raise ValueError('PTLayer instances not initialized for PTLayer backend')
             
-            # Convert spatial features to parameter vectors
-            # Pool spatial dimensions to get per-channel features
-            x_pooled = F.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1)  # [B, C]
+            outputs = []
             
-            # Project to PTLayer parameter space
-            theta = self.param_projection(x_pooled)  # [B, n_params]
+            # Process each 4-channel group
+            for i in range(self.num_groups):
+                # Extract 4 channels for this group
+                start_idx = i * 4
+                end_idx = start_idx + 4
+                x_group = x[:, start_idx:end_idx]  # [B, 4, H, W]
+                
+                # Pool spatial dimensions to get per-channel features
+                x_pooled = F.adaptive_avg_pool2d(x_group, (1, 1)).squeeze(-1).squeeze(-1)  # [B, 4]
+                
+                # Project to PTLayer parameter space
+                theta = self.param_projections[i](x_pooled)  # [B, n_params]
+                
+                # Apply PTLayer
+                y_group = self.ptlayers[i](theta)  # [B, 4]
+                
+                # Reshape output to spatial dimensions
+                y_group = y_group.unsqueeze(-1).unsqueeze(-1)  # [B, 4, 1, 1]
+                y_group = y_group.expand(-1, -1, H, W)  # [B, 4, H, W]
+                
+                outputs.append(y_group)
             
-            # Apply PTLayer
-            y = self.ptlayer(theta)  # [B, m_modes]
-            
-            # Reshape output to spatial dimensions
-            y = y.unsqueeze(-1).unsqueeze(-1)  # [B, m_modes, 1, 1]
-            y = y.expand(-1, -1, H, W)  # [B, m_modes, H, W]
-            
-            # Pad or truncate to match quantum_channels
-            if y.shape[1] < self.quantum_channels:
-                padding = torch.zeros(B, self.quantum_channels - y.shape[1], H, W, 
-                                    dtype=y.dtype, device=y.device)
-                y = torch.cat([y, padding], dim=1)
-            elif y.shape[1] > self.quantum_channels:
-                y = y[:, :self.quantum_channels]
+            # Concatenate all group outputs
+            if outputs:
+                y = torch.cat(outputs, dim=1)  # [B, num_groups*4, H, W]
+            else:
+                y = torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
             
             return y.float()
             
         elif self.backend == 'pennylane':
-            if self.pennylane_circuit is None:
-                raise ValueError('PennyLane circuit not initialized for PennyLane backend')
-            # Process each batch item
+            if not self.pennylane_circuits:
+                raise ValueError('PennyLane circuits not initialized for PennyLane backend')
+            
             outputs = []
-            for i in range(B):
-                x_item = x[i:i+1]  # [1, C, H, W]
+            
+            # Process each 4-channel group
+            for i in range(self.num_groups):
+                # Extract 4 channels for this group
+                start_idx = i * 4
+                end_idx = start_idx + 4
+                x_group = x[:, start_idx:end_idx]  # [B, 4, H, W]
                 
-                y_item = self.pennylane_circuit(x_item, self.quantum_params)
+                # Process each batch item for this group
+                group_outputs = []
+                for b in range(B):
+                    x_item = x_group[b:b+1]  # [1, 4, H, W]
                     
-                y_tensor = torch.stack(y_item).unsqueeze(0)  # [1, n_qubits]
-                outputs.append(y_tensor)
+                    y_item = self.pennylane_circuits[i](x_item, self.quantum_params[i])
+                    y_tensor = torch.stack(y_item).unsqueeze(0)  # [1, 4]
+                    group_outputs.append(y_tensor)
+                
+                # Stack batch outputs for this group
+                y_group = torch.cat(group_outputs, dim=0)  # [B, 4]
+                
+                # Reshape to spatial dimensions
+                y_group = y_group.unsqueeze(-1).unsqueeze(-1)  # [B, 4, 1, 1]
+                y_group = y_group.expand(-1, -1, H, W)  # [B, 4, H, W]
+                
+                outputs.append(y_group)
             
-            # Stack outputs and reshape to match input spatial dimensions
-            y = torch.cat(outputs, dim=0)  # [B, n_qubits] where n_qubits=8 (fixed)
+            # Concatenate all group outputs
+            if outputs:
+                y = torch.cat(outputs, dim=1)  # [B, num_groups*4, H, W]
+            else:
+                y = torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
             
-            # Reshape to [B, C, H, W] by broadcasting
-            y = y.unsqueeze(-1).unsqueeze(-1)  # [B, 8, 1, 1]
-            y = y.expand(-1, -1, H, W)  # [B, 8, H, W]
-            
-            # Pad or truncate 8-qubit output to match quantum_channels
-            if y.shape[1] < self.quantum_channels:  # quantum_channels > 8: pad with zeros
-                padding = torch.zeros(B, self.quantum_channels - y.shape[1], H, W, 
-                                    dtype=y.dtype, device=y.device)
-                y = torch.cat([y, padding], dim=1)
-            elif y.shape[1] > self.quantum_channels:  # quantum_channels < 8: truncate
-                y = y[:, :self.quantum_channels]
-            
-            return y.float()  # Ensure output is float
+            return y.float()
         else:
             raise ValueError(f'Unknown quantum backend: {self.backend}')
 class QResnetBlock(nn.Module):
@@ -385,25 +430,36 @@ class QResnetBlock(nn.Module):
         groups: int = 8,
     ):
         super().__init__()
-        self.qc = quantum_channels
-        self.oc = out_dim - quantum_channels   # classical channels that stay conv-based
+        self.quantum_channels = quantum_channels
+        self.quantum_block = quantum_block
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.quantum_block = quantum_block
+        
+        # Calculate effective quantum channels (must be multiple of 4)
+        self.effective_qc = (quantum_channels // 4) * 4
+        self.classical_channels = out_dim - self.effective_qc
 
-        # Classical path (reduced-width)
-        self.conv0 = WeightStandardizedConv(in_dim - self.qc, self.oc)
-        self.norm0 = nn.GroupNorm(groups, self.oc)
+        # Classical path for remaining channels
+        if self.classical_channels > 0:
+            classical_in_dim = in_dim - self.effective_qc
+            self.conv0 = WeightStandardizedConv(classical_in_dim, self.classical_channels)
+            self.norm0 = nn.GroupNorm(min(groups, self.classical_channels), self.classical_channels)
+            
+            self.time_mlp = nn.Sequential(
+                nn.Linear(time_emb_dim, 2 * self.classical_channels),
+                nn.SiLU(),
+            )
+            
+            self.conv1 = WeightStandardizedConv(self.classical_channels, self.classical_channels)
+            self.norm1 = nn.GroupNorm(min(groups, self.classical_channels), self.classical_channels)
+        else:
+            self.conv0 = None
+            self.norm0 = None
+            self.time_mlp = None
+            self.conv1 = None
+            self.norm1 = None
 
-        self.time_mlp = nn.Sequential(
-            nn.Linear(time_emb_dim, 2 * self.oc),
-            nn.SiLU(),
-        )
-
-        self.conv1 = WeightStandardizedConv(self.oc, self.oc)
-        self.norm1 = nn.GroupNorm(groups, self.oc)
-
-        # Skip path must produce the full out_dim (oc + qc)
+        # Skip connection
         self.skip = (
             nn.Conv2d(in_dim, out_dim, 1)
             if in_dim != out_dim
@@ -413,49 +469,48 @@ class QResnetBlock(nn.Module):
     def forward(self, x, time_emb, params=None):
         B, C, H, W = x.shape
 
-        # --- Split channels: first qc → quantum, rest → classical
-        qc = min(self.qc, C)
-        x_q = x[:, :qc]                          # quantum slice
-        x_c = x[:, qc:] if C > qc else None      # classical slice
+        # Split channels: quantum channels (multiples of 4) and classical channels
+        x_q = x[:, :self.effective_qc] if self.effective_qc > 0 else None
+        x_c = x[:, self.effective_qc:] if self.effective_qc < C else None
 
-        # --- Quantum branch
-        y_q = self.quantum_block(x_q, params)    # [B, qc', H, W]
-        if y_q.shape[2:] != (H, W):
-            y_q = F.interpolate(y_q, size=(H, W), mode='nearest')
+        outputs = []
 
-        # Ensure quantum output has exactly qc channels
-        if y_q.shape[1] < qc:
-            pad = torch.zeros(B, qc - y_q.shape[1], H, W, device=y_q.device, dtype=y_q.dtype)
-            y_q = torch.cat([y_q, pad], dim=1)
-        elif y_q.shape[1] > qc:
-            y_q = y_q[:, :qc]
+        # Process quantum channels
+        if x_q is not None and self.effective_qc > 0:
+            y_q = self.quantum_block(x_q, params)  # [B, effective_qc, H, W]
+            
+            # Ensure spatial dimensions match
+            if y_q.shape[2:] != (H, W):
+                y_q = F.interpolate(y_q, size=(H, W), mode='nearest')
+            
+            outputs.append(y_q)
 
-        # --- Classical branch (reduced conv width)
-        if x_c is None or x_c.shape[1] == 0:
-            # no classical slice left; just use zeros for conv path
-            h_c_in = torch.zeros(B, 0, H, W, device=x.device, dtype=x.dtype)
+        # Process classical channels
+        if self.classical_channels > 0 and x_c is not None:
+            # First convolution
+            h_c = self.conv0(x_c)
+            h_c = self.norm0(h_c)
+
+            # Add time embedding
+            t = self.time_mlp(time_emb).view(B, -1, 1, 1)
+            scale, shift = torch.chunk(t, 2, dim=1)
+            h_c = h_c * (1 + scale) + shift
+            h_c = F.silu(h_c)
+
+            # Second convolution
+            h_c = self.conv1(h_c)
+            h_c = self.norm1(h_c)
+            h_c = F.silu(h_c)
+            
+            outputs.append(h_c)
+
+        # Combine quantum and classical outputs
+        if outputs:
+            h = torch.cat(outputs, dim=1)  # [B, out_dim, H, W]
         else:
-            h_c_in = x_c
+            h = torch.zeros(B, self.out_dim, H, W, device=x.device, dtype=x.dtype)
 
-        # conv0 path
-        h_c = self.conv0(h_c_in)
-        h_c = self.norm0(h_c)
-
-        # time embedding
-        t = self.time_mlp(time_emb).view(B, -1, 1, 1)
-        scale, shift = torch.chunk(t, 2, dim=1)
-        h_c = h_c * (1 + scale) + shift
-        h_c = F.silu(h_c)
-
-        # conv1 path
-        h_c = self.conv1(h_c)
-        h_c = self.norm1(h_c)
-        h_c = F.silu(h_c)
-
-        # --- Recombine quantum + classical
-        h = torch.cat([y_q, h_c], dim=1)  # [B, qc + oc == out_dim, H, W]
-
-        # --- Residual
+        # Residual connection
         x_skip = self.skip(x)
         return x_skip + h
 
@@ -624,68 +679,6 @@ class QVUNet(nn.Module):
         h, time_emb = self.vertex(h, time_emb, params)
         h = self.up(x, h, hs, time_emb)
         return h 
-
-class QVUNetWithInternalQuantum(nn.Module):
-    """
-    QVUNet with internal quantum backend handling.
-    This class automatically creates and manages the quantum backend internally.
-    """
-    def __init__(self, dim, init_dim=None, out_dim=None, dim_mults=(1, 2, 4, 8), 
-                 resnet_block_groups=8, quantum_channels=8, quantum_backend='ptlayer', 
-                 ptlayer_config=None):
-        super().__init__()
-        self.dim = dim
-        self.init_dim = init_dim or dim
-        self.out_dim = out_dim or 2  # Binary segmentation
-        self.dim_mults = dim_mults
-        self.resnet_block_groups = resnet_block_groups
-        self.quantum_channels = quantum_channels
-        self.quantum_backend = quantum_backend
-        
-        # Create quantum block internally
-        self.quantum_block = create_quantum_block(
-            backend=quantum_backend,
-            quantum_channels=quantum_channels,
-            ptlayer_config=ptlayer_config
-        )
-        
-        # Create the main QVUNet with the quantum block
-        self.qvunet = QVUNet(
-            dim=dim,
-            quantum_block=self.quantum_block,
-            init_dim=init_dim,
-            out_dim=out_dim,
-            dim_mults=dim_mults,
-            resnet_block_groups=resnet_block_groups,
-            quantum_channels=quantum_channels
-        )
-    
-    def forward(self, x, time, params=None):
-        return self.qvunet(x, time, params)
-    
-    @classmethod
-    def create_with_ptlayer(cls, dim, ptlayer_config=None, **kwargs):
-        """
-        Convenience method to create QVUNet with PTLayer backend.
-        
-        Args:
-            dim: Base dimension
-            ptlayer_config: PTLayer configuration dict
-                           Default: {'n_loops': 2, 'n_samples': 200, 'observable': 'mean'}
-            **kwargs: Other QVUNet parameters
-        """
-        return cls(dim=dim, quantum_backend='ptlayer', ptlayer_config=ptlayer_config, **kwargs)
-    
-    @classmethod
-    def create_with_pennylane(cls, dim, **kwargs):
-        """
-        Convenience method to create QVUNet with PennyLane backend.
-        
-        Args:
-            dim: Base dimension
-            **kwargs: Other QVUNet parameters
-        """
-        return cls(dim=dim, quantum_backend='pennylane', **kwargs) 
 
 # --- Classical U-Net Components ---
 

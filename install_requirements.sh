@@ -31,9 +31,11 @@ pip install \
     optax==0.2.5 \
     chex==0.1.89 \
     orbax-checkpoint==0.5.15
+
 # Install Quantum Computing dependencies
 echo "Installing quantum computing dependencies..."
 pip install \
+    autoray==0.6.12 \
     PennyLane==0.41.1 \
     PennyLane_Lightning==0.41.1
 

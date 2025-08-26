@@ -6,7 +6,7 @@ from tqdm import tqdm
 import sys
 sys.path.append('utils')
 from utilsTorch import (
-    FloodSegmentationDataset, get_dataloaders, UNetSegmentation,  # Changed from QVUNetSegmentation
+    FloodSegmentationDataset, get_dataloaders, UNetSegmentation,
     train_one_epoch, evaluate_model, save_training_curves, visualize_results
 )
 from torch.utils.data import DataLoader
@@ -19,9 +19,7 @@ def get_config():
         'out_dim': 2,         # Output channels for binary segmentation
         'dim_mults': (1, 2, 4, 8),  # Dimension multipliers for each resolution level
         'resnet_block_groups': 4,   # Number of groups for group normalization
-        # Remove quantum-specific parameters:
-        # 'quantum_channels': 4,      # Not needed for classical U-Net
-        # 'quantum_backend': 'ptlayer',  # Not needed for classical U-Net
+
         'batch_size': 8,
         'num_epochs': 100,
         'learning_rate': 1e-4,
@@ -32,7 +30,7 @@ def get_config():
         'save_samples': True,
         'num_train_samples': 6,    # Number of final training samples to save
         'num_val_samples': 6,      # Number of final validation samples to save
-        'num_test_samples': 15,     # Number of test samples to save
+        'num_test_samples': 8,     # Number of test samples to save
     }
     return config
 
@@ -52,7 +50,6 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        # Maintain backward compatibility with old checkpoints
         start_epoch = checkpoint.get('epoch', checkpoint.get('step', 0))
         train_metrics = checkpoint.get('train_metrics', [])
         val_metrics = checkpoint.get('val_metrics', [])
@@ -125,16 +122,16 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     return model, train_metrics, val_metrics
 
 def main():
-    base_dir = "/anvil/projects/x-chm250024/data/flood_combined"
+    base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "final_results/results_combined_pytorch_classical"
+    output_dir = "results/flood_central_optical_pytorch_classical"
     
     print("=" * 60)
-    print("Classical Flood Segmentation Demo")  # Changed from "Quantum"
-    print("Using Classical U-Net with PyTorch")  # Changed description
+    print("Classical Flood Segmentation Demo")
+    print("Using Classical U-Net with PyTorch")
     print("=" * 60)
     
     if not os.path.exists(train_images_dir):
@@ -144,12 +141,10 @@ def main():
     config = get_config()
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
-    # Remove quantum-specific prints:
-    # print(f"  - Quantum channels: {config['quantum_channels']}")
-    # print(f"  - Quantum backend: {config['quantum_backend']}")
+    
     print(f"  - Image size: {config['image_size']}")
     print(f"  - Batch size: {config['batch_size']}")
-    print(f"  - Training epochs: {config['num_epochs']}")  # Changed from steps
+    print(f"  - Training epochs: {config['num_epochs']}")
     print(f"  - Save samples: {config['save_samples']}")
     
     # Data loaders
@@ -179,9 +174,9 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    print("\nInitializing classical U-Net model...")  # Changed print message
+    print("\nInitializing classical U-Net model...")
     try:
-        model = UNetSegmentation(config).to(device)  # Changed from QVUNetSegmentation
+        model = UNetSegmentation(config).to(device)
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print(f"Model initialized successfully!")
@@ -254,14 +249,13 @@ def main():
         os.makedirs(os.path.dirname(summary_path), exist_ok=True)
         
         with open(summary_path, 'w') as f:
-            f.write("Classical Flood Segmentation Results Summary\n")  # Changed from "Quantum"
+            f.write("Classical Flood Segmentation Results Summary\n")
             f.write("=" * 50 + "\n\n")
-            f.write(f"Model: Classical U-Net\n")  # Changed from quantum description
-            # Remove quantum-specific lines:
-            # f.write(f"Quantum channels: {config['quantum_channels']}\n")
+            f.write(f"Model: Classical U-Net\n") 
+
             f.write(f"Base channels: {config['base_channels']}\n")
             f.write(f"Image size: {config['image_size']}\n")
-            f.write(f"Training epochs: {config['num_epochs']}\n")  # Changed from steps
+            f.write(f"Training epochs: {config['num_epochs']}\n")
             f.write(f"Total parameters: {total_params:,}\n")
             f.write(f"Trainable parameters: {trainable_params:,}\n\n")
             

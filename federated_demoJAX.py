@@ -12,10 +12,10 @@ from flwr.server.strategy import FedAvg
 import sys
 sys.path.append('utils')
 
-# Import utilities from utils
 from utilsJAX import (
     load_dataset, create_train_state, train_step, evaluate_model, 
-    save_training_curves, visualize_results, split_data_among_clients
+    save_training_curves, visualize_results, split_data_among_clients,
+    jax_params_to_numpy, numpy_to_jax_params
 )
 from unetJAX import QVUNet
 
@@ -27,21 +27,21 @@ def get_config():
     config.image_size = 128
     config.channels = 3
     config.num_classes = 2
-    config.batch_size = 4
+    config.batch_size = 8
     
     # Model
     config.dim = 32
     config.dim_mults = (1, 2, 4, 8)
-    config.resnet_block_groups = 8
-    config.quantum_channel = 2
+    config.resnet_block_groups = 4
+    config.quantum_channel = 32
     config.name_ansatz = 'FQConv_ansatz'
-    config.num_layer = 1
+    config.num_layer = 2
     
     # Federated Learning
     config.num_clients = 4
-    config.local_epochs = 2
+    config.local_epochs = 4
     config.fed_rounds = 25  # Total federated rounds
-    config.clients_per_round = 2  # Number of clients participating per round
+    config.clients_per_round = 4  # Number of clients participating per round
     
     # Training
     config.learning_rate = 1e-4
@@ -51,33 +51,7 @@ def get_config():
     
     return config
 
-def jax_params_to_numpy(params) -> List[np.ndarray]:
-    """Convert JAX parameters to list of numpy arrays for Flower."""
-    flat_params = []
-    
-    def extract_arrays(tree):
-        for key, value in tree.items() if isinstance(tree, dict) else enumerate(tree):
-            if isinstance(value, (dict, list, tuple)):
-                extract_arrays(value)
-            else:
-                flat_params.append(np.array(value))
-    
-    extract_arrays(params)
-    return flat_params
 
-def numpy_to_jax_params(numpy_params: List[np.ndarray], template_params):
-    """Convert numpy arrays back to JAX parameter structure."""
-    flat_iter = iter(numpy_params)
-    
-    def rebuild_tree(template):
-        if isinstance(template, dict):
-            return {key: rebuild_tree(value) for key, value in template.items()}
-        elif isinstance(template, (list, tuple)):
-            return type(template)(rebuild_tree(item) for item in template)
-        else:
-            return jnp.array(next(flat_iter))
-    
-    return rebuild_tree(template_params)
 
 class QuantumFlowerClient(fl.client.NumPyClient):
     """Flower client for quantum model training."""
@@ -249,12 +223,12 @@ class QuantumFedAvg(FedAvg):
 def main():
     """Run federated quantum flood segmentation demo with Flower."""
     # Data paths
-    base_dir = "/anvil/projects/x-chm250024/data/flood_optical"
+    base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "Output_federated_segmentation"
+    output_dir = "results/flood_federated_optical_jax_pennylane"
     
     print("Federated Quantum Flood Segmentation Demo with Flower")
     print("Using QVUNet with PennyLane quantum circuits in Flower federated setting")
