@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 import os
-# Disable Numba caching to avoid PTLayer import issues
-os.environ['NUMBA_CACHE_DIR'] = '/dev/null'
-os.environ['NUMBA_DISABLE_JIT'] = '1'
-
 import torch
+import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
-import sys
-sys.path.append('utils')
 from utilsTorch import (
-    FloodSegmentationDataset, get_dataloaders, QVUNetSegmentation,
+    QVUNet, QuantumBlock, QVUNetSegmentation,
+    FloodSegmentationDataset, get_dataloaders,
     train_one_epoch, evaluate_model, save_training_curves, visualize_results
 )
 from torch.utils.data import DataLoader
@@ -35,7 +31,7 @@ def get_config():
         'save_samples': True,
         'num_train_samples': 6,    # Number of final training samples to save
         'num_val_samples': 6,      # Number of final validation samples to save
-        'num_test_samples': 8,     # Number of test samples to save
+        'num_test_samples': 20,     # Number of test samples to save
     }
     return config
 
@@ -53,12 +49,28 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     # Try to load checkpoint
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        start_step = checkpoint.get('step', 0)
-        train_metrics = checkpoint.get('train_metrics', [])
-        val_metrics = checkpoint.get('val_metrics', [])
-        print(f"Checkpoint loaded successfully! Resuming from step {start_step}")
+        checkpoint_loaded = False
+        try:
+            model.load_state_dict(checkpoint['model_state_dict'])
+            checkpoint_loaded = True
+        except RuntimeError as e:
+            if "Missing key(s)" in str(e) and ("model." in str(e) or "qvunet." in str(e)):
+                print("Checkpoint has incompatible model structure.")
+                # Reset to starting from scratch
+                start_step = 0
+                train_metrics = []
+                val_metrics = []
+            else:
+                raise e
+        
+        if checkpoint_loaded:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_step = checkpoint.get('step', 0)
+            train_metrics = checkpoint.get('train_metrics', [])
+            val_metrics = checkpoint.get('val_metrics', [])
+            print(f"Checkpoint loaded successfully! Resuming from step {start_step}")
+        else:
+            print("Starting training from scratch due to incompatible checkpoint")
     else:
         print("No checkpoint found, starting from scratch")
     if start_step >= config['num_train_steps']:
@@ -142,6 +154,15 @@ def main():
         return
     
     config = get_config()
+    
+    # Set seeds for reproducibility
+    torch.manual_seed(config['seed'])
+    torch.cuda.manual_seed(config['seed'])
+    torch.cuda.manual_seed_all(config['seed'])
+    np.random.seed(config['seed'])
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     print(f"  - Quantum channels: {config['quantum_channels']}")
@@ -180,7 +201,9 @@ def main():
     
     print("\nInitializing QVUNet model...")
     try:
+        # Use QVUNetSegmentation wrapper from utils for consistent checkpoint structure
         model = QVUNetSegmentation(config).to(device)
+        
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         print(f"Model initialized successfully!")

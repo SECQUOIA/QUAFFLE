@@ -3,8 +3,6 @@ import os
 import torch
 import numpy as np
 from tqdm import tqdm
-import sys
-sys.path.append('utils')
 from utilsTorch import (
     FloodSegmentationDataset, get_dataloaders, UNetSegmentation,
     train_one_epoch, evaluate_model, save_training_curves, visualize_results
@@ -30,7 +28,7 @@ def get_config():
         'save_samples': True,
         'num_train_samples': 6,    # Number of final training samples to save
         'num_val_samples': 6,      # Number of final validation samples to save
-        'num_test_samples': 8,     # Number of test samples to save
+        'num_test_samples': 20,     # Number of test samples to save
     }
     return config
 
@@ -62,7 +60,6 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     print(f"Training {config['num_epochs'] - start_epoch} remaining epochs (from {start_epoch} to {config['num_epochs']})")
     epoch = start_epoch
     
-    # Initial evaluation at epoch 0 (or starting epoch) if no validation metrics exist
     if not val_metrics:
         print("Performing initial evaluation at epoch 0...")
         val_result = evaluate_model(model, val_loader, device)
@@ -97,8 +94,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'epoch': epoch,  # Use epoch but also save step for backward compatibility
-                'step': epoch,   # Backward compatibility
+                'epoch': epoch,
+                'step': epoch,
                 'train_metrics': train_metrics,
                 'val_metrics': val_metrics
             }, checkpoint_path)
@@ -139,6 +136,15 @@ def main():
         return
     
     config = get_config()
+    
+    # Set seeds for reproducibility
+    torch.manual_seed(config['seed'])
+    torch.cuda.manual_seed(config['seed'])
+    torch.cuda.manual_seed_all(config['seed'])
+    np.random.seed(config['seed'])
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     

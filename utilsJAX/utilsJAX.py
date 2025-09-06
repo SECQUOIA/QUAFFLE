@@ -6,8 +6,6 @@ Contains common training, testing, and visualization functions.
 
 import os
 import glob
-import jax
-import jax.numpy as jnp
 import numpy as np
 from flax.training import train_state
 from flax import linen as nn
@@ -21,7 +19,7 @@ from sklearn.metrics import roc_auc_score
 from typing import List
 
 # Import quantum model
-import unetJAX as unet
+from . import unetJAX as unet
 
 # Disable TensorFlow GPU usage
 tf.config.experimental.set_visible_devices([], "GPU")
@@ -107,6 +105,7 @@ def load_dataset(images_dir, masks_dir, config):
 
 def create_data_iterator(images, masks, config):
     """Create data iterator for training."""
+    import jax
     batch_size = config.batch_size // jax.process_count()
     local_device_count = jax.local_device_count()
     
@@ -142,16 +141,17 @@ class QVUNet_Segmentation(nn.Module):
     def __call__(self, x):
         # Use QVUNet from unet.py
         qvunet = unet.QVUNet(
-            dim=self.config.dim,
+            dim=self.config.base_channels,
             out_dim=self.config.num_classes,
             dim_mults=self.config.dim_mults,
             resnet_block_groups=self.config.resnet_block_groups,
-            quantum_channel=self.config.quantum_channel,
+            quantum_channels=self.config.quantum_channels,
             name_ansatz=self.config.name_ansatz,
             num_layer=self.config.num_layer
         )
         
         # Dummy time input for segmentation
+        import jax.numpy as jnp
         B = x.shape[0]
         dummy_time = jnp.zeros((B,), dtype=jnp.int32)
         
@@ -159,6 +159,8 @@ class QVUNet_Segmentation(nn.Module):
 
 def create_train_state(rng, config):
     """Create training state."""
+    import jax
+    import jax.numpy as jnp
     model = QVUNet_Segmentation(config=config)
     dummy_input = jnp.ones((1, config.image_size, config.image_size, config.channels))
     params = model.init(rng, dummy_input)
@@ -176,12 +178,16 @@ def create_train_state(rng, config):
 
 def segmentation_loss(logits, masks):
     """Compute cross entropy loss for segmentation."""
+    import jax
+    import jax.numpy as jnp
     masks_one_hot = jax.nn.one_hot(masks.astype(jnp.int32).squeeze(-1), num_classes=2)
     return optax.softmax_cross_entropy(logits, masks_one_hot).mean()
 
-@jax.jit
 def train_step(state, batch):
     """Training step."""
+    import jax
+    import jax.numpy as jnp
+    
     def loss_fn(params):
         logits = state.apply_fn(params, batch['image'])
         loss = segmentation_loss(logits, batch['mask'])
@@ -196,8 +202,21 @@ def train_step(state, batch):
     
     return state, {'loss': loss, 'accuracy': accuracy}
 
+# JIT compiled version for performance
+_jitted_train_step = None
+
+def get_jitted_train_step():
+    """Get JIT compiled train_step function."""
+    global _jitted_train_step
+    if _jitted_train_step is None:
+        import jax
+        _jitted_train_step = jax.jit(train_step)
+    return _jitted_train_step
+
 def evaluate_model(state, images, masks, config):
     """Evaluate model."""
+    import jax
+    import jax.numpy as jnp
     batch_size = config.batch_size
     total_loss = total_accuracy = num_batches = 0
     all_probs = []
@@ -315,6 +334,8 @@ def visualize_results(state, test_images, test_masks, config, output_dir, title_
         mask = test_masks[i:i+1]
         
         # Predict
+        import jax
+        import jax.numpy as jnp
         logits = state.apply_fn(state.params, image)
         prediction = jnp.argmax(logits[0], axis=-1)
         probabilities = jax.nn.softmax(logits[0])[..., 1]
@@ -352,57 +373,4 @@ def visualize_results(state, test_images, test_masks, config, output_dir, title_
     
     print(f"Visualizations saved in {results_dir}")
 
-# Federated-specific utility functions
-def split_data_among_clients(images, masks, num_clients, seed=42):
-    """Split data among clients for federated learning."""
-    np.random.seed(seed)
-    indices = np.random.permutation(len(images))
-    
-    # Split indices among clients
-    client_data = []
-    samples_per_client = len(images) // num_clients
-    
-    for i in range(num_clients):
-        start_idx = i * samples_per_client
-        if i == num_clients - 1:  # Last client gets remaining samples
-            end_idx = len(images)
-        else:
-            end_idx = (i + 1) * samples_per_client
-        
-        client_indices = indices[start_idx:end_idx]
-        client_images = images[client_indices]
-        client_masks = masks[client_indices]
-        
-        client_data.append((client_images, client_masks))
-        print(f"Client {i}: {len(client_images)} samples")
-    
-    return client_data
 
-# JAX parameter conversion functions for federated learning
-def jax_params_to_numpy(params) -> List[np.ndarray]:
-    """Convert JAX parameters to list of numpy arrays for Flower."""
-    flat_params = []
-    
-    def extract_arrays(tree):
-        for key, value in tree.items() if isinstance(tree, dict) else enumerate(tree):
-            if isinstance(value, (dict, list, tuple)):
-                extract_arrays(value)
-            else:
-                flat_params.append(np.array(value))
-    
-    extract_arrays(params)
-    return flat_params
-
-def numpy_to_jax_params(numpy_params: List[np.ndarray], template_params):
-    """Convert numpy arrays back to JAX parameter structure."""
-    flat_iter = iter(numpy_params)
-    
-    def rebuild_tree(template):
-        if isinstance(template, dict):
-            return {key: rebuild_tree(value) for key, value in template.items()}
-        elif isinstance(template, (list, tuple)):
-            return type(template)(rebuild_tree(item) for item in template)
-        else:
-            return jnp.array(next(flat_iter))
-    
-    return rebuild_tree(template_params)

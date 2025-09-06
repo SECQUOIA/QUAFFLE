@@ -13,7 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
-import unetTorch as unet
+from . import unetTorch as unet
 
 class FloodSegmentationDataset(Dataset):
     def __init__(self, images_dir, masks_dir, image_size):
@@ -83,47 +83,155 @@ def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2
 class QVUNetSegmentation(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
-        quantum_channels = config['quantum_channels']
-        
-        quantum_block = unet.QuantumBlock(
-            backend=config.get('quantum_backend', 'pennylane'),
-            quantum_channels=quantum_channels,
-            ptlayer_config=config.get('ptlayer_config', None)
-        )
-        
-        self.model = unet.QVUNet(
-            dim=config['base_channels'],
-            quantum_block=quantum_block,
-            init_dim=config.get('init_dim', config['base_channels']),
-            out_dim=config.get('out_dim', 2),  # Binary segmentation
-            dim_mults=config.get('dim_mults', (1, 2, 4, 8)),
-            resnet_block_groups=config.get('resnet_block_groups', 8),
-            quantum_channels=quantum_channels
-        )
+        # Store config for lazy initialization
+        self.config = config
+        self._model = None
+    
+    def _initialize_model(self):
+        """Lazy initialization to avoid Ray serialization issues."""
+        if self._model is None:
+            # Import locally to avoid global state issues
+            import torch.nn as nn
+            from . import unetTorch as unet
+            
+            quantum_channels = self.config['quantum_channels']
+            
+            quantum_block = unet.QuantumBlock(
+                backend=self.config.get('quantum_backend', 'pennylane'),
+                quantum_channels=quantum_channels,
+                ptlayer_config=self.config.get('ptlayer_config', None)
+            )
+            
+            self._model = unet.QVUNet(
+                dim=self.config['base_channels'],
+                quantum_block=quantum_block,
+                init_dim=self.config.get('init_dim', self.config['base_channels']),
+                out_dim=self.config.get('out_dim', 2),  # Binary segmentation
+                dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
+                resnet_block_groups=self.config.get('resnet_block_groups', 8),
+                quantum_channels=quantum_channels
+            )
+    
+    @property
+    def model(self):
+        """Property to ensure model is initialized before access."""
+        self._initialize_model()
+        return self._model
     
     def forward(self, x):
         B = x.shape[0]
         # Create dummy time steps for diffusion-style model
         dummy_time = torch.zeros((B,), dtype=torch.float32, device=x.device)
         return self.model(x, dummy_time)
+    
+    def parameters(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.parameters()
+    
+    def named_parameters(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.named_parameters()
+    
+    def state_dict(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.state_dict()
+    
+    def load_state_dict(self, state_dict):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.load_state_dict(state_dict)
+    
+    def train(self, mode=True):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        self._model.train(mode)
+        return super().train(mode)
+    
+    def eval(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        self._model.eval()
+        return super().eval()
+    
+    def to(self, device):
+        """Override to ensure model is initialized and moved to device."""
+        self._initialize_model()
+        self._model = self._model.to(device)
+        return super().to(device)
 
 class UNetSegmentation(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
-        
-        self.model = unet.UNet(
-            dim=config['base_channels'],
-            init_dim=config.get('init_dim', config['base_channels']),
-            out_dim=config.get('out_dim', 2),  # Binary segmentation
-            dim_mults=config.get('dim_mults', (1, 2, 4, 8)),
-            resnet_block_groups=config.get('resnet_block_groups', 8)
-        )
+        # Store config for lazy initialization
+        self.config = config
+        self._model = None
+    
+    def _initialize_model(self):
+        """Lazy initialization to avoid Ray serialization issues."""
+        if self._model is None:
+            # Import locally to avoid global state issues
+            from . import unetTorch as unet
+            
+            self._model = unet.UNet(
+                dim=self.config['base_channels'],
+                init_dim=self.config.get('init_dim', self.config['base_channels']),
+                out_dim=self.config.get('out_dim', 2),  # Binary segmentation
+                dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
+                resnet_block_groups=self.config.get('resnet_block_groups', 8)
+            )
+    
+    @property
+    def model(self):
+        """Property to ensure model is initialized before access."""
+        self._initialize_model()
+        return self._model
     
     def forward(self, x):
         B = x.shape[0]
         # Create dummy time steps for diffusion-style model
         dummy_time = torch.zeros((B,), dtype=torch.float32, device=x.device)
         return self.model(x, dummy_time)
+    
+    def parameters(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.parameters()
+    
+    def named_parameters(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.named_parameters()
+    
+    def state_dict(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.state_dict()
+    
+    def load_state_dict(self, state_dict):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        return self._model.load_state_dict(state_dict)
+    
+    def train(self, mode=True):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        self._model.train(mode)
+        return super().train(mode)
+    
+    def eval(self):
+        """Override to ensure model is initialized."""
+        self._initialize_model()
+        self._model.eval()
+        return super().eval()
+    
+    def to(self, device):
+        """Override to ensure model is initialized and moved to device."""
+        self._initialize_model()
+        self._model = self._model.to(device)
+        return super().to(device)
 
 def segmentation_loss(logits, masks):
     # logits: [B, num_classes, H, W], masks: [B, 1, H, W] or [B, H, W]
@@ -168,7 +276,7 @@ def evaluate_model(model, dataloader, device):
             correct = (preds == masks.squeeze(1)).sum().item()
             total_correct += correct
             total_pixels += np.prod(preds.shape)
-            probs = torch.softmax(logits, dim=1)[:, 1, ...]  # Flood probability
+            probs = torch.softmax(logits, dim=1)[:, 1, ...] 
             all_probs.extend(probs.cpu().numpy().flatten())
             all_labels.extend(masks.cpu().numpy().flatten())
     avg_loss = total_loss / len(dataloader.dataset)
@@ -291,39 +399,6 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
                     break
     print(f"Visualizations saved in {results_dir}")
 
-def split_data_among_clients(images, masks, num_clients, seed=42):
-    np.random.seed(seed)
-    indices = np.random.permutation(len(images))
-    client_data = []
-    samples_per_client = len(images) // num_clients
-    for i in range(num_clients):
-        start_idx = i * samples_per_client
-        if i == num_clients - 1:
-            end_idx = len(images)
-        else:
-            end_idx = (i + 1) * samples_per_client
-        client_indices = indices[start_idx:end_idx]
-        client_images = images[client_indices]
-        client_masks = masks[client_indices]
-        client_data.append((client_images, client_masks))
-        print(f"Client {i}: {len(client_images)} samples")
-    return client_data
 
-# Federated Learning Utilities
-def torch_params_to_numpy(model):
-    """Convert PyTorch model parameters to list of numpy arrays for Flower."""
-    params = [param.detach().cpu().numpy() for param in model.parameters()]
-    if not params:
-        raise ValueError("Model has no parameters to convert")
-    return params
-
-def numpy_to_torch_params(model, numpy_params):
-    """Update PyTorch model parameters from numpy arrays."""
-    if not numpy_params:
-        raise ValueError("No parameters provided to update model")
-    
-    params_dict = zip(model.parameters(), numpy_params)
-    for model_param, numpy_param in params_dict:
-        model_param.data = torch.from_numpy(numpy_param).to(model_param.device)
 
 

@@ -332,7 +332,7 @@ class QResnetBlock(nn.Module):
     dim: int = None
     groups: Optional[int] = 10
     dtype: Any = jnp.float32
-    quantum_channel: int = 12  # total quantum channels (will use multiples of 4)
+    quantum_channels: int = 12  # total quantum channels (will use multiples of 4)
     name_ansatz: str = 'basic_ansatz'
     num_layer : int = 1
 
@@ -345,7 +345,7 @@ class QResnetBlock(nn.Module):
         assert time_emb.shape[0] == B and len(time_emb.shape) == 2
 
         # Determine effective quantum channels as multiple of 4
-        effective_qc = (self.quantum_channel // 4) * 4
+        effective_qc = (self.quantum_channels // 4) * 4
         effective_qc = int(min(effective_qc, self.dim))
         num_groups = effective_qc // 4
 
@@ -394,7 +394,7 @@ class QResnetBlock(nn.Module):
             h = h_c
         else:
             h = jnp.zeros((B, H, W, self.dim), dtype=x.dtype)
-
+        
         # Normalize and time embedding
         # Ensure channels match dim
         if h.shape[-1] != self.dim:
@@ -448,7 +448,7 @@ class QResnetBlock(nn.Module):
             else:
                 pad = self.dim - h2.shape[-1]
                 h2 = jnp.concatenate((h2, jnp.zeros((B, H, W, pad), dtype=h2.dtype)), axis=3)
-
+        
         h2 = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name='norm_1')(h2))
 
         if C != self.dim:
@@ -828,7 +828,7 @@ class QVertex(nn.Module):
     resnet_block_groups: int = 10
     learned_variance: bool = False
     dtype: Any = jnp.float32
-    quantum_channel: int = 13
+    quantum_channels: int = 13
     name_ansatz: str = 'FQConv_ansatz'
     num_layer : int =3
     
@@ -843,9 +843,9 @@ class QVertex(nn.Module):
           time_emb: jnp.ndarray of shape [B,D]
         """
         mid_dim = self.dim * self.dim_mults[-1]
-        h =  QResnetBlock(dim= mid_dim, groups= self.resnet_block_groups, dtype=self.dtype, quantum_channel= self.quantum_channel,name_ansatz= self.name_ansatz, num_layer=self.num_layer, name = 'mid.resblock_0')(h, time_emb)
+        h =  QResnetBlock(dim= mid_dim, groups= self.resnet_block_groups, dtype=self.dtype, quantum_channels= self.quantum_channels,name_ansatz= self.name_ansatz, num_layer=self.num_layer, name = 'mid.resblock_0')(h, time_emb)
         h = AttnBlock(use_linear_attention=False, dtype=self.dtype, name = 'mid.attenblock_0')(h)
-        h = QResnetBlock(dim= mid_dim, groups= self.resnet_block_groups, dtype=self.dtype, quantum_channel= self.quantum_channel, name_ansatz= self.name_ansatz, num_layer=self.num_layer, name = 'mid.resblock_1')(h, time_emb)
+        h = QResnetBlock(dim= mid_dim, groups= self.resnet_block_groups, dtype=self.dtype, quantum_channels= self.quantum_channels, name_ansatz= self.name_ansatz, num_layer=self.num_layer, name = 'mid.resblock_1')(h, time_emb)
         return h,time_emb
     
 class FullQVertex(nn.Module):
@@ -912,7 +912,7 @@ class QVUNet(nn.Module):
     resnet_block_groups: int = 10
     learned_variance: bool = False
     dtype: Any = jnp.float32
-    quantum_channel: int = 13
+    quantum_channels: int = 13
     name_ansatz: str = 'FQConv_ansatz'
     num_layer : int =3
 
@@ -926,7 +926,7 @@ class QVUNet(nn.Module):
           x: jnp.ndarray of shape [B, H, W, C]
         """
         h, hs, time_emb= DownUnet(dim= self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, name='DownUnet1')(x,time)
-        h, time_emb= QVertex(dim=self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, quantum_channel= self.quantum_channel, name_ansatz= self.name_ansatz, num_layer= self.num_layer, name='Vertexquantum')(h,time_emb)
+        h, time_emb= QVertex(dim=self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, quantum_channels= self.quantum_channels, name_ansatz= self.name_ansatz, num_layer= self.num_layer, name='Vertexquantum')(h,time_emb)
         h= UpUnet(dim= self.dim, init_dim= self.init_dim, out_dim= self.out_dim, dim_mults= self.dim_mults, resnet_block_groups= self.resnet_block_groups, learned_variance= self.learned_variance, dtype= self.dtype, name= 'UpUnet1')(x,h,hs,time_emb)
         
         return h 

@@ -247,7 +247,7 @@ def pennylane_default_circuit(n_qubits=4):
         for i in range(n_qubits - 1):
             qml.CNOT(wires=[i, i + 1])
         qml.CNOT(wires=[n_qubits - 1, 0])  # Ring connectivity
-        
+            
         return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
     
     return circuit
@@ -267,6 +267,10 @@ class QuantumBlock(nn.Module):
     """
     def __init__(self, backend='ptlayer', quantum_channels=8, ptlayer_config=None):
         super().__init__()
+        
+        # Set deterministic seed for quantum block initialization
+        torch.manual_seed(42)
+        
         self.backend = backend
         self.quantum_channels = quantum_channels
         
@@ -291,7 +295,7 @@ class QuantumBlock(nn.Module):
                 self.tbi = create_tbi(n_loops=ptlayer_config.get('n_loops', 2))
                 
                 # Define input state for 4 modes
-                self.input_state = (1, 0, 1, 0)  # Fixed 4-mode pattern
+                self.input_state = (1, 0, 1, 0) 
                 self.m_modes = 4
                 
                 # Calculate required number of parameters
@@ -301,13 +305,16 @@ class QuantumBlock(nn.Module):
                 self.ptlayers = nn.ModuleList()
                 self.param_projections = nn.ModuleList()
                 
-                for _ in range(self.num_groups):
+                # Set seed for deterministic PTLayer initialization
+                torch.manual_seed(42)
+                    
+                for group_idx in range(self.num_groups):
                     ptlayer = PTLayer(
-                        input_state=self.input_state,
-                        in_features=self.n_params,
-                        tbi=self.tbi,
-                        observable=ptlayer_config.get('observable', 'mean'),
-                        n_samples=ptlayer_config.get('n_samples', 200)
+                            input_state=self.input_state,
+                            in_features=self.n_params,
+                            tbi=self.tbi,
+                            observable=ptlayer_config.get('observable', 'mean'),
+                            n_samples=ptlayer_config.get('n_samples', 200)
                     )
                     self.ptlayers.append(ptlayer)
                     # Map 4 channels to PTLayer parameters
@@ -329,11 +336,17 @@ class QuantumBlock(nn.Module):
             self.pennylane_circuits = []
             self.quantum_params = nn.ParameterList()
             
-            for _ in range(self.num_groups):
+            # Set seed for reproducible random initialization
+            torch.manual_seed(42) 
+            
+            for group_idx in range(self.num_groups):
                 circuit = pennylane_default_circuit(n_qubits=4)
                 self.pennylane_circuits.append(circuit)
-                # 4 parameters per circuit (one per qubit)
-                params = nn.Parameter(torch.randn(4) * 0.1)
+                # Initialize parameters with small random values for better quantum behavior
+                # Use deterministic initialization based on group index for reproducibility
+                param_generator = torch.Generator()
+                param_generator.manual_seed(42 + group_idx)  # Deterministic seed per group
+                params = nn.Parameter(torch.randn(4, generator=param_generator) * 0.1)
                 self.quantum_params.append(params)
                 
         else:
@@ -358,8 +371,8 @@ class QuantumBlock(nn.Module):
                 
                 # Pool spatial dimensions to get per-channel features
                 x_pooled = F.adaptive_avg_pool2d(x_group, (1, 1)).squeeze(-1).squeeze(-1)  # [B, 4]
-                
-                # Project to PTLayer parameter space
+            
+            # Project to PTLayer parameter space
                 theta = self.param_projections[i](x_pooled)  # [B, n_params]
                 
                 # Apply PTLayer
@@ -441,6 +454,8 @@ class QResnetBlock(nn.Module):
 
         # Classical path for remaining channels
         if self.classical_channels > 0:
+            # The classical path should handle the remaining channels after quantum processing
+            # We'll use the actual number of classical channels as input dimension
             classical_in_dim = in_dim - self.effective_qc
             self.conv0 = WeightStandardizedConv(classical_in_dim, self.classical_channels)
             self.norm0 = nn.GroupNorm(min(groups, self.classical_channels), self.classical_channels)
@@ -470,8 +485,14 @@ class QResnetBlock(nn.Module):
         B, C, H, W = x.shape
 
         # Split channels: quantum channels (multiples of 4) and classical channels
-        x_q = x[:, :self.effective_qc] if self.effective_qc > 0 else None
-        x_c = x[:, self.effective_qc:] if self.effective_qc < C else None
+        # Only process the first quantum_channels if input has more channels
+        if C > self.effective_qc:
+            x_q = x[:, :self.effective_qc] if self.effective_qc > 0 else None
+            x_c = x[:, self.effective_qc:] if self.effective_qc < C else None
+        else:
+            # If input has fewer channels than quantum_channels, use all input for quantum
+            x_q = x if self.effective_qc > 0 else None
+            x_c = None
 
         outputs = []
 
@@ -482,11 +503,19 @@ class QResnetBlock(nn.Module):
             # Ensure spatial dimensions match
             if y_q.shape[2:] != (H, W):
                 y_q = F.interpolate(y_q, size=(H, W), mode='nearest')
-            
+
             outputs.append(y_q)
 
         # Process classical channels
         if self.classical_channels > 0 and x_c is not None:
+            # Ensure we don't process more channels than the classical path is designed for
+            if x_c.shape[1] > self.classical_channels:
+                x_c = x_c[:, :self.classical_channels]
+            elif x_c.shape[1] < self.classical_channels:
+                # Pad with zeros if we have fewer channels
+                padding = self.classical_channels - x_c.shape[1]
+                x_c = torch.cat([x_c, torch.zeros(B, padding, H, W, device=x.device, dtype=x.dtype)], dim=1)
+            
             # First convolution
             h_c = self.conv0(x_c)
             h_c = self.norm0(h_c)

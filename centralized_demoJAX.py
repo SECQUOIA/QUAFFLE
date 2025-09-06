@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
 import os
-import jax
-import jax.numpy as jnp
 import numpy as np
 from flax.training import checkpoints
-from flax import jax_utils
 import ml_collections
 from tqdm import tqdm
 
-# Import utilities from utils
-import sys
-sys.path.append('utils')
 from utilsJAX import (
     load_dataset, create_data_iterator, create_train_state, 
-    train_step, evaluate_model, save_training_curves, visualize_results
+    train_step, evaluate_model, save_training_curves, visualize_results, QVUNet
 )
-from unetJAX import QVUNet
 
 def get_config():
     """Get configuration for flood segmentation."""
@@ -28,12 +21,12 @@ def get_config():
     config.batch_size = 8
     
     # Model
-    config.dim = 32 
+    config.base_channels = 32 
     config.dim_mults = (1, 2, 4, 8)
     config.resnet_block_groups = 4
-    config.quantum_channel = 32
-    config.name_ansatz = 'FQConv_ansatz'
-    config.num_layer = 2
+    config.quantum_channels = 32
+    config.name_ansatz = 'basic_ansatz'
+    config.num_layer = 1
     
     # Training
     config.num_train_steps = 100
@@ -52,6 +45,7 @@ def train_model(config, train_images, train_masks, val_images, val_masks, output
     os.makedirs(checkpoint_dir, exist_ok=True)
     
     # Initialize
+    import jax
     rng = jax.random.PRNGKey(config.seed)
     state = create_train_state(rng, config)
     
@@ -75,6 +69,7 @@ def train_model(config, train_images, train_masks, val_images, val_masks, output
         return state, [], []
     
     # Replicate for pmap
+    from flax import jax_utils
     pmap_state = jax_utils.replicate(state)
     data_iter = create_data_iterator(train_images, train_masks, config)
     p_train_step = jax.pmap(train_step, axis_name='batch')
@@ -96,7 +91,6 @@ def train_model(config, train_images, train_masks, val_images, val_masks, output
             print(f"Step {current_step + 1}: Loss = {train_metrics[-1]['loss']:.4f}, Accuracy = {train_metrics[-1]['accuracy']:.4f}")
         
         if (current_step + 1) % config.eval_every == 0:
-            # Update single-device state
             current_params = jax.tree_util.tree_map(lambda x: x[0], pmap_state.params)
             state = state.replace(params=current_params, step=current_step + 1)
             
@@ -137,7 +131,7 @@ def main():
         return
     
     config = get_config()
-    print(f"Configuration: {config.quantum_channel} quantum channels, {config.name_ansatz} ansatz")
+    print(f"Configuration: {config.quantum_channels} quantum channels, {config.name_ansatz} ansatz")
     
     # Load data
     print("Loading training data...")

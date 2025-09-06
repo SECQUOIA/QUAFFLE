@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import os
-import jax
-import jax.numpy as jnp
 import numpy as np
 import ml_collections
 from tqdm import tqdm
@@ -9,15 +7,45 @@ from typing import Dict, List, Tuple, Optional
 import flwr as fl
 from flwr.common import Parameters, FitRes, EvaluateRes, parameters_to_ndarrays, ndarrays_to_parameters
 from flwr.server.strategy import FedAvg
-import sys
-sys.path.append('utils')
 
-from utilsJAX import (
-    load_dataset, create_train_state, train_step, evaluate_model, 
-    save_training_curves, visualize_results, split_data_among_clients,
-    jax_params_to_numpy, numpy_to_jax_params
-)
-from unetJAX import QVUNet
+from utilsJAX import *
+
+def split_data_among_clients(images, masks, num_clients, seed=42):
+    """Split data among multiple clients for federated learning."""
+    import jax
+    key = jax.random.PRNGKey(seed)
+    key, subkey = jax.random.split(key)
+    
+    # Shuffle data
+    indices = jax.random.permutation(subkey, len(images))
+    shuffled_images = images[indices]
+    shuffled_masks = masks[indices]
+    
+    # Split among clients
+    client_data = []
+    samples_per_client = len(images) // num_clients
+    
+    for i in range(num_clients):
+        start_idx = i * samples_per_client
+        end_idx = start_idx + samples_per_client if i < num_clients - 1 else len(images)
+        client_images = shuffled_images[start_idx:end_idx]
+        client_masks = shuffled_masks[start_idx:end_idx]
+        client_data.append((client_images, client_masks))
+    
+    return client_data
+
+def jax_params_to_numpy(params) -> List[np.ndarray]:
+    """Convert JAX parameters to numpy arrays."""
+    import jax
+    return [np.array(param) for param in jax.tree_util.tree_flatten(params)[0]]
+
+def numpy_to_jax_params(numpy_params: List[np.ndarray], template_params):
+    """Load numpy arrays into JAX parameters structure."""
+    import jax
+    import jax.numpy as jnp
+    flat_params = jax.tree_util.tree_flatten(template_params)[0]
+    new_flat_params = [jnp.array(numpy_param) for numpy_param in numpy_params]
+    return jax.tree_util.tree_unflatten(jax.tree_util.tree_structure(template_params), new_flat_params)
 
 def get_config():
     """Get configuration for federated quantum flood segmentation."""
@@ -30,12 +58,12 @@ def get_config():
     config.batch_size = 8
     
     # Model
-    config.dim = 32
+    config.base_channels = 32
     config.dim_mults = (1, 2, 4, 8)
     config.resnet_block_groups = 4
-    config.quantum_channel = 32
-    config.name_ansatz = 'FQConv_ansatz'
-    config.num_layer = 2
+    config.quantum_channels = 32
+    config.name_ansatz = 'basic_ansatz'
+    config.num_layer = 1
     
     # Federated Learning
     config.num_clients = 4
@@ -51,8 +79,6 @@ def get_config():
     
     return config
 
-
-
 class QuantumFlowerClient(fl.client.NumPyClient):
     """Flower client for quantum model training."""
     
@@ -65,13 +91,21 @@ class QuantumFlowerClient(fl.client.NumPyClient):
         self.template_state = template_state
         self.local_state = None
         
+        # Set seeds for this client to ensure reproducibility
+        client_seed = int(config.seed) + client_id
+        import jax
+        self.client_key = jax.random.PRNGKey(client_seed)
+        
         print(f"Client {client_id} initialized with {len(client_images)} samples")
     
     def create_data_iterator(self):
         """Create local data iterator for client."""
         def data_generator():
             while True:
-                indices = np.random.permutation(len(self.client_images))
+                # Use JAX random for reproducible shuffling
+                import jax
+                self.client_key, shuffle_key = jax.random.split(self.client_key)
+                indices = jax.random.permutation(shuffle_key, len(self.client_images))
                 shuffled_images = self.client_images[indices]
                 shuffled_masks = self.client_masks[indices]
                 
@@ -99,6 +133,11 @@ class QuantumFlowerClient(fl.client.NumPyClient):
     def fit(self, parameters: List[np.ndarray], config: Dict[str, fl.common.Scalar]) -> Tuple[List[np.ndarray], int, Dict]:
         """Train model locally and return updated parameters."""
         print(f"Client {self.client_id} starting local training...")
+        
+        # Set seed for this training session to ensure reproducibility
+        training_seed = int(self.config.seed) + self.client_id + 1000
+        import jax
+        training_key = jax.random.PRNGKey(training_seed)
         
         # Convert numpy parameters back to JAX
         jax_params = numpy_to_jax_params(parameters, self.template_state.params)
@@ -135,7 +174,6 @@ class QuantumFlowerClient(fl.client.NumPyClient):
         
         print(f"Client {self.client_id} completed training: Loss={avg_loss:.4f}, Acc={avg_acc:.4f}")
         
-        # Return updated parameters, number of examples, and metrics
         return (
             jax_params_to_numpy(self.local_state.params),
             len(self.client_images),
@@ -163,6 +201,8 @@ class QuantumFlowerClient(fl.client.NumPyClient):
 def create_flower_client_fn(client_data: List[Tuple], config: ml_collections.ConfigDict, template_state):
     """Factory function to create Flower clients."""
     def client_fn(cid: str) -> QuantumFlowerClient:
+        import os
+        
         client_id = int(cid)
         client_images, client_masks = client_data[client_id]
         return QuantumFlowerClient(client_id, client_images, client_masks, config, template_state)
@@ -172,14 +212,20 @@ def create_flower_client_fn(client_data: List[Tuple], config: ml_collections.Con
 class QuantumFedAvg(FedAvg):
     """Custom FedAvg strategy with quantum model evaluation."""
     
-    def __init__(self, val_images, val_masks, config, template_state, **kwargs):
+    def __init__(self, val_images, val_masks, config, template_state, output_dir, **kwargs):
         super().__init__(**kwargs)
         self.val_images = val_images
         self.val_masks = val_masks
         self.config = config
         self.template_state = template_state
+        self.output_dir = output_dir
         self.round_metrics = []
         self.best_auc = 0.0
+        
+        # Create logs directory for evaluation scores
+        self.logs_dir = os.path.join(output_dir, 'logs')
+        os.makedirs(self.logs_dir, exist_ok=True)
+        self.eval_log_path = os.path.join(self.logs_dir, 'evaluation_scores.txt')
     
     def aggregate_evaluate(self, server_round: int, results, failures):
         """Aggregate evaluation results and perform server-side evaluation."""
@@ -207,6 +253,10 @@ class QuantumFedAvg(FedAvg):
                 
                 print(f"Global evaluation - Round {server_round}: "
                       f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}")
+                
+                # Log evaluation scores to text file
+                with open(self.eval_log_path, 'a') as f:
+                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}\n")
         
         return aggregated_result
     
@@ -240,7 +290,7 @@ def main():
     
     config = get_config()
     print(f"Configuration: {config.num_clients} clients, {config.fed_rounds} rounds")
-    print(f"Quantum: {config.quantum_channel} channels, {config.name_ansatz} ansatz")
+    print(f"Quantum: {config.quantum_channels} channels, {config.name_ansatz} ansatz")
     
     # Load and split data
     print("Loading training data...")
@@ -254,13 +304,12 @@ def main():
     val_split = int(0.2 * len(client_data[-1][0]))
     val_images = client_data[-1][0][-val_split:]
     val_masks = client_data[-1][1][-val_split:]
-    # Remove validation data from last client
     client_data[-1] = (client_data[-1][0][:-val_split], client_data[-1][1][:-val_split])
     
     print(f"Validation set: {len(val_images)} samples")
     
-    # Initialize template model (for parameter structure)
     print("Initializing global quantum model template...")
+    import jax
     rng = jax.random.PRNGKey(int(config.seed))
     template_state = create_train_state(rng, config)
     
@@ -270,8 +319,9 @@ def main():
         val_masks=val_masks,
         config=config,
         template_state=template_state,
+        output_dir=output_dir,
         fraction_fit=int(config.clients_per_round) / int(config.num_clients),
-        fraction_evaluate=0.5,  # Evaluate on half the clients
+        fraction_evaluate=1,
         min_fit_clients=int(config.clients_per_round),
         min_evaluate_clients=1,
         min_available_clients=int(config.num_clients),
@@ -289,7 +339,7 @@ def main():
         num_clients=int(config.num_clients),
         config=fl.server.ServerConfig(num_rounds=int(config.fed_rounds)),
         strategy=strategy,
-        client_resources={"num_cpus": 1.0}  # Adjust based on your resources
+        client_resources={"num_cpus": 1.0, "num_gpus": 0.2}  # Adjust based on your resources
     )
     
     print(f"\nFederated training completed!")
@@ -303,8 +353,19 @@ def main():
         
         # Test and visualize with final global model
         if os.path.exists(test_images_dir):
-            print("Loading test data for visualization...")
+            print("Loading test data for evaluation and visualization...")
             test_images, test_masks = load_dataset(test_images_dir, test_masks_dir, config)
+            
+            # Evaluate on test set
+            print("Evaluating on test set...")
+            test_result = evaluate_model(final_state, test_images, test_masks, config)
+            print(f"Test Results - Loss: {test_result['loss']:.4f}, "
+                  f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}")
+            
+            # Log test results to evaluation log file
+            with open(strategy.eval_log_path, 'a') as f:
+                f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}\n")
+            
             visualize_results(final_state, test_images, test_masks, config, output_dir, 
                              title_prefix="Flower Federated ", filename_prefix="flower_fed_")
         else:
@@ -320,4 +381,4 @@ def main():
     print(f"\nFlower federated demo completed! Results in {output_dir}")
 
 if __name__ == "__main__":
-    main() 
+    main()
