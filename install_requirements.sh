@@ -53,7 +53,7 @@ if [ "$MODE" = "gpu" ]; then
     
     echo "GPU installation complete!"
     
-else [ "$MODE" = "cpu" ]
+elif [ "$MODE" = "cpu" ]; then
     echo "Installing CPU-only packages..."
     
     # Install JAX CPU version

@@ -132,9 +132,8 @@ Results are saved in the `results/` directory with the following structure:
 - **PTLayer**: Photonic quantum computing backend (requires Orca setup)
 
 ## Related Work
-
-Our QVUNet architectures are inspired by the quantum hybrid diffusion models proposed in:
-
+### Towards Efficient Quantum Hybrid Diffusion Models
+Our QVUNet architectures are inspired by the quantum hybrid diffusion models proposed in this paper. The authors demonstrate how leveraging quantum resources can improve generative model performance and scalability.
 ```bibtex
 @article{defalco2024quantum,
   title={Towards Efficient Quantum Hybrid Diffusion Models},
@@ -149,5 +148,35 @@ Our QVUNet architectures are inspired by the quantum hybrid diffusion models pro
 }
 ```
 
-**Reference**: [arXiv:2402.16147](https://arxiv.org/abs/2402.16147) - This paper provided the foundation for our QVUNet architectures, particularly the quantum ResNet blocks and hybridization schemes.
+## Previous Work
 
+### Federated Learning in Chemical Engineering: A Tutorial on a Framework for Privacy-Preserving Collaboration across Distributed Data Sources
+
+This tutorial provides the chemical engineering community with a hands-on framework for federated learning using Flower and TensorFlow Federated. It demonstrates applications in manufacturing optimization and multimodal biomedical tasks, emphasizing privacy and collaboration across distributed datasets.
+
+```bibtex
+@article{dutta2025federated,
+  title={Federated Learning in Chemical Engineering: A Tutorial on a Framework for Privacy-Preserving Collaboration across Distributed Data Sources},
+  author={Dutta, Siddhant and de Freitas, Iago Leal and Xavier, Pedro Maciel and de Farias, Claudio Miceli and Bernal Neira, David E.},
+  journal={Industrial \& Engineering Chemistry Research},
+  volume={64},
+  number={15},
+  pages={7767--7783},
+  year={2025},
+  publisher={ACS Publications},
+  doi={10.1021/acs.iecr.4c03805}
+}
+```
+
+### Federated Learning with Quantum Computing and Fully Homomorphic Encryption
+
+This work introduces quantum computing with fully homomorphic encryption in federated learning, mitigating accuracy loss during aggregation while preserving privacy. It lays the foundation for privacy-enhanced, quantum-augmented FL frameworks.
+
+```bibtex
+@article{dutta2024federated,
+  title={Federated learning with quantum computing and fully homomorphic encryption: A novel computing paradigm shift in privacy-preserving ML},
+  author={Dutta, Siddhant and Karanth, P. P. and Xavier, P. M. and de Freitas, I. L. and Innan, Nouhaila and Yahia, Sadok Ben and Shafique, Muhammad and Bernal Neira, David E.},
+  journal={arXiv preprint arXiv:2409.11430},
+  year={2024}
+}
+```
