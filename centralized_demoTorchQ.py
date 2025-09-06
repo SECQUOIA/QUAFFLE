@@ -146,7 +146,7 @@ def main():
     
     print("=" * 60)
     print("Quantum Flood Segmentation Demo")
-    print("Using QVUNet with PyTorch and PennyLane quantum circuits")
+    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     print("=" * 60)
     
     if not os.path.exists(train_images_dir):

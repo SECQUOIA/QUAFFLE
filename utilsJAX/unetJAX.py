@@ -262,7 +262,6 @@ def FQConv_ansatz(theta,wires):
         block_C(theta1[:4], wires1)
         block_D(theta1[4:8], wires1)
 
-
 def Basic_ansatz(theta, wires):
     N = len(wires)
     for i in range(N):
@@ -270,9 +269,6 @@ def Basic_ansatz(theta, wires):
     for i in range(N-1):
         qml.CNOT(wires=[i, i+1])
     qml.CNOT(wires=[N-1, 0])
-
-
-
 
 def apply_qnn(x,circuit, param):
         x = jax.numpy.reshape(x, (-1, 4))

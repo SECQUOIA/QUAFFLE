@@ -352,7 +352,7 @@ def main():
     
     print("=" * 60)
     print("Federated Quantum Flood Segmentation Demo with Flower")
-    print("Using QVUNet with PyTorch and PennyLane quantum circuits")
+    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     print("=" * 60)
     
     # Check data
