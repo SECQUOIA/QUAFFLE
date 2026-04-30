@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import argparse
 import numpy as np
 from tqdm import tqdm
 from typing import Dict, List, Tuple, Optional
@@ -12,28 +13,64 @@ import torch.nn as nn
 from utilsTorch import QVUNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
 from torch.utils.data import DataLoader, Subset
 import copy
+from results_tracker import save_results_to_excel
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Federated Quantum Flood Segmentation")
+    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+                        help='Data partitioning strategy (default: random)')
+    parser.add_argument('--alpha', type=float, default=0.5,
+                        help='Dirichlet concentration parameter — lower = more non-IID (default: 0.5)')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
+    parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
+                        help='Dataset to use (default: optical)')
+    parser.add_argument('--quantum_channels', type=int, default=32,
+                        choices=[32, 64, 128, 256],
+                        help='Number of quantum bottleneck channels (default: 32)')
+    return parser.parse_args()
+
 
 def split_dataset_among_clients(dataset, num_clients, seed=42):
-    """Split a PyTorch Dataset among multiple clients for federated learning."""
+    """Random IID split of a PyTorch Dataset among clients."""
     import random
     random.seed(seed)
-    
-    # Get all indices
-    total_size = len(dataset)
-    indices = list(range(total_size))
+    indices = list(range(len(dataset)))
     random.shuffle(indices)
-    
-    # Split indices among clients
     client_datasets = []
-    samples_per_client = total_size // num_clients
-    
+    samples_per_client = len(dataset) // num_clients
     for i in range(num_clients):
         start_idx = i * samples_per_client
-        end_idx = start_idx + samples_per_client if i < num_clients - 1 else total_size
-        client_indices = indices[start_idx:end_idx]
-        client_datasets.append(Subset(dataset, client_indices))
-    
+        end_idx = start_idx + samples_per_client if i < num_clients - 1 else len(dataset)
+        client_datasets.append(Subset(dataset, indices[start_idx:end_idx]))
     return client_datasets
+
+
+def get_flood_labels(dataset):
+    """Label each sample: 1=flood-dominant (flood ratio > 5%), 0=non-flood."""
+    print("Computing per-sample flood labels for Dirichlet partitioning...")
+    labels = []
+    for i in range(len(dataset)):
+        _, mask = dataset[i]
+        labels.append(1 if mask.mean().item() > 0.05 else 0)
+    return np.array(labels)
+
+
+def split_dataset_dirichlet(dataset, num_clients, alpha, seed=42):
+    """Dirichlet non-IID split: each client gets a skewed class distribution."""
+    rng = np.random.default_rng(seed)
+    labels = get_flood_labels(dataset)
+    classes = np.unique(labels)
+    client_indices = [[] for _ in range(num_clients)]
+    for c in classes:
+        class_idx = np.where(labels == c)[0]
+        rng.shuffle(class_idx)
+        proportions = rng.dirichlet(alpha * np.ones(num_clients))
+        splits = (np.cumsum(proportions) * len(class_idx)).astype(int)[:-1]
+        for cid, chunk in enumerate(np.split(class_idx, splits)):
+            client_indices[cid].extend(chunk.tolist())
+    sizes = [len(idxs) for idxs in client_indices]
+    print(f"Dirichlet (alpha={alpha}) client sizes: {sizes}")
+    return [Subset(dataset, idxs) for idxs in client_indices]
 
 def torch_params_to_numpy(model) -> List[np.ndarray]:
     """Convert PyTorch model parameters to numpy arrays."""
@@ -57,7 +94,7 @@ def get_config():
         'batch_size': 8,
         'learning_rate': 1e-4,
         'seed': 42,
-        'quantum_backend': 'ptlayer',  # pennylane or ptlayer
+        'quantum_backend': 'pennylane',  # pennylane or ptlayer
         
         # Federated Learning specific
         'num_clients': 4,
@@ -142,11 +179,13 @@ class QuantumFlowerClient(fl.client.NumPyClient):
         if self.template_model is None:
             self.template_model = QVUNetSegmentation(self.config)
             self.template_model.to(self.device)
-        
-        # Create local model copy and load parameters
-        self.local_model = copy.deepcopy(self.template_model)
-        self.local_model.to(self.device)
-        
+
+        # Reuse template_model as local_model — no deep copy.
+        # Deep-copying would double GPU memory per actor, which OOMs for
+        # higher quantum_channels values. Loading incoming parameters
+        # directly into the single model is equivalent behavior.
+        self.local_model = self.template_model
+
         # Update parameters if provided
         if parameters:
             numpy_to_torch_params(self.local_model, parameters)
@@ -220,20 +259,18 @@ class QuantumFlowerClient(fl.client.NumPyClient):
     def evaluate(self, parameters: List[np.ndarray], config: Dict[str, fl.common.Scalar]) -> Tuple[float, int, Dict]:
         """Evaluate model locally."""
         import torch
-        
+
         if self.template_model is None:
             self.template_model = QVUNetSegmentation(self.config)
             self.template_model.to(self.device)
-        
-        # Create evaluation model and load parameters
-        eval_model = copy.deepcopy(self.template_model)
-        eval_model.to(self.device)
-        
+
+        # Reuse template_model directly (no deep copy) to keep GPU memory
+        # footprint to a single model per actor.
         if parameters:
-            numpy_to_torch_params(eval_model, parameters)
-        
+            numpy_to_torch_params(self.template_model, parameters)
+
         # Evaluate on local data
-        metrics = evaluate_model(eval_model, self.client_loader, self.device)
+        metrics = evaluate_model(self.template_model, self.client_loader, self.device)
         
         loss = float(metrics['loss'])
         num_examples = len(self.client_dataset)
@@ -300,11 +337,11 @@ class QuantumFedAvg(FedAvg):
                 self.round_metrics.append(metrics)
                 
                 print(f"Global evaluation - Round {server_round}: "
-                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}")
-                
+                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}")
+
                 # Log evaluation scores to text file
                 with open(self.eval_log_path, 'a') as f:
-                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}\n")
+                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}\n")
                 
                 # Save unique checkpoint every 25 rounds
                 if server_round % 25 == 0:
@@ -342,26 +379,38 @@ def create_flower_client_fn(client_datasets: List[Subset], config: Dict, device_
 
 def main():
     """Run federated quantum flood segmentation demo with Flower."""
+    args = parse_args()
+
+    _DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
     # Data paths
-    base_dir = "data/flood_optical"
+    base_dir = _DATA_DIRS[args.dataset]
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results/flood_federated_optical_pytorch_ptlayer"
-    
     print("=" * 60)
     print("Federated Quantum Flood Segmentation Demo with Flower")
-    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     print("=" * 60)
-    
+
     # Check data
     if not os.path.exists(train_images_dir):
         print(f"Training images not found: {train_images_dir}")
         return
-    
+
     config = get_config()
-    
+    config['seed'] = args.seed
+    config['dataset'] = args.dataset
+    config['quantum_channels'] = args.quantum_channels
+    ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
+    qc_suffix = "" if args.quantum_channels == 32 else f"_qc{args.quantum_channels}"
+    if args.partition == 'dirichlet':
+        output_dir = f"results/flood_federated_optical_pytorch_pennylane_dirichlet{args.alpha}{ds_suffix}{qc_suffix}_seed{config['seed']}"
+    else:
+        output_dir = f"results/flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}_seed{config['seed']}"
+    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
+    config['partition'] = args.partition
+    config['dirichlet_alpha'] = args.alpha
+
     # Set seeds for reproducibility (excluding CudnnModule settings to avoid Ray serialization issues)
     # Note: We'll set seeds in the worker processes to avoid CudnnModule serialization
     
@@ -388,9 +437,12 @@ def main():
         config['image_size']
     )
     
-    # Create client datasets using utility function
-    print(f"\nSplitting data among {config['num_clients']} clients...")
-    client_datasets = split_dataset_among_clients(full_dataset, config['num_clients'], config['seed'])
+    # Create client datasets using selected partitioning strategy
+    print(f"\nSplitting data among {config['num_clients']} clients ({config['partition']} partitioning)...")
+    if config['partition'] == 'dirichlet':
+        client_datasets = split_dataset_dirichlet(full_dataset, config['num_clients'], config['dirichlet_alpha'], config['seed'])
+    else:
+        client_datasets = split_dataset_among_clients(full_dataset, config['num_clients'], config['seed'])
     
     # Create validation set from a portion of the last client's data
     val_size = len(client_datasets[-1]) // 5  # 20% for validation
@@ -429,6 +481,9 @@ def main():
     
     # Create initial parameters for the strategy
     print("\nCreating initial parameters for federated strategy...")
+    torch.manual_seed(config['seed'])
+    torch.cuda.manual_seed_all(config['seed'])
+    np.random.seed(config['seed'])
     temp_model = QVUNetSegmentation(config)
     initial_parameters = ndarrays_to_parameters(torch_params_to_numpy(temp_model))
     del temp_model  # Clean up temporary model
@@ -458,7 +513,7 @@ def main():
         num_clients=config['num_clients'],
         config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
         strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.2}  # Allocate GPU resources to clients
+        client_resources={"num_cpus": 1.0, "num_gpus": 0.2}
     )
     
     print(f"\nFederated training completed!")
@@ -497,11 +552,11 @@ def main():
                 print("Evaluating on test set...")
                 test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
                 print(f"Test Results - Loss: {test_result['loss']:.4f}, "
-                      f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}")
-                
+                      f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
                 # Log test results to evaluation log file
                 with open(strategy.eval_log_path, 'a') as f:
-                    f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}\n")
+                    f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
                 
                 # Save test samples
                 print("Saving test samples...")
@@ -544,19 +599,37 @@ def main():
                     f.write("Final Validation Results:\n")
                     f.write(f"  Loss: {final_metrics['loss']:.4f}\n")
                     f.write(f"  Accuracy: {final_metrics['accuracy']:.4f}\n")
-                    f.write(f"  AUC: {final_metrics['auc']:.4f}\n\n")
-                
+                    f.write(f"  AUC: {final_metrics['auc']:.4f}\n")
+                    f.write(f"  IoU: {final_metrics['iou']:.4f}\n")
+                    f.write(f"  Dice: {final_metrics['dice']:.4f}\n\n")
+
                 # Add test results if available
                 if test_result is not None:
                     f.write("Test Results:\n")
                     f.write(f"  Loss: {test_result['loss']:.4f}\n")
                     f.write(f"  Accuracy: {test_result['accuracy']:.4f}\n")
-                    f.write(f"  AUC: {test_result['auc']:.4f}\n\n")
+                    f.write(f"  AUC: {test_result['auc']:.4f}\n")
+                    f.write(f"  IoU: {test_result['iou']:.4f}\n")
+                    f.write(f"  Dice: {test_result['dice']:.4f}\n\n")
                 
                 f.write("Training completed successfully with Flower federated framework.\n")
             
             print(f"Results summary saved to: {summary_path}")
     
+    # Save results to shared Excel summary
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    excel_config = {**config, 'total_params': total_params}
+    save_results_to_excel(
+        demo_name="Federated Quantum Torch",
+        framework="torch",
+        training="federated",
+        variant="quantum",
+        val_metrics=final_val,
+        test_metrics=test_result if 'test_result' in dir() and test_result is not None else None,
+        config=excel_config,
+        dataset=args.dataset,
+    )
+
     print(f"\nFlower federated demo completed successfully! All results saved in: {output_dir}")
     print("=" * 60)
 

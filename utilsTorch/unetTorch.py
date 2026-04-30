@@ -668,8 +668,56 @@ class UpUnet(nn.Module):
         
         return h
     
+class ClassicalBottleneckBlock(nn.Module):
+    """Drop-in classical replacement for QuantumBlock for parameter-matched ablation.
+
+    Mirrors QuantumBlock's exact computational pattern so the ablation is a fair
+    classical analogue, not a more-expressive one:
+      1. Spatial average pool each 4-channel group: [B, 4, H, W] -> [B, 4]
+      2. Per-group classical transform (small Linear layer, one per group —
+         analogous to the quantum circuit processing one group at a time)
+      3. Broadcast back to spatial: [B, 4] -> [B, 4, H, W]
+
+    Because the output is spatially constant (same value per (H, W) position
+    within a group), the ablation has the same spatial-expressivity restriction
+    as the quantum block. The only difference is the per-group transform itself:
+    a quantum PQC vs a small classical Linear layer.
+
+    Interface matches QuantumBlock: forward(x, params=None) with x shaped
+    [B, quantum_channels, H, W].
+    """
+    def __init__(self, quantum_channels=8):
+        super().__init__()
+        self.quantum_channels = quantum_channels
+        self.num_groups = quantum_channels // 4
+        self.remaining_channels = quantum_channels % 4
+        self.effective_qc = self.num_groups * 4
+        if self.num_groups > 0:
+            # One Linear(4, 4) per group — mirrors the quantum circuit's per-group
+            # per-channel processing. ~20 params/group × num_groups groups.
+            self.per_group = nn.ModuleList([nn.Linear(4, 4) for _ in range(self.num_groups)])
+        else:
+            self.per_group = nn.ModuleList()
+
+    def forward(self, x, params=None):
+        if self.effective_qc == 0:
+            return x
+        B, _, H, W = x.shape
+        x_eff = x[:, :self.effective_qc]
+        # Spatial pool per group
+        pooled = F.adaptive_avg_pool2d(x_eff, 1).squeeze(-1).squeeze(-1)  # [B, effective_qc]
+        outputs = []
+        for i, layer in enumerate(self.per_group):
+            g = pooled[:, i * 4 : (i + 1) * 4]       # [B, 4]
+            y = layer(g)                              # [B, 4]
+            y = y.unsqueeze(-1).unsqueeze(-1)         # [B, 4, 1, 1]
+            y = y.expand(-1, -1, H, W)                # [B, 4, H, W]
+            outputs.append(y)
+        return torch.cat(outputs, dim=1)
+
+
 class QVertex(nn.Module):
-    def __init__(self, dim, quantum_block: QuantumBlock, quantum_channels=8, 
+    def __init__(self, dim, quantum_block: QuantumBlock, quantum_channels=8,
                  dim_mults=(1, 2, 4, 8), resnet_block_groups=8):
         super().__init__()
         self.dim = dim

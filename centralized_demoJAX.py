@@ -6,9 +6,10 @@ import ml_collections
 from tqdm import tqdm
 
 from utilsJAX import (
-    load_dataset, create_data_iterator, create_train_state, 
+    load_dataset, create_data_iterator, create_train_state,
     train_step, evaluate_model, save_training_curves, visualize_results, QVUNet
 )
+from results_tracker import save_results_to_excel
 
 def get_config():
     """Get configuration for flood segmentation."""
@@ -96,7 +97,7 @@ def train_model(config, train_images, train_masks, val_images, val_masks, output
             
             # Evaluate
             val_metrics.append({'step': current_step + 1, **evaluate_model(state, val_images, val_masks, config)})
-            print(f"Validation: Loss = {val_metrics[-1]['loss']:.4f}, Accuracy = {val_metrics[-1]['accuracy']:.4f}, AUC = {val_metrics[-1]['auc']:.4f}")
+            print(f"Validation: Loss = {val_metrics[-1]['loss']:.4f}, Accuracy = {val_metrics[-1]['accuracy']:.4f}, AUC = {val_metrics[-1]['auc']:.4f}, IoU = {val_metrics[-1]['iou']:.4f}, Dice = {val_metrics[-1]['dice']:.4f}")
             
             # Save checkpoint
             checkpoints.save_checkpoint(checkpoint_dir, state, current_step + 1, keep=3)
@@ -120,17 +121,16 @@ def main():
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results/flood_central_optical_jax_pennylane"
-    
     print("Quantum Flood Segmentation Demo")
     print("Using QVUNet with PennyLane quantum circuits")
-    
+
     # Check data
     if not os.path.exists(train_images_dir):
         print(f"Training images not found: {train_images_dir}")
         return
-    
+
     config = get_config()
+    output_dir = f"results/flood_central_optical_jax_pennylane_seed{config.seed}"
     print(f"Configuration: {config.quantum_channels} quantum channels, {config.name_ansatz} ansatz")
     
     # Load data
@@ -163,6 +163,19 @@ def main():
     if val_metrics:
         print("Saving final training curves...")
         save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
+
+    # Save results to shared Excel summary
+    final_val = val_metrics[-1] if val_metrics else None
+    test_result = evaluate_model(trained_state, test_images, test_masks, config) if os.path.exists(test_images_dir) else None
+    save_results_to_excel(
+        demo_name="Centralized Quantum JAX",
+        framework="jax",
+        training="centralized",
+        variant="quantum",
+        val_metrics=final_val,
+        test_metrics=test_result,
+        config=config,
+    )
 
     print(f"Demo completed! Results in {output_dir}")
 

@@ -219,42 +219,56 @@ def evaluate_model(state, images, masks, config):
     import jax.numpy as jnp
     batch_size = config.batch_size
     total_loss = total_accuracy = num_batches = 0
+    total_intersection = total_pred_pos = total_true_pos = 0
     all_probs = []
     all_labels = []
-    
+
     for i in range(0, len(images), batch_size):
         batch_images = images[i:i + batch_size]
         batch_masks = masks[i:i + batch_size]
-        
+
         if len(batch_images) < batch_size:
             break
-        
+
         logits = state.apply_fn(state.params, batch_images)
         loss = segmentation_loss(logits, batch_masks)
-        
+
         predictions = jnp.argmax(logits, axis=-1)
         probabilities = jax.nn.softmax(logits, axis=-1)[..., 1]  # Flood probability
         true_labels = batch_masks.astype(jnp.int32).squeeze(-1)
         accuracy = jnp.mean(predictions == true_labels)
-        
+
+        # IoU and Dice accumulation
+        pred_pos = np.array(predictions == 1)
+        true_pos = np.array(true_labels == 1)
+        total_intersection += int(np.sum(pred_pos & true_pos))
+        total_pred_pos += int(np.sum(pred_pos))
+        total_true_pos += int(np.sum(true_pos))
+
         # Collect for AUC calculation
         all_probs.extend(np.array(probabilities).flatten())
         all_labels.extend(np.array(true_labels).flatten())
-        
+
         total_loss += loss
         total_accuracy += accuracy
         num_batches += 1
-    
+
+    union = total_pred_pos + total_true_pos - total_intersection
+    iou = total_intersection / union if union > 0 else 0.0
+    dice = 2 * total_intersection / (total_pred_pos + total_true_pos) if (total_pred_pos + total_true_pos) > 0 else 0.0
+
     # Calculate AUC
     try:
         auc_score = roc_auc_score(all_labels, all_probs)
     except:
         auc_score = 0.0  # Fallback if AUC calculation fails
-    
+
     return {
         'loss': total_loss / num_batches if num_batches > 0 else 0.0,
         'accuracy': total_accuracy / num_batches if num_batches > 0 else 0.0,
-        'auc': auc_score
+        'auc': auc_score,
+        'iou': iou,
+        'dice': dice,
     }
 
 def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
@@ -283,7 +297,9 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     losses = [m['loss'] for m in metrics]
     accuracies = [m['accuracy'] for m in metrics]
     aucs = [m['auc'] for m in metrics]
-    
+    ious = [m.get('iou', 0.0) for m in metrics]
+    dices = [m.get('dice', 0.0) for m in metrics]
+
     # 1. Loss curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, losses, 'b-', label='Loss', linewidth=2)
@@ -295,7 +311,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}loss_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 2. Accuracy curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, accuracies, 'r-', label='Accuracy', linewidth=2)
@@ -307,7 +323,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}accuracy_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 3. AUC curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, aucs, 'g-', label='AUC', linewidth=2)
@@ -320,7 +336,33 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}auc_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
+    # 4. IoU curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, ious, 'm-', label='IoU', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('IoU Score')
+    plt.title(f'{title_prefix}IoU Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}iou_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # 5. Dice curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, dices, 'c-', label='Dice', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('Dice Score')
+    plt.title(f'{title_prefix}Dice Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}dice_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
     print(f"Training curves saved with prefix '{prefix}'")
 
 def visualize_results(state, test_images, test_masks, config, output_dir, title_prefix="", filename_prefix="", num_samples=4):

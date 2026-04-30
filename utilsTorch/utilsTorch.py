@@ -162,6 +162,77 @@ class QVUNetSegmentation(torch.nn.Module):
         self._model = self._model.to(device)
         return super().to(device)
 
+class ClassicalAblationUNetSegmentation(torch.nn.Module):
+    """Parameter-matched classical ablation of QVUNetSegmentation.
+
+    Uses the same QVUNet architecture and the same QVertex bottleneck, but swaps
+    the PQC-based QuantumBlock for a lightweight classical ClassicalBottleneckBlock
+    (1x1 conv) of roughly equivalent parameter count. This isolates the effect of
+    the quantum circuit — only the bottleneck swap differs from the quantum model,
+    so total params match to within a few hundred weights.
+    """
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self._model = None
+
+    def _initialize_model(self):
+        if self._model is None:
+            from . import unetTorch as unet
+            quantum_channels = self.config['quantum_channels']
+            classical_bottleneck = unet.ClassicalBottleneckBlock(quantum_channels=quantum_channels)
+            self._model = unet.QVUNet(
+                dim=self.config['base_channels'],
+                quantum_block=classical_bottleneck,
+                init_dim=self.config.get('init_dim', self.config['base_channels']),
+                out_dim=self.config.get('out_dim', 2),
+                dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
+                resnet_block_groups=self.config.get('resnet_block_groups', 8),
+                quantum_channels=quantum_channels,
+            )
+
+    @property
+    def model(self):
+        self._initialize_model()
+        return self._model
+
+    def forward(self, x):
+        B = x.shape[0]
+        dummy_time = torch.zeros((B,), dtype=torch.float32, device=x.device)
+        return self.model(x, dummy_time)
+
+    def parameters(self):
+        self._initialize_model()
+        return self._model.parameters()
+
+    def named_parameters(self):
+        self._initialize_model()
+        return self._model.named_parameters()
+
+    def state_dict(self):
+        self._initialize_model()
+        return self._model.state_dict()
+
+    def load_state_dict(self, state_dict):
+        self._initialize_model()
+        return self._model.load_state_dict(state_dict)
+
+    def train(self, mode=True):
+        self._initialize_model()
+        self._model.train(mode)
+        return super().train(mode)
+
+    def eval(self):
+        self._initialize_model()
+        self._model.eval()
+        return super().eval()
+
+    def to(self, device):
+        self._initialize_model()
+        self._model = self._model.to(device)
+        return super().to(device)
+
+
 class UNetSegmentation(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -264,6 +335,9 @@ def evaluate_model(model, dataloader, device):
     total_loss = 0
     total_correct = 0
     total_pixels = 0
+    total_intersection = 0
+    total_pred_pos = 0
+    total_true_pos = 0
     all_probs = []
     all_labels = []
     with torch.no_grad():
@@ -273,19 +347,26 @@ def evaluate_model(model, dataloader, device):
             loss = segmentation_loss(logits, masks)
             total_loss += loss.item() * imgs.size(0)
             preds = torch.argmax(logits, dim=1)
-            correct = (preds == masks.squeeze(1)).sum().item()
+            masks_int = masks.squeeze(1).long()
+            correct = (preds == masks_int).sum().item()
             total_correct += correct
             total_pixels += np.prod(preds.shape)
-            probs = torch.softmax(logits, dim=1)[:, 1, ...] 
+            total_intersection += ((preds == 1) & (masks_int == 1)).sum().item()
+            total_pred_pos += (preds == 1).sum().item()
+            total_true_pos += (masks_int == 1).sum().item()
+            probs = torch.softmax(logits, dim=1)[:, 1, ...]
             all_probs.extend(probs.cpu().numpy().flatten())
             all_labels.extend(masks.cpu().numpy().flatten())
     avg_loss = total_loss / len(dataloader.dataset)
     accuracy = total_correct / total_pixels
+    union = total_pred_pos + total_true_pos - total_intersection
+    iou = total_intersection / union if union > 0 else 0.0
+    dice = 2 * total_intersection / (total_pred_pos + total_true_pos) if (total_pred_pos + total_true_pos) > 0 else 0.0
     try:
         auc_score = roc_auc_score(all_labels, all_probs)
     except:
         auc_score = 0.0
-    return {'loss': avg_loss, 'accuracy': accuracy, 'auc': auc_score}
+    return {'loss': avg_loss, 'accuracy': accuracy, 'auc': auc_score, 'iou': iou, 'dice': dice}
 
 def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     """Save training curves - generic version for both centralized and federated."""
@@ -317,7 +398,9 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     losses = [m['loss'] for m in metrics]
     accuracies = [m['accuracy'] for m in metrics]
     aucs = [m['auc'] for m in metrics]
-    
+    ious = [m.get('iou', 0.0) for m in metrics]
+    dices = [m.get('dice', 0.0) for m in metrics]
+
     # 1. Loss curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, losses, 'b-', label='Loss', linewidth=2)
@@ -329,7 +412,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}loss_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 2. Accuracy curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, accuracies, 'r-', label='Accuracy', linewidth=2)
@@ -341,7 +424,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}accuracy_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 3. AUC curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, aucs, 'g-', label='AUC', linewidth=2)
@@ -354,7 +437,33 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}auc_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
+    # 4. IoU curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, ious, 'm-', label='IoU', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('IoU Score')
+    plt.title(f'{title_prefix}IoU Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}iou_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # 5. Dice curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, dices, 'c-', label='Dice', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('Dice Score')
+    plt.title(f'{title_prefix}Dice Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}dice_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
     print(f"Training curves saved with prefix '{prefix}'")
 
 def visualize_results(model, dataloader, device, output_dir, title_prefix="", filename_prefix="", num_samples=4):

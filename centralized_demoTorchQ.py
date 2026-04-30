@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import argparse
 import torch
 import torch.nn as nn
 import numpy as np
@@ -10,6 +11,14 @@ from utilsTorch import (
     train_one_epoch, evaluate_model, save_training_curves, visualize_results
 )
 from torch.utils.data import DataLoader
+from results_tracker import save_results_to_excel
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Centralized Quantum Flood Segmentation")
+    parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
+    parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
+                        help='Dataset to use (default: optical)')
+    return parser.parse_args()
 
 def get_config():
     config = {
@@ -85,11 +94,11 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         val_result = evaluate_model(model, val_loader, device)
         val_result['step'] = step
         val_metrics.append(val_result)
-        print(f"Initial Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}")
-        
+        print(f"Initial Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}, IoU = {val_result['iou']:.4f}, Dice = {val_result['dice']:.4f}")
+
         # Log initial evaluation scores to text file
         with open(eval_log_path, 'a') as f:
-            f.write(f"Initial Step {step}: Loss={val_result['loss']:.4f}, Accuracy={val_result['accuracy']:.4f}, AUC={val_result['auc']:.4f}\n")
+            f.write(f"Initial Step {step}: Loss={val_result['loss']:.4f}, Accuracy={val_result['accuracy']:.4f}, AUC={val_result['auc']:.4f}, IoU={val_result['iou']:.4f}, Dice={val_result['dice']:.4f}\n")
         
         # Save initial training curves
         save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
@@ -104,11 +113,11 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             val_result = evaluate_model(model, val_loader, device)
             val_result['step'] = step
             val_metrics.append(val_result)
-            print(f"Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}")
-            
+            print(f"Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}, IoU = {val_result['iou']:.4f}, Dice = {val_result['dice']:.4f}")
+
             # Log evaluation scores to text file
             with open(eval_log_path, 'a') as f:
-                f.write(f"Step {step}: Loss={val_result['loss']:.4f}, Accuracy={val_result['accuracy']:.4f}, AUC={val_result['auc']:.4f}\n")
+                f.write(f"Step {step}: Loss={val_result['loss']:.4f}, Accuracy={val_result['accuracy']:.4f}, AUC={val_result['auc']:.4f}, IoU={val_result['iou']:.4f}, Dice={val_result['dice']:.4f}\n")
             
             # Save regular checkpoint
             torch.save({
@@ -136,24 +145,29 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
     return model, train_metrics, val_metrics
 
+DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
+
 def main():
-    base_dir = "data/flood_optical"
+    args = parse_args()
+    base_dir = DATA_DIRS[args.dataset]
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results/flood_central_optical_pytorch_pennylane"
-    
     print("=" * 60)
     print("Quantum Flood Segmentation Demo")
-    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     print("=" * 60)
-    
+
     if not os.path.exists(train_images_dir):
         print(f"Training images not found: {train_images_dir}")
         return
-    
+
     config = get_config()
+    config['seed'] = args.seed
+    config['dataset'] = args.dataset
+    ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
+    output_dir = f"results/flood_central_optical_pytorch_pennylane{ds_suffix}_seed{config['seed']}"
+    print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     
     # Set seeds for reproducibility
     torch.manual_seed(config['seed'])
@@ -250,7 +264,7 @@ def main():
         # Evaluate on test set
         print("Evaluating on test set...")
         test_result = evaluate_model(model, test_loader, device)
-        print(f"Test Results - Loss: {test_result['loss']:.4f}, Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}")
+        print(f"Test Results - Loss: {test_result['loss']:.4f}, Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
         
         # Save test samples
         if config['save_samples']:
@@ -291,13 +305,17 @@ def main():
                 f.write("Final Validation Results:\n")
                 f.write(f"  Loss: {final_val['loss']:.4f}\n")
                 f.write(f"  Accuracy: {final_val['accuracy']:.4f}\n")
-                f.write(f"  AUC: {final_val['auc']:.4f}\n\n")
-            
+                f.write(f"  AUC: {final_val['auc']:.4f}\n")
+                f.write(f"  IoU: {final_val['iou']:.4f}\n")
+                f.write(f"  Dice: {final_val['dice']:.4f}\n\n")
+
             if test_result:
                 f.write("Test Results:\n")
                 f.write(f"  Loss: {test_result['loss']:.4f}\n")
                 f.write(f"  Accuracy: {test_result['accuracy']:.4f}\n")
-                f.write(f"  AUC: {test_result['auc']:.4f}\n\n")
+                f.write(f"  AUC: {test_result['auc']:.4f}\n")
+                f.write(f"  IoU: {test_result['iou']:.4f}\n")
+                f.write(f"  Dice: {test_result['dice']:.4f}\n\n")
             
             f.write("Saved Samples:\n")
             f.write(f"  Final training samples: {config['num_train_samples']}\n")
@@ -309,8 +327,22 @@ def main():
         
         print(f"Results summary saved to: {summary_path}")
     
+    # Save results to shared Excel summary
+    excel_config = {**config, 'total_params': total_params}
+    final_val = val_metrics[-1] if val_metrics else None
+    save_results_to_excel(
+        demo_name="Centralized Quantum Torch",
+        framework="torch",
+        training="centralized",
+        variant="quantum",
+        val_metrics=final_val,
+        test_metrics=test_result if 'test_result' in dir() else None,
+        config=excel_config,
+        dataset=args.dataset,
+    )
+
     print(f"\nDemo completed successfully! All results saved in: {output_dir}")
     print("=" * 60)
 
 if __name__ == "__main__":
-    main() 
+    main()

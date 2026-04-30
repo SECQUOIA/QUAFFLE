@@ -21,6 +21,7 @@ pip install \
     ml_collections==1.1.0 \
     tensorflow==2.19.0 \
     scikit-learn==1.7.0 \
+    openpyxl==3.1.5 \
     flwr==1.19.0 \
     flwr[simulation]==1.19.0
 

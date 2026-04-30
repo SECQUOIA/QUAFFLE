@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import argparse
 import numpy as np
 from tqdm import tqdm
 from typing import Dict, List, Tuple, Optional
@@ -12,28 +13,61 @@ import torch.nn as nn
 from utilsTorch import UNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
 from torch.utils.data import Subset
 import copy
+from results_tracker import save_results_to_excel
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Federated Classical Flood Segmentation")
+    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+                        help='Data partitioning strategy (default: random)')
+    parser.add_argument('--alpha', type=float, default=0.5,
+                        help='Dirichlet concentration parameter — lower = more non-IID (default: 0.5)')
+    parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
+    parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
+                        help='Dataset to use (default: optical)')
+    return parser.parse_args()
+
 
 def split_dataset_among_clients(dataset, num_clients, seed=42):
-    """Split a PyTorch Dataset among multiple clients for federated learning."""
+    """Random IID split of a PyTorch Dataset among clients."""
     import random
     random.seed(seed)
-    
-    # Get all indices
-    total_size = len(dataset)
-    indices = list(range(total_size))
+    indices = list(range(len(dataset)))
     random.shuffle(indices)
-    
-    # Split indices among clients
     client_datasets = []
-    samples_per_client = total_size // num_clients
-    
+    samples_per_client = len(dataset) // num_clients
     for i in range(num_clients):
         start_idx = i * samples_per_client
-        end_idx = start_idx + samples_per_client if i < num_clients - 1 else total_size
-        client_indices = indices[start_idx:end_idx]
-        client_datasets.append(Subset(dataset, client_indices))
-    
+        end_idx = start_idx + samples_per_client if i < num_clients - 1 else len(dataset)
+        client_datasets.append(Subset(dataset, indices[start_idx:end_idx]))
     return client_datasets
+
+
+def get_flood_labels(dataset):
+    """Label each sample: 1=flood-dominant (flood ratio > 5%), 0=non-flood."""
+    print("Computing per-sample flood labels for Dirichlet partitioning...")
+    labels = []
+    for i in range(len(dataset)):
+        _, mask = dataset[i]
+        labels.append(1 if mask.mean().item() > 0.05 else 0)
+    return np.array(labels)
+
+
+def split_dataset_dirichlet(dataset, num_clients, alpha, seed=42):
+    """Dirichlet non-IID split: each client gets a skewed class distribution."""
+    rng = np.random.default_rng(seed)
+    labels = get_flood_labels(dataset)
+    classes = np.unique(labels)
+    client_indices = [[] for _ in range(num_clients)]
+    for c in classes:
+        class_idx = np.where(labels == c)[0]
+        rng.shuffle(class_idx)
+        proportions = rng.dirichlet(alpha * np.ones(num_clients))
+        splits = (np.cumsum(proportions) * len(class_idx)).astype(int)[:-1]
+        for cid, chunk in enumerate(np.split(class_idx, splits)):
+            client_indices[cid].extend(chunk.tolist())
+    sizes = [len(idxs) for idxs in client_indices]
+    print(f"Dirichlet (alpha={alpha}) client sizes: {sizes}")
+    return [Subset(dataset, idxs) for idxs in client_indices]
 
 def torch_params_to_numpy(model) -> List[np.ndarray]:
     """Convert PyTorch model parameters to numpy arrays."""
@@ -301,11 +335,11 @@ class ClassicalFedAvg(FedAvg):
                 self.round_metrics.append(metrics)
                 
                 print(f"Global evaluation - Round {server_round}: "
-                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}")
-                
+                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}")
+
                 # Log evaluation scores to text file
                 with open(self.eval_log_path, 'a') as f:
-                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}\n")
+                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}\n")
                 
                 # Save unique checkpoint every 25 rounds
                 if server_round % 25 == 0:
@@ -344,28 +378,37 @@ def create_flower_client_fn(client_datasets: List[Subset], config: Dict, device_
 def main():
     """Run federated classical flood segmentation demo with Flower."""
     import torch
-    
+
+    args = parse_args()
+
+    _DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
     # Data paths
-    base_dir = "data/flood_optical"
+    base_dir = _DATA_DIRS[args.dataset]
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results/flood_federated_optical_pytorch_classical"
-    
     print("=" * 60)
     print("Federated Classical Flood Segmentation Demo with Flower")
     print("Using Classical U-Net with PyTorch")
     print("=" * 60)
-    
+
     # Check data
     if not os.path.exists(train_images_dir):
         print(f"Training images not found: {train_images_dir}")
         return
-    
+
     config = get_config()
-    
-    
+    config['seed'] = args.seed
+    config['dataset'] = args.dataset
+    ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
+    if args.partition == 'dirichlet':
+        output_dir = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}_seed{config['seed']}"
+    else:
+        output_dir = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}_seed{config['seed']}"
+    config['partition'] = args.partition
+    config['dirichlet_alpha'] = args.alpha
+
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
 
@@ -388,9 +431,12 @@ def main():
         config['image_size']
     )
     
-    # Create client datasets using utility function
-    print(f"\nSplitting data among {config['num_clients']} clients...")
-    client_datasets = split_dataset_among_clients(full_dataset, config['num_clients'], config['seed'])
+    # Create client datasets using selected partitioning strategy
+    print(f"\nSplitting data among {config['num_clients']} clients ({config['partition']} partitioning)...")
+    if config['partition'] == 'dirichlet':
+        client_datasets = split_dataset_dirichlet(full_dataset, config['num_clients'], config['dirichlet_alpha'], config['seed'])
+    else:
+        client_datasets = split_dataset_among_clients(full_dataset, config['num_clients'], config['seed'])
     
     # Create validation set from a portion of the last client's data
     val_size = len(client_datasets[-1]) // 5  # 20% for validation
@@ -425,6 +471,9 @@ def main():
     
     # Create initial parameters for the strategy
     print("\nCreating initial parameters for federated strategy...")
+    torch.manual_seed(config['seed'])
+    torch.cuda.manual_seed_all(config['seed'])
+    np.random.seed(config['seed'])
     temp_model = UNetSegmentation(config)
     initial_parameters = ndarrays_to_parameters(torch_params_to_numpy(temp_model))
     del temp_model
@@ -491,11 +540,11 @@ def main():
                 print("Evaluating on test set...")
                 test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
                 print(f"Test Results - Loss: {test_result['loss']:.4f}, "
-                      f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}")
-                
+                      f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
                 # Log test results to evaluation log file
                 with open(strategy.eval_log_path, 'a') as f:
-                    f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}\n")
+                    f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
                 
                 # Save test samples
                 print("Saving test samples...")
@@ -538,18 +587,36 @@ def main():
                     f.write("Final Validation Results:\n")
                     f.write(f"  Loss: {final_metrics['loss']:.4f}\n")
                     f.write(f"  Accuracy: {final_metrics['accuracy']:.4f}\n")
-                    f.write(f"  AUC: {final_metrics['auc']:.4f}\n\n")
-                
+                    f.write(f"  AUC: {final_metrics['auc']:.4f}\n")
+                    f.write(f"  IoU: {final_metrics['iou']:.4f}\n")
+                    f.write(f"  Dice: {final_metrics['dice']:.4f}\n\n")
+
                 if test_result is not None:
                     f.write("Test Results:\n")
                     f.write(f"  Loss: {test_result['loss']:.4f}\n")
                     f.write(f"  Accuracy: {test_result['accuracy']:.4f}\n")
-                    f.write(f"  AUC: {test_result['auc']:.4f}\n\n")
+                    f.write(f"  AUC: {test_result['auc']:.4f}\n")
+                    f.write(f"  IoU: {test_result['iou']:.4f}\n")
+                    f.write(f"  Dice: {test_result['dice']:.4f}\n\n")
                 
                 f.write("Training completed successfully with Flower federated framework.\n")
             
             print(f"Results summary saved to: {summary_path}")
     
+    # Save results to shared Excel summary
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    excel_config = {**config, 'total_params': total_params}
+    save_results_to_excel(
+        demo_name="Federated Classical Torch",
+        framework="torch",
+        training="federated",
+        variant="classical",
+        val_metrics=final_val,
+        test_metrics=test_result if 'test_result' in dir() and test_result is not None else None,
+        config=excel_config,
+        dataset=args.dataset,
+    )
+
     print(f"\nFlower federated demo completed successfully! All results saved in: {output_dir}")
     print("=" * 60)
 
