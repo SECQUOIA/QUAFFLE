@@ -80,11 +80,39 @@ def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     return loader
 
+def _build_seeded(seed, build_fn):
+    """Run build_fn() and return its result. If seed is None the global torch RNG
+    is used as seeded by the caller. If seed is an int the whole construction
+    runs under a forked RNG seeded with it, so the result depends only on seed
+    and the caller's global RNG state is left untouched."""
+    if seed is None:
+        return build_fn()
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(int(seed))
+        return build_fn()
+
+
+def quantum_model_options(config):
+    """Bottleneck options read from a run config (defaults in parentheses):
+      q_ansatz ('reupload'): 'legacy' reproduces the original circuit,
+          'reupload' is the data re-uploading circuit.
+      q_layers (2): re-uploading layers (ignored for 'legacy').
+      q_share_blocks (True): qresblock1 and qresblock2 share one bottleneck
+          block (original behaviour). False gives each its own parameters.
+    """
+    return (config.get('q_ansatz', 'reupload'),
+            int(config.get('q_layers', 2)),
+            bool(config.get('q_share_blocks', True)))
+
+
 class QVUNetSegmentation(torch.nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, seed=None):
         super().__init__()
         # Store config for lazy initialization
         self.config = config
+        # seed=None: initialize from the global RNG (caller seeds it).
+        # seed=int: deterministic init from a forked RNG, global RNG untouched.
+        self.seed = seed
         self._model = None
     
     def _initialize_model(self):
@@ -95,22 +123,38 @@ class QVUNetSegmentation(torch.nn.Module):
             from . import unetTorch as unet
             
             quantum_channels = self.config['quantum_channels']
-            
-            quantum_block = unet.QuantumBlock(
-                backend=self.config.get('quantum_backend', 'pennylane'),
-                quantum_channels=quantum_channels,
-                ptlayer_config=self.config.get('ptlayer_config', None)
-            )
-            
-            self._model = unet.QVUNet(
-                dim=self.config['base_channels'],
-                quantum_block=quantum_block,
-                init_dim=self.config.get('init_dim', self.config['base_channels']),
-                out_dim=self.config.get('out_dim', 2),  # Binary segmentation
-                dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
-                resnet_block_groups=self.config.get('resnet_block_groups', 8),
-                quantum_channels=quantum_channels
-            )
+            q_ansatz, q_layers, share = quantum_model_options(self.config)
+
+            def build():
+                def make_block(offset):
+                    return unet.QuantumBlock(
+                        backend=self.config.get('quantum_backend', 'pennylane'),
+                        quantum_channels=quantum_channels,
+                        ptlayer_config=self.config.get('ptlayer_config', None),
+                        seed=None if self.seed is None else int(self.seed) + offset,
+                        q_ansatz=q_ansatz,
+                        q_layers=q_layers,
+                    )
+                quantum_block = make_block(0)
+                quantum_block2 = None if share else make_block(1)
+                return unet.QVUNet(
+                    dim=self.config['base_channels'],
+                    quantum_block=quantum_block,
+                    init_dim=self.config.get('init_dim', self.config['base_channels']),
+                    out_dim=self.config.get('out_dim', 2),  # Binary segmentation
+                    dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
+                    resnet_block_groups=self.config.get('resnet_block_groups', 8),
+                    quantum_channels=quantum_channels,
+                    quantum_block2=quantum_block2,
+                )
+
+            self._model = _build_seeded(self.seed, build)
+
+    def set_quantum_mode(self, mode='on', knockout_seed=0):
+        """Quantum knockout: 'on', 'zero' or 'random'. See QuantumBlock."""
+        self._initialize_model()
+        self._model.set_quantum_mode(mode, knockout_seed=knockout_seed)
+        return self
     
     @property
     def model(self):
@@ -166,30 +210,55 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
     """Parameter-matched classical ablation of QVUNetSegmentation.
 
     Uses the same QVUNet architecture and the same QVertex bottleneck, but swaps
-    the PQC-based QuantumBlock for a lightweight classical ClassicalBottleneckBlock
-    (1x1 conv) of roughly equivalent parameter count. This isolates the effect of
-    the quantum circuit — only the bottleneck swap differs from the quantum model,
-    so total params match to within a few hundred weights.
+    the PQC-based QuantumBlock for a ClassicalBottleneckBlock with the same
+    pool, per-group transform, broadcast pattern. The per-group transform is
+    matched to the configured q_ansatz:
+      'legacy'   -> Linear(4, 4) per group (the original ablation)
+      'reupload' -> Linear(4, h)-Tanh-Linear(h, 4)-Tanh per group with h chosen
+                    so the per-group count is closest to the circuit's 16*q_layers
+    q_share_blocks is honoured the same way as in QVUNetSegmentation, so totals
+    match the quantum model to within a few hundred weights (see docs/MODEL.md).
     """
-    def __init__(self, config):
+    def __init__(self, config, seed=None):
         super().__init__()
         self.config = config
+        self.seed = seed
         self._model = None
 
     def _initialize_model(self):
         if self._model is None:
             from . import unetTorch as unet
             quantum_channels = self.config['quantum_channels']
-            classical_bottleneck = unet.ClassicalBottleneckBlock(quantum_channels=quantum_channels)
-            self._model = unet.QVUNet(
-                dim=self.config['base_channels'],
-                quantum_block=classical_bottleneck,
-                init_dim=self.config.get('init_dim', self.config['base_channels']),
-                out_dim=self.config.get('out_dim', 2),
-                dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
-                resnet_block_groups=self.config.get('resnet_block_groups', 8),
-                quantum_channels=quantum_channels,
-            )
+            q_ansatz, q_layers, share = quantum_model_options(self.config)
+            if q_ansatz == 'legacy':
+                kind, hidden = 'linear', None
+            else:
+                kind, hidden = 'mlp', unet.matched_mlp_hidden(16 * q_layers)
+
+            def build():
+                def make_block():
+                    return unet.ClassicalBottleneckBlock(quantum_channels=quantum_channels,
+                                                         kind=kind, hidden=hidden)
+                classical_bottleneck = make_block()
+                block2 = None if share else make_block()
+                return unet.QVUNet(
+                    dim=self.config['base_channels'],
+                    quantum_block=classical_bottleneck,
+                    init_dim=self.config.get('init_dim', self.config['base_channels']),
+                    out_dim=self.config.get('out_dim', 2),
+                    dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
+                    resnet_block_groups=self.config.get('resnet_block_groups', 8),
+                    quantum_channels=quantum_channels,
+                    quantum_block2=block2,
+                )
+
+            self._model = _build_seeded(self.seed, build)
+
+    def set_quantum_mode(self, mode='on', knockout_seed=0):
+        """Same knockout switch as the quantum model, applied to the classical bottleneck."""
+        self._initialize_model()
+        self._model.set_quantum_mode(mode, knockout_seed=knockout_seed)
+        return self
 
     @property
     def model(self):
@@ -234,10 +303,11 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
 
 
 class UNetSegmentation(torch.nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, seed=None):
         super().__init__()
         # Store config for lazy initialization
         self.config = config
+        self.seed = seed  # same semantics as QVUNetSegmentation
         self._model = None
     
     def _initialize_model(self):
@@ -246,13 +316,13 @@ class UNetSegmentation(torch.nn.Module):
             # Import locally to avoid global state issues
             from . import unetTorch as unet
             
-            self._model = unet.UNet(
+            self._model = _build_seeded(self.seed, lambda: unet.UNet(
                 dim=self.config['base_channels'],
                 init_dim=self.config.get('init_dim', self.config['base_channels']),
                 out_dim=self.config.get('out_dim', 2),  # Binary segmentation
                 dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
                 resnet_block_groups=self.config.get('resnet_block_groups', 8)
-            )
+            ))
     
     @property
     def model(self):

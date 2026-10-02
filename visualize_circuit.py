@@ -5,8 +5,15 @@ Visualize the QUAFFLE per-group quantum circuit (PennyLane backend).
 The live circuit is defined by `pennylane_default_circuit` inside
 utilsTorch/unetTorch.py. To avoid importing the full model stack (which pulls
 in PyTorch CUDA, PennyLane-Lightning, etc.), this script rebuilds an
-EQUIVALENT circuit using the same gate sequence and settings:
+EQUIVALENT circuit using the same gate sequence and settings.
 
+--q-ansatz reupload (default, pennylane_reupload_circuit), per layer l:
+      1. Encoding        RY(pi * tanh(s_lj * x_j)) on wire j (s_lj learnable, shown as 1)
+      2. Variational     Rot(w_lj0, w_lj1, w_lj2) on wire j
+      3. Entangling      CNOT ring 0->1->2->3->0
+    Measurement: <Z_j> on each wire.
+
+--q-ansatz legacy (original model, pennylane_default_circuit).
     Per 4-channel group (4 qubits):
       1. Data encoding   — RX(x_i) on wire i, for i in 0..3
       2. Variational     — RY(theta_i) on wire i, for i in 0..3
@@ -14,8 +21,8 @@ EQUIVALENT circuit using the same gate sequence and settings:
                           + ring closure CNOT(3->0)
       4. Measurement     — <Z_i> expval on each wire
 
-Reference in codebase: pennylane_default_circuit() at
-utilsTorch/unetTorch.py lines 218-253.
+Reference in codebase: pennylane_default_circuit() and
+pennylane_reupload_circuit() in utilsTorch/unetTorch.py. See docs/MODEL.md.
 
 Outputs:
     results/plots/quantum_circuit.txt        — text diagram (qml.draw)
@@ -24,7 +31,7 @@ Outputs:
                                                 sample input/params (optional)
 
 Usage:
-    python visualize_circuit.py
+    python visualize_circuit.py [--q-ansatz reupload|legacy] [--q-layers 2]
 """
 
 import os
@@ -40,6 +47,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(HERE, "results", "plots")
 
 N_QUBITS = 4  # QUAFFLE fixes groups to 4 channels / 4 qubits
+
+
+def build_reupload_circuit(n_qubits: int = N_QUBITS, n_layers: int = 2):
+    """Return a QNode that mirrors pennylane_reupload_circuit for one sample.
+
+    Signature: circuit(x, params) with params of shape (n_layers, n_qubits, 3).
+    Input scales are fixed to their initial value 1.
+    """
+    dev = qml.device("default.qubit", wires=n_qubits)
+
+    @qml.qnode(dev)
+    def circuit(x, params):
+        for l in range(n_layers):
+            for j in range(n_qubits):
+                qml.RY(np.pi * np.tanh(x[j]), wires=j)
+            for j in range(n_qubits):
+                qml.Rot(params[l, j, 0], params[l, j, 1], params[l, j, 2], wires=j)
+            for j in range(n_qubits):
+                qml.CNOT(wires=[j, (j + 1) % n_qubits])
+        return [qml.expval(qml.PauliZ(j)) for j in range(n_qubits)]
+
+    return circuit
 
 
 def build_circuit(n_qubits: int = N_QUBITS):
@@ -70,7 +99,7 @@ def build_circuit(n_qubits: int = N_QUBITS):
     return circuit
 
 
-def _sample_inputs(seed: int = 42):
+def _sample_inputs(seed: int = 42, ansatz: str = "legacy", n_layers: int = 2):
     """Reasonable example values to show a non-trivial circuit evaluation.
 
     Inputs (x) match the range of spatial averages after upstream
@@ -79,6 +108,10 @@ def _sample_inputs(seed: int = 42):
     """
     rng = np.random.default_rng(seed)
     x = rng.uniform(low=-1.0, high=1.0, size=N_QUBITS)
+    if ansatz == "reupload":
+        # Reupload init: uniform in [-pi, pi]
+        params = rng.uniform(low=-np.pi, high=np.pi, size=(n_layers, N_QUBITS, 3))
+        return x.astype(float), params.astype(float)
     params = rng.normal(loc=0.0, scale=0.1, size=N_QUBITS)
     return x.astype(float), params.astype(float)
 
@@ -116,7 +149,8 @@ def save_expval_barplot(circuit, x, params, path):
     ax.set_ylabel("Expectation value")
     ax.set_title(
         "Sample output of the per-group circuit\n"
-        f"x={np.round(x, 3).tolist()}   θ={np.round(params, 3).tolist()}",
+        f"x={np.round(x, 3).tolist()}"
+        + (f"   θ={np.round(params, 3).tolist()}" if np.ndim(params) == 1 else f"   θ: {np.shape(params)} angles"),
         fontsize=10,
     )
     ax.grid(axis="y", linestyle="--", alpha=0.4)
@@ -132,15 +166,24 @@ def main():
                         help="Seed for sample input/params (default: 42)")
     parser.add_argument("--out-dir", default=OUT_DIR,
                         help=f"Output directory (default: {OUT_DIR})")
+    parser.add_argument("--q-ansatz", choices=["reupload", "legacy"], default="reupload",
+                        help="Circuit to draw (default: reupload)")
+    parser.add_argument("--q-layers", type=int, default=2,
+                        help="Re-uploading layers for --q-ansatz reupload (default: 2)")
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
-    circuit = build_circuit(N_QUBITS)
-    x, params = _sample_inputs(seed=args.seed)
+    if args.q_ansatz == "reupload":
+        circuit = build_reupload_circuit(N_QUBITS, args.q_layers)
+        suffix = f"_reupload_L{args.q_layers}"
+    else:
+        circuit = build_circuit(N_QUBITS)
+        suffix = ""
+    x, params = _sample_inputs(seed=args.seed, ansatz=args.q_ansatz, n_layers=args.q_layers)
 
-    txt_path = os.path.join(args.out_dir, "quantum_circuit.txt")
-    png_path = os.path.join(args.out_dir, "quantum_circuit.png")
-    bar_path = os.path.join(args.out_dir, "quantum_circuit_expvals.png")
+    txt_path = os.path.join(args.out_dir, f"quantum_circuit{suffix}.txt")
+    png_path = os.path.join(args.out_dir, f"quantum_circuit{suffix}.png")
+    bar_path = os.path.join(args.out_dir, f"quantum_circuit{suffix}_expvals.png")
 
     text = save_text_diagram(circuit, x, params, txt_path)
     save_mpl_diagram(circuit, x, params, png_path)
