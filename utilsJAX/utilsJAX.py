@@ -21,86 +21,34 @@ from typing import List
 # Import quantum model
 from . import unetJAX as unet
 
+import sys as _sys
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in _sys.path:
+    _sys.path.insert(0, _REPO_ROOT)
+import flood_data
+from flood_data import set_data_defaults
+
 # Disable TensorFlow GPU usage
 tf.config.experimental.set_visible_devices([], "GPU")
 
-def load_dataset(images_dir, masks_dir, config):
-    """Load images and masks for segmentation."""
-    # Get TIFF files
-    image_paths = glob.glob(os.path.join(images_dir, "*.tif")) + \
-                  glob.glob(os.path.join(images_dir, "*.tiff"))
-    
-    if not image_paths:
-        raise ValueError(f"No TIFF images found in {images_dir}")
-    
-    images, masks = [], []
-    
-    for img_path in tqdm(image_paths, desc="Loading data"):
-        img_name = os.path.splitext(os.path.basename(img_path))[0]
-        
-        # Find corresponding mask
-        mask_path = None
-        for ext in ['.png', '.jpg', '.tif']:
-            potential_mask = os.path.join(masks_dir, img_name + ext)
-            if os.path.exists(potential_mask):
-                mask_path = potential_mask
-                break
-        
-        if mask_path is None:
-            continue
-        
-        try:
-            # Load image with rasterio for multi-band TIFF
-            try:
-                import rasterio
-                with rasterio.open(img_path) as src:
-                    img_data = src.read()[:3]  # Take first 3 bands as RGB
-                    img_array = np.transpose(img_data, (1, 2, 0))
-                    
-                    # Normalize based on data type
-                    if img_array.dtype == np.uint8:
-                        img_array = img_array.astype(np.float32) / 255.0
-                    elif img_array.dtype == np.uint16:
-                        img_array = img_array.astype(np.float32) / 65535.0
-                    else:
-                        # Percentile normalization for float data
-                        img_array = img_array.astype(np.float32)
-                        for c in range(3):
-                            channel = img_array[:, :, c]
-                            low, high = np.percentile(channel, [2, 98])
-                            if high > low:
-                                img_array[:, :, c] = np.clip((channel - low) / (high - low), 0, 1)
-                    
-                    # Resize
-                    img = Image.fromarray((img_array * 255).astype(np.uint8))
-                    img = img.resize((config.image_size, config.image_size), Image.LANCZOS)
-                    img_array = np.array(img, dtype=np.float32) / 255.0
-                    
-            except ImportError:
-                # Fallback to PIL
-                img = Image.open(img_path).convert('RGB')
-                img = img.resize((config.image_size, config.image_size), Image.LANCZOS)
-                img_array = np.array(img, dtype=np.float32) / 255.0
-            
-            # Normalize to [-1, 1]
-            img_array = img_array * 2.0 - 1.0
-            
-            # Load mask
-            mask = Image.open(mask_path).convert('L')
-            mask = mask.resize((config.image_size, config.image_size), Image.NEAREST)
-            mask_array = np.array(mask, dtype=np.float32) / 255.0
-            mask_array = (mask_array > 0.001).astype(np.float32)[..., np.newaxis]
-            
-            images.append(img_array)
-            masks.append(mask_array)
-            
-        except Exception as e:
-            print(f"Error loading {img_path}: {e}")
-            continue
-    
-    if not images:
-        raise ValueError("No valid image-mask pairs loaded")
-    
+def load_dataset(images_dir, masks_dir, config, legacy=None, bands=None, manifest=None,
+                 stats_path=None):
+    """Load images (NHWC in [-1, 1]) and masks (NHW1) for segmentation.
+
+    Clean mode by default (split manifest, named bands, training-split
+    normalization). legacy=True, config.legacy_data=True,
+    set_data_defaults(legacy=True) or QUAFFLE_LEGACY_DATA=1 restores the
+    original loader. See docs/DATA.md.
+    """
+    if legacy is None and hasattr(config, "get"):
+        legacy = config.get("legacy_data", None)
+    if bands is None and hasattr(config, "get"):
+        bands = config.get("bands", None)
+    samples, _ = flood_data.load_samples(
+        images_dir, masks_dir, config.image_size, legacy=legacy, bands=bands,
+        manifest=manifest, stats_path=stats_path, progress=tqdm)
+    images = [x[0] for x in samples]
+    masks = [x[1] for x in samples]
     return np.stack(images), np.stack(masks)
 
 def create_data_iterator(images, masks, config):

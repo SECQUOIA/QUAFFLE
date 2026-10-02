@@ -1,0 +1,3101 @@
+{
+ "dataset": "flood_optical",
+ "generated_by": "tools/dedup_splits.py",
+ "identity": "md5 of decoded image pixels (dtype, shape, bytes); metadata ignored",
+ "counts": {
+  "train_files": 235,
+  "train_pairs": 235,
+  "train_unique_images": 235,
+  "train_kept": 235,
+  "train_dropped_internal_duplicates": 0,
+  "train_duplicate_groups_with_conflicting_masks": 0,
+  "test_files": 71,
+  "test_pairs": 71,
+  "test_dropped_leaked_from_train": 0,
+  "test_leaked_with_identical_mask": 0,
+  "test_dropped_internal_duplicates": 0,
+  "test_duplicate_groups_with_conflicting_masks": 0,
+  "test_kept": 71,
+  "near_dup_test_vs_train_flip_or_rotation": 0,
+  "near_dup_test_vs_train_ahash_corr_gt_0.99": 0
+ },
+ "train": [
+  "71",
+  "72",
+  "73",
+  "74",
+  "75",
+  "76",
+  "77",
+  "78",
+  "79",
+  "80",
+  "81",
+  "82",
+  "83",
+  "84",
+  "85",
+  "86",
+  "87",
+  "88",
+  "89",
+  "90",
+  "91",
+  "92",
+  "93",
+  "94",
+  "95",
+  "96",
+  "97",
+  "98",
+  "99",
+  "100",
+  "101",
+  "102",
+  "103",
+  "104",
+  "105",
+  "106",
+  "107",
+  "108",
+  "109",
+  "110",
+  "111",
+  "112",
+  "113",
+  "114",
+  "115",
+  "116",
+  "117",
+  "118",
+  "119",
+  "120",
+  "121",
+  "122",
+  "123",
+  "124",
+  "125",
+  "126",
+  "127",
+  "128",
+  "129",
+  "130",
+  "131",
+  "132",
+  "133",
+  "134",
+  "135",
+  "136",
+  "137",
+  "138",
+  "139",
+  "140",
+  "141",
+  "142",
+  "143",
+  "144",
+  "145",
+  "146",
+  "147",
+  "148",
+  "149",
+  "150",
+  "151",
+  "152",
+  "153",
+  "154",
+  "155",
+  "156",
+  "157",
+  "158",
+  "159",
+  "160",
+  "161",
+  "162",
+  "163",
+  "164",
+  "165",
+  "166",
+  "167",
+  "168",
+  "169",
+  "170",
+  "171",
+  "172",
+  "173",
+  "174",
+  "175",
+  "176",
+  "177",
+  "178",
+  "179",
+  "180",
+  "181",
+  "182",
+  "183",
+  "184",
+  "185",
+  "186",
+  "187",
+  "188",
+  "189",
+  "190",
+  "191",
+  "192",
+  "193",
+  "194",
+  "195",
+  "196",
+  "197",
+  "198",
+  "199",
+  "200",
+  "201",
+  "202",
+  "203",
+  "204",
+  "205",
+  "206",
+  "207",
+  "208",
+  "209",
+  "210",
+  "211",
+  "212",
+  "213",
+  "214",
+  "215",
+  "216",
+  "217",
+  "218",
+  "219",
+  "220",
+  "221",
+  "222",
+  "223",
+  "224",
+  "225",
+  "226",
+  "227",
+  "228",
+  "229",
+  "230",
+  "231",
+  "232",
+  "233",
+  "234",
+  "235",
+  "236",
+  "237",
+  "238",
+  "239",
+  "240",
+  "241",
+  "242",
+  "243",
+  "244",
+  "245",
+  "246",
+  "247",
+  "248",
+  "249",
+  "250",
+  "251",
+  "252",
+  "253",
+  "254",
+  "255",
+  "256",
+  "257",
+  "258",
+  "259",
+  "260",
+  "261",
+  "262",
+  "263",
+  "264",
+  "265",
+  "266",
+  "267",
+  "268",
+  "269",
+  "270",
+  "271",
+  "272",
+  "273",
+  "274",
+  "275",
+  "276",
+  "277",
+  "278",
+  "279",
+  "280",
+  "281",
+  "282",
+  "283",
+  "284",
+  "285",
+  "286",
+  "287",
+  "288",
+  "289",
+  "290",
+  "291",
+  "292",
+  "293",
+  "294",
+  "295",
+  "296",
+  "297",
+  "298",
+  "299",
+  "300",
+  "301",
+  "302",
+  "303",
+  "304",
+  "305"
+ ],
+ "test": [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "21",
+  "22",
+  "23",
+  "24",
+  "25",
+  "26",
+  "27",
+  "28",
+  "29",
+  "30",
+  "31",
+  "32",
+  "33",
+  "34",
+  "35",
+  "36",
+  "37",
+  "38",
+  "39",
+  "40",
+  "41",
+  "42",
+  "43",
+  "44",
+  "45",
+  "46",
+  "47",
+  "48",
+  "49",
+  "50",
+  "51",
+  "52",
+  "53",
+  "54",
+  "55",
+  "56",
+  "57",
+  "58",
+  "59",
+  "60",
+  "61",
+  "62",
+  "63",
+  "64",
+  "65",
+  "66",
+  "67",
+  "68",
+  "69",
+  "70"
+ ],
+ "excluded": {
+  "train_internal_duplicates": [],
+  "test_leaked_from_train": [],
+  "test_internal_duplicates": []
+ },
+ "near_duplicates_reported_not_excluded": {
+  "flip_or_rotation_of_train": [],
+  "ahash_equal_corr_gt_0.99": []
+ },
+ "hashes": {
+  "train": [
+   {
+    "name": "71",
+    "image_file": "71.tif",
+    "mask_file": "71.png",
+    "image_md5": "aed656746ed3f49bb6ec22e37c71e24f",
+    "mask_md5": "16667bdd8207c371097fb9436e17fb70",
+    "image_pix": "a326d50260117eb590b45d9a91b97e64",
+    "mask_pix": "5ff9e6d7e2118fa30520f8b36ac56d41"
+   },
+   {
+    "name": "72",
+    "image_file": "72.tif",
+    "mask_file": "72.png",
+    "image_md5": "8c289785cc98a08b0a47727aebaca753",
+    "mask_md5": "fa33f1566e57e6f10c52dced489415d9",
+    "image_pix": "3f648719464731b9c9576b2b997df2ad",
+    "mask_pix": "75b87b101d4ff6d094f55ef0bfb3a084"
+   },
+   {
+    "name": "73",
+    "image_file": "73.tif",
+    "mask_file": "73.png",
+    "image_md5": "d9e7bc042f0e9ca7fd96694b401367a7",
+    "mask_md5": "9b43ac29aafacbc357720a64769e349f",
+    "image_pix": "16f58a8865e386ff114302c236403d01",
+    "mask_pix": "dccc8d6ab16e28f1fe44d3c174dd12a1"
+   },
+   {
+    "name": "74",
+    "image_file": "74.tif",
+    "mask_file": "74.png",
+    "image_md5": "42094006edc6d7f23419fedbace80276",
+    "mask_md5": "23476b7aa94a80dfc825e5e3634d99c0",
+    "image_pix": "4638b415161f3b910a7c0433184ed98d",
+    "mask_pix": "3f7fe55358f6c569c1182cb60e72e27e"
+   },
+   {
+    "name": "75",
+    "image_file": "75.tif",
+    "mask_file": "75.png",
+    "image_md5": "afb23204251e5140bdfec415e8733073",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "f052ece2ea634308b74d60f0269aeb92",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "76",
+    "image_file": "76.tif",
+    "mask_file": "76.png",
+    "image_md5": "87d69805057c6d1bae84f76614a39c84",
+    "mask_md5": "bfeefbf7b9b11f6d717ccbf22cacc566",
+    "image_pix": "a98f55815aa8955d7ce8380d95fdba49",
+    "mask_pix": "81fa63fb736fc69a6500d1d70bcf5b51"
+   },
+   {
+    "name": "77",
+    "image_file": "77.tif",
+    "mask_file": "77.png",
+    "image_md5": "6e7e3efd2d4cf0c9a2c22553262fed1e",
+    "mask_md5": "8cb4e402297ecfd496a57fc960409776",
+    "image_pix": "1503ba40241ccbe0c7db86b651d410ed",
+    "mask_pix": "87916f6d6f5c68f2e73dd2197defccfb"
+   },
+   {
+    "name": "78",
+    "image_file": "78.tif",
+    "mask_file": "78.png",
+    "image_md5": "2c1aad10bc36ed881f386fb21016d07d",
+    "mask_md5": "18bf9147f74b2c5d817ace3d43b553b3",
+    "image_pix": "d916163cdfa8f9406b045cd4a175ba4f",
+    "mask_pix": "d3803168822aea1e267dbe81964b1c8f"
+   },
+   {
+    "name": "79",
+    "image_file": "79.tif",
+    "mask_file": "79.png",
+    "image_md5": "8aaf5c6bce140774869dd3d54e115e9d",
+    "mask_md5": "d544da621fa22af2b512b744b632308c",
+    "image_pix": "8db8ffbaed7d1fb81af8130143d19f59",
+    "mask_pix": "e28f7afb8557199b59d53b33bc712470"
+   },
+   {
+    "name": "80",
+    "image_file": "80.tif",
+    "mask_file": "80.png",
+    "image_md5": "af952861429d1a545efa45dbb4fb8031",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "a7ce9ac3e769fa4fdacb1d3b8ba04ca0",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "81",
+    "image_file": "81.tif",
+    "mask_file": "81.png",
+    "image_md5": "2f61b05a8f5ee16afb89874b320543c9",
+    "mask_md5": "440b9119d1460ce68b3b04cf4af292ae",
+    "image_pix": "649d48366940f868cb0c2398f404871d",
+    "mask_pix": "7a5ce06714c703cdb8a08ef6056fe691"
+   },
+   {
+    "name": "82",
+    "image_file": "82.tif",
+    "mask_file": "82.png",
+    "image_md5": "c2111eb552b2d397f0e19fcbb1c47c6a",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "d1f2d4549cc9ff425eb46e14e91dda3a",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "83",
+    "image_file": "83.tif",
+    "mask_file": "83.png",
+    "image_md5": "1201f4fdce80384e304e60059cca5383",
+    "mask_md5": "c73d7ba7e3a1fea2aebcf47959191efc",
+    "image_pix": "75946bcae5427807de47792dc11ef2d5",
+    "mask_pix": "7105d0dea99a2f3130637f64f12ba871"
+   },
+   {
+    "name": "84",
+    "image_file": "84.tif",
+    "mask_file": "84.png",
+    "image_md5": "bceb96e9e3d1ac0987f316f35e0c8e8a",
+    "mask_md5": "c7859f90e9b8b09dcedc3eb6e07d343a",
+    "image_pix": "600a323840cca9431398630f1b616701",
+    "mask_pix": "46956851f284117835060d83fe8e29de"
+   },
+   {
+    "name": "85",
+    "image_file": "85.tif",
+    "mask_file": "85.png",
+    "image_md5": "fb595ce7232d65504402f43d3e163bb0",
+    "mask_md5": "d25781cb12115bacb547fafca72f5a73",
+    "image_pix": "30bd840689b8fc64135877059c625325",
+    "mask_pix": "85f9a2b3f5beb6a07b548426bf187e0c"
+   },
+   {
+    "name": "86",
+    "image_file": "86.tif",
+    "mask_file": "86.png",
+    "image_md5": "cd08695cad94577fbae4d9af6d36c920",
+    "mask_md5": "20007f68e1d207b78bd875d4656e219b",
+    "image_pix": "950ecd53d5d4905d8b78e2ce2e3a3f59",
+    "mask_pix": "daf0acc919715af385d585c1d1ac4776"
+   },
+   {
+    "name": "87",
+    "image_file": "87.tif",
+    "mask_file": "87.png",
+    "image_md5": "7d1e53cfcef1d4b124ba38de0d387a0d",
+    "mask_md5": "f48720de29f2b3c0a3f33dde57940629",
+    "image_pix": "5192c24d9cd3577c289ce6dfb6b8b994",
+    "mask_pix": "3fa0a5a08b52228ff23390d06f9a0b14"
+   },
+   {
+    "name": "88",
+    "image_file": "88.tif",
+    "mask_file": "88.png",
+    "image_md5": "2d32d1d198e368f673175d4e1c1902cc",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "1917d9ac74d0aae0a8d54783a270529e",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "89",
+    "image_file": "89.tif",
+    "mask_file": "89.png",
+    "image_md5": "8e1514194d40f768485d83a768b65fed",
+    "mask_md5": "455a69c79d1dffd84b7ff723b762ffc7",
+    "image_pix": "bf7eddfe96862c4c250c46bc1e8abd87",
+    "mask_pix": "db3bfeaa098eb645a19b294c80eca385"
+   },
+   {
+    "name": "90",
+    "image_file": "90.tif",
+    "mask_file": "90.png",
+    "image_md5": "49dfa145310a1824db45946d29374cd9",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "2a7232209fecce1ef35f34763424d1d5",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "91",
+    "image_file": "91.tif",
+    "mask_file": "91.png",
+    "image_md5": "48e5d6b6e256da3c88b2abba9de4a79b",
+    "mask_md5": "0dc5984f6db3886b05470f2aa663c7af",
+    "image_pix": "50c26e15d2ba8f76cc52199956b809b8",
+    "mask_pix": "e4c76b0d9e62c7ee453c404e17c94bf4"
+   },
+   {
+    "name": "92",
+    "image_file": "92.tif",
+    "mask_file": "92.png",
+    "image_md5": "4c168842caef71006c1e73bb877e7bc0",
+    "mask_md5": "3cd538bdde058262aca765704c0eaa3c",
+    "image_pix": "85a85b36eed5d22f6802bc3d4ec3992a",
+    "mask_pix": "771a603f7e61de0018a768f72df43b46"
+   },
+   {
+    "name": "93",
+    "image_file": "93.tif",
+    "mask_file": "93.png",
+    "image_md5": "77db2ac75715f017cc782399f5ec3de8",
+    "mask_md5": "cbcd4949f4207bdd656c2c2bf9025828",
+    "image_pix": "4dbcf221c764a6de367a8b1ff09a6198",
+    "mask_pix": "66f36bb16fcd0d8267a7e927552e9531"
+   },
+   {
+    "name": "94",
+    "image_file": "94.tif",
+    "mask_file": "94.png",
+    "image_md5": "cd807f19a4e15cb5b5d7f7a064213f3d",
+    "mask_md5": "22e0a0f8bc7b898ab7c4286eb4566fb0",
+    "image_pix": "8a08c6a54d1f4e481358a8f44fd33f79",
+    "mask_pix": "26d326336114ba2377096afaef106fea"
+   },
+   {
+    "name": "95",
+    "image_file": "95.tif",
+    "mask_file": "95.png",
+    "image_md5": "7c9570de808b4780825bc2d6359d6f23",
+    "mask_md5": "26fcc952517a2126ee4a58df75305848",
+    "image_pix": "3c65535c049402bc37fce1c0eaa75420",
+    "mask_pix": "adff3cc7c799c510ae2d3893a9a0c55c"
+   },
+   {
+    "name": "96",
+    "image_file": "96.tif",
+    "mask_file": "96.png",
+    "image_md5": "5d1b18cac1e4dfab6b4d65a62980ca5e",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "839e0c9275bc1e3e62d269287b3f70f0",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "97",
+    "image_file": "97.tif",
+    "mask_file": "97.png",
+    "image_md5": "47b357253019940de9c26d338664c658",
+    "mask_md5": "95077f0d308fc0a77fda1dbe2da86b4f",
+    "image_pix": "c88afb2370d1e1d6e752c57c15173f4f",
+    "mask_pix": "da1b43ff60d12aaf23cf69fbd54a42fd"
+   },
+   {
+    "name": "98",
+    "image_file": "98.tif",
+    "mask_file": "98.png",
+    "image_md5": "a0cc1585885cbdd9fe11b65326386669",
+    "mask_md5": "5cdac0a6471f6ed03a28cb70f27a4117",
+    "image_pix": "1053022f21cf46ebbf26061fa9bcdf87",
+    "mask_pix": "73628f7f2d3c5ea5f04fe53770e64a8b"
+   },
+   {
+    "name": "99",
+    "image_file": "99.tif",
+    "mask_file": "99.png",
+    "image_md5": "9275d1bffde48c257db404d0d1604c5b",
+    "mask_md5": "38a03e449ba618977c34bd4829eaf87c",
+    "image_pix": "8c1b49acb269b1035f093420d9aef689",
+    "mask_pix": "869681bff8aeb49bb688532f201083db"
+   },
+   {
+    "name": "100",
+    "image_file": "100.tif",
+    "mask_file": "100.png",
+    "image_md5": "3b10c2b861285f7becfc32cb3e7583a8",
+    "mask_md5": "601747e1f565c154d361dd9d446ebf79",
+    "image_pix": "d6ea16626ada1b80ef6f2c9638cb7caa",
+    "mask_pix": "df390513eea6adf6aba07defda730905"
+   },
+   {
+    "name": "101",
+    "image_file": "101.tif",
+    "mask_file": "101.png",
+    "image_md5": "04d3f856a740074808b7b568393ae85f",
+    "mask_md5": "6be6237484dfc9ce00d157c4814e8e87",
+    "image_pix": "d916ef5749e181246e2de186b29d9ca9",
+    "mask_pix": "9f3abcf3ef0dd8a952e4fc5bdb58adbd"
+   },
+   {
+    "name": "102",
+    "image_file": "102.tif",
+    "mask_file": "102.png",
+    "image_md5": "97960769033860c04109bbd1c4e90c60",
+    "mask_md5": "2ea129b713cd161b5756fe2b958af0ed",
+    "image_pix": "885d4a98d9452107b11af5af85c727b1",
+    "mask_pix": "b12dd5f87f4c0cd64b02fcdf932b6f33"
+   },
+   {
+    "name": "103",
+    "image_file": "103.tif",
+    "mask_file": "103.png",
+    "image_md5": "590d6b79c6b8965d1fa054c2e6fff4eb",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "45eb78ed491599f560dbc0adb4874870",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "104",
+    "image_file": "104.tif",
+    "mask_file": "104.png",
+    "image_md5": "fdfbd4c406e1f348ea48ac317dfa3f3f",
+    "mask_md5": "eb0c50161bbfbc9aed6a7bfdff906a86",
+    "image_pix": "5dfaf896e1de2974f2fa7746e1e213a6",
+    "mask_pix": "5972cae62f50e9631e08e7bc441c4991"
+   },
+   {
+    "name": "105",
+    "image_file": "105.tif",
+    "mask_file": "105.png",
+    "image_md5": "593f7f8aa6c4cfd60ef74462dda616b9",
+    "mask_md5": "d5030dddb72ea03e522fd7f286f78893",
+    "image_pix": "17f2a7db23134fb8204a140e71fac2c2",
+    "mask_pix": "b8fe67b2332cf382634db3e6ade7ee31"
+   },
+   {
+    "name": "106",
+    "image_file": "106.tif",
+    "mask_file": "106.png",
+    "image_md5": "041b30fb0dd013a893f0a35915f60996",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "8138112d0f578b74d524516484d3c4bd",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "107",
+    "image_file": "107.tif",
+    "mask_file": "107.png",
+    "image_md5": "51d78b2e82b5a8ab805eedb318a8d432",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "9b3d33d7ffbb6483e0898441f9c0dfb5",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "108",
+    "image_file": "108.tif",
+    "mask_file": "108.png",
+    "image_md5": "d478fe09a6cca643bad63fdb0e5c3ea9",
+    "mask_md5": "3b5624e7c12154b7fd277e17efdf88c8",
+    "image_pix": "8346268a8c26c057423a8fe8303f25a9",
+    "mask_pix": "30257dda9450415eee113a52bbf6f7a9"
+   },
+   {
+    "name": "109",
+    "image_file": "109.tif",
+    "mask_file": "109.png",
+    "image_md5": "6c3e40d57f4301085bd1855c924cd754",
+    "mask_md5": "e5500fe45b5240f5c8f7ab0fb15496c7",
+    "image_pix": "9f7a7addd90db227c496787384cc2bac",
+    "mask_pix": "a51e37d09758a66f5ff131345c8a964d"
+   },
+   {
+    "name": "110",
+    "image_file": "110.tif",
+    "mask_file": "110.png",
+    "image_md5": "11266e1bec5320b55cf02925f8a8f6d3",
+    "mask_md5": "fdfbf7b6cad2852c181fcfd764e37cbe",
+    "image_pix": "5e10b2c72fcc9c1c99e12864f08f5b98",
+    "mask_pix": "89a7d2542289f933e64e6b667217abe3"
+   },
+   {
+    "name": "111",
+    "image_file": "111.tif",
+    "mask_file": "111.png",
+    "image_md5": "8a7ef0f6d74c8c837df1e4abac1ab378",
+    "mask_md5": "78ecaa10e5b119a8343f447d16c37509",
+    "image_pix": "8bd8b1af57af5b35ac1cea3e0244fcd5",
+    "mask_pix": "a04db1e8839cf3c8cf806abd51aee6e0"
+   },
+   {
+    "name": "112",
+    "image_file": "112.tif",
+    "mask_file": "112.png",
+    "image_md5": "126c1c4355a5124b280f67c96ba59841",
+    "mask_md5": "730c413690eaaa950d7d4c129f2fdf0b",
+    "image_pix": "f1e6688657478369140782ed2065aada",
+    "mask_pix": "0f5facf2a490a7be4d40f1626f871c2f"
+   },
+   {
+    "name": "113",
+    "image_file": "113.tif",
+    "mask_file": "113.png",
+    "image_md5": "5cd89cd00599ae1f23755864d491de83",
+    "mask_md5": "dba18b3a6d7232f87c8f5b5488f42507",
+    "image_pix": "d17556d9f7070049e96b473d9b92d3bf",
+    "mask_pix": "6f78482a544ec7c7df697f1f16198094"
+   },
+   {
+    "name": "114",
+    "image_file": "114.tif",
+    "mask_file": "114.png",
+    "image_md5": "d88804637a31c40b78708b4f5bc82076",
+    "mask_md5": "67d79b6c8f0d714352018f8fa667abf3",
+    "image_pix": "3fa7e8f5b85f106ffc4ed8bf2b684671",
+    "mask_pix": "c936aa248bdfe80455caff95f12a6dc5"
+   },
+   {
+    "name": "115",
+    "image_file": "115.tif",
+    "mask_file": "115.png",
+    "image_md5": "3fa7715ee3c528a8dcbe87194df326ee",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "bdf573bbc112ca4f9113f4153c7d7e98",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "116",
+    "image_file": "116.tif",
+    "mask_file": "116.png",
+    "image_md5": "58da07ce7d16aad803003b0402899aeb",
+    "mask_md5": "7298e311d7ca044ddd039a3c1dd40886",
+    "image_pix": "ecc641d380ecddeb57f0dc57aa21d1c2",
+    "mask_pix": "c2db0fb1cffb6fed9d465e761c90faa6"
+   },
+   {
+    "name": "117",
+    "image_file": "117.tif",
+    "mask_file": "117.png",
+    "image_md5": "bf7676989617029748f0e16748445743",
+    "mask_md5": "a3f5666af4ad7757768c16e78cab3e28",
+    "image_pix": "da1eba2e3925318b674597490c30da3a",
+    "mask_pix": "73d386938609b5d7d052f37fcc403f85"
+   },
+   {
+    "name": "118",
+    "image_file": "118.tif",
+    "mask_file": "118.png",
+    "image_md5": "4edb858eceab8011fee94e3f3bd2b01f",
+    "mask_md5": "6c8dc9f0f045aa0c5e39fe63c949294b",
+    "image_pix": "f16455aee7201db8c7cc9747363cbac1",
+    "mask_pix": "fdf40a701b705e35d50c691c2247d949"
+   },
+   {
+    "name": "119",
+    "image_file": "119.tif",
+    "mask_file": "119.png",
+    "image_md5": "ca6ba648885a6e4162764f61dd9a210f",
+    "mask_md5": "39081179951d805c8d91c052bcf30f3a",
+    "image_pix": "5787d21d9f20de263f9223e2f6f9a660",
+    "mask_pix": "6de0551c00c52c53a79b7f6be4f5a9bd"
+   },
+   {
+    "name": "120",
+    "image_file": "120.tif",
+    "mask_file": "120.png",
+    "image_md5": "c53b27cc082939648f7cf85e80d0f2a8",
+    "mask_md5": "252baf572ac3a4adb7c449e6b945f718",
+    "image_pix": "6064857371f5d7dd5b674ad3eab67a4e",
+    "mask_pix": "258820d96e03e7154dc1850fddbdfd88"
+   },
+   {
+    "name": "121",
+    "image_file": "121.tif",
+    "mask_file": "121.png",
+    "image_md5": "38f456649919008de01a46c73c2bb17f",
+    "mask_md5": "23afdcc1683fbdf03153f2d6324d7da7",
+    "image_pix": "34233620526da61856c83001d578fffc",
+    "mask_pix": "899750832a7f888589cb0162f82f213a"
+   },
+   {
+    "name": "122",
+    "image_file": "122.tif",
+    "mask_file": "122.png",
+    "image_md5": "996df53d69710cb2e25beadb0ac742b5",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "5ef6d9b216aff2762aad5e9835e680c5",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "123",
+    "image_file": "123.tif",
+    "mask_file": "123.png",
+    "image_md5": "09debc558bce8927d29de82ec21d4931",
+    "mask_md5": "bdf764cda66a29fc2cf6f1441a5b2c72",
+    "image_pix": "46567dcc42600f1c80a0be56f4f8ccf9",
+    "mask_pix": "3de6632c442ea65f8b3cbefeeb1c3f17"
+   },
+   {
+    "name": "124",
+    "image_file": "124.tif",
+    "mask_file": "124.png",
+    "image_md5": "66f052a83af6a0a066d971f45807d6f3",
+    "mask_md5": "eabe6ef460e4463a93fd28ed4d729e55",
+    "image_pix": "64a70844d9731635d61a43c7066fa5b6",
+    "mask_pix": "31ad987ff4e62379b4f72be694104601"
+   },
+   {
+    "name": "125",
+    "image_file": "125.tif",
+    "mask_file": "125.png",
+    "image_md5": "728b5f103d854cb42cd2894ebf208deb",
+    "mask_md5": "051d729bcbd7ea6b2aad127db91f9532",
+    "image_pix": "a3e190dce9b076d21310e25912fd9e39",
+    "mask_pix": "886583f4d53135e3def0002f994c0eca"
+   },
+   {
+    "name": "126",
+    "image_file": "126.tif",
+    "mask_file": "126.png",
+    "image_md5": "7541c9d9587c978d805455c18b1b1770",
+    "mask_md5": "63b77d3b46a36f8066486e3c84f7dc5c",
+    "image_pix": "521f4fd743ebc4b99ed3ad932ca96d23",
+    "mask_pix": "1b194501f0347db8e83d06aad4d2e5ce"
+   },
+   {
+    "name": "127",
+    "image_file": "127.tif",
+    "mask_file": "127.png",
+    "image_md5": "745324dd1e4cf506b224a3e8e3669818",
+    "mask_md5": "d544da621fa22af2b512b744b632308c",
+    "image_pix": "b1a52daaf516d57dc0e65a4d4e56c23f",
+    "mask_pix": "e28f7afb8557199b59d53b33bc712470"
+   },
+   {
+    "name": "128",
+    "image_file": "128.tif",
+    "mask_file": "128.png",
+    "image_md5": "8c63786814f8e3fe69a3ffa73e17234a",
+    "mask_md5": "23a5a61de80a53fe5b94f1086e49a120",
+    "image_pix": "3f561c712b04b5f27325f34612a55bc6",
+    "mask_pix": "8fe7f77f3c42eb8ca9b391ce8190dd5f"
+   },
+   {
+    "name": "129",
+    "image_file": "129.tif",
+    "mask_file": "129.png",
+    "image_md5": "5e9a67b3a7b8014ad68ee89e8ca1aa34",
+    "mask_md5": "ae06c3c70f088705f598a9c15e82cc8e",
+    "image_pix": "734e8a0e23b6496163fa6828f0a42f12",
+    "mask_pix": "15e40eed087697b294ae20f7718dcbd4"
+   },
+   {
+    "name": "130",
+    "image_file": "130.tif",
+    "mask_file": "130.png",
+    "image_md5": "ab86abaf1d5c48b9e7e9976c07218118",
+    "mask_md5": "abbd5108d8a64e5a9c623de0c84b285f",
+    "image_pix": "2ab44043a60ef86833cb975fa044c176",
+    "mask_pix": "ce7e98daaafe03d49b5040198fc7778b"
+   },
+   {
+    "name": "131",
+    "image_file": "131.tif",
+    "mask_file": "131.png",
+    "image_md5": "68a60a0b56898d6156f65ab9aebb8e91",
+    "mask_md5": "731aad41e58699a6cc7b737763cc2628",
+    "image_pix": "40b58371338f9d678eeb644523065598",
+    "mask_pix": "7ab7fc515653358759fde34ecd451fe1"
+   },
+   {
+    "name": "132",
+    "image_file": "132.tif",
+    "mask_file": "132.png",
+    "image_md5": "f35955c18d66855aece53ec58cb9cacc",
+    "mask_md5": "11325f64970227f1c6766448271c151c",
+    "image_pix": "f9de8966d876ff79e721a9cbc4d5775d",
+    "mask_pix": "175254538fcaf1e0e3bad19deb9d778d"
+   },
+   {
+    "name": "133",
+    "image_file": "133.tif",
+    "mask_file": "133.png",
+    "image_md5": "5a881f7f9da98812dce9a8d2ac1e9ea0",
+    "mask_md5": "ed8146773f3f907c42a100c4c335415e",
+    "image_pix": "45442686a412107626c47598ad6dc23a",
+    "mask_pix": "2de2f89e2a3aa11c6bc934aa2a30ed8e"
+   },
+   {
+    "name": "134",
+    "image_file": "134.tif",
+    "mask_file": "134.png",
+    "image_md5": "b83fcfe6b8172b73f30fb9ccf8db7d66",
+    "mask_md5": "9453121e102a9c5c0023dc48f63009a1",
+    "image_pix": "fd8015fd1d7b28ecd79fcd5ee2a359e0",
+    "mask_pix": "e6a4d98b5a4f2ac22e83edc44277b825"
+   },
+   {
+    "name": "135",
+    "image_file": "135.tif",
+    "mask_file": "135.png",
+    "image_md5": "da63b2aea6c046ea0e116cd3e3d65d3e",
+    "mask_md5": "7ac7d0a83cdbe5d06d7f7ede69062b49",
+    "image_pix": "3e20501aea8b7ef6be704b92d74ab745",
+    "mask_pix": "da4700623ced1699191bb58b26cabdf0"
+   },
+   {
+    "name": "136",
+    "image_file": "136.tif",
+    "mask_file": "136.png",
+    "image_md5": "c6d61631c0aad2ef0c7a8e5a20ed7f87",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "980d46c338fe9e77a20ca403a34239c5",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "137",
+    "image_file": "137.tif",
+    "mask_file": "137.png",
+    "image_md5": "9e9bb5d79615a81ddf45110360756660",
+    "mask_md5": "175192e4d1a933384e295c8213742787",
+    "image_pix": "af60aea2d05add506998f08cec9fdf3e",
+    "mask_pix": "f851915bf67d51d8f37e158a56ad5509"
+   },
+   {
+    "name": "138",
+    "image_file": "138.tif",
+    "mask_file": "138.png",
+    "image_md5": "f89f5bc9d7f75c15eb9af8851a862637",
+    "mask_md5": "5a6c3443b602d5ecad90c00feacf43f0",
+    "image_pix": "3a5a9df62a11e07673d023f6cf203817",
+    "mask_pix": "7447f0efe574c987e23308625ce60358"
+   },
+   {
+    "name": "139",
+    "image_file": "139.tif",
+    "mask_file": "139.png",
+    "image_md5": "cea437940c56d1afb99ad25d4a481a5c",
+    "mask_md5": "6a2efe30905a2f621dcafffb2e50099b",
+    "image_pix": "13c81dac08bf3c72799f494f4c637619",
+    "mask_pix": "5287355e0defca190de548cae970cb03"
+   },
+   {
+    "name": "140",
+    "image_file": "140.tif",
+    "mask_file": "140.png",
+    "image_md5": "1b884038047ed22c9740718843afdf91",
+    "mask_md5": "5c44b07d445b519bb8db7fc3b98f6a43",
+    "image_pix": "d280a57cbb01ca07323a358821f9cac9",
+    "mask_pix": "727c11574c385ec5d080dff3deb03d48"
+   },
+   {
+    "name": "141",
+    "image_file": "141.tif",
+    "mask_file": "141.png",
+    "image_md5": "fbeb2deb7b473eaa18ae32c058c4d974",
+    "mask_md5": "79b8c33493b752178c0168ada1497da4",
+    "image_pix": "80cd4a7591a296febaae52f6cc09bd2b",
+    "mask_pix": "ec69a87814063562eeaae5fc24091cf4"
+   },
+   {
+    "name": "142",
+    "image_file": "142.tif",
+    "mask_file": "142.png",
+    "image_md5": "26495ed5de0fc1717c2a12d2a6850aee",
+    "mask_md5": "4d0b65c8d49444d105f56ad4135addea",
+    "image_pix": "c29b95de9597a8d1848c7605675d8b16",
+    "mask_pix": "466e82162ba8b20f1c904d178adc004c"
+   },
+   {
+    "name": "143",
+    "image_file": "143.tif",
+    "mask_file": "143.png",
+    "image_md5": "9cf03caa9dabc314a83d8e356d7a1ccf",
+    "mask_md5": "1ae1919ad53aa36092a04f80c1a5149a",
+    "image_pix": "39c972187add4ea90f88e01bc1d96ccd",
+    "mask_pix": "3a7d828f89da8d4e30c80c67a3bb6b98"
+   },
+   {
+    "name": "144",
+    "image_file": "144.tif",
+    "mask_file": "144.png",
+    "image_md5": "424b569ffbc9ea782f61877b67e0014b",
+    "mask_md5": "fd5de387e20f11ab86b22600e0c861c5",
+    "image_pix": "b26921c091c296f333fa7ad38a351ce9",
+    "mask_pix": "cddf0f56462d2a14fdf245291088d194"
+   },
+   {
+    "name": "145",
+    "image_file": "145.tif",
+    "mask_file": "145.png",
+    "image_md5": "cda157dcfcabed74cfa9590b37b8e316",
+    "mask_md5": "36519dbf63628d0cd5d18f678a22dd5f",
+    "image_pix": "081e7f7c374ae5e25257c6fdc3a41cef",
+    "mask_pix": "f99744e8991089b608a1efd9c2995e3d"
+   },
+   {
+    "name": "146",
+    "image_file": "146.tif",
+    "mask_file": "146.png",
+    "image_md5": "411732d9bd20e4a7624c9f95fd167855",
+    "mask_md5": "21c611b787f2e27d584e27a5a2adc78a",
+    "image_pix": "37f7e71c0f23ed721d99263a575583ee",
+    "mask_pix": "d8865a7c6817050223441bb3e41ed7f6"
+   },
+   {
+    "name": "147",
+    "image_file": "147.tif",
+    "mask_file": "147.png",
+    "image_md5": "d1412f3ea44804a8122f377924c86cbd",
+    "mask_md5": "922a942071e30e5b545304297bcd015b",
+    "image_pix": "bd121c6e3df4a062849a4f9f4a490530",
+    "mask_pix": "d88828b6f5c556f8eb7ff08f95e26605"
+   },
+   {
+    "name": "148",
+    "image_file": "148.tif",
+    "mask_file": "148.png",
+    "image_md5": "5138daee199e8ff161132eebb975393e",
+    "mask_md5": "b861b0edfc0fc704ebb49cc01c2b4225",
+    "image_pix": "00e29a771add4535f2b4fb10d0922512",
+    "mask_pix": "295b30044b9ddf393687820274e5d4e2"
+   },
+   {
+    "name": "149",
+    "image_file": "149.tif",
+    "mask_file": "149.png",
+    "image_md5": "63b0bd00c61e10e96bf73f2a7deb1e9d",
+    "mask_md5": "2f5cffd3b420255d5b1f3b49ac9c04db",
+    "image_pix": "abfa34667a68023cc45970b636ac0ee2",
+    "mask_pix": "366b099b4256eaa3b55ce75186c98fc9"
+   },
+   {
+    "name": "150",
+    "image_file": "150.tif",
+    "mask_file": "150.png",
+    "image_md5": "deaddf61d5079317744d45b42d97b454",
+    "mask_md5": "835595590732639ccb8d18af95698df8",
+    "image_pix": "ce58d36cd64166a5cede5abb14357cd0",
+    "mask_pix": "7a5c0c036c4c638cc2a159e5c7e7f985"
+   },
+   {
+    "name": "151",
+    "image_file": "151.tif",
+    "mask_file": "151.png",
+    "image_md5": "cf5ac36e8a9209c4ac74ceac3ea76a2f",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "8b373318c4481a3d16399a439f5b70f8",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "152",
+    "image_file": "152.tif",
+    "mask_file": "152.png",
+    "image_md5": "42b713aa5aa919a953ecfefb547f1ebf",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "e5eee38098fa6641df6cd14114c2a381",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "153",
+    "image_file": "153.tif",
+    "mask_file": "153.png",
+    "image_md5": "e6723cc2be237588d58108f55eee0a11",
+    "mask_md5": "94fbdc180e043dc2b230a3190c25a7ab",
+    "image_pix": "059959e212bab5cf9621e3bee4ac66cc",
+    "mask_pix": "75a4170266dca52063999337c027ba15"
+   },
+   {
+    "name": "154",
+    "image_file": "154.tif",
+    "mask_file": "154.png",
+    "image_md5": "489c0a3058a60034f623de7610587a9b",
+    "mask_md5": "87729cc50ee1c18943ebfe9f72d6521b",
+    "image_pix": "0e0886c8e143e62a4d770b1a90a74d7c",
+    "mask_pix": "8afa0a351d04e56a3eec19628c85f21f"
+   },
+   {
+    "name": "155",
+    "image_file": "155.tif",
+    "mask_file": "155.png",
+    "image_md5": "2adba95ff557b2739043f072a1590408",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "936f479225eefa58114801a5e7d6634c",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "156",
+    "image_file": "156.tif",
+    "mask_file": "156.png",
+    "image_md5": "2ac99ad214db2d7d30196a35d04f7539",
+    "mask_md5": "07957e2f9a7de69256616e28607987fb",
+    "image_pix": "8eac89993b3834bb3a64b3d9d00c2955",
+    "mask_pix": "a9c00f7e26c78759ebef604ed582fe4c"
+   },
+   {
+    "name": "157",
+    "image_file": "157.tif",
+    "mask_file": "157.png",
+    "image_md5": "f38276451e1fc91534f5185f7d22ca72",
+    "mask_md5": "3c1ea1e605f0ea8e02d040b0c0ff248a",
+    "image_pix": "617085b8ac63a923fb0631271c13c827",
+    "mask_pix": "9d07dc000983a5c740d4139de6fe36b0"
+   },
+   {
+    "name": "158",
+    "image_file": "158.tif",
+    "mask_file": "158.png",
+    "image_md5": "dc775ca42d78aaab55680bd0557475a4",
+    "mask_md5": "e22f4d6248758cdb616221b2b37aada0",
+    "image_pix": "29c01c175cce418a57546abcf4be5008",
+    "mask_pix": "08abc5af83700b13706b6ad97ecb3cc9"
+   },
+   {
+    "name": "159",
+    "image_file": "159.tif",
+    "mask_file": "159.png",
+    "image_md5": "7e2cee9e18a8e48bd72e2ffc690abb72",
+    "mask_md5": "fd5f6bec45b7613020131154a45a503c",
+    "image_pix": "eadfc325fb3e175fb2152b813915bd18",
+    "mask_pix": "3f85b51c4bf3edf0f020f5d4d9629776"
+   },
+   {
+    "name": "160",
+    "image_file": "160.tif",
+    "mask_file": "160.png",
+    "image_md5": "7c2e2ff79460e6be3be0840d263d6e01",
+    "mask_md5": "ba4ac4c0299a346e3934b1121abcd948",
+    "image_pix": "8081b218303c06b8e1a33b2ad4d6b82f",
+    "mask_pix": "292e643e585b2adbfeae784d441a2acf"
+   },
+   {
+    "name": "161",
+    "image_file": "161.tif",
+    "mask_file": "161.png",
+    "image_md5": "e51feeafdb8c24004cdee766503014b2",
+    "mask_md5": "20dad077eaad7b5ad80117bd5054dd1c",
+    "image_pix": "0b8fc1bb5f8212110411d5bf8a1d7c70",
+    "mask_pix": "eac4c209e940f801e2b492bc2eb89654"
+   },
+   {
+    "name": "162",
+    "image_file": "162.tif",
+    "mask_file": "162.png",
+    "image_md5": "fd618ded35e1d60e40943243a43be0b9",
+    "mask_md5": "a4bcce38012db52902ed310c9c105379",
+    "image_pix": "89d13ea410e93a329a3c0281540a4225",
+    "mask_pix": "d4cc6e556187a4e77317f3a144185bff"
+   },
+   {
+    "name": "163",
+    "image_file": "163.tif",
+    "mask_file": "163.png",
+    "image_md5": "64355bec8c1669a73ad007dd32fba146",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "35408cac92cd73a6b22b16c1b05194a7",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "164",
+    "image_file": "164.tif",
+    "mask_file": "164.png",
+    "image_md5": "7e957b2dcef25a62e27e87bea874dee3",
+    "mask_md5": "7404318a687f9af3cacdc3b1dd859774",
+    "image_pix": "a92d7fbd4318e0133d096477bb7e2826",
+    "mask_pix": "bcda129f205db00c593cd751b696cdd3"
+   },
+   {
+    "name": "165",
+    "image_file": "165.tif",
+    "mask_file": "165.png",
+    "image_md5": "a67250d6c6fb78fd722a7723fbf94709",
+    "mask_md5": "6cd1b46063af87b105e5551106ce6dcd",
+    "image_pix": "9a8a639f398ab9fadec41f017f56d8e1",
+    "mask_pix": "a49558dfcb2d06351c237796c0d436d6"
+   },
+   {
+    "name": "166",
+    "image_file": "166.tif",
+    "mask_file": "166.png",
+    "image_md5": "f2ae5d0480b881138aa3b45e003f8596",
+    "mask_md5": "e61d220b121ccfe4184438d058fc71e3",
+    "image_pix": "d15da1276723c70f2c6bcab91d8d5cad",
+    "mask_pix": "52651b66c0fd4b77e3adf87679c7ac07"
+   },
+   {
+    "name": "167",
+    "image_file": "167.tif",
+    "mask_file": "167.png",
+    "image_md5": "c8a604bbdca02fd9f9bd19b43dddfb48",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "f3c8646b1d17aed5547e7f174d85aec1",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "168",
+    "image_file": "168.tif",
+    "mask_file": "168.png",
+    "image_md5": "8022c0c04aa3a42da840464ddabc59c1",
+    "mask_md5": "0146f33f2b6f46929a5c439c991b37b9",
+    "image_pix": "a6ec6b70ab3d6c9f14af3546a9684afe",
+    "mask_pix": "27970e5a352d22511b74159b3074eb7f"
+   },
+   {
+    "name": "169",
+    "image_file": "169.tif",
+    "mask_file": "169.png",
+    "image_md5": "1a5cac6fa55bff7b7160a63c45e9cd1e",
+    "mask_md5": "1976f46dfb0855ae09911ba3fe158600",
+    "image_pix": "775670c05ba77106af195ed6911987fa",
+    "mask_pix": "be0c96a284be7ce6a968c1d26b6702a8"
+   },
+   {
+    "name": "170",
+    "image_file": "170.tif",
+    "mask_file": "170.png",
+    "image_md5": "d79977fff55ff88fcfc0f15b1f7ce5c0",
+    "mask_md5": "1450ba82802345cbbe0d675fd82f6725",
+    "image_pix": "ab2229b51efc4d3577f9273c09c89e10",
+    "mask_pix": "03e84cfc89f1b859813760013f060e10"
+   },
+   {
+    "name": "171",
+    "image_file": "171.tif",
+    "mask_file": "171.png",
+    "image_md5": "ce6ee8e4808602bcdb0cf6e6a3e53a48",
+    "mask_md5": "4fce5768511714f9120855f7af0713d4",
+    "image_pix": "de188ee4185dc9acdb6501aca53cff17",
+    "mask_pix": "1611e050b8a3b5b8cd82cf4323f36b5e"
+   },
+   {
+    "name": "172",
+    "image_file": "172.tif",
+    "mask_file": "172.png",
+    "image_md5": "9092b7c546a8c110efeb6bab2e226fae",
+    "mask_md5": "c9e68271edef68c1d68cd1b2d5bd1d84",
+    "image_pix": "fa262b904e4afe2c81a15116f5e0618c",
+    "mask_pix": "778c7d681c44a49793543fe4387b96fa"
+   },
+   {
+    "name": "173",
+    "image_file": "173.tif",
+    "mask_file": "173.png",
+    "image_md5": "75aee3f31f8205126b5979bb133e394a",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "d9ee84d632866115da0999c3ab0da247",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "174",
+    "image_file": "174.tif",
+    "mask_file": "174.png",
+    "image_md5": "4d02acf511439d1809dfb3252a76a24e",
+    "mask_md5": "3fd4ba1a98842251ba1a18ae2bb19057",
+    "image_pix": "48532638880fa703e32246b0eea2c5c2",
+    "mask_pix": "8c57688a5759ba5d627816fabfa91102"
+   },
+   {
+    "name": "175",
+    "image_file": "175.tif",
+    "mask_file": "175.png",
+    "image_md5": "16c6e30679ae38d51b0c621c157769fc",
+    "mask_md5": "fada2896170c7241aa95b23cc3eeb8ff",
+    "image_pix": "f740c20c74b0cc62cc3a1c2419130b4f",
+    "mask_pix": "b8d206428198adbc3d7cfa2705418676"
+   },
+   {
+    "name": "176",
+    "image_file": "176.tif",
+    "mask_file": "176.png",
+    "image_md5": "a5292fa84de8429ddbf35f9a82234da1",
+    "mask_md5": "740dd2c79e3316e2db5d7de3590912ca",
+    "image_pix": "d269ec47d3c316e14aa7b4eb26ad5505",
+    "mask_pix": "16f3e506f92c9accb3297a646ba881cd"
+   },
+   {
+    "name": "177",
+    "image_file": "177.tif",
+    "mask_file": "177.png",
+    "image_md5": "0795a46aafbbf9e072b1c27ffbaef2f6",
+    "mask_md5": "64cbb448a0472150b1b529dcd3a98791",
+    "image_pix": "618a490a3fef56a8fd4fff11f2dd18c6",
+    "mask_pix": "5cae66bd663ed252764168fc59ef2c26"
+   },
+   {
+    "name": "178",
+    "image_file": "178.tif",
+    "mask_file": "178.png",
+    "image_md5": "b796f6a96448e81a80b67833f1086a7c",
+    "mask_md5": "1976f46dfb0855ae09911ba3fe158600",
+    "image_pix": "dfa6779211a8b30b9796b302cf406151",
+    "mask_pix": "be0c96a284be7ce6a968c1d26b6702a8"
+   },
+   {
+    "name": "179",
+    "image_file": "179.tif",
+    "mask_file": "179.png",
+    "image_md5": "189fa2381d1ba09bbd6728fe8d637f62",
+    "mask_md5": "6199fa4ced24fcbabeaa3f84fe03ab25",
+    "image_pix": "c733532c992e9386c501de12242c50ca",
+    "mask_pix": "71fde300eb47feddff91b8b64ebf621f"
+   },
+   {
+    "name": "180",
+    "image_file": "180.tif",
+    "mask_file": "180.png",
+    "image_md5": "cbeebc89029ac83a0fbfc8330c6327ba",
+    "mask_md5": "2c7646b6052903e4f6a489525ad970ef",
+    "image_pix": "19b285ac33d3d4d3424886fcb048e2df",
+    "mask_pix": "191e6b7505045a43ec99e51fdc205d10"
+   },
+   {
+    "name": "181",
+    "image_file": "181.tif",
+    "mask_file": "181.png",
+    "image_md5": "c699724779fcdc60f2cd9cb7b8319f91",
+    "mask_md5": "1c621b64c8588511db60d96d2ea575d3",
+    "image_pix": "c109a4b86df9f84825653ec7dd63ed63",
+    "mask_pix": "e1bf34f02b606f24275cb3be330e4fd0"
+   },
+   {
+    "name": "182",
+    "image_file": "182.tif",
+    "mask_file": "182.png",
+    "image_md5": "3bc1b5fd038afea4600a5ad4fefa233e",
+    "mask_md5": "982886b0194b69bd4b635149fabc7550",
+    "image_pix": "8c1d50283eec1902ba443c46a6466a03",
+    "mask_pix": "f28ef32ba60d90cdf2de4cecdef65cf6"
+   },
+   {
+    "name": "183",
+    "image_file": "183.tif",
+    "mask_file": "183.png",
+    "image_md5": "3cc6038b72798fc2dd028328531d5ab1",
+    "mask_md5": "070babd2cd9af4eb452c3b6b95fb84b3",
+    "image_pix": "4ad48a39ef8a39e7c7434335fd5bb277",
+    "mask_pix": "85a391163fb99c4859e8efd3f0c64ea8"
+   },
+   {
+    "name": "184",
+    "image_file": "184.tif",
+    "mask_file": "184.png",
+    "image_md5": "554bb076795136dd0607e72cb7398bb4",
+    "mask_md5": "32c2908637f4e00c1770f719a0c77a25",
+    "image_pix": "36d376e981b9d6d4466dca8ac2461b4a",
+    "mask_pix": "4ec6f8f27bfe4d82367dea865cbda54e"
+   },
+   {
+    "name": "185",
+    "image_file": "185.tif",
+    "mask_file": "185.png",
+    "image_md5": "6e083ec99ca80119ef988e3cd3296514",
+    "mask_md5": "c681802a2504a67ee6efec2c4e1e0bd0",
+    "image_pix": "c0d96deabcff4a895496e427df6bda76",
+    "mask_pix": "68b8d9e45160ffec3b653dd1139cb502"
+   },
+   {
+    "name": "186",
+    "image_file": "186.tif",
+    "mask_file": "186.png",
+    "image_md5": "de49c7c2db4c100f59c4316490314272",
+    "mask_md5": "ca75d94f55b583218220f7abe2e17fe7",
+    "image_pix": "af58ed95638f9247769478afc9683be2",
+    "mask_pix": "3a8c86d7b269f9398fd6f5d1e9f3ecb5"
+   },
+   {
+    "name": "187",
+    "image_file": "187.tif",
+    "mask_file": "187.png",
+    "image_md5": "1b654b08276254d44c8e2614d46a1817",
+    "mask_md5": "7219102e733523ba6fe7550579302721",
+    "image_pix": "db034095533bf28ce3aaeff4691f2f90",
+    "mask_pix": "059b3ca97081cd2a31b9f6f04c9c7280"
+   },
+   {
+    "name": "188",
+    "image_file": "188.tif",
+    "mask_file": "188.png",
+    "image_md5": "5491e324211ef687fde23e650d54db49",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "c559e799f14c5d7d2a643cb298422b80",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "189",
+    "image_file": "189.tif",
+    "mask_file": "189.png",
+    "image_md5": "bfbe8153d1084842f18838cb822f127d",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "f8a30490dfbc18ff4b8b293027f26ed5",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "190",
+    "image_file": "190.tif",
+    "mask_file": "190.png",
+    "image_md5": "739848b48ea6daa69f1fd88bfb613a10",
+    "mask_md5": "b7cac249a26d4ccb581b68d38a13e64a",
+    "image_pix": "36e550ff08bbed4d940748c515f712ec",
+    "mask_pix": "0eeaf552777972eec85c558422a3fb5c"
+   },
+   {
+    "name": "191",
+    "image_file": "191.tif",
+    "mask_file": "191.png",
+    "image_md5": "0bbabb67557facedea2f44f2074e3bc1",
+    "mask_md5": "6902ca6bfed147aa7f5d8e61bcb45c4a",
+    "image_pix": "5c7d969c67ddbb95312bd6efbfd47687",
+    "mask_pix": "10cdd2dd3fd33ff48d51078716347d8e"
+   },
+   {
+    "name": "192",
+    "image_file": "192.tif",
+    "mask_file": "192.png",
+    "image_md5": "8f0951549f3dc3366200334c446bcd59",
+    "mask_md5": "744f1b81e06abedf6c955007cf932547",
+    "image_pix": "b20d96aea72d34f1fd26bfbc72f79c47",
+    "mask_pix": "d83a5b74b7c355930dd24571794be88f"
+   },
+   {
+    "name": "193",
+    "image_file": "193.tif",
+    "mask_file": "193.png",
+    "image_md5": "e9ff7f2c1ce7599b14a539b93a254c70",
+    "mask_md5": "8c4d7874194ba45c76d3cfa739863bad",
+    "image_pix": "200cfc9f7559d5d9e111954b7e32f6b6",
+    "mask_pix": "315119ffdffbff90b3e660fd07f6e361"
+   },
+   {
+    "name": "194",
+    "image_file": "194.tif",
+    "mask_file": "194.png",
+    "image_md5": "4088d393ae8d6da5fb5dc23c69790d62",
+    "mask_md5": "00897c104cdbcdb0de012560ddf88cfc",
+    "image_pix": "4165fa34f2eb0377759eacf0c52afdc3",
+    "mask_pix": "30f71539979ca5659a4056ccf65dca1f"
+   },
+   {
+    "name": "195",
+    "image_file": "195.tif",
+    "mask_file": "195.png",
+    "image_md5": "cfdb7d5f969920b9ad5146dc0446279e",
+    "mask_md5": "31fdd051baaa1efba50eb257a435802f",
+    "image_pix": "6ca8fb54aaabdaa5335e64c746b752b0",
+    "mask_pix": "6d898aefbc7896bd9860af2d9db3a8a9"
+   },
+   {
+    "name": "196",
+    "image_file": "196.tif",
+    "mask_file": "196.png",
+    "image_md5": "9e960cf3d124af78939613ecd5690778",
+    "mask_md5": "99e901171f77b2ec2ba756f1daeff3a6",
+    "image_pix": "e80bcaccee168b0e6fe5929bd0f5b245",
+    "mask_pix": "2b387bfdc5376c50eac1a32fad855f91"
+   },
+   {
+    "name": "197",
+    "image_file": "197.tif",
+    "mask_file": "197.png",
+    "image_md5": "c7807c8c25dcd126cb873bc3bc83a861",
+    "mask_md5": "9b92b7258e50182d4c9a90bd4bd41ddc",
+    "image_pix": "74764f213de8172140b1f06a256b38c3",
+    "mask_pix": "bc73c9c1bf6d3a00028cb67cd559ee16"
+   },
+   {
+    "name": "198",
+    "image_file": "198.tif",
+    "mask_file": "198.png",
+    "image_md5": "53097daa7017c707b49f981090f37f0d",
+    "mask_md5": "5147a5f9fd63dc934ad38efe2393e470",
+    "image_pix": "beddbcf11561335808a0ea32ae0018e8",
+    "mask_pix": "92ff50c5247ef139e5c3edfca7a05056"
+   },
+   {
+    "name": "199",
+    "image_file": "199.tif",
+    "mask_file": "199.png",
+    "image_md5": "88c69e8606aaae546cd296de2fa6dd87",
+    "mask_md5": "71e986bf5cf21f9962ce617ab08575ce",
+    "image_pix": "3921de24552ca924f1e229c9363413d4",
+    "mask_pix": "7402d170b33d3a50e1bbe2e0225b1741"
+   },
+   {
+    "name": "200",
+    "image_file": "200.tif",
+    "mask_file": "200.png",
+    "image_md5": "9787f399523f3c95e7588f3e1f06a572",
+    "mask_md5": "0fca271a243aa1164c5e6619470367fb",
+    "image_pix": "cfd7a3fe89e7790429c0ecf58581d001",
+    "mask_pix": "b9a70bdab5a8d3a23d0a4794b5c6a014"
+   },
+   {
+    "name": "201",
+    "image_file": "201.tif",
+    "mask_file": "201.png",
+    "image_md5": "933b79ef6414f68985bbecdf2bd33d70",
+    "mask_md5": "a8c9fc7d28d8a1afc2dd849524ae40ce",
+    "image_pix": "fd597c321a65ad531faf2a8ca858bf6b",
+    "mask_pix": "9e09ce1123a404fbb4a412cc4510b336"
+   },
+   {
+    "name": "202",
+    "image_file": "202.tif",
+    "mask_file": "202.png",
+    "image_md5": "1512b85b706b55315d973c687790acf6",
+    "mask_md5": "cf2cf334339c8792039cf4da3573925b",
+    "image_pix": "6136b49c937609d06048b197af796af0",
+    "mask_pix": "371ae11672636607c13b0b6b6f1fad7a"
+   },
+   {
+    "name": "203",
+    "image_file": "203.tif",
+    "mask_file": "203.png",
+    "image_md5": "af172889bccd0a45efb88a63913ee67d",
+    "mask_md5": "e7676c0ba9757ecb8546e2dda8598115",
+    "image_pix": "2be765d4dea132af2b554e1eb441da3d",
+    "mask_pix": "f03b3547f6aa73eb69a9704c126d07a2"
+   },
+   {
+    "name": "204",
+    "image_file": "204.tif",
+    "mask_file": "204.png",
+    "image_md5": "8e2f27acba5b07725dd0b0f57671a53f",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "59d5758a17ae76f9d184af28f890addc",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "205",
+    "image_file": "205.tif",
+    "mask_file": "205.png",
+    "image_md5": "b5f75edff38f6d5160627f48602269c1",
+    "mask_md5": "883698c4a24c3d6fe92582ca5430128e",
+    "image_pix": "0f7971ddbc19e1c4a47409eb773b13f4",
+    "mask_pix": "9a0e33460e3f02d11b03cb7fead7fede"
+   },
+   {
+    "name": "206",
+    "image_file": "206.tif",
+    "mask_file": "206.png",
+    "image_md5": "080bfcb1724fe5031e6257980a452918",
+    "mask_md5": "12abf95780bcffafb3bb1923e510245e",
+    "image_pix": "32b6b31cbceead549c8bce6980dc405d",
+    "mask_pix": "e0877673dae6f58b4e6a3c10f6611257"
+   },
+   {
+    "name": "207",
+    "image_file": "207.tif",
+    "mask_file": "207.png",
+    "image_md5": "b644eda91c8bf0302828601a5f3bc387",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "82e16503f203458b945942b01e584239",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "208",
+    "image_file": "208.tif",
+    "mask_file": "208.png",
+    "image_md5": "2c510a0ec7bda2aa1e799bfd93b8d95f",
+    "mask_md5": "6dd82c1f861cac3d2820bb0c870e5c15",
+    "image_pix": "97de9f13a68e717df196c7aa36f33ea9",
+    "mask_pix": "24db18305be441bc8665881a5389cb7e"
+   },
+   {
+    "name": "209",
+    "image_file": "209.tif",
+    "mask_file": "209.png",
+    "image_md5": "3600c82bd578dbb81e624c3b868b272d",
+    "mask_md5": "fed065fa3da57057f4d0c07fa85647f8",
+    "image_pix": "5a519e12a406c220fba8239aaf2b6fff",
+    "mask_pix": "36eb78e82cba26af5df03c5ab0a06ac9"
+   },
+   {
+    "name": "210",
+    "image_file": "210.tif",
+    "mask_file": "210.png",
+    "image_md5": "d0a86f93c4c5689d1aac9726f8e5d80a",
+    "mask_md5": "eca84d4a92e6d9d4ebedb68aedb5a27e",
+    "image_pix": "0ad0bb766c2704210aa34e6450e0773c",
+    "mask_pix": "5b31f10cd3c9db3363a75c2259a42294"
+   },
+   {
+    "name": "211",
+    "image_file": "211.tif",
+    "mask_file": "211.png",
+    "image_md5": "89852aac4054bbc4828030e8b2577667",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "8758a16dfa4e2097bb7eedab7e6e24a0",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "212",
+    "image_file": "212.tif",
+    "mask_file": "212.png",
+    "image_md5": "53e4b1a20aa8b7aff3d6b60f38dc0287",
+    "mask_md5": "6b11659887e70d62cc25f772577b53bd",
+    "image_pix": "c42d2b9335c42db629ea8971023184e6",
+    "mask_pix": "f8c044178c26b803dc7e8abcad51ce29"
+   },
+   {
+    "name": "213",
+    "image_file": "213.tif",
+    "mask_file": "213.png",
+    "image_md5": "19a0edd746ca6bf82f697bbe6c9c8aab",
+    "mask_md5": "e98ed3c578cd7a3560f3d6a7c240c4b5",
+    "image_pix": "5b3927d04f01df991fffd83effe7ce23",
+    "mask_pix": "9f3837a4f7f78a219ee62a6dd8948d9b"
+   },
+   {
+    "name": "214",
+    "image_file": "214.tif",
+    "mask_file": "214.png",
+    "image_md5": "68bfe843688fac0368a87d6b8027d560",
+    "mask_md5": "e6e1f129c742f7492da516c8b6d63447",
+    "image_pix": "d019b494fe2affbac2f213a5999d86ec",
+    "mask_pix": "24d46907c3b3f7b4627054a5bb99d97a"
+   },
+   {
+    "name": "215",
+    "image_file": "215.tif",
+    "mask_file": "215.png",
+    "image_md5": "62073475f7517f5f7692510ae2e2061a",
+    "mask_md5": "23476b7aa94a80dfc825e5e3634d99c0",
+    "image_pix": "3f65d905dd8f8f4efbcffbec98d4eab1",
+    "mask_pix": "3f7fe55358f6c569c1182cb60e72e27e"
+   },
+   {
+    "name": "216",
+    "image_file": "216.tif",
+    "mask_file": "216.png",
+    "image_md5": "a9501b3ee9c22ce038c67cabbb4630a9",
+    "mask_md5": "a0cee1b570572b042296e74a368df2c3",
+    "image_pix": "1d93aab75722a1dc91047ac90ea9337c",
+    "mask_pix": "d91d0bd04c1884a901feb5120415b0ba"
+   },
+   {
+    "name": "217",
+    "image_file": "217.tif",
+    "mask_file": "217.png",
+    "image_md5": "2149cc9ee9fad33016a87fb3164dfe0e",
+    "mask_md5": "031955b7e546d9874e065e76acdc6c58",
+    "image_pix": "3f0dcba7ae9e73c7dc700056035e3490",
+    "mask_pix": "ca060e1a3b31192ce5bd99d86bc55ab7"
+   },
+   {
+    "name": "218",
+    "image_file": "218.tif",
+    "mask_file": "218.png",
+    "image_md5": "fe362527d1331c71b4f4d2a901448abc",
+    "mask_md5": "d4d64788e3c6bd81febf0b6f3dce0a00",
+    "image_pix": "482a37cdca1dcf2ac4d808355c963840",
+    "mask_pix": "fbe6ecafde9b274541c403762ff2f7cf"
+   },
+   {
+    "name": "219",
+    "image_file": "219.tif",
+    "mask_file": "219.png",
+    "image_md5": "f8a1996f435bca9cefe87d3c3c380b84",
+    "mask_md5": "dfebcfe98f5348b55278c35be5fe654a",
+    "image_pix": "1940df67aa75ffe9d0fd0c72793a635b",
+    "mask_pix": "d0c06a76de74d8c5181c7209be314e44"
+   },
+   {
+    "name": "220",
+    "image_file": "220.tif",
+    "mask_file": "220.png",
+    "image_md5": "1b53c281fc5ca65d1d6cbbfc4cb779e4",
+    "mask_md5": "16d7ba4a71a87d7fa4ca57b9a16e72df",
+    "image_pix": "1d9e0714bff31a364f7e070cef3d8a7d",
+    "mask_pix": "429babd568abe08c4782bad30aafd5d4"
+   },
+   {
+    "name": "221",
+    "image_file": "221.tif",
+    "mask_file": "221.png",
+    "image_md5": "ca725ca1c8bd35d8b9cbf7d4fa72a299",
+    "mask_md5": "2665d51fde0873819d9e1e5f64e804e9",
+    "image_pix": "c148daa891637ae7ca63fff963629025",
+    "mask_pix": "b0cdb36b80772aaa340be0218a27e6cd"
+   },
+   {
+    "name": "222",
+    "image_file": "222.tif",
+    "mask_file": "222.png",
+    "image_md5": "b1160b4c85498aaacf68af1d94605716",
+    "mask_md5": "11dde992bdc67c6c241e945224ce12fd",
+    "image_pix": "c6cf6f022123c291618cf2b6e06dbb38",
+    "mask_pix": "ea041a46a7e1ff524c73281bd45fc950"
+   },
+   {
+    "name": "223",
+    "image_file": "223.tif",
+    "mask_file": "223.png",
+    "image_md5": "fc498e3caae017c47194c3bba045a276",
+    "mask_md5": "da0f8bd9c56cfb4f2f96031042665a5c",
+    "image_pix": "e113a4c64c5f37aa19ed16761b4d2233",
+    "mask_pix": "4e0effe4c0a44ee777cddde70474ffca"
+   },
+   {
+    "name": "224",
+    "image_file": "224.tif",
+    "mask_file": "224.png",
+    "image_md5": "5a7adaad17184e4cb6798a0124ac7f81",
+    "mask_md5": "63b77d3b46a36f8066486e3c84f7dc5c",
+    "image_pix": "b35eb9c9628117e74a278e290a6d86ec",
+    "mask_pix": "1b194501f0347db8e83d06aad4d2e5ce"
+   },
+   {
+    "name": "225",
+    "image_file": "225.tif",
+    "mask_file": "225.png",
+    "image_md5": "6fe38e2e5ca1038e5f59414f4d4d915b",
+    "mask_md5": "b6752bc8e53fbaa7d893e1bdb13323e0",
+    "image_pix": "89c666f59f39b370c54851c67c8cd2de",
+    "mask_pix": "9c3a3f70062fa689b6ccaff954ea26b7"
+   },
+   {
+    "name": "226",
+    "image_file": "226.tif",
+    "mask_file": "226.png",
+    "image_md5": "e7d0f50e2542d99baf8ad714d3c543c7",
+    "mask_md5": "23476b7aa94a80dfc825e5e3634d99c0",
+    "image_pix": "53936225282a4418e72db7668ec8e6b8",
+    "mask_pix": "3f7fe55358f6c569c1182cb60e72e27e"
+   },
+   {
+    "name": "227",
+    "image_file": "227.tif",
+    "mask_file": "227.png",
+    "image_md5": "0cd895b465ed6ec5ad32665c7d941299",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "3033d54bbf5661d2411ed1ffed91654d",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "228",
+    "image_file": "228.tif",
+    "mask_file": "228.png",
+    "image_md5": "0032bd3da3dcd8597c548a8cabad9e4a",
+    "mask_md5": "4b145b2fe6aade923ad051101a81c5fb",
+    "image_pix": "469a45a43376d35fac29661d7ab43f49",
+    "mask_pix": "7fc6a272d0bb996245ec0f439cbda14b"
+   },
+   {
+    "name": "229",
+    "image_file": "229.tif",
+    "mask_file": "229.png",
+    "image_md5": "9e9d952a912b71b1b9aefc0b13d16ea1",
+    "mask_md5": "983613bfd908131531fa3e02be3d33f7",
+    "image_pix": "921ab3f160da7540e86c12911646c4d5",
+    "mask_pix": "2929b40b3965ddfb68243ffefa353d0a"
+   },
+   {
+    "name": "230",
+    "image_file": "230.tif",
+    "mask_file": "230.png",
+    "image_md5": "3d8ef02941d8fa5bca2ad714e28999b4",
+    "mask_md5": "87d92a41c14d2dd82468571e97338a00",
+    "image_pix": "4d857209ddd1df5be2a99d45351a8f88",
+    "mask_pix": "482db6fc7a4ab49c29e782ed01e998c9"
+   },
+   {
+    "name": "231",
+    "image_file": "231.tif",
+    "mask_file": "231.png",
+    "image_md5": "792faf42f8c785a5292fcaa5feebe7e1",
+    "mask_md5": "fd5de387e20f11ab86b22600e0c861c5",
+    "image_pix": "7eae287c7b768921455eca185989a733",
+    "mask_pix": "cddf0f56462d2a14fdf245291088d194"
+   },
+   {
+    "name": "232",
+    "image_file": "232.tif",
+    "mask_file": "232.png",
+    "image_md5": "941e2ee57ac35ff5a8b65d58b2fd8d25",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "e87e4f87706737802430c717cf8609b8",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "233",
+    "image_file": "233.tif",
+    "mask_file": "233.png",
+    "image_md5": "412785b51d23ea8b3be4ee3915c725ed",
+    "mask_md5": "254c087f4e0cbb8b1debd3eb0fef3f2d",
+    "image_pix": "911133e0026d4feda38b13e3b79f8890",
+    "mask_pix": "ded6a8dbce995c9f12bad464e465c6de"
+   },
+   {
+    "name": "234",
+    "image_file": "234.tif",
+    "mask_file": "234.png",
+    "image_md5": "c4385c0c1387bd9223b573c33c6c62b8",
+    "mask_md5": "d70c9a0e5e94b9acbcfebe0a9c88eb5c",
+    "image_pix": "14337abd0faaffbaf064ccd46929c433",
+    "mask_pix": "76c90b9337321b94ce494a1a1db99354"
+   },
+   {
+    "name": "235",
+    "image_file": "235.tif",
+    "mask_file": "235.png",
+    "image_md5": "7a6b83898a2ff43ec9817926c53e935e",
+    "mask_md5": "3985471072c3efab37ccd8b2b5866107",
+    "image_pix": "919e95d57dd6371e0e98d03be41ed631",
+    "mask_pix": "ecfe5dd94504f5a8607887ea2ef8de7c"
+   },
+   {
+    "name": "236",
+    "image_file": "236.tif",
+    "mask_file": "236.png",
+    "image_md5": "61cf6e038728532afc97264324791a76",
+    "mask_md5": "636cbbe978ba6c394d90e6e82c68775e",
+    "image_pix": "5f4af3b1189ced36d9b787a4d027392d",
+    "mask_pix": "eca7bc8d9e9b06e3b487323c110c106a"
+   },
+   {
+    "name": "237",
+    "image_file": "237.tif",
+    "mask_file": "237.png",
+    "image_md5": "3487d608b1d27b50535348a8e9fee878",
+    "mask_md5": "cf52f6ad591f35988f175ff7afd5a275",
+    "image_pix": "9c9fd7adc4d62ca53c06d588709f286c",
+    "mask_pix": "b3c1368a6ab088ef6fbcf61b8aacd495"
+   },
+   {
+    "name": "238",
+    "image_file": "238.tif",
+    "mask_file": "238.png",
+    "image_md5": "5b482dd3072f20153054f5ead1da261d",
+    "mask_md5": "73a046589b2cd0c1da6dc61777dc2117",
+    "image_pix": "a9588321e052799c90c59165639c39c9",
+    "mask_pix": "1e5edfceac669e831d36ca434427229e"
+   },
+   {
+    "name": "239",
+    "image_file": "239.tif",
+    "mask_file": "239.png",
+    "image_md5": "0b16a5c65fcf6739d1e92e4b817b6284",
+    "mask_md5": "ba2ee1060d6293654095f0caf6bb9ccc",
+    "image_pix": "f6938960a5b11ba8b76b428fd2c936a1",
+    "mask_pix": "34e0bc6b8c8aae68ae273256679aad18"
+   },
+   {
+    "name": "240",
+    "image_file": "240.tif",
+    "mask_file": "240.png",
+    "image_md5": "b714642d7200f1a5449172dfa68c75d6",
+    "mask_md5": "8cede29b81744ef16524727355336992",
+    "image_pix": "e0c6a4a3426aa8d2d14d4ea2ca7199ee",
+    "mask_pix": "6e6268f244f9c7962cae1e1b9d0ca489"
+   },
+   {
+    "name": "241",
+    "image_file": "241.tif",
+    "mask_file": "241.png",
+    "image_md5": "c9c4f4d77cf0b374b0abf35cadd258bf",
+    "mask_md5": "81bea627b4dab04e8cfeff5501e62ba1",
+    "image_pix": "bddf5d8157df737c8be70aa464f4ae7c",
+    "mask_pix": "87da42197a2a7120131de5db4337e8a5"
+   },
+   {
+    "name": "242",
+    "image_file": "242.tif",
+    "mask_file": "242.png",
+    "image_md5": "6da9c78a9a672be6f410d76044f28dc2",
+    "mask_md5": "0146f33f2b6f46929a5c439c991b37b9",
+    "image_pix": "d36a1e3ccd5bbbd82a197275d6b67b09",
+    "mask_pix": "27970e5a352d22511b74159b3074eb7f"
+   },
+   {
+    "name": "243",
+    "image_file": "243.tif",
+    "mask_file": "243.png",
+    "image_md5": "5de26bd562687728c060a7978b10b27a",
+    "mask_md5": "e68a67684a7056adfd5b37bacd693185",
+    "image_pix": "7945e50682f84c1e2d5f0e18bda69dd9",
+    "mask_pix": "b4270cb12758b7e7cce8da251ba7aa5a"
+   },
+   {
+    "name": "244",
+    "image_file": "244.tif",
+    "mask_file": "244.png",
+    "image_md5": "d79f315fb6c35442dcf80d5ab43d9c01",
+    "mask_md5": "27edee7df9abd2a7a6d8aa00b55c48c8",
+    "image_pix": "a2f6ebf47c8aeb2e97803d9176cae369",
+    "mask_pix": "45df85863327792d38e949dee326e9f9"
+   },
+   {
+    "name": "245",
+    "image_file": "245.tif",
+    "mask_file": "245.png",
+    "image_md5": "491dfdbf5c460ff80829bfb29e0b4c51",
+    "mask_md5": "9f0b169e83071f9b0379af324784c032",
+    "image_pix": "9adc829109089995d2985c9f2e1c2aeb",
+    "mask_pix": "0fd68c9cf3f160d18925466af2131ceb"
+   },
+   {
+    "name": "246",
+    "image_file": "246.tif",
+    "mask_file": "246.png",
+    "image_md5": "51bc0ab94b76d1e6ef1045e0857a8087",
+    "mask_md5": "e2ece2aa928786b8dfc08ffb5a2c9f0c",
+    "image_pix": "d2fa497c32f69e3936133d58b257b9e7",
+    "mask_pix": "39b13b33def1370eeb2b3d6d697a0674"
+   },
+   {
+    "name": "247",
+    "image_file": "247.tif",
+    "mask_file": "247.png",
+    "image_md5": "89e1d73f2ec6533f583addd3ce7b0321",
+    "mask_md5": "3ae3daebbb4927ae75f3acaf579cc4d5",
+    "image_pix": "c9a8564e14bfc4c3a832ad884b1de1e5",
+    "mask_pix": "55eaa9361dabb1f4dd0bc357ae1a276f"
+   },
+   {
+    "name": "248",
+    "image_file": "248.tif",
+    "mask_file": "248.png",
+    "image_md5": "a5589a45d32c0549882d32dba593c680",
+    "mask_md5": "378e11119c2f82f0b4712fc575169a0b",
+    "image_pix": "8b92d8c7c8846204d8dfbc8ffadf632a",
+    "mask_pix": "9892c6aa61ac407f4b507f488d0d46f6"
+   },
+   {
+    "name": "249",
+    "image_file": "249.tif",
+    "mask_file": "249.png",
+    "image_md5": "fd535cec3b91fff3450675d2c94a8e0c",
+    "mask_md5": "e33fadf9e1573b4a5d061213c5fa017e",
+    "image_pix": "e46416413b7b391636723bbf767050de",
+    "mask_pix": "243eb3ec7496bece6604564ade494b28"
+   },
+   {
+    "name": "250",
+    "image_file": "250.tif",
+    "mask_file": "250.png",
+    "image_md5": "4954471585140a5534ead3e11f63d129",
+    "mask_md5": "60946ee09989dfcd92b7f78b1a549c05",
+    "image_pix": "0b8594d985b1c805ed2e53ddadac3bc2",
+    "mask_pix": "8539d52db6d7f79f69099af43d9437f1"
+   },
+   {
+    "name": "251",
+    "image_file": "251.tif",
+    "mask_file": "251.png",
+    "image_md5": "b574d3b30c9466364a9a6c68b4dcc944",
+    "mask_md5": "468016a2de0e1ab97be2eadac7e02c46",
+    "image_pix": "a23b860c10edc38b684a74f520e29ac8",
+    "mask_pix": "8bd067ea1917b01f9de5c318480c6d01"
+   },
+   {
+    "name": "252",
+    "image_file": "252.tif",
+    "mask_file": "252.png",
+    "image_md5": "a802c4cb0f28d4df0b0df3a30ed27aa5",
+    "mask_md5": "1b6c91112ae3a054d179fe6d4b67c7f2",
+    "image_pix": "a4c255000aced705fa6166ab1593f25a",
+    "mask_pix": "d1581a9aa16aaef13602c02d65b0c482"
+   },
+   {
+    "name": "253",
+    "image_file": "253.tif",
+    "mask_file": "253.png",
+    "image_md5": "0e3adf2a3cb3b0e53a78d99c090f16ab",
+    "mask_md5": "87c072f2ae1be3d2c38d4961ed467af8",
+    "image_pix": "a520a7c532ee626d3dd6b05b9a3f9a86",
+    "mask_pix": "80901cb69391e614079bc21b04a055ac"
+   },
+   {
+    "name": "254",
+    "image_file": "254.tif",
+    "mask_file": "254.png",
+    "image_md5": "968943c0bdd22fb42a51faf161210fa5",
+    "mask_md5": "82fad84d5f54358d32a215997fd5fef0",
+    "image_pix": "b0feac648f5f5fc25d4b863ce4aa76bf",
+    "mask_pix": "c96e68c71bb97069ef7370b92c3415af"
+   },
+   {
+    "name": "255",
+    "image_file": "255.tif",
+    "mask_file": "255.png",
+    "image_md5": "52da4851834677ea017a81d2c54f7f78",
+    "mask_md5": "a2abf98e926fb599d2ee41cbaf17f8f4",
+    "image_pix": "53f31bf8da1d9fb58c2b50a4a93347f8",
+    "mask_pix": "320a89e0266790d8df7d6b81cb42a6db"
+   },
+   {
+    "name": "256",
+    "image_file": "256.tif",
+    "mask_file": "256.png",
+    "image_md5": "9d6e0f0ee388ba11a48a3794e5bf7809",
+    "mask_md5": "08b3836c03a3005b7ec1b356f1980d71",
+    "image_pix": "cf2fd359ddb3e0f5202d657dc656a53f",
+    "mask_pix": "19e58263c6a6acb98edd64c4c26f99a3"
+   },
+   {
+    "name": "257",
+    "image_file": "257.tif",
+    "mask_file": "257.png",
+    "image_md5": "90eaacf7f8fa29250b28bd5a26e5c4c5",
+    "mask_md5": "a3b93fe71e38585cbcdf6ba671650eac",
+    "image_pix": "0126b36da6c73dcca970a3db86de42a5",
+    "mask_pix": "6bee9c5ce5b88ca65ba593e0ba8e6567"
+   },
+   {
+    "name": "258",
+    "image_file": "258.tif",
+    "mask_file": "258.png",
+    "image_md5": "8752d9061a83938c89285dc33e5935d4",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "998185ad5cf46dac9e4533894e1cf579",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "259",
+    "image_file": "259.tif",
+    "mask_file": "259.png",
+    "image_md5": "0ae59a919e4f4027672cbf60f6880bb2",
+    "mask_md5": "84f467849101665d8d60172b90fc7395",
+    "image_pix": "adf7c7742ae7c68171cfb5a54e7cfec5",
+    "mask_pix": "8a372e35c3c955402a5f69ba905721bf"
+   },
+   {
+    "name": "260",
+    "image_file": "260.tif",
+    "mask_file": "260.png",
+    "image_md5": "4064f9c2860de3c2339b2f3d8692ff31",
+    "mask_md5": "278a8a82764d11a632f4897587f5a053",
+    "image_pix": "35454dc6613a1d7aa3e23373822cc5ce",
+    "mask_pix": "cbe3b1ea111f1c20ea2a18de7761af8c"
+   },
+   {
+    "name": "261",
+    "image_file": "261.tif",
+    "mask_file": "261.png",
+    "image_md5": "1f374cd929eb35a2bc285b50e0590e0c",
+    "mask_md5": "90752d92484b57e21296bfa8c572e3ff",
+    "image_pix": "774ab590a5e2c94549d8c192f5a56edd",
+    "mask_pix": "26d30d022d12a062d3b7f5628535ddac"
+   },
+   {
+    "name": "262",
+    "image_file": "262.tif",
+    "mask_file": "262.png",
+    "image_md5": "670481060e78aab751c8398b7948bc70",
+    "mask_md5": "6820006d5c2bc42cf4737ab56f8714e7",
+    "image_pix": "e064f3bcba23207c8e2453d828497f54",
+    "mask_pix": "d0776ff709830bd315cb193bdad97f69"
+   },
+   {
+    "name": "263",
+    "image_file": "263.tif",
+    "mask_file": "263.png",
+    "image_md5": "d74154701c4cfc3b267fb661cafde2d1",
+    "mask_md5": "c3e0aa1f98900366f216a9542112e985",
+    "image_pix": "beea45ee89d6543be7e43d61cf4a51e2",
+    "mask_pix": "8776c9813aa21e69d0d7393a920506bc"
+   },
+   {
+    "name": "264",
+    "image_file": "264.tif",
+    "mask_file": "264.png",
+    "image_md5": "c55b6bbbb126cbd7148e0c1c5f8c3143",
+    "mask_md5": "815e29761fe16a7057d15fa6e7fe9b50",
+    "image_pix": "c125fa327f0509655137b2b048bf23d2",
+    "mask_pix": "4a19711879afa77d184f151e59872ceb"
+   },
+   {
+    "name": "265",
+    "image_file": "265.tif",
+    "mask_file": "265.png",
+    "image_md5": "edde7c1716042ee4abfaa41c2b236f4f",
+    "mask_md5": "79e25f9d515268fcb3b267ea0a6cc128",
+    "image_pix": "75e8656fde22bc0d35c378c7d18ff086",
+    "mask_pix": "0ad990cf1fc7b43dc26ebf43fa551cb7"
+   },
+   {
+    "name": "266",
+    "image_file": "266.tif",
+    "mask_file": "266.png",
+    "image_md5": "764b30ae2313fe0a7c026d7014430971",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "cf55e2d0945be78fa514ada781eea05d",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "267",
+    "image_file": "267.tif",
+    "mask_file": "267.png",
+    "image_md5": "857af1daebf6dd2c561e5cd9aaba1e20",
+    "mask_md5": "ef4bf26670af9cc3f9267a0c4317dbef",
+    "image_pix": "39beb88dc55ea8781d072846b4c21090",
+    "mask_pix": "caac24c1b01cb38de562179c32e769b4"
+   },
+   {
+    "name": "268",
+    "image_file": "268.tif",
+    "mask_file": "268.png",
+    "image_md5": "a5314a6cfbc4123a9b1dc9ad68585ee4",
+    "mask_md5": "731707b3e6afed25c5ddcd5a450289a5",
+    "image_pix": "edcc7c343dc79cccbdba00d37a0e6052",
+    "mask_pix": "c159b3201d28aa3c4bf7243413e4b440"
+   },
+   {
+    "name": "269",
+    "image_file": "269.tif",
+    "mask_file": "269.png",
+    "image_md5": "0a009e5bd21bc446fe2b694c516ec5a1",
+    "mask_md5": "aa2444de55d0eef3a5c74aeffa47e223",
+    "image_pix": "d7972ae0ab932f7a3091b7354a2a8dec",
+    "mask_pix": "bbbb74a2765d7b560458d0b0b286aff9"
+   },
+   {
+    "name": "270",
+    "image_file": "270.tif",
+    "mask_file": "270.png",
+    "image_md5": "ca0386634ec260b3406c072a3d657821",
+    "mask_md5": "73f1a5e914be72f5b6d5e9b3cb7b02f8",
+    "image_pix": "0678e6dc97df0077dafd0d5cf4bc09f4",
+    "mask_pix": "3a4ebe704439e3659035dd6eba9829fd"
+   },
+   {
+    "name": "271",
+    "image_file": "271.tif",
+    "mask_file": "271.png",
+    "image_md5": "b07370528560303a42ff950de48427ef",
+    "mask_md5": "fc061c10fb24f62b7b81c4947e2d3c04",
+    "image_pix": "78711ff65c9fa1a1295231c18ed57f62",
+    "mask_pix": "03bc3b01be576a192b9833908e05a781"
+   },
+   {
+    "name": "272",
+    "image_file": "272.tif",
+    "mask_file": "272.png",
+    "image_md5": "6d57593a3ba63c368cb6ff733c75c94a",
+    "mask_md5": "e9a5c48e888b32b48520e18fbdd05ce9",
+    "image_pix": "4e829ba3124414e3fef75e29d7438fb8",
+    "mask_pix": "1f30530258a48aaf66709fbfc9360fc1"
+   },
+   {
+    "name": "273",
+    "image_file": "273.tif",
+    "mask_file": "273.png",
+    "image_md5": "ba8bfc975f993c5e9ac3272881bfc170",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "b965a78ba7942eb81ed0ab31e44e9693",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "274",
+    "image_file": "274.tif",
+    "mask_file": "274.png",
+    "image_md5": "98a7a49d64c47205ecc2b6ff7fda3ad5",
+    "mask_md5": "b7c4ece5f9269f4c29b229f1ff816025",
+    "image_pix": "e890e4e92d78273415cc643140134727",
+    "mask_pix": "bf834b1375d19024b60d8e0bbd73a181"
+   },
+   {
+    "name": "275",
+    "image_file": "275.tif",
+    "mask_file": "275.png",
+    "image_md5": "309247f239519ebb6e0e93887926cc44",
+    "mask_md5": "5d7f7f8b19672faa7167fba4322fef98",
+    "image_pix": "5f99b347581355fa63893a382ea78389",
+    "mask_pix": "af495d61769e1d04b8a8852248220b6b"
+   },
+   {
+    "name": "276",
+    "image_file": "276.tif",
+    "mask_file": "276.png",
+    "image_md5": "236214725f464de5227063b2f9fb1f1c",
+    "mask_md5": "4543a33c0ba56bd55e20a34caeef1e05",
+    "image_pix": "ee745fadbca095f56df6ecf851cb5f33",
+    "mask_pix": "77548ee055108ba324b10d12cbabc54e"
+   },
+   {
+    "name": "277",
+    "image_file": "277.tif",
+    "mask_file": "277.png",
+    "image_md5": "2ad2b7a34814e0b30c59184089879113",
+    "mask_md5": "dc7e4b4f152b7fa531923a9fa1b4347f",
+    "image_pix": "21602878ab170d79c442c354795131d0",
+    "mask_pix": "ec2f5a953f0b35a891364c6234fb76fb"
+   },
+   {
+    "name": "278",
+    "image_file": "278.tif",
+    "mask_file": "278.png",
+    "image_md5": "df8ba5a9db772ec234ec9cef87c5017e",
+    "mask_md5": "7fa5d2e7f6de85d72d6ee49551d424d2",
+    "image_pix": "e44bee6012499bae345f95dc0c1c9687",
+    "mask_pix": "e92fd20c59d5ff9b078abc37c5ab48dd"
+   },
+   {
+    "name": "279",
+    "image_file": "279.tif",
+    "mask_file": "279.png",
+    "image_md5": "57451be692cdca57c57a2789c838b649",
+    "mask_md5": "6dd82c1f861cac3d2820bb0c870e5c15",
+    "image_pix": "7e7d7885c744ce1f8a5b6865443c84a3",
+    "mask_pix": "24db18305be441bc8665881a5389cb7e"
+   },
+   {
+    "name": "280",
+    "image_file": "280.tif",
+    "mask_file": "280.png",
+    "image_md5": "55fc793d3907bdf1c210db9edb825d72",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "32acbd483596f650816da81d451823fa",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "281",
+    "image_file": "281.tif",
+    "mask_file": "281.png",
+    "image_md5": "dadc419ab6058e85f9f9929f01d5dc50",
+    "mask_md5": "ad7878e35effaf211c349086265e88a5",
+    "image_pix": "854080d5ac5ee5886c54aa4de3eee388",
+    "mask_pix": "dda007daf5b7d0fc822aba6386a5ea23"
+   },
+   {
+    "name": "282",
+    "image_file": "282.tif",
+    "mask_file": "282.png",
+    "image_md5": "d60c30288d87807da80fb889741b91c5",
+    "mask_md5": "774a6e2a00cefcaca86cb5b8b881c8f8",
+    "image_pix": "a6b06881764e0fc6f9e17d5b4655ba44",
+    "mask_pix": "45bd4cd56f931c178d44134a43d7180f"
+   },
+   {
+    "name": "283",
+    "image_file": "283.tif",
+    "mask_file": "283.png",
+    "image_md5": "029c74f75d2d2ecfd38dc5d12a2eb4dd",
+    "mask_md5": "7cc1d1f100043339c0f60de301ddb96f",
+    "image_pix": "2baf41994ae5ef4d2a79e6b99d6ade16",
+    "mask_pix": "e7997d9888143c88aa691f99f10f1744"
+   },
+   {
+    "name": "284",
+    "image_file": "284.tif",
+    "mask_file": "284.png",
+    "image_md5": "e1e457f71abab1d79453b7ab3848e9fd",
+    "mask_md5": "f6b77ee2f1bd3d084ddaefa49525549a",
+    "image_pix": "3d6a0e190fb2ee7ee121932ce618baef",
+    "mask_pix": "b1bafe8daecdb6c5ff224161c2dae67a"
+   },
+   {
+    "name": "285",
+    "image_file": "285.tif",
+    "mask_file": "285.png",
+    "image_md5": "cb5851f89934c6f3c3016e8de0e68686",
+    "mask_md5": "ffa8e6aa2e0184cdbf45d155978e5e80",
+    "image_pix": "50a52ff8cb43795b659631847fa9ee73",
+    "mask_pix": "f43a957e9645a688a207d3e84150f4bf"
+   },
+   {
+    "name": "286",
+    "image_file": "286.tif",
+    "mask_file": "286.png",
+    "image_md5": "421ef9d88a9bb1544c109c8995e2df30",
+    "mask_md5": "5a518063bad7835a651cb9d206e90804",
+    "image_pix": "254ea664aa7982b0ab30416c33febcf3",
+    "mask_pix": "4b124c8ed689bd837550c4c401d2636e"
+   },
+   {
+    "name": "287",
+    "image_file": "287.tif",
+    "mask_file": "287.png",
+    "image_md5": "76fa757d11c523a35df27d4a3157f881",
+    "mask_md5": "b4a58163a15f884e6279d833d0590e8e",
+    "image_pix": "00cfb8066ea71932422f6122eb0aeb50",
+    "mask_pix": "ebeb9316d81b03cdf7c56305498cf9a6"
+   },
+   {
+    "name": "288",
+    "image_file": "288.tif",
+    "mask_file": "288.png",
+    "image_md5": "a0a2417e1fe580d46cf761bcca585680",
+    "mask_md5": "a015136ec03f81318b7c1d549f1e5c20",
+    "image_pix": "268c6fdc8428b9f1f834f2a5b0aafb54",
+    "mask_pix": "000c8b48f948412e205776cb1d087ee8"
+   },
+   {
+    "name": "289",
+    "image_file": "289.tif",
+    "mask_file": "289.png",
+    "image_md5": "e17d12bcfaa8c980c8264d286f2e4aa4",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "982c73963ddebf923b41a41972cfc957",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "290",
+    "image_file": "290.tif",
+    "mask_file": "290.png",
+    "image_md5": "0d0809e113f429faf5e5763f00eb836b",
+    "mask_md5": "fab60d4b1d870ab723614b8cb8d5ae75",
+    "image_pix": "85e7c9a95cb341e114efd2f8387ad2be",
+    "mask_pix": "47d89e24ab74d74ecd04532283e33250"
+   },
+   {
+    "name": "291",
+    "image_file": "291.tif",
+    "mask_file": "291.png",
+    "image_md5": "c4e1e050cde574219dcfe432b42b2ca9",
+    "mask_md5": "af77abf98ab09c123811652832cfef46",
+    "image_pix": "fa6d7afed74109968e82f61caf3aa3dc",
+    "mask_pix": "af2eeff243d407d9a2d5ac5408c046ae"
+   },
+   {
+    "name": "292",
+    "image_file": "292.tif",
+    "mask_file": "292.png",
+    "image_md5": "84b84a7c81960421700b08d7d8d397b8",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "5eb806e2642ed3651d9e6476272fdc68",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "293",
+    "image_file": "293.tif",
+    "mask_file": "293.png",
+    "image_md5": "ae25aab5f117b221b4c282632e8e5e40",
+    "mask_md5": "c6028e5be9cf4f9f9680b343e03388a1",
+    "image_pix": "34b958bb29729026e471fcecbc777d60",
+    "mask_pix": "c6f62033936c747838459a84e4472782"
+   },
+   {
+    "name": "294",
+    "image_file": "294.tif",
+    "mask_file": "294.png",
+    "image_md5": "ff2e9df35bc361734cd109a0c23852c9",
+    "mask_md5": "644d6b86fc39621d15287baee76ae197",
+    "image_pix": "3434a4dd4ed5ea1a314880af3756e0cb",
+    "mask_pix": "c2a9f2577d9d102a064aef2a876fc493"
+   },
+   {
+    "name": "295",
+    "image_file": "295.tif",
+    "mask_file": "295.png",
+    "image_md5": "dc8c4223ecda7689d032b0a2fac45486",
+    "mask_md5": "8241589411628c4fc1b14d63872cbdef",
+    "image_pix": "8e2ee018bc0cfd572f37f1654c877b0e",
+    "mask_pix": "e2fc3ec1dcdf7c23405648411c0122ca"
+   },
+   {
+    "name": "296",
+    "image_file": "296.tif",
+    "mask_file": "296.png",
+    "image_md5": "7169e3a4de0b42c653b86a9c4dd65c34",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "827b42cc2c94a4ebf843b22b7e6268c1",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "297",
+    "image_file": "297.tif",
+    "mask_file": "297.png",
+    "image_md5": "9c9977825a378b2ea2886de11f70e487",
+    "mask_md5": "f1680e39c504dab7a669c2eafcf8fb9c",
+    "image_pix": "6ba8d67abe9312f8cdee3d1763f42318",
+    "mask_pix": "9a9d87312e277d6586783175e16ad310"
+   },
+   {
+    "name": "298",
+    "image_file": "298.tif",
+    "mask_file": "298.png",
+    "image_md5": "13838c5841551e1217278b4abddc8de4",
+    "mask_md5": "ab87b2f17e871099636c42eaa4683417",
+    "image_pix": "4ccfb26a7e50befaccad167ed9ddd60a",
+    "mask_pix": "c948ac1ef69afff150c24251f0f3eacf"
+   },
+   {
+    "name": "299",
+    "image_file": "299.tif",
+    "mask_file": "299.png",
+    "image_md5": "8335dab94e08d47936a0583b853dc4ce",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "acab0423f3e5a4a0c772c143010647b1",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "300",
+    "image_file": "300.tif",
+    "mask_file": "300.png",
+    "image_md5": "99551c61473723a3df543631aca8e870",
+    "mask_md5": "0644ae69047466293446c4c83a8653cc",
+    "image_pix": "ee15fa7bb77087c6aab9aabb81c20293",
+    "mask_pix": "bcd640b8c0e11d8d38bc3e676067a0b6"
+   },
+   {
+    "name": "301",
+    "image_file": "301.tif",
+    "mask_file": "301.png",
+    "image_md5": "fc118994042463370bee8474ef0faa20",
+    "mask_md5": "dad881a52c7c8defd57f5301da65cab2",
+    "image_pix": "ed8cc7fb587f9d640adc110ff94da0af",
+    "mask_pix": "7ee4dc99e72c7cda342e8980157a2fac"
+   },
+   {
+    "name": "302",
+    "image_file": "302.tif",
+    "mask_file": "302.png",
+    "image_md5": "9dd1c0838a316d50513a1bc0e3d24a7b",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "b471306bb58d3605c71a49f585da5952",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "303",
+    "image_file": "303.tif",
+    "mask_file": "303.png",
+    "image_md5": "fef983183e3bb2f0a88cfe31451e1cb7",
+    "mask_md5": "2c542b1dd85a18c1091435e1b8771ab0",
+    "image_pix": "646dae337296e25bdcc1ab000d40e0f6",
+    "mask_pix": "3024481adcc55a8268072b4cf16048c7"
+   },
+   {
+    "name": "304",
+    "image_file": "304.tif",
+    "mask_file": "304.png",
+    "image_md5": "a48325135ad70d44ad5d674df06bc325",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "a1244a5e28f332e450cf5a346b80abab",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "305",
+    "image_file": "305.tif",
+    "mask_file": "305.png",
+    "image_md5": "3446b8e214145fe9b7e86a7114565148",
+    "mask_md5": "42c024d9a009da1ce2c2277c834abb54",
+    "image_pix": "fca7714dc2d20aa19900f00b8c7fa374",
+    "mask_pix": "7a4d3491381c09d55b9eb2dcfcc86ebe"
+   }
+  ],
+  "test": [
+   {
+    "name": "0",
+    "image_file": "0.tif",
+    "mask_file": "0.png",
+    "image_md5": "db2f1c6e30e6bb70af1e9f6aebe6222c",
+    "mask_md5": "0821c3b9987ce2da6e8f42a96d4b60f1",
+    "image_pix": "e051f535c120a8b80e33f6a673c5ce52",
+    "mask_pix": "9f4402a7f3f23e0c79cda1f3b154e929"
+   },
+   {
+    "name": "1",
+    "image_file": "1.tif",
+    "mask_file": "1.png",
+    "image_md5": "8a28c1165dcc6b1e8011b5cf2833a050",
+    "mask_md5": "4ac5f96357bfe3878031909708940153",
+    "image_pix": "81dd85582a88398c56c4ef1937a1b07e",
+    "mask_pix": "f6166193b962067b3743ecc61c2e13f9"
+   },
+   {
+    "name": "2",
+    "image_file": "2.tif",
+    "mask_file": "2.png",
+    "image_md5": "2f73f0b9ee03d9ad1a7479bf00ca14f0",
+    "mask_md5": "8c19c1fe610d565e50b3a30276b1fa26",
+    "image_pix": "61998767ff05201b7a80e7661b92dcbe",
+    "mask_pix": "46eaea0e94f24b15b327044d666aaf9c"
+   },
+   {
+    "name": "3",
+    "image_file": "3.tif",
+    "mask_file": "3.png",
+    "image_md5": "4846b5201c4188ccc0933ea9fa9ff791",
+    "mask_md5": "cd59b0ad777b6451bed4a17f7c48268c",
+    "image_pix": "78b233fba2a8a7085eadf2cdaa6a28de",
+    "mask_pix": "8ce33473cd810022eb58c2c84c8633d0"
+   },
+   {
+    "name": "4",
+    "image_file": "4.tif",
+    "mask_file": "4.png",
+    "image_md5": "13d01901a6422e46c2921a85baaf1ab2",
+    "mask_md5": "2f7ce7999e612b09a5ed211c481b56aa",
+    "image_pix": "90b0238fffb3fc552d228673c4929abd",
+    "mask_pix": "0dfd0c6947fad35188ca15c846bfd1dd"
+   },
+   {
+    "name": "5",
+    "image_file": "5.tif",
+    "mask_file": "5.png",
+    "image_md5": "b2374df2f8cca6bf6dd9fc6a9f981fe5",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "fda363579dbee1f218a884936bc87880",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "6",
+    "image_file": "6.tif",
+    "mask_file": "6.png",
+    "image_md5": "93ddab6321ff3a34de73db5d41b06d33",
+    "mask_md5": "60cc065817aaa41f699598d23c1b204c",
+    "image_pix": "93ab4cee1f6b2a5c73f9a283daa81ed0",
+    "mask_pix": "db3d295074f6419bd6525f786e236bd4"
+   },
+   {
+    "name": "7",
+    "image_file": "7.tif",
+    "mask_file": "7.png",
+    "image_md5": "b40b94cc10bf9313e35553c72439f17c",
+    "mask_md5": "79b8c33493b752178c0168ada1497da4",
+    "image_pix": "97854042da9b0ae52a22ad3a634d6b37",
+    "mask_pix": "ec69a87814063562eeaae5fc24091cf4"
+   },
+   {
+    "name": "8",
+    "image_file": "8.tif",
+    "mask_file": "8.png",
+    "image_md5": "c4ffa2eac7462bc6c76384e99554a898",
+    "mask_md5": "45681325a1d2e27649b786c8bf68c67b",
+    "image_pix": "9f618bd5c8847ce495efe83fa460635b",
+    "mask_pix": "0fb3a48a466769f2906a7956bcf7ce45"
+   },
+   {
+    "name": "9",
+    "image_file": "9.tif",
+    "mask_file": "9.png",
+    "image_md5": "a2c8794ee6d8b43ba1b73c9cff0e0762",
+    "mask_md5": "302a2808d0050d633cb12b85f11ca0cf",
+    "image_pix": "2ac4fa93ab41d67d48683421e4f630de",
+    "mask_pix": "28a845fa50f50d93853c85bda2734c51"
+   },
+   {
+    "name": "10",
+    "image_file": "10.tif",
+    "mask_file": "10.png",
+    "image_md5": "970a226dff2651cb982615277be899e6",
+    "mask_md5": "4fa3001fc4857854318475d16d393ecc",
+    "image_pix": "c14d4bc808f2874638a3d10ee664fff6",
+    "mask_pix": "5038abcc4a56995e71080c0aa23c9deb"
+   },
+   {
+    "name": "11",
+    "image_file": "11.tif",
+    "mask_file": "11.png",
+    "image_md5": "0118c2e7a0ff6104972b8e34c7649ebf",
+    "mask_md5": "1dbfb72df6731b526cd9754ba6e1d673",
+    "image_pix": "fadc134432dd56001b831cd893ddc1a8",
+    "mask_pix": "5ea0325c9bfbe92a0fc4386ff4389d11"
+   },
+   {
+    "name": "12",
+    "image_file": "12.tif",
+    "mask_file": "12.png",
+    "image_md5": "c18551b293fcf072f9365cd2bad25fdd",
+    "mask_md5": "355bc5e837ceb70658f897a48d117689",
+    "image_pix": "aa00ff6d68dcc450f6585256fc3aaf0e",
+    "mask_pix": "4d7e50c6ee9662c8e87c263c867e7906"
+   },
+   {
+    "name": "13",
+    "image_file": "13.tif",
+    "mask_file": "13.png",
+    "image_md5": "ad3b262b3e450f8142a89d443ba48a62",
+    "mask_md5": "1adfa0e269492da8cc69e4d35d18c61c",
+    "image_pix": "08f5cb2a039dedaa9bf12d533f0c2256",
+    "mask_pix": "663d8b142659cdc9750426df99996493"
+   },
+   {
+    "name": "14",
+    "image_file": "14.tif",
+    "mask_file": "14.png",
+    "image_md5": "1530cb264dc1ad54ec5e3cc11c5a99bb",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "d291209f26a5fc8ab9103a9d8ebd83ba",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "15",
+    "image_file": "15.tif",
+    "mask_file": "15.png",
+    "image_md5": "a7d1e94c1bab8cdd183cd73bf02d8b08",
+    "mask_md5": "1a8f41405e884e6f023a7eff6a639353",
+    "image_pix": "9223af9615cc56e0d0490132b59e84f4",
+    "mask_pix": "c4aaa4191d622f94709b748e9d27c0b0"
+   },
+   {
+    "name": "16",
+    "image_file": "16.tif",
+    "mask_file": "16.png",
+    "image_md5": "09788e8047328b50f7989633127bc693",
+    "mask_md5": "51db0c4c2daccf7454929bd37cded964",
+    "image_pix": "ccb9b0e4d48c7acb9608597cb719cf44",
+    "mask_pix": "50ec85f25e5b54abda591f702c6261df"
+   },
+   {
+    "name": "17",
+    "image_file": "17.tif",
+    "mask_file": "17.png",
+    "image_md5": "e89f80503c1a262bc10c49183747ea6a",
+    "mask_md5": "5019803421f467e64500c119520563c5",
+    "image_pix": "776df1dd7dd1870efca5662ed5b15b19",
+    "mask_pix": "7cdc85996c80742f3deae326b782991a"
+   },
+   {
+    "name": "18",
+    "image_file": "18.tif",
+    "mask_file": "18.png",
+    "image_md5": "14283048918bc31739e2d9ca56832e1b",
+    "mask_md5": "6becf30ad0509ddbccae0188118f9fc9",
+    "image_pix": "51759217ebfa6071e44677460fe3f40b",
+    "mask_pix": "1886e47e6d927de93fcf6ad0e201764c"
+   },
+   {
+    "name": "19",
+    "image_file": "19.tif",
+    "mask_file": "19.png",
+    "image_md5": "4e44734b355c15c980fb34423bacfc7a",
+    "mask_md5": "2dbeed0498c9442ffb293bb2d7bc94d0",
+    "image_pix": "29cb28951a87459d12817b8c35b89560",
+    "mask_pix": "fe040f399e5b6713cc1acaf007c942ee"
+   },
+   {
+    "name": "20",
+    "image_file": "20.tif",
+    "mask_file": "20.png",
+    "image_md5": "80cc7aaa3cbcc5a6c3f82dd26ebffb63",
+    "mask_md5": "00b85ca83a5ccefe9bc3a13974950957",
+    "image_pix": "33b54c6fd063f19ee37dce81449b63a6",
+    "mask_pix": "3683b26e9e1a8b8a341516c2f49e7cac"
+   },
+   {
+    "name": "21",
+    "image_file": "21.tif",
+    "mask_file": "21.png",
+    "image_md5": "e44052dc936210b55433e2ae8d133499",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "feea338719d586080b89931e77f28746",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "22",
+    "image_file": "22.tif",
+    "mask_file": "22.png",
+    "image_md5": "8e6be190c1dfee2567875c1e4c5ee7c3",
+    "mask_md5": "c17d4d3a018e2929c10cb528ce7450b2",
+    "image_pix": "625b07cf8574d036907e873703763120",
+    "mask_pix": "ab4fcfff5a0eecbf5ce13c72ebcb736d"
+   },
+   {
+    "name": "23",
+    "image_file": "23.tif",
+    "mask_file": "23.png",
+    "image_md5": "58da60aa5393269122ea33233b2f2285",
+    "mask_md5": "3a88a0d50ed55576560476c48c169c46",
+    "image_pix": "6e27395aa87838e851789f7979048032",
+    "mask_pix": "32edbcfc5d3f9fb91550bc3323286fd4"
+   },
+   {
+    "name": "24",
+    "image_file": "24.tif",
+    "mask_file": "24.png",
+    "image_md5": "0427f4bf89cf0e50b3172bccbd666714",
+    "mask_md5": "c7ced640b7621c4dce18748d0272b935",
+    "image_pix": "0b8ea4c889e116a46efbe13d5e8abf29",
+    "mask_pix": "278de06454c083715b8da6c080652187"
+   },
+   {
+    "name": "25",
+    "image_file": "25.tif",
+    "mask_file": "25.png",
+    "image_md5": "3ae8a331c24134e0d7fc6a2fe4907615",
+    "mask_md5": "448eab618e8c1d33d6546659c43ee6a6",
+    "image_pix": "85ff0478ef3bea79a754f96f2b2b6220",
+    "mask_pix": "f21ee82125289c6fd0dd77b856c37f4c"
+   },
+   {
+    "name": "26",
+    "image_file": "26.tif",
+    "mask_file": "26.png",
+    "image_md5": "bada72965cfaece342b2028fee2c3e31",
+    "mask_md5": "ceafe3ca15697edcfcbc998023784d91",
+    "image_pix": "6ad2909cb48b9248c32a70fc6c2dd00f",
+    "mask_pix": "31717f23dfcb6b529e604764a12f6ece"
+   },
+   {
+    "name": "27",
+    "image_file": "27.tif",
+    "mask_file": "27.png",
+    "image_md5": "1b985dbb1ed246aee88320b323458e6c",
+    "mask_md5": "4da35bdc2bef6b0acd70bce3705eaaf3",
+    "image_pix": "040bbad9368f6762c6f4870218892305",
+    "mask_pix": "ad4da5e2e44f66ed2f4346a966129609"
+   },
+   {
+    "name": "28",
+    "image_file": "28.tif",
+    "mask_file": "28.png",
+    "image_md5": "10fa17007b170c578e7f8b9518e05af2",
+    "mask_md5": "425e4131e69cf0172441feade4e51163",
+    "image_pix": "9f3ac1c46cd1bb830c874cd203633148",
+    "mask_pix": "ce5cc5ec6996dfa29145fd2ff0e3b500"
+   },
+   {
+    "name": "29",
+    "image_file": "29.tif",
+    "mask_file": "29.png",
+    "image_md5": "fba0c105c129d7cc3c03a17749b3d388",
+    "mask_md5": "c2383f398155fb2a33b09a1c43fbb4d5",
+    "image_pix": "c247122d15594c57ae7953331cf52cf5",
+    "mask_pix": "bc0fcd2864dcd29408d62458e7b31e30"
+   },
+   {
+    "name": "30",
+    "image_file": "30.tif",
+    "mask_file": "30.png",
+    "image_md5": "5c64a405ed551c8d3c0d0aaadb9c98e2",
+    "mask_md5": "513ad0de0cc1b0145d8eb2ad82ffe7bb",
+    "image_pix": "de4298aff8de0d833a44684f0fb91655",
+    "mask_pix": "7db00453a45eb78377ac2dfbe7b86d33"
+   },
+   {
+    "name": "31",
+    "image_file": "31.tif",
+    "mask_file": "31.png",
+    "image_md5": "c563fb64be7eb8479df2f177b61a622a",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "8322abfc2da3fffa7fa7e03c40c1899f",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "32",
+    "image_file": "32.tif",
+    "mask_file": "32.png",
+    "image_md5": "fb23e0014d927de97de0d49ba3a34e51",
+    "mask_md5": "0861ca2ed5e0df35e6bd92ef8c95e266",
+    "image_pix": "69a07ac761a7f21699914f7c1dab4dc1",
+    "mask_pix": "af4a384d083430efb2dc0d36227d4865"
+   },
+   {
+    "name": "33",
+    "image_file": "33.tif",
+    "mask_file": "33.png",
+    "image_md5": "ff8f2196ec026e64a945dc416bdab72a",
+    "mask_md5": "0146f33f2b6f46929a5c439c991b37b9",
+    "image_pix": "9ab5e41dc231b563ac1a04246eaa36f5",
+    "mask_pix": "27970e5a352d22511b74159b3074eb7f"
+   },
+   {
+    "name": "34",
+    "image_file": "34.tif",
+    "mask_file": "34.png",
+    "image_md5": "b2bbdc8277c33509700545b505c28a72",
+    "mask_md5": "80199ef158a7237c0589c4af738fbb5d",
+    "image_pix": "090807e0e769b35ff366121c9db2f7c7",
+    "mask_pix": "85490aa95b31886f40fab54c25fa12a9"
+   },
+   {
+    "name": "35",
+    "image_file": "35.tif",
+    "mask_file": "35.png",
+    "image_md5": "dd886cd8153e81dc5af68a6640a686f8",
+    "mask_md5": "19749795a846504864517c4bed72fa0a",
+    "image_pix": "25446e6d213ce0d58bfd4c7c1d909986",
+    "mask_pix": "7bbc94a6c7c7e9eb21c77551b308c3dd"
+   },
+   {
+    "name": "36",
+    "image_file": "36.tif",
+    "mask_file": "36.png",
+    "image_md5": "7dc882c9ab6f8eebc7fe0777f4b1a445",
+    "mask_md5": "0ab7cc908509cb06fdca3e1d2759ce80",
+    "image_pix": "a48320f230ea513185780595aa8b4abe",
+    "mask_pix": "cfe5c85f142e01eac7d6fdd7055941d4"
+   },
+   {
+    "name": "37",
+    "image_file": "37.tif",
+    "mask_file": "37.png",
+    "image_md5": "3c67d7db8b0e4b08077dbf18e83a762f",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "a6dd63011f6e4d12e2c8db15069317a1",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "38",
+    "image_file": "38.tif",
+    "mask_file": "38.png",
+    "image_md5": "2a982831c2d27b4450bee80449655bc8",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "3fba0893e1cee6ed289b02facea2feba",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "39",
+    "image_file": "39.tif",
+    "mask_file": "39.png",
+    "image_md5": "0881f4f2b4fa3d5d6a8411b830db0193",
+    "mask_md5": "2a5f8bd3e90c285c65b1524b30e0a80e",
+    "image_pix": "37f6e0431e2bad26e925695cf697af37",
+    "mask_pix": "763138d746e117ab8bcbbd0a06c2733c"
+   },
+   {
+    "name": "40",
+    "image_file": "40.tif",
+    "mask_file": "40.png",
+    "image_md5": "abe1c2ce86869adacad73b7264e36a1a",
+    "mask_md5": "f58d70c2e740eba69110dac6deb3b670",
+    "image_pix": "23df140081e759d1f333a889812f8019",
+    "mask_pix": "c1cd66590ae0ee0c7e7ecb577a6ee5f5"
+   },
+   {
+    "name": "41",
+    "image_file": "41.tif",
+    "mask_file": "41.png",
+    "image_md5": "0e51e69c83eef054925d9e209fc04ced",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "be1b04968a453b59c20c763667866629",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "42",
+    "image_file": "42.tif",
+    "mask_file": "42.png",
+    "image_md5": "c0405dd26fff7f6684f35a4154f4c457",
+    "mask_md5": "a3f641c905a5beb2093b038e76be070b",
+    "image_pix": "f395610635449353af8994c5c69cbbd1",
+    "mask_pix": "2b371ac079375668852b6d1290266564"
+   },
+   {
+    "name": "43",
+    "image_file": "43.tif",
+    "mask_file": "43.png",
+    "image_md5": "e8d899a7d684b04ae9c13b4fc40b2515",
+    "mask_md5": "2a739819d80a635f1d0ff2fe4cdd3d7c",
+    "image_pix": "0f1de62838cda236440c4f6199a5373e",
+    "mask_pix": "e2ed3ffae341ab01bfeef37898948938"
+   },
+   {
+    "name": "44",
+    "image_file": "44.tif",
+    "mask_file": "44.png",
+    "image_md5": "c7c2dfac8dcc7afeb120aa4353ca1ca8",
+    "mask_md5": "1a54551f4d9bbeb5fc9e7f041082369e",
+    "image_pix": "775b7297cd085b75a6030eba15123463",
+    "mask_pix": "02e256132789b79ffe9bec519c3ee17c"
+   },
+   {
+    "name": "45",
+    "image_file": "45.tif",
+    "mask_file": "45.png",
+    "image_md5": "56f3dfa4490892dd7f3a0e73af563df2",
+    "mask_md5": "69dbe7f23d86d03e24a3e8058e2ea17a",
+    "image_pix": "4f92a1b70cc852bc6c28ad80be332cc9",
+    "mask_pix": "b6478bd486a2332ba0721ac6ed16b18e"
+   },
+   {
+    "name": "46",
+    "image_file": "46.tif",
+    "mask_file": "46.png",
+    "image_md5": "1ff035dd5ae122f9211ef52557dc0f0c",
+    "mask_md5": "71efb848ef3f8fb4632d4055cac9c468",
+    "image_pix": "dc56ad1bc61425b7bc1f5cbea48871c5",
+    "mask_pix": "66e6be9a79e62a02dbba3bebc3227b83"
+   },
+   {
+    "name": "47",
+    "image_file": "47.tif",
+    "mask_file": "47.png",
+    "image_md5": "279f262886b581b83114471bdceb2306",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "b3ae42471987efae06ceff86e0de2ed8",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "48",
+    "image_file": "48.tif",
+    "mask_file": "48.png",
+    "image_md5": "5bd6dc881c1511a34e09c776ffbc1908",
+    "mask_md5": "e5500fe45b5240f5c8f7ab0fb15496c7",
+    "image_pix": "333cd478e8de3fd0842104dd5e91d1dd",
+    "mask_pix": "a51e37d09758a66f5ff131345c8a964d"
+   },
+   {
+    "name": "49",
+    "image_file": "49.tif",
+    "mask_file": "49.png",
+    "image_md5": "c0521b8d07989aa86d2d0be74702bd70",
+    "mask_md5": "60946ee09989dfcd92b7f78b1a549c05",
+    "image_pix": "994b4ebc016b6c52e4b7605ee7677ff9",
+    "mask_pix": "8539d52db6d7f79f69099af43d9437f1"
+   },
+   {
+    "name": "50",
+    "image_file": "50.tif",
+    "mask_file": "50.png",
+    "image_md5": "0ba814d9abd97438019f8309e8039419",
+    "mask_md5": "0caa01fa14e7e741b3d893b65923ec15",
+    "image_pix": "1595be9663c92b46b087da136aff0258",
+    "mask_pix": "32f75540999e860b4d5e43a6f6953577"
+   },
+   {
+    "name": "51",
+    "image_file": "51.tif",
+    "mask_file": "51.png",
+    "image_md5": "9fa879f249446ede254fed650f99256f",
+    "mask_md5": "e21ee3667a09b88687cfc320031be1c2",
+    "image_pix": "fae131c084b92829de19d41f20918e41",
+    "mask_pix": "347b2647485b9e7bf481dbd8b5fb7279"
+   },
+   {
+    "name": "52",
+    "image_file": "52.tif",
+    "mask_file": "52.png",
+    "image_md5": "a4384f91e1e39f92de737c192445bc98",
+    "mask_md5": "1928af0529c3bebf7673a3cba9514e98",
+    "image_pix": "b1d68c3069005d3b18b6e90f4febe2b3",
+    "mask_pix": "759f329ec251911a119d5a9c229efd69"
+   },
+   {
+    "name": "53",
+    "image_file": "53.tif",
+    "mask_file": "53.png",
+    "image_md5": "b42abde35f04e3a53dcefc9063082dd8",
+    "mask_md5": "ac141d3e1fc467bc3eff480df4fb6245",
+    "image_pix": "0b1deb4f287bbe9faf6c55c5cf7bf7fd",
+    "mask_pix": "5c3f44e5815bf11307a0781c1de0dab0"
+   },
+   {
+    "name": "54",
+    "image_file": "54.tif",
+    "mask_file": "54.png",
+    "image_md5": "89606919b10df873a56f31200b94f969",
+    "mask_md5": "85c313e50b317e9d46cc64b249e90ddc",
+    "image_pix": "16b35fefe15cfdb60691c77251bbd85e",
+    "mask_pix": "bb3240dc452f574d666e0dbb255cd0ff"
+   },
+   {
+    "name": "55",
+    "image_file": "55.tif",
+    "mask_file": "55.png",
+    "image_md5": "b37936db8e4773b3867c7d4c890053c0",
+    "mask_md5": "d2d42a304922657d3793d7b4f423a3a9",
+    "image_pix": "15f29574461ea8e9fafffb52210015bb",
+    "mask_pix": "5ae7f60801966086db925e7136bd7d4c"
+   },
+   {
+    "name": "56",
+    "image_file": "56.tif",
+    "mask_file": "56.png",
+    "image_md5": "bf7cf4071d3a9e728ad947699c5da5f7",
+    "mask_md5": "bf39f9eddc6de0a4463358498a9c90f6",
+    "image_pix": "7d3d8ea18db2b099efd08103ba1ad33b",
+    "mask_pix": "8672cb12c15e2cbec168a1d6bbe5970e"
+   },
+   {
+    "name": "57",
+    "image_file": "57.tif",
+    "mask_file": "57.png",
+    "image_md5": "c42fe483aa5ba7902051841abec6d3da",
+    "mask_md5": "d14691397abe74c846b113f75ae90091",
+    "image_pix": "83a0966c3894f6b50fa3a2e8f59e9a90",
+    "mask_pix": "54de2d8c6d5abfb5e8de52c19fa591bb"
+   },
+   {
+    "name": "58",
+    "image_file": "58.tif",
+    "mask_file": "58.png",
+    "image_md5": "5634a62cda637e122aaebbe251ee5152",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "6c50bcc7c2280b021967ff959338507c",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   },
+   {
+    "name": "59",
+    "image_file": "59.tif",
+    "mask_file": "59.png",
+    "image_md5": "91c8595a7efbd4b34d66eecd9ec342dd",
+    "mask_md5": "0c4683c45381cf5cbd8029c0344ea4a6",
+    "image_pix": "dad8e01e4548010824a5aed41307ca8a",
+    "mask_pix": "258f3d302b10e8509bb387cd0e11f480"
+   },
+   {
+    "name": "60",
+    "image_file": "60.tif",
+    "mask_file": "60.png",
+    "image_md5": "5711fbc1e5d2dbb60c6717c52d013133",
+    "mask_md5": "38bacfa47ba754db784672ee2b4fab01",
+    "image_pix": "1e9a9f4181bf99da47ec2eace14f4046",
+    "mask_pix": "2f9792d7ffcc63ce44285073c9db466b"
+   },
+   {
+    "name": "61",
+    "image_file": "61.tif",
+    "mask_file": "61.png",
+    "image_md5": "2346a5dcd3b901c788ed944997359b3b",
+    "mask_md5": "2c3d67fac82fee829cd91fe34bdf5f30",
+    "image_pix": "9d9fe09515b3e1d7c6036fdf94ad11f1",
+    "mask_pix": "c3e943575d35441b35463652dd5325b2"
+   },
+   {
+    "name": "62",
+    "image_file": "62.tif",
+    "mask_file": "62.png",
+    "image_md5": "5ebf0cc6830b7da053c8c0ea986b07ea",
+    "mask_md5": "147d4b0c13e96324dcdb4c5587eebe57",
+    "image_pix": "b91bb727dedd675cbdce82403f070d36",
+    "mask_pix": "ce5a6a14011e1aa4d8fc8cd673758b41"
+   },
+   {
+    "name": "63",
+    "image_file": "63.tif",
+    "mask_file": "63.png",
+    "image_md5": "20973733e3d692b347b8b2cc1612be3f",
+    "mask_md5": "0b2076a9dc457c9c0a4cb2cd67efeadf",
+    "image_pix": "5a8d54278649809d5a7e6173c427b58b",
+    "mask_pix": "d2c71915375b81b18186cd51b2b231c7"
+   },
+   {
+    "name": "64",
+    "image_file": "64.tif",
+    "mask_file": "64.png",
+    "image_md5": "5969affe9fd4509542c99106b51bb611",
+    "mask_md5": "8acba88c27a4945c62b51a4f1182e525",
+    "image_pix": "061555a8c4007e8368e0dc0fadd2bb42",
+    "mask_pix": "c5281ae18801f6adeb1dbb8ff1967b86"
+   },
+   {
+    "name": "65",
+    "image_file": "65.tif",
+    "mask_file": "65.png",
+    "image_md5": "d810bdab1e0c1e0223f7145976d292bb",
+    "mask_md5": "09551b608bba2e5567e3bd5741632c31",
+    "image_pix": "b2fbde7787fd7e5d8a5cad26dac3bb9c",
+    "mask_pix": "aa0f8861576aeaf9b1cfdc7f5b4be18d"
+   },
+   {
+    "name": "66",
+    "image_file": "66.tif",
+    "mask_file": "66.png",
+    "image_md5": "874d2b6f4e1d1b56f1ddc90b946469a2",
+    "mask_md5": "c91301fa74e2f8442f96f69b39decdf9",
+    "image_pix": "1ab80703d9e82eb6ae694068a8e33c15",
+    "mask_pix": "5f04ea90040d3f7a64ab62fac6baad2d"
+   },
+   {
+    "name": "67",
+    "image_file": "67.tif",
+    "mask_file": "67.png",
+    "image_md5": "8cfa0bae7d146469b0c4bcf3999ca60b",
+    "mask_md5": "0861ca2ed5e0df35e6bd92ef8c95e266",
+    "image_pix": "1c8e90c409429d411b3a499061e047bc",
+    "mask_pix": "af4a384d083430efb2dc0d36227d4865"
+   },
+   {
+    "name": "68",
+    "image_file": "68.tif",
+    "mask_file": "68.png",
+    "image_md5": "93c1f0e7440ab6ef13634349b5007f08",
+    "mask_md5": "4da35bdc2bef6b0acd70bce3705eaaf3",
+    "image_pix": "198a21d7f04d4cae6d9e0f29468cabe3",
+    "mask_pix": "ad4da5e2e44f66ed2f4346a966129609"
+   },
+   {
+    "name": "69",
+    "image_file": "69.tif",
+    "mask_file": "69.png",
+    "image_md5": "7e20d35f9e0d7dc3f210f0b754f5a0d9",
+    "mask_md5": "0afed6d8a1045108dce720aa8024eab8",
+    "image_pix": "9d34eaadb7f6947b2c8a655820c65e2c",
+    "mask_pix": "d904f6bd66444de26a78fe2501274e46"
+   },
+   {
+    "name": "70",
+    "image_file": "70.tif",
+    "mask_file": "70.png",
+    "image_md5": "088d699f6b4ff7001015cac031109811",
+    "mask_md5": "2651e60a165ab96f5ff726a7ab6393d4",
+    "image_pix": "5fea320ff7c069a757e69ca86b672794",
+    "mask_pix": "b0e70f9193df38af636c5816f4f82242"
+   }
+  ]
+ }
+}

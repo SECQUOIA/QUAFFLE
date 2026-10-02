@@ -15,58 +15,28 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
 from . import unetTorch as unet
 
+import sys as _sys
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in _sys.path:
+    _sys.path.insert(0, _REPO_ROOT)
+import flood_data
+from flood_data import set_data_defaults
+
 class FloodSegmentationDataset(Dataset):
-    def __init__(self, images_dir, masks_dir, image_size):
-        image_paths = glob.glob(os.path.join(images_dir, "*.tif")) + \
-                      glob.glob(os.path.join(images_dir, "*.tiff"))
-        if not image_paths:
-            raise ValueError(f"No TIFF images found in {images_dir}")
-        self.samples = []
-        for img_path in tqdm(image_paths, desc="Loading data"):
-            img_name = os.path.splitext(os.path.basename(img_path))[0]
-            mask_path = None
-            for ext in ['.png', '.jpg', '.tif']:
-                potential_mask = os.path.join(masks_dir, img_name + ext)
-                if os.path.exists(potential_mask):
-                    mask_path = potential_mask
-                    break
-            if mask_path is None:
-                continue
-            try:
-                try:
-                    import rasterio
-                    with rasterio.open(img_path) as src:
-                        img_data = src.read()[:3]
-                        img_array = np.transpose(img_data, (1, 2, 0))
-                        if img_array.dtype == np.uint8:
-                            img_array = img_array.astype(np.float32) / 255.0
-                        elif img_array.dtype == np.uint16:
-                            img_array = img_array.astype(np.float32) / 65535.0
-                        else:
-                            img_array = img_array.astype(np.float32)
-                            for c in range(3):
-                                channel = img_array[:, :, c]
-                                low, high = np.percentile(channel, [2, 98])
-                                if high > low:
-                                    img_array[:, :, c] = np.clip((channel - low) / (high - low), 0, 1)
-                        img = Image.fromarray((img_array * 255).astype(np.uint8))
-                        img = img.resize((image_size, image_size), Image.LANCZOS)
-                        img_array = np.array(img, dtype=np.float32) / 255.0
-                except ImportError:
-                    img = Image.open(img_path).convert('RGB')
-                    img = img.resize((image_size, image_size), Image.LANCZOS)
-                    img_array = np.array(img, dtype=np.float32) / 255.0
-                img_array = img_array * 2.0 - 1.0
-                mask = Image.open(mask_path).convert('L')
-                mask = mask.resize((image_size, image_size), Image.NEAREST)
-                mask_array = np.array(mask, dtype=np.float32) / 255.0
-                mask_array = (mask_array > 0.001).astype(np.float32)[..., np.newaxis]
-                self.samples.append((img_array, mask_array))
-            except Exception as e:
-                print(f"Error loading {img_path}: {e}")
-                continue
-        if not self.samples:
-            raise ValueError("No valid image-mask pairs loaded")
+    """Flood tiles as (CHW image in [-1, 1], 1HW binary mask).
+
+    By default (clean mode) the committed split manifest splits/<dataset>.json
+    is honored for flood_optical, flood_SAR and flood_combined, bands are
+    selected by name and normalized with training-split statistics
+    (splits/norm_stats.json). legacy=True (or set_data_defaults(legacy=True),
+    or QUAFFLE_LEGACY_DATA=1) restores the original loader: all files, first
+    three bands, per-image percentile stretch. See docs/DATA.md.
+    """
+    def __init__(self, images_dir, masks_dir, image_size, legacy=None, bands=None,
+                 manifest=None, stats_path=None):
+        self.samples, self.names = flood_data.load_samples(
+            images_dir, masks_dir, image_size, legacy=legacy, bands=bands,
+            manifest=manifest, stats_path=stats_path, progress=tqdm)
     def __len__(self):
         return len(self.samples)
     def __getitem__(self, idx):
@@ -75,8 +45,10 @@ class FloodSegmentationDataset(Dataset):
         mask = torch.from_numpy(mask.transpose(2, 0, 1)).float()  # 1HW
         return img, mask
 
-def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2, shuffle=True):
-    dataset = FloodSegmentationDataset(images_dir, masks_dir, image_size)
+def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2, shuffle=True,
+                    legacy=None, bands=None, manifest=None, stats_path=None):
+    dataset = FloodSegmentationDataset(images_dir, masks_dir, image_size, legacy=legacy,
+                                       bands=bands, manifest=manifest, stats_path=stats_path)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     return loader
 

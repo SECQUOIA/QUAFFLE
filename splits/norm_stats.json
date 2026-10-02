@@ -1,0 +1,301 @@
+{
+ "_info": {
+  "generated_by": "tools/compute_norm_stats.py",
+  "split": "training split of splits/<dataset>.json only",
+  "percentiles": [
+   1.0,
+   99.0
+  ],
+  "nodata": -9999,
+  "log1p_bands": [
+   "VH",
+   "VV"
+  ]
+ },
+ "flood_optical": {
+  "optical": {
+   "n_train_tiles": 235,
+   "pixel_stride": 2,
+   "n_pixels_per_band": 962560,
+   "bands": {
+    "COASTAL": {
+     "lo": 41.0,
+     "hi": 1128.0,
+     "mean": 401.403567,
+     "std": 269.978994,
+     "log1p": false
+    },
+    "BLUE": {
+     "lo": 78.0,
+     "hi": 1370.0,
+     "mean": 502.254187,
+     "std": 327.446496,
+     "log1p": false
+    },
+    "GREEN": {
+     "lo": 197.0,
+     "hi": 2021.0,
+     "mean": 835.147362,
+     "std": 419.88831,
+     "log1p": false
+    },
+    "RED": {
+     "lo": 11.0,
+     "hi": 2710.0,
+     "mean": 990.181822,
+     "std": 593.76013,
+     "log1p": false
+    },
+    "NIR": {
+     "lo": -42.0,
+     "hi": 4378.0,
+     "mean": 2097.538404,
+     "std": 1076.476205,
+     "log1p": false
+    },
+    "SWIR1": {
+     "lo": -7.0,
+     "hi": 4625.0,
+     "mean": 1985.247535,
+     "std": 1199.559822,
+     "log1p": false
+    },
+    "SWIR2": {
+     "lo": 2.0,
+     "hi": 3984.0,
+     "mean": 1375.703312,
+     "std": 970.961657,
+     "log1p": false
+    },
+    "QA": {
+     "lo": 64.0,
+     "hi": 224.0,
+     "mean": 103.777447,
+     "std": 49.384444,
+     "log1p": false
+    },
+    "MERIT_DEM": {
+     "lo": 16.0,
+     "hi": 2064.0,
+     "mean": 292.780671,
+     "std": 485.309468,
+     "log1p": false
+    },
+    "COP_DEM": {
+     "lo": 15.0,
+     "hi": 2075.0,
+     "mean": 291.497191,
+     "std": 483.445972,
+     "log1p": false
+    },
+    "WORLDCOVER": {
+     "lo": 10.0,
+     "hi": 80.0,
+     "mean": 35.707333,
+     "std": 20.06654,
+     "log1p": false
+    },
+    "WATER_OCC": {
+     "lo": 0.0,
+     "hi": 99.0,
+     "mean": 10.124715,
+     "std": 28.290826,
+     "log1p": false
+    }
+   }
+  }
+ },
+ "flood_SAR": {
+  "sar": {
+   "n_train_tiles": 1316,
+   "pixel_stride": 8,
+   "n_pixels_per_band": 5390336,
+   "bands": {
+    "VV": {
+     "lo": 3.850148,
+     "hi": 9.511185,
+     "mean": 6.988463,
+     "std": 1.001926,
+     "log1p": true
+    },
+    "VH": {
+     "lo": 2.397895,
+     "hi": 7.665753,
+     "mean": 5.502137,
+     "std": 0.992101,
+     "log1p": true
+    },
+    "MERIT_DEM": {
+     "lo": 0.0,
+     "hi": 1913.0,
+     "mean": 158.134129,
+     "std": 340.980773,
+     "log1p": false
+    },
+    "COP_DEM": {
+     "lo": -1.0,
+     "hi": 1918.0,
+     "mean": 158.518065,
+     "std": 341.805693,
+     "log1p": false
+    },
+    "WORLDCOVER": {
+     "lo": 10.0,
+     "hi": 80.0,
+     "mean": 31.261775,
+     "std": 17.794247,
+     "log1p": false
+    },
+    "WATER_OCC": {
+     "lo": 0.0,
+     "hi": 98.0,
+     "mean": 3.394517,
+     "std": 17.167624,
+     "log1p": false
+    }
+   }
+  }
+ },
+ "flood_combined": {
+  "optical": {
+   "n_train_tiles": 235,
+   "pixel_stride": 2,
+   "n_pixels_per_band": 962560,
+   "bands": {
+    "COASTAL": {
+     "lo": 41.0,
+     "hi": 1128.0,
+     "mean": 401.403567,
+     "std": 269.978994,
+     "log1p": false
+    },
+    "BLUE": {
+     "lo": 78.0,
+     "hi": 1370.0,
+     "mean": 502.254187,
+     "std": 327.446496,
+     "log1p": false
+    },
+    "GREEN": {
+     "lo": 197.0,
+     "hi": 2021.0,
+     "mean": 835.147362,
+     "std": 419.88831,
+     "log1p": false
+    },
+    "RED": {
+     "lo": 11.0,
+     "hi": 2710.0,
+     "mean": 990.181822,
+     "std": 593.76013,
+     "log1p": false
+    },
+    "NIR": {
+     "lo": -42.0,
+     "hi": 4378.0,
+     "mean": 2097.538404,
+     "std": 1076.476205,
+     "log1p": false
+    },
+    "SWIR1": {
+     "lo": -7.0,
+     "hi": 4625.0,
+     "mean": 1985.247535,
+     "std": 1199.559822,
+     "log1p": false
+    },
+    "SWIR2": {
+     "lo": 2.0,
+     "hi": 3984.0,
+     "mean": 1375.703312,
+     "std": 970.961657,
+     "log1p": false
+    },
+    "QA": {
+     "lo": 64.0,
+     "hi": 224.0,
+     "mean": 103.777447,
+     "std": 49.384444,
+     "log1p": false
+    },
+    "MERIT_DEM": {
+     "lo": 16.0,
+     "hi": 2064.0,
+     "mean": 292.780671,
+     "std": 485.309468,
+     "log1p": false
+    },
+    "COP_DEM": {
+     "lo": 15.0,
+     "hi": 2075.0,
+     "mean": 291.497191,
+     "std": 483.445972,
+     "log1p": false
+    },
+    "WORLDCOVER": {
+     "lo": 10.0,
+     "hi": 80.0,
+     "mean": 35.707333,
+     "std": 20.06654,
+     "log1p": false
+    },
+    "WATER_OCC": {
+     "lo": 0.0,
+     "hi": 99.0,
+     "mean": 10.124715,
+     "std": 28.290826,
+     "log1p": false
+    }
+   }
+  },
+  "sar": {
+   "n_train_tiles": 1316,
+   "pixel_stride": 8,
+   "n_pixels_per_band": 5390336,
+   "bands": {
+    "VV": {
+     "lo": 3.850148,
+     "hi": 9.511185,
+     "mean": 6.988463,
+     "std": 1.001926,
+     "log1p": true
+    },
+    "VH": {
+     "lo": 2.397895,
+     "hi": 7.665753,
+     "mean": 5.502137,
+     "std": 0.992101,
+     "log1p": true
+    },
+    "MERIT_DEM": {
+     "lo": 0.0,
+     "hi": 1913.0,
+     "mean": 158.134129,
+     "std": 340.980773,
+     "log1p": false
+    },
+    "COP_DEM": {
+     "lo": -1.0,
+     "hi": 1918.0,
+     "mean": 158.518065,
+     "std": 341.805693,
+     "log1p": false
+    },
+    "WORLDCOVER": {
+     "lo": 10.0,
+     "hi": 80.0,
+     "mean": 31.261775,
+     "std": 17.794247,
+     "log1p": false
+    },
+    "WATER_OCC": {
+     "lo": 0.0,
+     "hi": 98.0,
+     "mean": 3.394517,
+     "std": 17.167624,
+     "log1p": false
+    }
+   }
+  }
+ }
+}
