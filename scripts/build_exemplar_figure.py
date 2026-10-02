@@ -32,9 +32,26 @@ DATA_ROOT = os.path.join(REPO_ROOT, "data")
 # Pooled Opt.+SAR ("combined") row is not included: the QUAFFLE prediction
 # from the combined checkpoint did not align with the ground-truth flood mask cleanly enough
 # to serve as a representative exemplar. The single-modality optical and SAR rows remain.
+# Result dirs now carry a quantum variant tag (e.g. _reupload_L2, _legacy)
+# before _seed<N>. QUAFFLE_EXEMPLAR_VARIANT picks the tag; the untagged
+# (older) directory name is used as a fallback.
+EXEMPLAR_VARIANT = os.environ.get("QUAFFLE_EXEMPLAR_VARIANT", "reupload_L2")
+
+
+def _fed_ckpt(ds_suffix, seed=999):
+    base = os.path.join(REPO_ROOT, "results", f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}")
+    candidates = [f"{base}_{EXEMPLAR_VARIANT}_seed{seed}", f"{base}_seed{seed}"]
+    for d in candidates:
+        for name in ("checkpoint_round_25.pt", "fed_resume.pt"):
+            p = os.path.join(d, name)
+            if os.path.exists(p):
+                return p
+    return os.path.join(candidates[0], "checkpoint_round_25.pt")
+
+
 CHECKPOINTS = {
-    "optical":  os.path.join(REPO_ROOT, "results/flood_federated_optical_pytorch_pennylane_random_seed999/checkpoint_round_25.pt"),
-    "sar":      os.path.join(REPO_ROOT, "results/flood_federated_optical_pytorch_pennylane_random_sar_seed999/checkpoint_round_25.pt"),
+    "optical":  _fed_ckpt(""),
+    "sar":      _fed_ckpt("_sar"),
 }
 TEST_DIRS = {
     "optical":  (os.path.join(DATA_ROOT, "flood_optical/Testing/images"),
@@ -146,11 +163,19 @@ def main():
         # Common patterns
         if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
             state = ckpt["model_state_dict"]
+        elif isinstance(ckpt, dict) and "parameters" in ckpt:
+            # fed_resume.pt stores the global parameters as a list of arrays
+            # in model.parameters() order.
+            with torch.no_grad():
+                for p, arr in zip(model.parameters(), ckpt["parameters"]):
+                    p.copy_(torch.from_numpy(arr).to(p.device))
+            state = None
         elif isinstance(ckpt, dict) and "state_dict" in ckpt:
             state = ckpt["state_dict"]
         else:
             state = ckpt
-        model.load_state_dict(state)
+        if state is not None:
+            model.load_state_dict(state)
         print(f"  Loaded checkpoint ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
 
         idx, img, mask, pred, iou_score, flood_frac = select_best_sample(model, loader, device)

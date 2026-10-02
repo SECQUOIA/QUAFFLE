@@ -11,6 +11,9 @@ from datetime import datetime
 
 
 _RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+# Testing / relocation hook: QUAFFLE_TRACKER_DIR overrides where the shared
+# workbooks live.
+_RESULTS_DIR = os.environ.get("QUAFFLE_TRACKER_DIR", _RESULTS_DIR)
 
 COLUMNS = [
     "Timestamp",
@@ -101,29 +104,126 @@ def save_results_to_excel(demo_name, framework, training, variant, val_metrics, 
     excel_path = os.path.join(_RESULTS_DIR, f"results_summary_{dataset}.xlsx")
     os.makedirs(_RESULTS_DIR, exist_ok=True)
 
-    # File lock serializes concurrent writes from jobs finishing at the same time.
-    # Without this, two jobs can load + modify + save simultaneously and produce
-    # a corrupt .xlsx (happened on 2026-04-20: results_summary_optical.xlsx had to
-    # be repaired after concurrent fed_*_optical jobs collided).
-    import fcntl, time
-    lock_path = excel_path + ".lock"
-    lock_fd = open(lock_path, "w")
-    for _ in range(60):  # up to ~60s of contention
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            break
-        except BlockingIOError:
-            time.sleep(1)
-    else:
-        print("Warning: could not acquire Excel lock after 60s — writing anyway")
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)  # blocking as last resort
-
-    try:
+    # Cross-node lock. fcntl.flock is not reliable across nodes on GPFS (on
+    # 2026-10-02 two jobs on different nodes wrote results_summary_optical.xlsx
+    # at the same time and one crashed with BadZipFile). POSIX record locks
+    # (fcntl.lockf) are honoured cluster-wide by GPFS. An O_CREAT|O_EXCL marker
+    # file with a stale timeout is taken as well, as a second
+    # guard for filesystems where record locks are node-local.
+    with _ExcelLock(excel_path + ".lock"):
         _save_locked(excel_path, demo_name, framework, training, variant, dataset,
                      val_metrics, test_metrics, config, provenance)
+
+
+_LOCK_TIMEOUT_S = 300   # give up waiting after this long
+_STALE_LOCK_S = 600     # an O_EXCL lock older than this is treated as stale
+
+
+class _ExcelLock:
+    """fcntl.lockf (POSIX record lock) plus an O_CREAT|O_EXCL marker file.
+
+    Raises TimeoutError if the lock cannot be taken within _LOCK_TIMEOUT_S;
+    callers wrap the tracker so that never fails a finished run."""
+
+    def __init__(self, lock_path):
+        self.lock_path = lock_path
+        self.excl_path = lock_path + ".excl"
+        self.fd = None
+        self.have_excl = False
+
+    def __enter__(self):
+        import fcntl
+        import socket
+        import time
+        deadline = time.time() + _LOCK_TIMEOUT_S
+        self.fd = os.open(self.lock_path, os.O_RDWR | os.O_CREAT, 0o664)
+        while True:
+            try:
+                fcntl.lockf(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.time() > deadline:
+                    os.close(self.fd)
+                    self.fd = None
+                    raise TimeoutError(f"could not lock {self.lock_path} in {_LOCK_TIMEOUT_S}s")
+                time.sleep(1.0)
+        owner = f"{socket.gethostname()} pid={os.getpid()} {datetime.now().isoformat()}\n"
+        while True:
+            try:
+                xfd = os.open(self.excl_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o664)
+                os.write(xfd, owner.encode())
+                os.close(xfd)
+                self.have_excl = True
+                break
+            except FileExistsError:
+                try:
+                    age = time.time() - os.path.getmtime(self.excl_path)
+                except OSError:
+                    continue  # vanished between the calls, retry now
+                if age > _STALE_LOCK_S:
+                    print(f"Warning: removing stale tracker lock {self.excl_path} "
+                          f"({age:.0f}s old)")
+                    try:
+                        os.remove(self.excl_path)
+                    except OSError:
+                        pass
+                    continue
+                if time.time() > deadline:
+                    self.__exit__(None, None, None)
+                    raise TimeoutError(f"tracker lock {self.excl_path} held for too long")
+                time.sleep(1.0)
+        return self
+
+    def __exit__(self, *exc):
+        import fcntl
+        if self.have_excl:
+            try:
+                os.remove(self.excl_path)
+            except OSError:
+                pass
+            self.have_excl = False
+        if self.fd is not None:
+            try:
+                fcntl.lockf(self.fd, fcntl.LOCK_UN)
+            finally:
+                os.close(self.fd)
+                self.fd = None
+        return False
+
+
+def _load_or_new_workbook(excel_path):
+    """Load the workbook; a corrupt file is moved aside (kept) and a new
+    workbook is started instead of crashing."""
+    import openpyxl
+    if os.path.exists(excel_path):
+        try:
+            return openpyxl.load_workbook(excel_path)
+        except Exception as e:
+            dst = f"{excel_path}.corrupt-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"
+            print(f"Warning: {excel_path} is unreadable ({type(e).__name__}: {e}). "
+                  f"Moving it to {dst} and starting a new workbook. Per-run "
+                  f"results/metrics.json files hold every run's metrics.")
+            os.replace(excel_path, dst)
+    wb = openpyxl.Workbook()
+    if "Sheet" in wb.sheetnames:
+        del wb["Sheet"]
+    return wb
+
+
+def _atomic_save_workbook(wb, excel_path):
+    import socket
+    tmp = f"{excel_path}.tmp.{socket.gethostname()}.{os.getpid()}.xlsx"
+    try:
+        wb.save(tmp)
+        with open(tmp, "rb") as f:
+            os.fsync(f.fileno())
+        os.replace(tmp, excel_path)
     finally:
-        fcntl.flock(lock_fd, fcntl.LOCK_UN)
-        lock_fd.close()
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
@@ -146,13 +246,7 @@ def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
     sheet_name = f"Seed_{seed}" if seed is not None else "Results"
 
     from openpyxl.styles import Font
-    if os.path.exists(excel_path):
-        wb = openpyxl.load_workbook(excel_path)
-    else:
-        wb = openpyxl.Workbook()
-        # Remove default empty sheet
-        if "Sheet" in wb.sheetnames:
-            del wb["Sheet"]
+    wb = _load_or_new_workbook(excel_path)
 
     # Get or create the target sheet
     if sheet_name not in wb.sheetnames:
@@ -218,5 +312,5 @@ def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
         row = [by_name.get(h) for h in header]
 
     ws.append(row)
-    wb.save(excel_path)
+    _atomic_save_workbook(wb, excel_path)
     print(f"Results saved to Excel: {excel_path}")

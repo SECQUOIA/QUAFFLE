@@ -31,6 +31,9 @@ if _REPO_DIR not in sys.path:
 from config.seeds import SEEDS  # noqa: E402  single pre-declared seed list
 
 RESULTS_DIR = os.environ.get("QUAFFLE_RESULTS_DIR", os.path.join(_REPO_DIR, "results"))
+# Where analysis_summary.xlsx and plots/ are written. Defaults to RESULTS_DIR;
+# set QUAFFLE_ANALYSIS_OUT_DIR to analyse a read-only results tree.
+ANALYSIS_OUT_DIR = os.environ.get("QUAFFLE_ANALYSIS_OUT_DIR", RESULTS_DIR)
 DATASETS = ['optical', 'sar', 'combined']
 
 # One pre-declared seed pool (config/seeds.py) for every method. Seeds are
@@ -340,16 +343,73 @@ def assign_method(row):
 
 
 import re as _re_disk
+import json as _json_disk
 
-# Result directory naming convention (canonical, post-2026-04-20 fix):
-#   flood_<central|federated>_optical_pytorch_<classical|pennylane>[_random|_dirichlet0.5][_combined|_sar][_qcN]_seed<N>
-#   abalation_<centralized|federated>_torch_bottleneck_matched_pennylane[_random|_dirichlet0.5][_combined|_sar]_seed<N>
+# Result directory naming convention:
+#   flood_<central|federated>_optical_pytorch_<classical|pennylane>[_random|_dirichlet0.5][_combined|_sar][_qcN][<vtag>]_seed<N>
+#   abalation_<centralized|federated>_torch_bottleneck_matched_pennylane[_random|_dirichlet0.5][_combined|_sar][<vtag>]_seed<N>
+# <vtag> is the quantum ansatz variant, "_reupload_L<n>" or "_legacy"
+# (quantum and ablation runs only, added 2026-10). Directories without a
+# tag are older runs; their variant is read from the Provenance block of
+# summary.txt (cli_args), see _infer_variant_from_summary.
 # JAX dirs and old (non-bottleneck) ablation dirs are deliberately excluded.
+
+# The variant whose Method labels stay unsuffixed ("Quantum Central", ...),
+# so the summary tables and the forest plot keep working. Every other variant gets a
+# " [<variant>]" suffix, e.g. "Quantum Fed (Random) [legacy]".
+PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
+_DEFAULT_Q_LAYERS = 2
+
+_VTAG_RE = _re_disk.compile(r"_(legacy|reupload_L\d+)$")
+
+
+def _variant_label(variant):
+    """Method-label suffix for a variant ('' for the primary variant)."""
+    if not variant or variant == PRIMARY_VARIANT:
+        return ""
+    return f" [{variant.replace('_', ' ')}]"
+
+
+def _variant_from_fields(q_ansatz, q_layers):
+    if not q_ansatz:
+        return None
+    if q_ansatz == "legacy":
+        return "legacy"
+    return f"{q_ansatz}_L{int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS}"
+
+
+def _infer_variant_from_summary(text):
+    """Variant of an untagged (older) run directory.
+
+    With a Provenance block the CLI flags decide (--q-ansatz default was
+    'reupload', --q-layers default 2). Runs without provenance predate the
+    revision and used the original (legacy) circuit."""
+    m = _re_disk.search(r"cli_args:\s*(.*)", text or "")
+    if not m:
+        return "legacy"
+    cli = m.group(1)
+    a = _re_disk.search(r"--q[-_]ansatz[ =](\w+)", cli)
+    layers = _re_disk.search(r"--q[-_]layers[ =](\d+)", cli)
+    return _variant_from_fields(a.group(1) if a else "reupload",
+                                int(layers.group(1)) if layers else None)
+
 
 def _parse_run_dir(dirname):
     """Map a result directory name → (Method, Dataset, Seed, Quantum_Channels,
     Training, Partition) or None if it should be ignored (JAX, old ablation,
-    not a result dir, etc.)."""
+    not a result dir, etc.).
+
+    For quantum / ablation dirs without a variant tag the Method label is
+    provisional; load_from_disk() appends the variant read from the run.
+    See _parse_run_dir_full for the variant itself."""
+    full = _parse_run_dir_full(dirname)
+    return None if full is None else full[:6]
+
+
+def _parse_run_dir_full(dirname):
+    """Like _parse_run_dir plus a 7th element: the variant from the directory
+    tag ('legacy', 'reupload_L2', ...), None if untagged or not applicable.
+    The Method label here never carries the variant suffix."""
     m = _re_disk.match(r"^(.+)_seed(\d+)$", dirname)
     if not m:
         return None
@@ -357,6 +417,12 @@ def _parse_run_dir(dirname):
 
     if "jax" in base:
         return None  # JAX runs are not analysed (legacy code)
+
+    variant = None
+    vm = _VTAG_RE.search(base)
+    if vm:
+        variant = vm.group(1)
+        base = base[:vm.start()]
 
     dataset = "combined" if "_combined" in base else ("sar" if "_sar" in base else "optical")
 
@@ -368,11 +434,11 @@ def _parse_run_dir(dirname):
         if "bottleneck" not in base:
             return None  # old base_channels=28 architecture; superseded
         if "centralized" in base:
-            return ("Ablation Central", dataset, seed, 32, "centralized", "centralized")
+            return ("Ablation Central", dataset, seed, 32, "centralized", "centralized", variant)
         if "random" in base:
-            return ("Ablation Fed (Random)", dataset, seed, 32, "federated", "random")
+            return ("Ablation Fed (Random)", dataset, seed, 32, "federated", "random", variant)
         if "dirichlet" in base:
-            return ("Ablation Fed (Dirichlet)", dataset, seed, 32, "federated", "dirichlet")
+            return ("Ablation Fed (Dirichlet)", dataset, seed, 32, "federated", "dirichlet", variant)
         return None
 
     if not base.startswith("flood_"):
@@ -394,7 +460,7 @@ def _parse_run_dir(dirname):
     if "pennylane" in base:
         kind = "Quantum"
     elif "classical" in base:
-        kind, qc, qc_suffix = "Classical", None, ""
+        kind, qc, qc_suffix, variant = "Classical", None, "", None
     else:
         return None
 
@@ -405,7 +471,51 @@ def _parse_run_dir(dirname):
     else:
         method = f"{kind} Fed (Dirichlet){qc_suffix}"
 
-    return (method, dataset, seed, qc if qc is not None else 32, training, partition)
+    return (method, dataset, seed, qc if qc is not None else 32, training, partition, variant)
+
+
+def _with_variant(method, variant):
+    """Insert the variant suffix before a ' QC=N' suffix so QC parsing
+    (method.split('QC=')) keeps working."""
+    label = _variant_label(variant)
+    if not label:
+        return method
+    if " QC=" in method:
+        head, qc = method.split(" QC=", 1)
+        return f"{head}{label} QC={qc}"
+    return f"{method}{label}"
+
+
+_METRIC_KEYS = (("loss", "Loss"), ("accuracy", "Accuracy"), ("auc", "AUC"),
+                ("iou", "IoU"), ("dice", "Dice"))
+
+
+def _parse_metrics_json(path):
+    """Parse a run's results/metrics.json (canonical output since 2026-10).
+    Returns (metrics dict, info dict) or None if absent / incomplete."""
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            data = _json_disk.load(f)
+    except (OSError, ValueError):
+        return None
+    test = data.get("test") or {}
+    if test.get("iou") is None:
+        return None
+    out = {}
+    for k, name in _METRIC_KEYS:
+        if test.get(k) is not None:
+            out[f"Test_{name}"] = float(test[k])
+        v = (data.get("val") or {}).get(k)
+        if v is not None:
+            out[f"Val_{name}"] = float(v)
+    if data.get("total_params") is not None:
+        out["Total_Params"] = int(data["total_params"])
+    info = {
+        "variant": _variant_from_fields(data.get("q_ansatz"), data.get("q_layers")),
+    }
+    return out, info
 
 
 def _parse_summary(path):
@@ -448,22 +558,26 @@ def _parse_summary(path):
 
     if "Test_IoU" not in out:
         return None
+    out["_variant_inferred"] = _infer_variant_from_summary(text)
     return out
 
 
 def load_from_disk():
-    """Walk results/ and build the per-run DataFrame from each run's
-    summary.txt. Authoritative — bypasses the Excel logging which has
-    historical column-shift bugs for some seeds.
+    """Walk results/ and build the per-run DataFrame. Prefers each run's
+    results/metrics.json (canonical, machine-readable) and falls back to
+    summary.txt for older runs. Bypasses the Excel logging entirely.
 
     Returns a DataFrame with columns: Method, Dataset, Seed, Training,
-    Partition, Quantum_Channels, Total_Params, Test_/Val_ {Loss, Accuracy,
-    AUC, IoU, Dice}, plus Demo / Variant / Dirichlet_Alpha placeholders for
-    backwards-compat with downstream code.
+    Partition, Quantum_Channels, Q_Variant, Source, Total_Params,
+    Test_/Val_ {Loss, Accuracy, AUC, IoU, Dice}, plus Demo / Variant /
+    Dirichlet_Alpha placeholders for backwards-compat with downstream code.
+    Method labels carry a " [<variant>]" suffix for non-primary quantum
+    ansatz variants (see PRIMARY_VARIANT).
     """
     rows = []
     skipped_no_summary = 0
     skipped_dirs = []
+    n_json = 0
     if not os.path.isdir(RESULTS_DIR):
         return pd.DataFrame()
 
@@ -471,31 +585,51 @@ def load_from_disk():
         full = os.path.join(RESULTS_DIR, d)
         if not os.path.isdir(full):
             continue
-        parsed = _parse_run_dir(d)
+        parsed = _parse_run_dir_full(d)
         if parsed is None:
             continue
-        method, dataset, seed, qc, training, partition = parsed
-        metrics = _parse_summary(os.path.join(full, "results", "summary.txt"))
-        if metrics is None:
-            skipped_no_summary += 1
-            skipped_dirs.append(d)
-            continue
+        method, dataset, seed, qc, training, partition, dir_variant = parsed
+        quantumish = method.startswith("Quantum") or method.startswith("Ablation")
+
+        js = _parse_metrics_json(os.path.join(full, "results", "metrics.json"))
+        if js is not None:
+            metrics, info = js
+            source = "metrics.json"
+            n_json += 1
+            variant = dir_variant or info.get("variant")
+        else:
+            metrics = _parse_summary(os.path.join(full, "results", "summary.txt"))
+            if metrics is None:
+                skipped_no_summary += 1
+                skipped_dirs.append(d)
+                continue
+            source = "summary.txt"
+            inferred = metrics.pop("_variant_inferred", None)
+            variant = dir_variant or inferred
+        if not quantumish:
+            variant = None
         rows.append({
-            "Method": method,
+            "Method": _with_variant(method, variant),
             "Dataset": dataset,
             "Seed": seed,
             "Training": training,
             "Partition": partition,
             "Quantum_Channels": qc,
+            "Q_Variant": variant,
+            "Run_Dir": d,
+            "Source": source,
             "Demo": method,                 # downstream filter compat
-            "Variant": "quantum" if "Quantum" in method else (
-                       "ablation" if "Ablation" in method else "classical"),
+            "Variant": "quantum" if method.startswith("Quantum") else (
+                       "ablation" if method.startswith("Ablation") else "classical"),
             "Dirichlet_Alpha": 0.5 if partition == "dirichlet" else None,
             **metrics,
         })
 
+    if rows:
+        print(f"  Parsed {len(rows)} runs ({n_json} from metrics.json, "
+              f"{len(rows) - n_json} from summary.txt)")
     if skipped_no_summary:
-        print(f"  Skipped {skipped_no_summary} run dirs without a Test block in summary.txt "
+        print(f"  Skipped {skipped_no_summary} run dirs without test metrics "
               f"(failed, in-progress or crashed):")
         for d in skipped_dirs:
             print(f"    SKIPPED (no Test block): {d}")
@@ -679,7 +813,8 @@ def make_pivot_numeric(seed_df, metric="Test_IoU", method_order=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def save_analysis_excel(df, seed_df):
-    out_path = os.path.join(RESULTS_DIR, "analysis_summary.xlsx")
+    os.makedirs(ANALYSIS_OUT_DIR, exist_ok=True)
+    out_path = os.path.join(ANALYSIS_OUT_DIR, "analysis_summary.xlsx")
 
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -1638,7 +1773,7 @@ def save_all_plots(seed_df, raw_df=None):
         results/plots/combinedcharts/supplementary/  — supp variants (Acc + AUC dot/seed lines)
         results/plots/<regime>_<dataset>/            — per-config bar plot (one PNG per metric)
     """
-    plots_dir = os.path.join(RESULTS_DIR, "plots")
+    plots_dir = os.path.join(ANALYSIS_OUT_DIR, "plots")
     combined_dir = os.path.join(plots_dir, "combinedcharts")
     supp_dir  = os.path.join(combined_dir, "supplementary")
     os.makedirs(plots_dir, exist_ok=True)

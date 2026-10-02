@@ -293,7 +293,7 @@ class QuantumFlowerClient(fl.client.NumPyClient):
         
         return (loss, num_examples, eval_metrics)
 
-class QuantumFedAvg(FedAvg):
+class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
     """Custom FedAvg strategy with quantum model evaluation."""
     
     def __init__(self, val_loader, config, device_str, output_dir, **kwargs):
@@ -308,6 +308,9 @@ class QuantumFedAvg(FedAvg):
         self.best_performance = 0.0
         self.failed_rounds = []
         self._current_parameters = None
+        self.fingerprint = None
+        self.round_offset = 0
+        self.resumed_from_round = 0
         
         # Create logs directory for evaluation scores
         self.logs_dir = os.path.join(output_dir, 'logs')
@@ -317,7 +320,8 @@ class QuantumFedAvg(FedAvg):
     def aggregate_evaluate(self, server_round: int, results, failures):
         """Aggregate evaluation results and perform server-side evaluation."""
         import torch
-        
+
+        server_round += self.round_offset  # keep global numbering on resume
         # Call parent method
         aggregated_result = super().aggregate_evaluate(server_round, results, failures)
         
@@ -367,11 +371,13 @@ class QuantumFedAvg(FedAvg):
                         'best_performance': self.best_performance
                     }, unique_checkpoint_path)
                     print(f"Unique checkpoint saved: checkpoint_round_{server_round}.pt")
-        
+
+        tc.fed_round_end(self, server_round)
         return aggregated_result
     
     def aggregate_fit(self, server_round: int, results, failures):
         """Aggregate fit results and store parameters."""
+        server_round += self.round_offset  # keep global numbering on resume
         if failures:
             # accept_failures=False makes FedAvg skip the round silently. Record
             # it so main() can mark the whole run as failed.
@@ -421,14 +427,17 @@ def main():
     config['quantum_channels'] = args.quantum_channels
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     qc_suffix = "" if args.quantum_channels == 32 else f"_qc{args.quantum_channels}"
-    if args.partition == 'dirichlet':
-        output_dir = f"results/flood_federated_optical_pytorch_pennylane_dirichlet{args.alpha}{ds_suffix}{qc_suffix}_seed{config['seed']}"
-    else:
-        output_dir = f"results/flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}_seed{config['seed']}"
     print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
     tc.apply_common_args(config, args)
+    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart.
+    vtag = tc.variant_tag(config)
+    if args.partition == 'dirichlet':
+        output_dir = f"results/flood_federated_optical_pytorch_pennylane_dirichlet{args.alpha}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
+    else:
+        output_dir = f"results/flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
+    print(f"Output directory: {output_dir}")
 
     # Seed python, numpy, torch and cuda once in the driver process. Ray
     # workers reseed per client and round in fit().
@@ -517,16 +526,34 @@ def main():
     # Create client function
     client_fn = create_flower_client_fn(client_datasets, config, device_str)
     
-    print(f"\nStarting Flower federated training for {config['fed_rounds']} rounds...")
-    
+    # Resume: restore global parameters and per-round history from the
+    # last resumable checkpoint, then run only the remaining rounds. The
+    # strategy offsets Flower's 1-based round counter so round numbers (and
+    # the per (seed, client, round) client shuffle seeds) match an
+    # uninterrupted run.
+    strategy.fingerprint = tc.run_fingerprint(config, 'quantum')
+    resume_ckpt = tc.load_fed_checkpoint(output_dir, strategy.fingerprint, config.get('resume', True))
+    resumed_params, remaining_rounds = tc.apply_fed_resume(strategy, resume_ckpt)
+    if resumed_params is not None:
+        strategy.initial_parameters = resumed_params
+    del resume_ckpt
+
+    if remaining_rounds > 0:
+        print(f"\nStarting Flower federated training: rounds {strategy.round_offset + 1}.."
+              f"{config['fed_rounds']} ({remaining_rounds} of {config['fed_rounds']})...")
+    else:
+        print(f"\nAll {config['fed_rounds']} rounds already completed in the checkpoint, "
+              f"skipping training")
+
     # Start Flower simulation
-    fl.simulation.start_simulation(
-        client_fn=client_fn,
-        num_clients=config['num_clients'],
-        config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
-        strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.2 if device_str == 'cuda' else 0.0}
-    )
+    if remaining_rounds > 0:
+        fl.simulation.start_simulation(
+            client_fn=client_fn,
+            num_clients=config['num_clients'],
+            config=fl.server.ServerConfig(num_rounds=remaining_rounds),
+            strategy=strategy,
+            client_resources={"num_cpus": 1.0, "num_gpus": 0.2 if device_str == 'cuda' else 0.0}
+        )
     
     print(f"\nFederated training completed!")
     if strategy.failed_rounds:
@@ -650,10 +677,20 @@ def main():
             
             print(f"Results summary saved to: {summary_path}")
     
-    # Save results to shared Excel summary
+    # Canonical per-run metrics (analysis reads this, not the Excel file).
     final_val = strategy.round_metrics[-1]
+    tc.write_metrics_json(
+        output_dir, script=os.path.basename(__file__), training="federated", model_type="quantum",
+        config=config, val_metrics=final_val, test_metrics=test_result,
+        history=strategy.round_metrics, total_params=total_params,
+        best_val_auc=strategy.best_performance, knockout=knockout if config.get('quantum_knockout_eval') else None,
+        provenance=provenance,
+        extra={'resumed_from_round': strategy.resumed_from_round})
+
+    # Shared Excel summary: best effort, a tracker failure never fails the run.
     excel_config = {**config, 'total_params': total_params}
-    save_results_to_excel(
+    tc.safe_tracker_call(
+        save_results_to_excel,
         demo_name="Federated Quantum Torch",
         framework="torch",
         training="federated",

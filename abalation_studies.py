@@ -223,7 +223,9 @@ def run_centralized_torch(args):
     }
     config['seed'] = args.seed
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    output_dir = f"results/abalation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}_seed{config['seed']}"
+    vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
+    output_dir = f"results/abalation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}"
+    print(f"Output directory: {output_dir}")
 
     if getattr(args, 'epochs', None) is not None:
         config['num_epochs'] = int(args.epochs)
@@ -258,7 +260,7 @@ def run_centralized_torch(args):
 
     start_epoch = 0
     train_metrics, val_metrics = [], []
-    ckpt = torch.load(ckpt_path, map_location=device) if os.path.exists(ckpt_path) else None
+    ckpt = tc.safe_torch_load(ckpt_path, map_location=device)
     if ckpt is not None and not tc.checkpoint_compatible(ckpt):
         ckpt = None
     if ckpt is not None:
@@ -267,6 +269,7 @@ def run_centralized_torch(args):
         start_epoch = ckpt.get('epoch', 0)
         train_metrics = ckpt.get('train_metrics', [])
         val_metrics   = ckpt.get('val_metrics', [])
+        tc.restore_rng_state(ckpt.get('rng_state'), train_loader)
         print(f"Checkpoint loaded — resuming from epoch {start_epoch}")
     else:
         print("No checkpoint found, starting from scratch")
@@ -303,11 +306,12 @@ def run_centralized_torch(args):
                 f.write(f"Epoch {epoch}: Loss={r['loss']:.4f} "
                         f"Accuracy={r['accuracy']:.4f} AUC={r['auc']:.4f} "
                         f"IoU={r['iou']:.4f} Dice={r['dice']:.4f}\n")
-            torch.save({'model_state_dict': model.state_dict(),
-                        'run_format': tc.RUN_FORMAT,
-                        'optimizer_state_dict': optimizer.state_dict(),
-                        'epoch': epoch, 'train_metrics': train_metrics,
-                        'val_metrics': val_metrics}, ckpt_path)
+            tc.atomic_torch_save({'model_state_dict': model.state_dict(),
+                                  'run_format': tc.RUN_FORMAT,
+                                  'optimizer_state_dict': optimizer.state_dict(),
+                                  'epoch': epoch, 'train_metrics': train_metrics,
+                                  'val_metrics': val_metrics,
+                                  'rng_state': tc.rng_state(train_loader)}, ckpt_path)
             if epoch % 100 == 0:
                 torch.save({'model_state_dict': model.state_dict(), 'epoch': epoch},
                            os.path.join(output_dir, f'checkpoint_epoch_{epoch}.pt'))
@@ -340,7 +344,14 @@ def run_centralized_torch(args):
                          extra_lines=[f"Validation: global held-out {len(va_idx)} samples "
                                       f"({config['val_fraction']} of the training pool, stratified)"],
                          provenance=provenance)
-    save_results_to_excel(
+    tc.write_metrics_json(
+        output_dir, script=os.path.basename(__file__), training="centralized",
+        model_type="ablation", config=config,
+        val_metrics=val_metrics[-1] if val_metrics else None, test_metrics=test_result,
+        history=val_metrics, total_params=total_params, provenance=provenance,
+        extra={'reference_quantum_params': q_params})
+    tc.safe_tracker_call(
+        save_results_to_excel,
         demo_name=f"Abalation Centralized Torch Bottleneck (vs {backend})",
         framework="torch", training="centralized",
         variant=f"classical_matched_{config['base_channels']}ch",
@@ -458,6 +469,11 @@ class _TorchAblationFedAvg:
         self.best_performance = 0.0
         self._current_parameters = None
         self.failed_rounds = []
+        # Resume support: Flower counts rounds from 1 in every process, a
+        # resumed run shifts them by round_offset (see tc.RoundOffsetMixin).
+        self.round_offset = 0
+        self.resumed_from_round = 0
+        self.fingerprint = None
         logs_dir = os.path.join(output_dir, 'logs')
         os.makedirs(logs_dir, exist_ok=True)
         self.eval_log = os.path.join(logs_dir, 'evaluation_scores.txt')
@@ -466,16 +482,26 @@ class _TorchAblationFedAvg:
         self.fraction_fit       = self._base.fraction_fit
         self.fraction_evaluate  = self._base.fraction_evaluate
 
+    @property
+    def initial_parameters(self):
+        return self._base.initial_parameters
+
+    @initial_parameters.setter
+    def initial_parameters(self, value):
+        self._base.initial_parameters = value
+
     def initialize_parameters(self, client_manager):
         return self._base.initialize_parameters(client_manager)
 
     def configure_fit(self, server_round, parameters, client_manager):
-        return self._base.configure_fit(server_round, parameters, client_manager)
+        return self._base.configure_fit(server_round + self.round_offset, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):
-        return self._base.configure_evaluate(server_round, parameters, client_manager)
+        return self._base.configure_evaluate(server_round + self.round_offset, parameters,
+                                             client_manager)
 
     def aggregate_fit(self, server_round, results, failures):
+        server_round += self.round_offset
         if failures:
             self.failed_rounds.append((server_round, len(failures), repr(failures[0])[:500]))
             print(f"Round {server_round}: {len(failures)} client fit failures, first: {repr(failures[0])[:500]}")
@@ -488,6 +514,7 @@ class _TorchAblationFedAvg:
         import torch
         from flwr.common import parameters_to_ndarrays
         from utilsTorch import ClassicalAblationUNetSegmentation, evaluate_model
+        server_round += self.round_offset
         agg = self._base.aggregate_evaluate(server_round, results, failures)
         if self.val_loader is not None and self._current_parameters is not None:
             if self.device is None:
@@ -512,10 +539,12 @@ class _TorchAblationFedAvg:
                 torch.save({'model_state_dict': m.state_dict(), 'round': server_round,
                             'round_metrics': self.round_metrics},
                            os.path.join(self.output_dir, f'checkpoint_round_{server_round}.pt'))
+        tc.fed_round_end(self, server_round)
         return agg
 
     def evaluate(self, server_round, parameters):
-        return self._base.evaluate(server_round, parameters)
+        r = server_round + self.round_offset if server_round > 0 else server_round
+        return self._base.evaluate(r, parameters)
 
 
 def run_federated_torch(args):
@@ -573,8 +602,10 @@ def run_federated_torch(args):
     tc.apply_common_args(config, args)
     tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    output_dir = f"results/abalation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}_seed{config['seed']}"
+    vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
+    output_dir = f"results/abalation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}"
     os.makedirs(output_dir, exist_ok=True)
+    print(f"Output directory: {output_dir}")
 
     print(f"Matched base_channels={config['base_channels']}  "
           f"({c_params:,} params vs {q_params:,} quantum params)")
@@ -615,14 +646,28 @@ def run_federated_torch(args):
         return _TorchClassicalFlowerClient(
             int(cid), client_datasets[int(cid)], config, device_str).to_client()
 
-    print(f"\nStarting Flower federated training for {config['fed_rounds']} rounds...")
-    fl.simulation.start_simulation(
-        client_fn=client_fn,
-        num_clients=config['num_clients'],
-        config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
-        strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0},
-    )
+    # Resume from the last resumable checkpoint (global parameters, history)
+    # and run only the remaining rounds with the original round numbering.
+    strategy.fingerprint = tc.run_fingerprint(config, 'ablation')
+    resume_ckpt = tc.load_fed_checkpoint(output_dir, strategy.fingerprint, config.get('resume', True))
+    resumed_params, remaining_rounds = tc.apply_fed_resume(strategy, resume_ckpt)
+    if resumed_params is not None:
+        strategy.initial_parameters = resumed_params
+    del resume_ckpt
+
+    if remaining_rounds > 0:
+        print(f"\nStarting Flower federated training: rounds {strategy.round_offset + 1}.."
+              f"{config['fed_rounds']} ({remaining_rounds} of {config['fed_rounds']})...")
+        fl.simulation.start_simulation(
+            client_fn=client_fn,
+            num_clients=config['num_clients'],
+            config=fl.server.ServerConfig(num_rounds=remaining_rounds),
+            strategy=strategy,
+            client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0},
+        )
+    else:
+        print(f"\nAll {config['fed_rounds']} rounds already completed in the checkpoint, "
+              f"skipping training")
 
     if strategy.failed_rounds:
         tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
@@ -672,7 +717,17 @@ def run_federated_torch(args):
                              f"Local epochs: {config['local_epochs']}",
                          ],
                          provenance=provenance)
-    save_results_to_excel(
+    tc.write_metrics_json(
+        output_dir, script=os.path.basename(__file__), training="federated",
+        model_type="ablation", config=config,
+        val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
+        test_metrics=test_result, history=strategy.round_metrics,
+        total_params=total_params, best_val_auc=strategy.best_performance,
+        provenance=provenance,
+        extra={'reference_quantum_params': q_params,
+               'resumed_from_round': strategy.resumed_from_round})
+    tc.safe_tracker_call(
+        save_results_to_excel,
         demo_name=f"Abalation Federated Torch Bottleneck (vs {backend})",
         framework="torch", training="federated",
         variant=f"classical_matched_{config['base_channels']}ch",

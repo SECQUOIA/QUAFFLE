@@ -289,7 +289,7 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         
         return (loss, num_examples, eval_metrics)
 
-class ClassicalFedAvg(FedAvg): 
+class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
     """Custom FedAvg strategy with classical model evaluation."""
     
     def __init__(self, val_loader, config, device_str, output_dir, **kwargs):
@@ -304,6 +304,9 @@ class ClassicalFedAvg(FedAvg):
         self.best_performance = 0.0
         self.failed_rounds = []
         self._current_parameters = None
+        self.fingerprint = None
+        self.round_offset = 0
+        self.resumed_from_round = 0
         
         # Create logs directory for evaluation scores
         self.logs_dir = os.path.join(output_dir, 'logs')
@@ -313,7 +316,8 @@ class ClassicalFedAvg(FedAvg):
     def aggregate_evaluate(self, server_round: int, results, failures):
         """Aggregate evaluation results and perform server-side evaluation."""
         import torch
-        
+
+        server_round += self.round_offset  # keep global numbering on resume
         # Call parent method
         aggregated_result = super().aggregate_evaluate(server_round, results, failures)
         
@@ -363,11 +367,13 @@ class ClassicalFedAvg(FedAvg):
                         'best_performance': self.best_performance
                     }, unique_checkpoint_path)
                     print(f"Unique checkpoint saved: checkpoint_round_{server_round}.pt")
-        
+
+        tc.fed_round_end(self, server_round)
         return aggregated_result
     
     def aggregate_fit(self, server_round: int, results, failures):
         """Aggregate fit results and store parameters."""
+        server_round += self.round_offset  # keep global numbering on resume
         if failures:
             # accept_failures=False makes FedAvg skip the round silently. Record
             # it so main() can mark the whole run as failed.
@@ -505,16 +511,34 @@ def main():
     # Create client function
     client_fn = create_flower_client_fn(client_datasets, config, device_str)
     
-    print(f"\nStarting Flower federated training for {config['fed_rounds']} rounds...")
-    
+    # Resume: restore global parameters and per-round history from the
+    # last resumable checkpoint, then run only the remaining rounds. The
+    # strategy offsets Flower's 1-based round counter so round numbers (and
+    # the per (seed, client, round) client shuffle seeds) match an
+    # uninterrupted run.
+    strategy.fingerprint = tc.run_fingerprint(config, 'classical')
+    resume_ckpt = tc.load_fed_checkpoint(output_dir, strategy.fingerprint, config.get('resume', True))
+    resumed_params, remaining_rounds = tc.apply_fed_resume(strategy, resume_ckpt)
+    if resumed_params is not None:
+        strategy.initial_parameters = resumed_params
+    del resume_ckpt
+
+    if remaining_rounds > 0:
+        print(f"\nStarting Flower federated training: rounds {strategy.round_offset + 1}.."
+              f"{config['fed_rounds']} ({remaining_rounds} of {config['fed_rounds']})...")
+    else:
+        print(f"\nAll {config['fed_rounds']} rounds already completed in the checkpoint, "
+              f"skipping training")
+
     # Start Flower simulation
-    fl.simulation.start_simulation(
-        client_fn=client_fn,
-        num_clients=config['num_clients'],
-        config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
-        strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0}
-    )
+    if remaining_rounds > 0:
+        fl.simulation.start_simulation(
+            client_fn=client_fn,
+            num_clients=config['num_clients'],
+            config=fl.server.ServerConfig(num_rounds=remaining_rounds),
+            strategy=strategy,
+            client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0}
+        )
     
     print(f"\nFederated training completed!")
     if strategy.failed_rounds:
@@ -627,10 +651,20 @@ def main():
             
             print(f"Results summary saved to: {summary_path}")
     
-    # Save results to shared Excel summary
+    # Canonical per-run metrics (analysis reads this, not the Excel file).
     final_val = strategy.round_metrics[-1]
+    tc.write_metrics_json(
+        output_dir, script=os.path.basename(__file__), training="federated", model_type="classical",
+        config=config, val_metrics=final_val, test_metrics=test_result,
+        history=strategy.round_metrics, total_params=total_params,
+        best_val_auc=strategy.best_performance, knockout=None,
+        provenance=provenance,
+        extra={'resumed_from_round': strategy.resumed_from_round})
+
+    # Shared Excel summary: best effort, a tracker failure never fails the run.
     excel_config = {**config, 'total_params': total_params}
-    save_results_to_excel(
+    tc.safe_tracker_call(
+        save_results_to_excel,
         demo_name="Federated Classical Torch",
         framework="torch",
         training="federated",

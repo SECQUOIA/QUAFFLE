@@ -61,8 +61,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     # Try to load checkpoint
     checkpoint = None
     if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        if not tc.checkpoint_compatible(checkpoint):
+        checkpoint = tc.safe_torch_load(checkpoint_path, map_location=device)
+        if checkpoint is not None and not tc.checkpoint_compatible(checkpoint):
             checkpoint = None
     if checkpoint is not None:
         checkpoint_loaded = False
@@ -84,6 +84,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             start_step = checkpoint.get('step', 0)
             train_metrics = checkpoint.get('train_metrics', [])
             val_metrics = checkpoint.get('val_metrics', [])
+            tc.restore_rng_state(checkpoint.get('rng_state'), train_loader)
             print(f"Checkpoint loaded successfully! Resuming from step {start_step}")
         else:
             print("Starting training from scratch due to incompatible checkpoint")
@@ -126,14 +127,16 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             with open(eval_log_path, 'a') as f:
                 f.write(f"Step {step}: Loss={val_result['loss']:.4f}, Accuracy={val_result['accuracy']:.4f}, AUC={val_result['auc']:.4f}, IoU={val_result['iou']:.4f}, Dice={val_result['dice']:.4f}\n")
             
-            # Save regular checkpoint
-            torch.save({
+            # Save regular checkpoint (atomic, with RNG and loader state so a
+            # resumed run continues the same shuffle sequence)
+            tc.atomic_torch_save({
                 'model_state_dict': model.state_dict(),
                 'run_format': tc.RUN_FORMAT,
                 'optimizer_state_dict': optimizer.state_dict(),
                 'step': step,
                 'train_metrics': train_metrics,
-                'val_metrics': val_metrics
+                'val_metrics': val_metrics,
+                'rng_state': tc.rng_state(train_loader),
             }, checkpoint_path)
             print(f"Checkpoint saved at step {step}")
             
@@ -174,10 +177,12 @@ def main():
     config['seed'] = args.seed
     config['dataset'] = args.dataset
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    output_dir = f"results/flood_central_optical_pytorch_pennylane{ds_suffix}_seed{config['seed']}"
     print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     
     tc.apply_common_args(config, args)
+    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart.
+    output_dir = f"results/flood_central_optical_pytorch_pennylane{ds_suffix}{tc.variant_tag(config)}_seed{config['seed']}"
+    print(f"Output directory: {output_dir}")
 
     # Seed python, numpy, torch and cuda once, before any data or model work.
     tc.seed_everything(config['seed'])
@@ -346,11 +351,19 @@ def main():
 
         print(f"Results summary saved to: {summary_path}")
     
-    # Save results to shared Excel summary
     excel_config = {k: v for k, v in config.items() if k != 'provenance'}
     excel_config['total_params'] = total_params
     final_val = val_metrics[-1] if val_metrics else None
-    save_results_to_excel(
+    # Canonical per-run metrics (analysis reads this, not the Excel file).
+    tc.write_metrics_json(
+        output_dir, script=os.path.basename(__file__), training="centralized",
+        model_type="quantum", config=excel_config, val_metrics=final_val,
+        test_metrics=test_result, history=val_metrics, total_params=total_params,
+        knockout=knockout if config.get('quantum_knockout_eval') else None,
+        provenance=provenance)
+    # Shared Excel summary: best effort, a tracker failure never fails the run.
+    tc.safe_tracker_call(
+        save_results_to_excel,
         demo_name="Centralized Quantum Torch",
         framework="torch",
         training="centralized",

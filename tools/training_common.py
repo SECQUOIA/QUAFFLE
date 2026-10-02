@@ -17,16 +17,23 @@ ablation runs in one place:
 Every function only depends on torch / numpy so it can be imported inside
 Ray workers.
 """
+import argparse
 import inspect
+import json
 import os
 import random
+import socket
 import sys
+import time
+from datetime import datetime
 
 import numpy as np
 
 VAL_FRACTION = 0.15
 FLOOD_LABEL_THRESHOLD = 0.05
 DEFAULT_MIN_CLIENT_SAMPLES = 16
+DEFAULT_CKPT_EVERY = 5
+FED_CKPT_NAME = 'fed_resume.pt'
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +75,16 @@ def add_common_args(parser, quantum=True, federated=False):
         parser.add_argument('--min-client-samples', type=int, default=DEFAULT_MIN_CLIENT_SAMPLES,
                             help='Label-skew Dirichlet guard: minimum training samples per '
                                  'client (default: 16)')
+        parser.add_argument('--ckpt-every', type=int, default=DEFAULT_CKPT_EVERY,
+                            help='Write the resumable federated checkpoint every N rounds '
+                                 f'(default: {DEFAULT_CKPT_EVERY}; the last round is always saved)')
+        parser.add_argument('--no-resume', action='store_true',
+                            help='Ignore an existing resumable federated checkpoint and start '
+                                 'from round 0 (the old checkpoint is moved aside)')
+        # Debug: simulate a crash right after the checkpoint of round K has
+        # been written. Also settable via QUAFFLE_DEBUG_STOP_AFTER_ROUND.
+        parser.add_argument('--debug-stop-after-round', type=int, default=None,
+                            help=argparse.SUPPRESS)
     return parser
 
 
@@ -92,6 +109,13 @@ def apply_common_args(config, args):
         config['fed_rounds'] = int(args.rounds)
     if getattr(args, 'local_epochs', None) is not None:
         config['local_epochs'] = int(args.local_epochs)
+    if hasattr(args, 'ckpt_every'):
+        config['ckpt_every'] = max(1, int(args.ckpt_every))
+        config['resume'] = not bool(getattr(args, 'no_resume', False))
+        stop = getattr(args, 'debug_stop_after_round', None)
+        if stop is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_ROUND'):
+            stop = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_ROUND'])
+        config['debug_stop_after_round'] = stop
     return config
 
 
@@ -447,6 +471,401 @@ def checkpoint_compatible(ckpt):
               f"starting from scratch")
         return False
     return True
+
+
+# ---------------------------------------------------------------------------
+# Run naming (variant tag)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_Q_LAYERS = 2
+
+
+def default_q_layers():
+    """Default q_layers of the quantum block constructor (falls back to 2)."""
+    try:
+        from utilsTorch.unetTorch import QuantumBlock
+        p = inspect.signature(QuantumBlock.__init__).parameters.get('q_layers')
+        if p is not None and p.default is not inspect.Parameter.empty:
+            return int(p.default)
+    except Exception:
+        pass
+    return _DEFAULT_Q_LAYERS
+
+
+def effective_q_variant(config):
+    """(q_ansatz, q_layers) actually used by the quantum bottleneck.
+
+    q_layers is None for the legacy ansatz (it has a single fixed layer)."""
+    ansatz = config.get('q_ansatz') or 'reupload'
+    if ansatz == 'legacy':
+        return ansatz, None
+    layers = config.get('q_layers')
+    return ansatz, int(layers) if layers is not None else default_q_layers()
+
+
+def variant_tag(config):
+    """Directory suffix that separates quantum ansatz variants, e.g.
+    '_reupload_L2' or '_legacy'. Used for quantum runs and the ablation
+    (whose classical bottleneck is matched to the quantum variant)."""
+    ansatz, layers = effective_q_variant(config)
+    if ansatz == 'legacy':
+        return '_legacy'
+    return f'_{ansatz}_L{layers}'
+
+
+# ---------------------------------------------------------------------------
+# Atomic writes
+# ---------------------------------------------------------------------------
+
+def _fsync_dir(path):
+    try:
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+
+
+def _tmp_name(path):
+    return f"{path}.tmp.{socket.gethostname()}.{os.getpid()}"
+
+
+def atomic_torch_save(obj, path):
+    """torch.save to a temp file in the same directory, then os.replace, so a
+    kill during the write never leaves a truncated checkpoint behind."""
+    import torch
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = _tmp_name(path)
+    try:
+        with open(tmp, 'wb') as f:
+            torch.save(obj, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        _fsync_dir(d)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def _json_default(o):
+    if isinstance(o, (np.integer,)):
+        return int(o)
+    if isinstance(o, (np.floating,)):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    if hasattr(o, 'item'):
+        try:
+            return o.item()
+        except Exception:
+            pass
+    return str(o)
+
+
+def atomic_write_json(obj, path):
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = _tmp_name(path)
+    with open(tmp, 'w') as f:
+        json.dump(obj, f, indent=2, default=_json_default, sort_keys=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def move_aside(path, tag):
+    """Rename path to path.<tag>-<timestamp> (kept for inspection)."""
+    base = f"{path}.{tag}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    dst, n = base, 1
+    while os.path.exists(dst):
+        dst = f"{base}.{n}"
+        n += 1
+    try:
+        os.replace(path, dst)
+        print(f"Moved {path} aside to {dst}")
+    except OSError as e:
+        print(f"WARNING: could not move {path} aside: {e}")
+    return dst
+
+
+def safe_torch_load(path, map_location=None):
+    """torch.load that returns None (and keeps the file aside) when the
+    checkpoint is unreadable instead of crashing the run."""
+    import torch
+    if not os.path.exists(path):
+        return None
+    try:
+        return torch.load(path, map_location=map_location)
+    except Exception as e:
+        print(f"WARNING: checkpoint {path} is unreadable ({type(e).__name__}: {e}), "
+              f"starting without it")
+        move_aside(path, 'corrupt')
+        return None
+
+
+def rng_state(loader=None):
+    """Python / numpy / torch (and loader generator) RNG state for checkpoints."""
+    import torch
+    st = {'python': random.getstate(), 'numpy': np.random.get_state(),
+          'torch': torch.get_rng_state()}
+    if torch.cuda.is_available():
+        try:
+            st['cuda'] = torch.cuda.get_rng_state_all()
+        except Exception:
+            pass
+    gen = getattr(loader, 'generator', None) if loader is not None else None
+    if gen is not None:
+        st['loader'] = gen.get_state()
+    return st
+
+
+def restore_rng_state(st, loader=None):
+    """Best effort inverse of rng_state()."""
+    import torch
+    if not st:
+        return
+    try:
+        random.setstate(st['python'])
+        np.random.set_state(st['numpy'])
+        torch.set_rng_state(st['torch'].cpu() if hasattr(st['torch'], 'cpu') else st['torch'])
+        if 'cuda' in st and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all([s.cpu() for s in st['cuda']])
+        gen = getattr(loader, 'generator', None) if loader is not None else None
+        if gen is not None and 'loader' in st:
+            gen.set_state(st['loader'].cpu())
+        print("Restored RNG and data loader state from checkpoint")
+    except Exception as e:
+        print(f"WARNING: could not restore RNG state from checkpoint ({e})")
+
+
+# ---------------------------------------------------------------------------
+# Federated checkpoint / resume
+# ---------------------------------------------------------------------------
+
+def run_fingerprint(config, model_type):
+    """Settings that must match for a federated checkpoint to be resumed."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    fp = {
+        'model_type': model_type,
+        'dataset': config.get('dataset', 'optical'),
+        'partition': config.get('partition', 'random'),
+        'dirichlet_alpha': (float(config['dirichlet_alpha'])
+                            if config.get('partition') == 'dirichlet' else None),
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': layers if quantum else None,
+        'quantum_channels': config.get('quantum_channels') if quantum else None,
+        'quantum_backend': config.get('quantum_backend') if quantum else None,
+        'fed_rounds': int(config['fed_rounds']),
+        'local_epochs': int(config['local_epochs']),
+        'num_clients': int(config['num_clients']),
+        'clients_per_round': int(config.get('clients_per_round', config['num_clients'])),
+        'batch_size': int(config['batch_size']),
+        'learning_rate': float(config['learning_rate']),
+        'base_channels': config.get('base_channels'),
+        'max_samples': config.get('max_samples'),
+        'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
+        'min_client_samples': config.get('min_client_samples'),
+        'legacy_data': bool(config.get('legacy_data', False)),
+    }
+    return fp
+
+
+def fed_checkpoint_path(output_dir):
+    return os.path.join(output_dir, FED_CKPT_NAME)
+
+
+def load_fed_checkpoint(output_dir, fingerprint, resume=True):
+    """Return a compatible resumable checkpoint dict or None.
+
+    Incompatible (other run_format or fingerprint) or unreadable checkpoints
+    are moved aside, never deleted, and the run starts from round 0."""
+    path = fed_checkpoint_path(output_dir)
+    if not os.path.exists(path):
+        print(f"No resumable federated checkpoint at {path}, starting from round 0")
+        return None
+    if not resume:
+        print("--no-resume given, ignoring the existing federated checkpoint")
+        move_aside(path, 'ignored')
+        return None
+    ckpt = safe_torch_load(path, map_location='cpu')
+    if ckpt is None:
+        return None
+    if not checkpoint_compatible(ckpt):
+        move_aside(path, 'incompatible')
+        return None
+    saved = ckpt.get('fingerprint') or {}
+    diff = {k: (saved.get(k), v) for k, v in fingerprint.items() if saved.get(k) != v}
+    if diff:
+        print("Rejecting federated checkpoint, config differs (saved, current): "
+              + ", ".join(f"{k}={a!r}->{b!r}" for k, (a, b) in sorted(diff.items())))
+        move_aside(path, 'incompatible')
+        return None
+    print(f"Resuming federated run from checkpoint: {ckpt['completed_round']}/"
+          f"{fingerprint['fed_rounds']} rounds completed")
+    return ckpt
+
+
+def apply_fed_resume(strategy, ckpt):
+    """Restore history into a strategy before start_simulation.
+
+    Returns (initial_parameters or None, remaining_rounds)."""
+    from flwr.common import ndarrays_to_parameters
+    total = int(strategy.config['fed_rounds'])
+    if ckpt is None:
+        strategy.round_offset = 0
+        strategy.resumed_from_round = 0
+        return None, total
+    done = int(ckpt['completed_round'])
+    strategy.round_offset = done
+    strategy.resumed_from_round = done
+    strategy.round_metrics = list(ckpt.get('round_metrics', []))
+    strategy.best_performance = float(ckpt.get('best_performance', 0.0))
+    params = ndarrays_to_parameters(ckpt['parameters'])
+    strategy._current_parameters = params
+    log = getattr(strategy, 'eval_log_path', None) or getattr(strategy, 'eval_log', None)
+    if log:
+        with open(log, 'a') as f:
+            f.write(f"Resumed from checkpoint after round {done}\n")
+    return params, max(0, total - done)
+
+
+def fed_round_end(strategy, server_round):
+    """Call at the end of aggregate_evaluate (server_round already offset).
+
+    Writes the resumable checkpoint every config['ckpt_every'] rounds and on
+    the last round, unless a round has failed: then the last good checkpoint
+    is kept so a rerun can retry from before the failure while this process
+    still exits non-zero via fail_run."""
+    cfg = strategy.config
+    every = int(cfg.get('ckpt_every', DEFAULT_CKPT_EVERY))
+    total = int(cfg['fed_rounds'])
+    if strategy._current_parameters is None:
+        return
+    if strategy.failed_rounds:
+        print(f"Round {server_round}: not writing a resumable checkpoint after a failed round")
+    elif server_round % every == 0 or server_round == total:
+        from flwr.common import parameters_to_ndarrays
+        atomic_torch_save({
+            'run_format': RUN_FORMAT,
+            'fingerprint': strategy.fingerprint,
+            'completed_round': int(server_round),
+            'parameters': parameters_to_ndarrays(strategy._current_parameters),
+            'round_metrics': strategy.round_metrics,
+            'best_performance': strategy.best_performance,
+            'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }, fed_checkpoint_path(strategy.output_dir))
+        print(f"Resumable checkpoint saved after round {server_round}/{total}")
+    stop = cfg.get('debug_stop_after_round')
+    if stop is not None and int(server_round) == int(stop) and server_round < total:
+        print(f"DEBUG: stopping after round {server_round} (--debug-stop-after-round / "
+              f"QUAFFLE_DEBUG_STOP_AFTER_ROUND), simulating an interrupted job")
+        sys.stdout.flush()
+        # SystemExit is not caught by Flower's `except Exception`, so the
+        # simulation unwinds and the process exits with this code.
+        raise SystemExit(75)
+
+
+class RoundOffsetMixin:
+    """Mixin for FedAvg subclasses: Flower always counts rounds from 1, so a
+    resumed run shifts every server_round by round_offset. This keeps the
+    on_fit_config_fn round (and therefore the per (seed, client, round)
+    shuffle seed), logs and checkpoints numbered as in an uninterrupted run.
+    aggregate_fit / aggregate_evaluate apply the offset in the subclass."""
+    round_offset = 0
+
+    def configure_fit(self, server_round, parameters, client_manager):
+        return super().configure_fit(server_round + self.round_offset, parameters, client_manager)
+
+    def configure_evaluate(self, server_round, parameters, client_manager):
+        return super().configure_evaluate(server_round + self.round_offset, parameters,
+                                          client_manager)
+
+    def evaluate(self, server_round, parameters):
+        r = server_round + self.round_offset if server_round > 0 else server_round
+        return super().evaluate(r, parameters)
+
+
+# ---------------------------------------------------------------------------
+# Per-run metrics.json and tracker isolation
+# ---------------------------------------------------------------------------
+
+def _clean_metrics(m):
+    if not m:
+        return None
+    return {k: _json_default(v) if not isinstance(v, (int, float, str, type(None))) else v
+            for k, v in dict(m).items()}
+
+
+def write_metrics_json(output_dir, *, script, training, model_type, config, val_metrics,
+                       test_metrics, history=None, total_params=None, best_val_auc=None,
+                       knockout=None, provenance=None, extra=None):
+    """Canonical machine-readable result: <output_dir>/results/metrics.json.
+
+    Written right after summary.txt and before the Excel tracker so analysis
+    never depends on the shared workbook."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    payload = {
+        'schema': 'quaffle-metrics-v1',
+        'run_dir': os.path.basename(os.path.normpath(output_dir)),
+        'script': script,
+        'training': training,
+        'model_type': model_type,
+        'dataset': config.get('dataset', 'optical'),
+        'partition': config.get('partition', 'centralized') if training == 'federated'
+        else 'centralized',
+        'dirichlet_alpha': config.get('dirichlet_alpha') if config.get('partition') == 'dirichlet'
+        else None,
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': layers if quantum else None,
+        'quantum_channels': config.get('quantum_channels') if quantum else None,
+        'total_params': total_params,
+        'fed_rounds': config.get('fed_rounds') if training == 'federated' else None,
+        'local_epochs': config.get('local_epochs') if training == 'federated' else None,
+        'num_clients': config.get('num_clients') if training == 'federated' else None,
+        'epochs_or_steps': (config.get('num_epochs') or config.get('num_train_steps'))
+        if training != 'federated' else None,
+        'max_samples': config.get('max_samples'),
+        'val': _clean_metrics(val_metrics),
+        'test': _clean_metrics(test_metrics),
+        'best_val_auc': best_val_auc,
+        'knockout': {k: _clean_metrics(v) for k, v in knockout.items()} if knockout else None,
+        'history': [_clean_metrics(h) for h in (history or [])],
+        'provenance': provenance,
+        'written_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+    if extra:
+        payload.update(extra)
+    path = os.path.join(output_dir, 'results', 'metrics.json')
+    atomic_write_json(payload, path)
+    print(f"Metrics JSON saved to: {path}")
+    return path
+
+
+def safe_tracker_call(fn, *args, **kwargs):
+    """Run the shared Excel tracker. Any failure is logged as a warning and
+    never propagates: the run's summary.txt and metrics.json are already on
+    disk, so the process must still exit 0."""
+    try:
+        fn(*args, **kwargs)
+        return True
+    except Exception as e:
+        import traceback
+        print(f"WARNING: results tracker failed ({type(e).__name__}: {e}). "
+              f"summary.txt and metrics.json are written, the run is still complete.")
+        traceback.print_exc()
+        sys.stdout.flush()
+        return False
 
 
 # ---------------------------------------------------------------------------
