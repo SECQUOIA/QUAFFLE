@@ -24,6 +24,11 @@ EQUIVALENT circuit using the same gate sequence and settings.
 Reference in codebase: pennylane_default_circuit() and
 pennylane_reupload_circuit() in utilsTorch/unetTorch.py. See docs/MODEL.md.
 
+Training uses q_backend='torch' by default, an exact torch statevector
+simulation of the same circuits (torch_legacy_expvals and
+torch_reupload_expvals in utilsTorch/unetTorch.py). It gives the same <Z>
+values as the PennyLane QNodes drawn here, see tests/test_quantum_backend.py.
+
 Outputs:
     results/plots/quantum_circuit.txt        — text diagram (qml.draw)
     results/plots/quantum_circuit.png        — matplotlib diagram (qml.draw_mpl)

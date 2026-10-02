@@ -106,6 +106,9 @@ class QVUNetSegmentation(torch.nn.Module):
                         seed=None if self.seed is None else int(self.seed) + offset,
                         q_ansatz=q_ansatz,
                         q_layers=q_layers,
+                        # 'torch' (exact batched simulator, default) or
+                        # 'pennylane' (default.qubit QNodes). Same math.
+                        q_backend=self.config.get('q_backend', 'torch'),
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)

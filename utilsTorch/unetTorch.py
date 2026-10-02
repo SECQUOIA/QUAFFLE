@@ -212,7 +212,7 @@ KNOCKOUT_SEED_OFFSET = 1_000_003
 
 
 def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None,
-                         seed=None, q_ansatz='reupload', q_layers=2):
+                         seed=None, q_ansatz='reupload', q_layers=2, q_backend='torch'):
     """
     Create a QuantumBlock that processes channels in groups of 4.
 
@@ -224,13 +224,16 @@ def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=N
             torch.Generator seeded with it. If None, the global torch RNG is used.
         q_ansatz: 'legacy' (original circuit) or 'reupload'
         q_layers: Number of re-uploading layers (only used by 'reupload')
+        q_backend: circuit simulator for backend='pennylane'. 'torch' (exact
+            batched statevector simulation in torch) or 'pennylane' (QNodes on
+            default.qubit). Both give the same outputs and gradients.
 
     Returns:
         QuantumBlock instance
     """
     return QuantumBlock(backend=backend, quantum_channels=quantum_channels,
                         ptlayer_config=ptlayer_config, seed=seed,
-                        q_ansatz=q_ansatz, q_layers=q_layers)
+                        q_ansatz=q_ansatz, q_layers=q_layers, q_backend=q_backend)
 
 
 def pennylane_default_circuit(n_qubits=4):
@@ -309,6 +312,142 @@ def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
     return circuit
 
 
+# --- Exact batched statevector simulator (q_backend='torch') ---
+#
+# Same math as PennyLane default.qubit for the two 4 qubit circuits above,
+# written as plain torch ops so that the batch AND all groups are simulated in
+# one pass on the model's device. Wire 0 is the most significant bit of the
+# basis index, as in PennyLane. The simulation runs in complex128 because
+# default.qubit returns float64 expectation values for these circuits. The
+# result is cast to float32 by QuantumBlock exactly like the PennyLane path.
+Q_BACKEND_CHOICES = ('torch', 'pennylane')
+_SIM_CACHE = {}
+
+
+def _cnot_ring_tables(n_qubits, device):
+    """Permutation and <Z> sign tables for a 4 qubit CNOT ring, cached per device.
+
+    perm: index tensor with psi_after = psi_before[..., perm] for the gate
+        sequence CNOT(0,1), CNOT(1,2), ..., CNOT(n-1, 0).
+    zsign: [2**n, n] float64 matrix with zsign[b, j] = +1 if bit j of b is 0
+        else -1, so <Z_j> = sum_b |psi_b|^2 zsign[b, j].
+    """
+    key = (n_qubits, str(device))
+    if key not in _SIM_CACHE:
+        dim = 2 ** n_qubits
+        perm = [0] * dim
+        for b in range(dim):
+            bits = [(b >> (n_qubits - 1 - k)) & 1 for k in range(n_qubits)]
+            for c in range(n_qubits):
+                t = (c + 1) % n_qubits
+                if bits[c]:
+                    bits[t] ^= 1
+            out = 0
+            for k in range(n_qubits):
+                out = (out << 1) | bits[k]
+            perm[out] = b
+        zsign = torch.tensor([[1.0 - 2.0 * ((b >> (n_qubits - 1 - j)) & 1) for j in range(n_qubits)]
+                              for b in range(dim)], dtype=torch.float64)
+        _SIM_CACHE[key] = (torch.tensor(perm, dtype=torch.long, device=device), zsign.to(device))
+    return _SIM_CACHE[key]
+
+
+def _ry_mat(theta):
+    """RY(theta) as a complex [..., 2, 2] tensor."""
+    c = torch.cos(theta / 2)
+    s = torch.sin(theta / 2)
+    m = torch.stack([torch.stack([c, -s], -1), torch.stack([s, c], -1)], -2)
+    return torch.complex(m, torch.zeros_like(m))
+
+
+def _rx_mat(theta):
+    """RX(theta) as a complex [..., 2, 2] tensor."""
+    c = torch.cos(theta / 2)
+    s = torch.sin(theta / 2)
+    z = torch.zeros_like(c)
+    cc = torch.complex(c, z)
+    ms = torch.complex(z, -s)
+    return torch.stack([torch.stack([cc, ms], -1), torch.stack([ms, cc], -1)], -2)
+
+
+def _rot_mat(phi, theta, omega):
+    """Rot(phi, theta, omega) = RZ(omega) RY(theta) RZ(phi) as [..., 2, 2] complex."""
+    c = torch.cos(theta / 2)
+    s = torch.sin(theta / 2)
+    c = torch.complex(c, torch.zeros_like(c))
+    s = torch.complex(s, torch.zeros_like(s))
+    p = (phi + omega).to(torch.float64) / 2
+    m = (phi - omega).to(torch.float64) / 2
+    cp, sp, cm, sm = torch.cos(p), torch.sin(p), torch.cos(m), torch.sin(m)
+    e_mp = torch.complex(cp, -sp)   # exp(-i (phi+omega)/2)
+    e_pp = torch.complex(cp, sp)    # exp(+i (phi+omega)/2)
+    e_pm = torch.complex(cm, sm)    # exp(+i (phi-omega)/2)
+    e_mm = torch.complex(cm, -sm)   # exp(-i (phi-omega)/2)
+    row0 = torch.stack([e_mp * c, -e_pm * s], -1)
+    row1 = torch.stack([e_mm * s, e_pp * c], -1)
+    return torch.stack([row0, row1], -2)
+
+
+def _simulate_layers(layer_gates, n_qubits=N_QUBITS):
+    """Run the circuit |0..0> -> [single qubit gates on every wire, CNOT ring] * L
+    and return <Z_j> for every wire.
+
+    layer_gates: list of L complex tensors shaped [..., n_qubits, 2, 2]; entry
+        [..., j] is the product of all single qubit gates applied to wire j in
+        that layer (in circuit order, later gates on the left).
+    Returns a float64 tensor [..., n_qubits].
+    """
+    assert n_qubits == 4, "the batched simulator is written for 4 qubits"
+    u0 = layer_gates[0]
+    perm, zsign = _cnot_ring_tables(n_qubits, u0.device)
+    batch = u0.shape[:-3]
+    dim = 2 ** n_qubits
+    psi = None
+    for u in layer_gates:
+        a, b, c, d = u[..., 0, :, :], u[..., 1, :, :], u[..., 2, :, :], u[..., 3, :, :]
+        if psi is None:
+            # Input is |0000>, so the first layer gives the product state of the
+            # first columns of the four single qubit gates.
+            psi = torch.einsum('...a,...c,...e,...g->...aceg',
+                               a[..., :, 0], b[..., :, 0], c[..., :, 0], d[..., :, 0])
+        else:
+            psi = psi.reshape(*batch, 2, 2, 2, 2)
+            psi = torch.einsum('...ab,...bdfh->...adfh', a, psi)
+            psi = torch.einsum('...cd,...adfh->...acfh', b, psi)
+            psi = torch.einsum('...ef,...acfh->...aceh', c, psi)
+            psi = torch.einsum('...gh,...aceh->...aceg', d, psi)
+        psi = psi.reshape(*batch, dim)[..., perm]
+    probs = psi.real ** 2 + psi.imag ** 2
+    return probs @ zsign
+
+
+def torch_reupload_expvals(x, weights, scales):
+    """Exact batched equivalent of pennylane_reupload_circuit.
+
+    x: [B, G, 4] pooled inputs, weights: [G, L, 4, 3], scales: [G, L, 4].
+    Returns float64 <Z_j> shaped [B, G, 4].
+    """
+    L = weights.shape[1]
+    gates = []
+    for l in range(L):
+        enc = math.pi * torch.tanh(x * scales[:, l].unsqueeze(0))        # [B, G, 4]
+        ry = _ry_mat(enc.to(torch.float64))                               # [B, G, 4, 2, 2]
+        w = weights[:, l].to(torch.float64)                               # [G, 4, 3]
+        rot = _rot_mat(w[..., 0], w[..., 1], w[..., 2]).unsqueeze(0)      # [1, G, 4, 2, 2]
+        gates.append(rot @ ry)
+    return _simulate_layers(gates)
+
+
+def torch_legacy_expvals(x, theta):
+    """Exact batched equivalent of pennylane_default_circuit (RX(x) RY(theta), ring).
+
+    x: [B, G, 4] pooled inputs, theta: [G, 4]. Returns float64 [B, G, 4].
+    """
+    rx = _rx_mat(x.to(torch.float64))                                     # [B, G, 4, 2, 2]
+    ry = _ry_mat(theta.to(torch.float64)).unsqueeze(0)                    # [1, G, 4, 2, 2]
+    return _simulate_layers([ry @ rx])
+
+
 def _randn(shape, generator=None):
     return torch.randn(*shape, generator=generator)
 
@@ -339,6 +478,12 @@ class QuantumBlock(nn.Module):
             'reupload' is the data re-uploading circuit (16 * q_layers params
             per group). PennyLane backend only.
         q_layers: Number of re-uploading layers for q_ansatz='reupload'.
+        q_backend: how the backend='pennylane' circuits are simulated.
+            'torch' (default) runs an exact statevector simulation of all groups
+            and the whole batch in one pass of torch ops on the input's device.
+            'pennylane' evaluates one default.qubit QNode per group (the
+            original path, kept for verification). Parameters, state_dict and
+            outputs are the same for both. Switch at runtime with set_q_backend.
 
     Knockout: set_quantum_mode('on' | 'zero' | 'random') switches the forward
     pass between the trained circuit, an all-zero output, or the same circuit
@@ -346,13 +491,15 @@ class QuantumBlock(nn.Module):
     parameters and state_dict are not modified.
     """
     def __init__(self, backend='ptlayer', quantum_channels=8, ptlayer_config=None,
-                 seed=None, q_ansatz='reupload', q_layers=2):
+                 seed=None, q_ansatz='reupload', q_layers=2, q_backend='torch'):
         super().__init__()
 
         if q_ansatz not in Q_ANSATZ_CHOICES:
             raise ValueError(f"Unknown q_ansatz {q_ansatz!r}, expected one of {Q_ANSATZ_CHOICES}")
         if q_ansatz == 'reupload' and int(q_layers) < 1:
             raise ValueError("q_layers must be >= 1")
+        if q_backend not in Q_BACKEND_CHOICES:
+            raise ValueError(f"Unknown q_backend {q_backend!r}, expected one of {Q_BACKEND_CHOICES}")
 
         self.backend = backend
         self.quantum_channels = quantum_channels
@@ -361,6 +508,8 @@ class QuantumBlock(nn.Module):
         self.seed = seed
         self.quantum_mode = 'on'
         self._random_params = None
+        self._random_stacked = None
+        self.q_backend = q_backend
         
         # Calculate number of 4-channel groups
         self.num_groups = quantum_channels // 4
@@ -426,10 +575,11 @@ class QuantumBlock(nn.Module):
                 self.tbi = None
                 
         elif backend == 'pennylane':
-            if not HAS_PENNYLANE:
-                raise ImportError("PennyLane not available. Please install PennyLane or use 'pennylane' backend.")
+            if not HAS_PENNYLANE and q_backend == 'pennylane':
+                raise ImportError("PennyLane not available. Install PennyLane or use q_backend='torch'.")
             
-            # Create circuits for each 4-channel group
+            # QNodes for each 4-channel group (built lazily, only used by
+            # q_backend='pennylane')
             self.pennylane_circuits = []
             self.quantum_params = nn.ParameterList()
             # Learnable per-layer input scales (reupload only)
@@ -437,17 +587,16 @@ class QuantumBlock(nn.Module):
             
             for group_idx in range(self.num_groups):
                 if q_ansatz == 'legacy':
-                    circuit = pennylane_default_circuit(n_qubits=N_QUBITS)
                     # Same distribution as the original model (N(0, 0.1^2)), but
                     # drawn from the seeded local generator or the global RNG.
                     params = nn.Parameter(_randn((N_QUBITS,), generator) * 0.1)
                     self.quantum_params.append(params)
                 else:
-                    circuit = pennylane_reupload_circuit(n_qubits=N_QUBITS, n_layers=self.q_layers)
                     weights = nn.Parameter(_uniform((self.q_layers, N_QUBITS, 3), -math.pi, math.pi, generator))
                     self.quantum_params.append(weights)
                     self.input_scales.append(nn.Parameter(torch.ones(self.q_layers, N_QUBITS)))
-                self.pennylane_circuits.append(circuit)
+            if q_backend == 'pennylane':
+                self._build_pennylane_circuits()
                 
         else:
             raise ValueError(f'Unknown quantum backend: {backend}')
@@ -460,6 +609,28 @@ class QuantumBlock(nn.Module):
             return N_QUBITS
         return self.q_layers * N_QUBITS * 4  # 3 rotation angles + 1 input scale per qubit per layer
 
+    def _build_pennylane_circuits(self):
+        if not HAS_PENNYLANE:
+            raise ImportError("PennyLane not available, q_backend='pennylane' needs it.")
+        if self.pennylane_circuits:
+            return
+        for _ in range(self.num_groups):
+            if self.q_ansatz == 'legacy':
+                self.pennylane_circuits.append(pennylane_default_circuit(n_qubits=N_QUBITS))
+            else:
+                self.pennylane_circuits.append(
+                    pennylane_reupload_circuit(n_qubits=N_QUBITS, n_layers=self.q_layers))
+
+    def set_q_backend(self, q_backend):
+        """Switch the circuit simulator ('torch' or 'pennylane') in place.
+        Parameters are untouched."""
+        if q_backend not in Q_BACKEND_CHOICES:
+            raise ValueError(f"Unknown q_backend {q_backend!r}, expected one of {Q_BACKEND_CHOICES}")
+        if self.backend == 'pennylane' and q_backend == 'pennylane':
+            self._build_pennylane_circuits()
+        self.q_backend = q_backend
+        return self
+
     # --- Knockout ---
     def set_quantum_mode(self, mode='on', knockout_seed=0):
         """Select 'on' (trained circuit), 'zero' (output replaced by zeros), or
@@ -470,6 +641,7 @@ class QuantumBlock(nn.Module):
             raise ValueError(f"Unknown quantum mode {mode!r}, expected one of {QUANTUM_MODES}")
         self.quantum_mode = mode
         self._random_params = None
+        self._random_stacked = None
         if mode == 'random' and self.backend == 'pennylane':
             g = torch.Generator()
             g.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
@@ -494,6 +666,38 @@ class QuantumBlock(nn.Module):
         w = self.quantum_params[i]
         s = self.input_scales[i] if self.q_ansatz == 'reupload' else None
         return w, s
+
+    def _stacked_params(self, device):
+        """All group parameters stacked along a leading group axis:
+        weights [G, L, 4, 3] (legacy: [G, 4]) and scales [G, L, 4] (legacy: None).
+        Stacking keeps the autograd link to the per-group nn.Parameters."""
+        if self.quantum_mode == 'random':
+            if self._random_stacked is None or self._random_stacked[0].device != torch.device(device):
+                w = torch.stack([p[0] for p in self._random_params]).to(device)
+                s = None
+                if self.q_ansatz == 'reupload':
+                    s = torch.stack([p[1] for p in self._random_params]).to(device)
+                self._random_stacked = (w, s)
+            return self._random_stacked
+        w = torch.stack(list(self.quantum_params))
+        s = torch.stack(list(self.input_scales)) if self.q_ansatz == 'reupload' else None
+        return w, s
+
+    def _forward_torch_sim(self, x):
+        """q_backend='torch': every group and batch item in one batched simulation."""
+        B, _, H, W = x.shape
+        G = self.num_groups
+        if G == 0:
+            return torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
+        # Same per-channel spatial mean as the PennyLane path
+        pooled = x[:, :G * N_QUBITS].mean(dim=(2, 3)).reshape(B, G, N_QUBITS)
+        w, s = self._stacked_params(x.device)
+        if self.q_ansatz == 'legacy':
+            y = torch_legacy_expvals(pooled, w)
+        else:
+            y = torch_reupload_expvals(pooled, w, s)
+        y = y.reshape(B, G * N_QUBITS).to(torch.float32)
+        return y.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, H, W)
     
     def forward(self, x, params=None):
         B, C, H, W = x.shape
@@ -537,6 +741,9 @@ class QuantumBlock(nn.Module):
             
             return y.float()
             
+        elif self.backend == 'pennylane' and self.q_backend == 'torch':
+            return self._forward_torch_sim(x)
+
         elif self.backend == 'pennylane':
             if not self.pennylane_circuits:
                 raise ValueError('PennyLane circuits not initialized for PennyLane backend')
