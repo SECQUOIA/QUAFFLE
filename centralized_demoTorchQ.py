@@ -12,12 +12,15 @@ from utilsTorch import (
 )
 from torch.utils.data import DataLoader
 from results_tracker import save_results_to_excel
+from tools.provenance import collect_provenance, format_provenance, print_provenance
+from tools import training_common as tc
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Centralized Quantum Flood Segmentation")
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')
+    tc.add_common_args(parser, quantum=True)
     return parser.parse_args()
 
 def get_config():
@@ -56,8 +59,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     train_metrics = []
     val_metrics = []
     # Try to load checkpoint
+    checkpoint = None
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
+        if not tc.checkpoint_compatible(checkpoint):
+            checkpoint = None
+    if checkpoint is not None:
         checkpoint_loaded = False
         try:
             model.load_state_dict(checkpoint['model_state_dict'])
@@ -122,6 +129,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             # Save regular checkpoint
             torch.save({
                 'model_state_dict': model.state_dict(),
+                'run_format': tc.RUN_FORMAT,
                 'optimizer_state_dict': optimizer.state_dict(),
                 'step': step,
                 'train_metrics': train_metrics,
@@ -134,6 +142,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 unique_checkpoint_path = os.path.join(output_dir, f'checkpoint_step_{step}.pt')
                 torch.save({
                     'model_state_dict': model.state_dict(),
+                    'run_format': tc.RUN_FORMAT,
                     'optimizer_state_dict': optimizer.state_dict(),
                     'step': step,
                     'train_metrics': train_metrics,
@@ -159,8 +168,7 @@ def main():
     print("=" * 60)
 
     if not os.path.exists(train_images_dir):
-        print(f"Training images not found: {train_images_dir}")
-        return
+        tc.fail_run(None, f"Training images not found: {train_images_dir}")
 
     config = get_config()
     config['seed'] = args.seed
@@ -169,13 +177,13 @@ def main():
     output_dir = f"results/flood_central_optical_pytorch_pennylane{ds_suffix}_seed{config['seed']}"
     print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     
-    # Set seeds for reproducibility
-    torch.manual_seed(config['seed'])
-    torch.cuda.manual_seed(config['seed'])
-    torch.cuda.manual_seed_all(config['seed'])
-    np.random.seed(config['seed'])
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    tc.apply_common_args(config, args)
+
+    # Seed python, numpy, torch and cuda once, before any data or model work.
+    tc.seed_everything(config['seed'])
+    provenance = collect_provenance(seed=config['seed'])
+    config['provenance'] = provenance
+    print_provenance(provenance)
     
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
@@ -186,26 +194,20 @@ def main():
     print(f"  - Training steps: {config['num_train_steps']}")
     print(f"  - Save samples: {config['save_samples']}")
     
-    # Data loaders
+    # Data: global stratified validation holdout, identical to the one used by
+    # the federated and ablation scripts for the same seed.
     print("\nLoading training data...")
-    train_loader = get_dataloaders(train_images_dir, train_masks_dir, config['image_size'], config['batch_size'], shuffle=True)
-    
-    # Split train/validation
-    dataset_len = len(train_loader.dataset)
-    split_idx = int(0.8 * dataset_len)
-    indices = np.arange(dataset_len)
-    np.random.seed(config['seed'])
-    np.random.shuffle(indices)
-    
-    train_indices = indices[:split_idx]
-    val_indices = indices[split_idx:]
-    
-    train_subset = torch.utils.data.Subset(train_loader.dataset, train_indices)
-    val_subset = torch.utils.data.Subset(train_loader.dataset, val_indices)
-    
-    train_loader = DataLoader(train_subset, batch_size=config['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_subset, batch_size=config['batch_size'], shuffle=False)
-    
+    full_dataset = tc.load_dataset(train_images_dir, train_masks_dir, config)
+    full_dataset = tc.cap_samples(full_dataset, config.get('max_samples'), config['seed'])
+    train_indices, val_indices, _ = tc.holdout_validation(
+        full_dataset, config['seed'], config['val_fraction'])
+
+    train_subset = torch.utils.data.Subset(full_dataset, train_indices)
+    val_subset = torch.utils.data.Subset(full_dataset, val_indices)
+
+    train_loader = tc.make_loader(train_subset, config['batch_size'], True, config['seed'])
+    val_loader = tc.make_loader(val_subset, config['batch_size'], False, config['seed'])
+
     print(f"Training samples: {len(train_subset)}")
     print(f"Validation samples: {len(val_subset)}")
     
@@ -216,7 +218,7 @@ def main():
     print("\nInitializing QVUNet model...")
     try:
         # Use QVUNetSegmentation wrapper from utils for consistent checkpoint structure
-        model = QVUNetSegmentation(config).to(device)
+        model = tc.build_model(QVUNetSegmentation, config).to(device)
         
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -227,7 +229,7 @@ def main():
         print(f"Error initializing model: {e}")
         import traceback
         traceback.print_exc()
-        return
+        tc.fail_run(output_dir, f"model initialization failed: {e}")
     
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
     
@@ -259,12 +261,20 @@ def main():
     # Test and save test results
     if os.path.exists(test_images_dir):
         print("Loading test data for evaluation and visualization...")
-        test_loader = get_dataloaders(test_images_dir, test_masks_dir, config['image_size'], config['batch_size'], shuffle=False)
+        test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
+        test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
+        test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
         
         # Evaluate on test set
         print("Evaluating on test set...")
         test_result = evaluate_model(model, test_loader, device)
         print(f"Test Results - Loss: {test_result['loss']:.4f}, Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
+        knockout = None
+        if config.get('quantum_knockout_eval'):
+            print("Quantum knockout evaluation on the test set...")
+            knockout = tc.knockout_eval(model, test_loader, device, evaluate_model,
+                                       knockout_seed=config['seed'])
         
         # Save test samples
         if config['save_samples']:
@@ -274,7 +284,6 @@ def main():
                              filename_prefix="test_", 
                              num_samples=config['num_test_samples'])
     else:
-        print("Test directory not found, using validation data for final evaluation...")
         test_result = None
         if config['save_samples']:
             print("Saving additional validation samples...")
@@ -283,8 +292,11 @@ def main():
                              filename_prefix="additional_val_", 
                              num_samples=config['num_test_samples'])
     
-    # Save a comprehensive summary of results
-    if config['save_samples']:
+    if test_result is None:
+        tc.fail_run(output_dir, f"no test set at {test_images_dir}, refusing to write a summary or tracker row")
+
+    # Save a comprehensive summary of results (completed runs only)
+    if test_result is not None:
         print("Saving results summary...")
         summary_path = os.path.join(output_dir, "results", "summary.txt")
         os.makedirs(os.path.dirname(summary_path), exist_ok=True)
@@ -298,7 +310,10 @@ def main():
             f.write(f"Image size: {config['image_size']}\n")
             f.write(f"Training steps: {config['num_train_steps']}\n")
             f.write(f"Total parameters: {total_params:,}\n")
-            f.write(f"Trainable parameters: {trainable_params:,}\n\n")
+            f.write(f"Trainable parameters: {trainable_params:,}\n")
+            f.write(f"Validation: global held-out {len(val_subset)} samples "
+                    f"({config['val_fraction']} of the training pool, stratified on flood label)\n")
+            f.write(f"Training samples: {len(train_subset)}\n\n")
             
             if val_metrics:
                 final_val = val_metrics[-1]
@@ -316,6 +331,8 @@ def main():
                 f.write(f"  AUC: {test_result['auc']:.4f}\n")
                 f.write(f"  IoU: {test_result['iou']:.4f}\n")
                 f.write(f"  Dice: {test_result['dice']:.4f}\n\n")
+            if config.get('quantum_knockout_eval'):
+                f.write(tc.format_knockout(knockout))
             
             f.write("Saved Samples:\n")
             f.write(f"  Final training samples: {config['num_train_samples']}\n")
@@ -325,10 +342,13 @@ def main():
             else:
                 f.write(f"  Additional validation samples: {config['num_test_samples']}\n")
         
+            f.write("\n" + format_provenance(provenance))
+
         print(f"Results summary saved to: {summary_path}")
     
     # Save results to shared Excel summary
-    excel_config = {**config, 'total_params': total_params}
+    excel_config = {k: v for k, v in config.items() if k != 'provenance'}
+    excel_config['total_params'] = total_params
     final_val = val_metrics[-1] if val_metrics else None
     save_results_to_excel(
         demo_name="Centralized Quantum Torch",
@@ -336,9 +356,10 @@ def main():
         training="centralized",
         variant="quantum",
         val_metrics=final_val,
-        test_metrics=test_result if 'test_result' in dir() else None,
+        test_metrics=test_result,
         config=excel_config,
         dataset=args.dataset,
+        provenance=provenance,
     )
 
     print(f"\nDemo completed successfully! All results saved in: {output_dir}")

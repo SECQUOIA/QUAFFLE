@@ -126,7 +126,48 @@ python federated_demoTorchClassical.py
 python federated_demoTorchQ.py
 ```
 
-### JAX Implementation (Experimental)
+#### Parameter-matched classical ablation
+```bash
+python abalation_studies.py --framework torch --mode centralized
+python abalation_studies.py --framework torch --mode federated --partition dirichlet --alpha 0.5
+```
+The file name `abalation_studies.py` (with the typo) is the active ablation entry point and is what every SLURM script in `misc/` calls. The older `ablation_studies.py` was unused and has been removed.
+
+### Shared command-line flags (PyTorch)
+
+All PyTorch entry points accept `--seed` and `--dataset {optical,sar,combined}` plus:
+
+| Flag | Scripts | Meaning |
+|------|---------|---------|
+| `--legacy-data` | all | Use the old data loader behaviour, if the loader in `utilsTorch` supports it |
+| `--max-samples N` | all | Debug only. Seeded subset of N training and N test samples |
+| `--val-fraction F` | all | Size of the global held-out validation set (default 0.15) |
+| `--q-ansatz {reupload,legacy}` | quantum, ablation | Quantum bottleneck ansatz (default reupload) |
+| `--q-layers N` | quantum, ablation | Variational layers in the quantum bottleneck |
+| `--quantum-knockout-eval` | quantum | Also evaluate the test set with the quantum block in mode `zero` and `random` and write both to `summary.txt` |
+| `--epochs N` | centralized | Debug override of training epochs or steps |
+| `--rounds N`, `--local-epochs N` | federated | Debug override of rounds and local epochs |
+| `--min-client-samples N` | federated | Label-skew Dirichlet guard, minimum training samples per client (default 16) |
+
+Flags that configure the data loader or the model are only forwarded when the underlying class accepts them, so the scripts also run against older `utilsTorch` code.
+
+### Data splits, seeding and failures
+
+- **Validation.** Every run (centralized, federated random, federated label-skew Dirichlet, quantum, classical and ablation) first carves a global held-out validation set from the training pool. It is stratified on the binarised flood label (flood fraction above 5 percent), takes 15 percent of the pool, and depends only on the seed. Runs with the same seed therefore validate on exactly the same samples.
+- **Partitioning.** `--partition random` gives near-equal IID shards. `--partition dirichlet` is a **label-skew Dirichlet** split over the binarised flood label with concentration `--alpha`. It skews the flood versus non-flood mix per client and nothing else. A deterministic guard moves samples from the largest client until every client has at least `--min-client-samples` training samples. Client sizes and flood counts are printed and written to `summary.txt`.
+- **Geographic or event-level splits are not available.** The DFC24 tiles in `data/` are numbered files without georeferencing (rasterio reports an identity transform) and no region or event table ships with them, so a verifiable `--partition geographic` cannot be built.
+- **Seeding.** python, numpy, torch and CUDA are seeded once per run, every DataLoader uses an explicit seeded `torch.Generator`, and federated clients reseed their shuffle from `(seed, client_id, server_round)` so each round sees a new batch order.
+- **Failures.** Federated runs use `accept_failures=False`. If any round fails (for example CUDA OOM), no global parameters exist, or no test block is produced, the run writes `FAILED.txt`, writes no `summary.txt` and no tracker row, and exits non-zero so SLURM marks the job FAILED.
+- **Provenance.** `tools/provenance.py` records git SHA, dirty flag, branch, full command line, seed, hostname, SLURM job id and torch, PennyLane and Flower versions. It is printed at start, appended to `summary.txt` and stored in the Excel tracker row.
+- **Checkpoints.** Checkpoints written before these changes are ignored (they carry no `run_format` tag), so old results directories are not silently resumed under the new splits.
+
+### Seeds and analysis
+
+`config/seeds.py` holds the single pre-declared seed list (7, 17, 31, 42, 77, 123, 256, 314, 512, 999). The SLURM generators in `misc/`, `analyze_results.py`, `scripts/build_table2_data.py` and `scripts/build_forest_plot.py` all import it. Missing runs are reported with n and the missing seed ids rather than hidden by a smaller pool, runs without a Test block are skipped and listed, and paired comparisons report both a paired t-test and a Wilcoxon signed-rank test.
+
+### JAX Implementation (Experimental, not maintained)
+
+The JAX scripts do not include the split, seeding, provenance or failure-handling fixes above.
 
 #### Centralized JAX
 ```bash

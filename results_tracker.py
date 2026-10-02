@@ -42,11 +42,36 @@ COLUMNS = [
     "Batch_Size",
     "Learning_Rate",
     "Total_Params",
+    # Provenance (tools/provenance.py). Older sheets get these header cells
+    # appended the first time a new row is written.
+    "Git_SHA",
+    "Git_Dirty",
+    "Git_Branch",
+    "CLI_Args",
+    "Seed",
+    "Hostname",
+    "SLURM_Job_ID",
+    "Torch_Version",
+    "PennyLane_Version",
+    "Flwr_Version",
+]
+
+_PROVENANCE_COLUMN_KEYS = [
+    ("Git_SHA", "git_sha"),
+    ("Git_Dirty", "git_dirty"),
+    ("Git_Branch", "git_branch"),
+    ("CLI_Args", "cli_args"),
+    ("Seed", "seed"),
+    ("Hostname", "hostname"),
+    ("SLURM_Job_ID", "slurm_job_id"),
+    ("Torch_Version", "torch_version"),
+    ("PennyLane_Version", "pennylane_version"),
+    ("Flwr_Version", "flwr_version"),
 ]
 
 
 def save_results_to_excel(demo_name, framework, training, variant, val_metrics, test_metrics, config,
-                          dataset='optical'):
+                          dataset='optical', provenance=None):
     """
     Append one row of results to results/results_summary_{dataset}.xlsx.
 
@@ -59,7 +84,14 @@ def save_results_to_excel(demo_name, framework, training, variant, val_metrics, 
         test_metrics: dict with loss/accuracy/auc/iou/dice, or None
         config:       dict or ConfigDict with training hyperparameters
         dataset:      "optical" | "sar" | "combined"
+        provenance:   dict from tools.provenance.collect_provenance(), or None
+
+    Rows are only written for completed runs. If test_metrics is missing the
+    run is treated as failed and nothing is appended.
     """
+    if not test_metrics:
+        print("Not writing a tracker row: no test metrics (failed or incomplete run).")
+        return
     try:
         import openpyxl
     except ImportError:
@@ -88,14 +120,14 @@ def save_results_to_excel(demo_name, framework, training, variant, val_metrics, 
 
     try:
         _save_locked(excel_path, demo_name, framework, training, variant, dataset,
-                     val_metrics, test_metrics, config)
+                     val_metrics, test_metrics, config, provenance)
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         lock_fd.close()
 
 
 def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
-                 val_metrics, test_metrics, config):
+                 val_metrics, test_metrics, config, provenance=None):
     """Actual Excel write path — caller must hold the file lock."""
     import openpyxl
 
@@ -123,13 +155,19 @@ def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
             del wb["Sheet"]
 
     # Get or create the target sheet
-    if sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-    else:
+    if sheet_name not in wb.sheetnames:
         ws = wb.create_sheet(title=sheet_name)
         ws.append(COLUMNS)
         for cell in ws[1]:
             cell.font = Font(bold=True)
+    else:
+        ws = wb[sheet_name]
+        # Extend the header of sheets created before provenance columns existed.
+        header = [c.value for c in ws[1]]
+        for col in COLUMNS:
+            if col not in header:
+                ws.cell(row=1, column=len(header) + 1, value=col).font = Font(bold=True)
+                header.append(col)
 
     row = [
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -166,6 +204,18 @@ def _save_locked(excel_path, demo_name, framework, training, variant, dataset,
     # Allow callers to pass total_params via config
     if _get(config, "total_params") is not None:
         row[-1] = _get(config, "total_params")
+
+    prov = provenance or _get(config, "provenance") or {}
+    for _col, key in _PROVENANCE_COLUMN_KEYS:
+        v = prov.get(key) if isinstance(prov, dict) else None
+        row.append(None if v is None else str(v))
+
+    # Place values by header name so older sheets with a different column
+    # count still line up.
+    header = [c.value for c in ws[1]]
+    if header[:len(COLUMNS)] != COLUMNS:
+        by_name = dict(zip(COLUMNS, row))
+        row = [by_name.get(h) for h in header]
 
     ws.append(row)
     wb.save(excel_path)

@@ -14,6 +14,8 @@ from utilsTorch import UNetSegmentation, FloodSegmentationDataset, get_dataloade
 from torch.utils.data import Subset
 import copy
 from results_tracker import save_results_to_excel
+from tools.provenance import collect_provenance, format_provenance, print_provenance
+from tools import training_common as tc
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Federated Classical Flood Segmentation")
@@ -24,11 +26,13 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')
+    tc.add_common_args(parser, quantum=False, federated=True)
     return parser.parse_args()
 
 
 def split_dataset_among_clients(dataset, num_clients, seed=42):
-    """Random IID split of a PyTorch Dataset among clients."""
+    """Legacy random IID split (unused). main() uses tc.build_federated_split,
+    which carves a global validation set first."""
     import random
     random.seed(seed)
     indices = list(range(len(dataset)))
@@ -53,7 +57,8 @@ def get_flood_labels(dataset):
 
 
 def split_dataset_dirichlet(dataset, num_clients, alpha, seed=42):
-    """Dirichlet non-IID split: each client gets a skewed class distribution."""
+    """Legacy label-skew Dirichlet split without a size guard (unused).
+    main() uses tc.build_federated_split."""
     rng = np.random.default_rng(seed)
     labels = get_flood_labels(dataset)
     classes = np.unique(labels)
@@ -140,15 +145,15 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         self.template_model = None
         self.local_model = None
         
-        # Create data loader for this client with reproducible shuffling
-        from torch.utils.data import DataLoader
-        self.client_loader = DataLoader(
-            client_dataset, 
-            batch_size=config['batch_size'], 
-            shuffle=True,
-            num_workers=0,
-            generator=torch.Generator().manual_seed(client_seed)
-        )
+        # Shuffle order is re-seeded every round in fit() from
+        # (seed, client_id, server_round). Flower rebuilds clients each round,
+        # so a loader seeded only from (seed, client_id) replayed the same
+        # batch order in every round.
+        self.client_loader = tc.make_loader(
+            client_dataset, config['batch_size'], True,
+            tc.client_round_seed(config['seed'], client_id, 0))
+        self.eval_loader = tc.make_loader(
+            client_dataset, config['batch_size'], False, config['seed'])
     
         print(f"Client {client_id} initialized with {len(client_dataset)} samples on {self.device}")
     
@@ -166,16 +171,21 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         
         print(f"Client {self.client_id} starting local training...")
         
-        training_seed = self.config['seed'] + self.client_id + 1000
+        server_round = int(config.get('server_round', 0)) if config else 0
+        if server_round == 0:
+            print(f"Client {self.client_id}: no server_round in fit config, "
+                  f"shuffle seed falls back to round 0")
+        training_seed = tc.client_round_seed(self.config['seed'], self.client_id, server_round)
         torch.manual_seed(training_seed)
-        torch.cuda.manual_seed(training_seed)
         torch.cuda.manual_seed_all(training_seed)
         np.random.seed(training_seed)
+        self.client_loader = tc.make_loader(
+            self.client_dataset, self.config['batch_size'], True, training_seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         
         if self.template_model is None:
-            self.template_model = UNetSegmentation(self.config)
+            self.template_model = tc.build_model(UNetSegmentation, self.config)
             self.template_model.to(self.device)
         
         # Create local model copy and load parameters
@@ -257,7 +267,7 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         import torch
         
         if self.template_model is None:
-            self.template_model = UNetSegmentation(self.config)
+            self.template_model = tc.build_model(UNetSegmentation, self.config)
             self.template_model.to(self.device)
         
         # Create evaluation model and load parameters
@@ -268,7 +278,7 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
             numpy_to_torch_params(eval_model, parameters)
         
         # Evaluate on local data
-        metrics = evaluate_model(eval_model, self.client_loader, self.device)
+        metrics = evaluate_model(eval_model, self.eval_loader, self.device)
         
         loss = float(metrics['loss'])
         num_examples = len(self.client_dataset)
@@ -292,6 +302,8 @@ class ClassicalFedAvg(FedAvg):
         self.output_dir = output_dir
         self.round_metrics = []
         self.best_performance = 0.0
+        self.failed_rounds = []
+        self._current_parameters = None
         
         # Create logs directory for evaluation scores
         self.logs_dir = os.path.join(output_dir, 'logs')
@@ -315,7 +327,7 @@ class ClassicalFedAvg(FedAvg):
                         self.device = torch.device('cpu')
                 
                 if self.template_model is None:
-                    self.template_model = UNetSegmentation(self.config)
+                    self.template_model = tc.build_model(UNetSegmentation, self.config)
                     self.template_model.to(self.device)
                 
                 # Create evaluation model and load parameters
@@ -356,6 +368,11 @@ class ClassicalFedAvg(FedAvg):
     
     def aggregate_fit(self, server_round: int, results, failures):
         """Aggregate fit results and store parameters."""
+        if failures:
+            # accept_failures=False makes FedAvg skip the round silently. Record
+            # it so main() can mark the whole run as failed.
+            self.failed_rounds.append((server_round, len(failures), repr(failures[0])[:500]))
+            print(f"Round {server_round}: {len(failures)} client fit failures, first: {repr(failures[0])[:500]}")
         aggregated_result = super().aggregate_fit(server_round, results, failures)
         
         # Store current parameters for evaluation
@@ -395,8 +412,7 @@ def main():
 
     # Check data
     if not os.path.exists(train_images_dir):
-        print(f"Training images not found: {train_images_dir}")
-        return
+        tc.fail_run(None, f"Training images not found: {train_images_dir}")
 
     config = get_config()
     config['seed'] = args.seed
@@ -408,6 +424,13 @@ def main():
         output_dir = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}_seed{config['seed']}"
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
+    tc.apply_common_args(config, args)
+
+    # Seed python, numpy, torch and cuda once in the driver process. Ray
+    # workers reseed per client and round in fit().
+    tc.seed_everything(config['seed'], deterministic=False)
+    provenance = collect_provenance(seed=config['seed'])
+    print_provenance(provenance)
 
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
@@ -425,38 +448,23 @@ def main():
     
     # Load full dataset
     print("\nLoading training data...")
-    full_dataset = FloodSegmentationDataset(
-        train_images_dir, 
-        train_masks_dir, 
-        config['image_size']
-    )
-    
-    # Create client datasets using selected partitioning strategy
+    full_dataset = tc.load_dataset(train_images_dir, train_masks_dir, config)
+    full_dataset = tc.cap_samples(full_dataset, config.get('max_samples'), config['seed'])
+
+    # Global held-out validation set carved from the training pool BEFORE
+    # partitioning (stratified, seed-determined, identical across quantum,
+    # classical and ablation runs), then random IID or label-skew Dirichlet
+    # partitioning of the remaining pool with a min-samples-per-client guard.
     print(f"\nSplitting data among {config['num_clients']} clients ({config['partition']} partitioning)...")
-    if config['partition'] == 'dirichlet':
-        client_datasets = split_dataset_dirichlet(full_dataset, config['num_clients'], config['dirichlet_alpha'], config['seed'])
-    else:
-        client_datasets = split_dataset_among_clients(full_dataset, config['num_clients'], config['seed'])
-    
-    # Create validation set from a portion of the last client's data
-    val_size = len(client_datasets[-1]) // 5  # 20% for validation
-    val_indices = list(range(len(client_datasets[-1]) - val_size, len(client_datasets[-1])))
-    train_indices = list(range(len(client_datasets[-1]) - val_size))
-    
-    # Create validation dataset
-    from torch.utils.data import DataLoader
-    val_dataset = Subset(client_datasets[-1].dataset, 
-                        [client_datasets[-1].indices[i] for i in val_indices])
-    
-    client_datasets[-1] = Subset(client_datasets[-1].dataset,
-                                [client_datasets[-1].indices[i] for i in train_indices])
-    
-    val_loader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
+    client_index_lists, val_indices, split_info = tc.build_federated_split(full_dataset, config)
+    client_datasets = [Subset(full_dataset, idxs) for idxs in client_index_lists]
+    val_dataset = Subset(full_dataset, val_indices)
+    val_loader = tc.make_loader(val_dataset, config['batch_size'], False, config['seed'])
     print(f"Validation set: {len(val_dataset)} samples")
     
     print("\nInitializing temporary classical model for parameter counting...")
     try:
-        temp_model = UNetSegmentation(config)
+        temp_model = tc.build_model(UNetSegmentation, config)
         total_params = sum(p.numel() for p in temp_model.parameters())
         trainable_params = sum(p.numel() for p in temp_model.parameters() if p.requires_grad)
         print(f"Model architecture initialized successfully!")
@@ -467,14 +475,14 @@ def main():
         print(f"Error initializing model: {e}")
         import traceback
         traceback.print_exc()
-        return
+        tc.fail_run(output_dir, f"model initialization failed: {e}")
     
     # Create initial parameters for the strategy
     print("\nCreating initial parameters for federated strategy...")
     torch.manual_seed(config['seed'])
     torch.cuda.manual_seed_all(config['seed'])
     np.random.seed(config['seed'])
-    temp_model = UNetSegmentation(config)
+    temp_model = tc.build_model(UNetSegmentation, config)
     initial_parameters = ndarrays_to_parameters(torch_params_to_numpy(temp_model))
     del temp_model
     
@@ -489,6 +497,8 @@ def main():
         min_fit_clients=config['clients_per_round'],
         min_evaluate_clients=1,
         min_available_clients=config['num_clients'],
+        accept_failures=False,
+        on_fit_config_fn=tc.fit_config_fn,
         initial_parameters=initial_parameters
     )
     
@@ -503,15 +513,22 @@ def main():
         num_clients=config['num_clients'],
         config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
         strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.1}  # Allocate GPU resources to clients
+        client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0}
     )
     
     print(f"\nFederated training completed!")
+    if strategy.failed_rounds:
+        tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
+                                f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
+    if strategy._current_parameters is None:
+        tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
+    if len(strategy.round_metrics) == 0:
+        tc.fail_run(output_dir, "no server-side validation round completed")
     print(f"Best AUC achieved: {strategy.best_performance:.4f}")
     
     # Get final global model for testing
     if hasattr(strategy, '_current_parameters') and strategy._current_parameters is not None:
-        final_model = UNetSegmentation(config)
+        final_model = tc.build_model(UNetSegmentation, config)
         final_model.to(torch.device(device_str))
         final_params = parameters_to_ndarrays(strategy._current_parameters)
         numpy_to_torch_params(final_model, final_params)
@@ -533,8 +550,9 @@ def main():
         if config['save_samples']:
             if os.path.exists(test_images_dir):
                 print("Loading test data for evaluation and visualization...")
-                test_loader = get_dataloaders(test_images_dir, test_masks_dir, 
-                                            config['image_size'], config['batch_size'], shuffle=False)
+                test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
+                test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
+                test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
                 
                 # Evaluate on test set
                 print("Evaluating on test set...")
@@ -561,8 +579,11 @@ def main():
                                  filename_prefix="flower_fed_val_", 
                                  num_samples=config['num_val_samples'])
         
-        # Save comprehensive summary
-        if config['save_samples']:
+        if test_result is None:
+            tc.fail_run(output_dir, "no test evaluation (test set missing or save_samples disabled)")
+
+        # Save comprehensive summary (completed runs only)
+        if test_result is not None:
             print("Saving results summary...")
             summary_path = os.path.join(output_dir, "results", "summary.txt")
             os.makedirs(os.path.dirname(summary_path), exist_ok=True)
@@ -578,6 +599,8 @@ def main():
                 f.write(f"Number of clients: {config['num_clients']}\n")
                 f.write(f"Clients per round: {config['clients_per_round']}\n")
                 f.write(f"Local epochs: {config['local_epochs']}\n")
+                for line in split_info:
+                    f.write(line + "\n")
                 f.write(f"Total parameters: {total_params:,}\n")
                 f.write(f"Trainable parameters: {trainable_params:,}\n")
                 f.write(f"Best AUC achieved: {strategy.best_performance:.4f}\n\n")
@@ -600,11 +623,12 @@ def main():
                     f.write(f"  Dice: {test_result['dice']:.4f}\n\n")
                 
                 f.write("Training completed successfully with Flower federated framework.\n")
+                f.write("\n" + format_provenance(provenance))
             
             print(f"Results summary saved to: {summary_path}")
     
     # Save results to shared Excel summary
-    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    final_val = strategy.round_metrics[-1]
     excel_config = {**config, 'total_params': total_params}
     save_results_to_excel(
         demo_name="Federated Classical Torch",
@@ -612,9 +636,10 @@ def main():
         training="federated",
         variant="classical",
         val_metrics=final_val,
-        test_metrics=test_result if 'test_result' in dir() and test_result is not None else None,
+        test_metrics=test_result,
         config=excel_config,
         dataset=args.dataset,
+        provenance=provenance,
     )
 
     print(f"\nFlower federated demo completed successfully! All results saved in: {output_dir}")

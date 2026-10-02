@@ -32,6 +32,9 @@ import numpy as np
 from typing import List, Tuple, Dict
 import flwr as fl
 
+from tools.provenance import collect_provenance, format_provenance, print_provenance
+from tools import training_common as tc
+
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -54,6 +57,11 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')
+    # Torch-only shared flags. --q-ansatz / --q-layers configure the reference
+    # quantum model that the ablation is parameter-matched against.
+    tc.add_common_args(parser, quantum=True, federated=True)
+    parser.add_argument('--epochs', type=int, default=None,
+                        help='Override centralized training epochs (debug)')
     return parser.parse_args()
 
 
@@ -93,7 +101,7 @@ def _count_torch_params(model):
     return sum(p.numel() for p in model.parameters())
 
 
-def _find_matched_torch_config(backend):
+def _find_matched_torch_config(backend, overrides=None):
     """Parameter-matched ablation config.
 
     The ablation now uses ClassicalAblationUNetSegmentation — same QVUNet
@@ -105,11 +113,20 @@ def _find_matched_torch_config(backend):
     from utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation
 
     qcfg = _torch_quantum_config(backend)
-    q_params = _count_torch_params(QVUNetSegmentation(qcfg))
-    c_params = _count_torch_params(ClassicalAblationUNetSegmentation(qcfg))
+    if overrides:
+        qcfg.update(overrides)
+    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, qcfg))
+    c_params = _count_torch_params(tc.build_model(ClassicalAblationUNetSegmentation, qcfg))
     print(f"Quantum params:   {q_params:,}")
     print(f"Ablation params:  {c_params:,}  ({100*(c_params-q_params)/q_params:+.2f}% vs quantum)")
     return dict(qcfg), c_params, q_params
+
+
+def _torch_overrides(args):
+    """Config entries from the shared CLI flags (seed, data, quantum model)."""
+    cfg = {'seed': args.seed}
+    tc.apply_common_args(cfg, args)
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +134,7 @@ def _find_matched_torch_config(backend):
 # ---------------------------------------------------------------------------
 
 def _torch_split_random(dataset, num_clients, seed=42):
+    """Legacy split, unused by the Torch path (see tc.build_federated_split)."""
     import random
     from torch.utils.data import Subset
     random.seed(seed)
@@ -140,6 +158,7 @@ def _torch_flood_labels(dataset):
 
 
 def _torch_split_dirichlet(dataset, num_clients, alpha, seed=42):
+    """Legacy split, unused by the Torch path (see tc.build_federated_split)."""
     from torch.utils.data import Subset
     rng = np.random.default_rng(seed)
     labels = _torch_flood_labels(dataset)
@@ -181,9 +200,14 @@ def run_centralized_torch(args):
     test_masks_dir   = os.path.join(base_dir, "Testing", "labels")
 
     if not os.path.exists(train_images_dir):
-        print(f"Training images not found: {train_images_dir}"); return
+        tc.fail_run(None, f"Training images not found: {train_images_dir}")
 
-    matched_config, c_params, q_params = _find_matched_torch_config(backend)
+    overrides = _torch_overrides(args)
+    tc.seed_everything(args.seed)
+    provenance = collect_provenance(seed=args.seed)
+    print_provenance(provenance)
+
+    matched_config, c_params, q_params = _find_matched_torch_config(backend, overrides)
     config = {
         **matched_config,
         'num_epochs': 100,
@@ -201,30 +225,28 @@ def run_centralized_torch(args):
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     output_dir = f"results/abalation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}_seed{config['seed']}"
 
-    torch.manual_seed(config['seed'])
-    torch.cuda.manual_seed_all(config['seed'])
-    np.random.seed(config['seed'])
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if getattr(args, 'epochs', None) is not None:
+        config['num_epochs'] = int(args.epochs)
+
+    # Reseed after the parameter-count probes so the ablation model init only
+    # depends on the seed.
+    tc.seed_everything(config['seed'])
 
     print(f"Matched base_channels={config['base_channels']}  "
           f"({c_params:,} params vs {q_params:,} quantum params)")
 
-    full_loader = get_dataloaders(train_images_dir, train_masks_dir,
-                                  config['image_size'], config['batch_size'], shuffle=True)
-    n = len(full_loader.dataset)
-    split_idx = int(0.8 * n)
-    idx = np.random.permutation(n)
-    train_loader = DataLoader(Subset(full_loader.dataset, idx[:split_idx]),
-                              batch_size=config['batch_size'], shuffle=True)
-    val_loader   = DataLoader(Subset(full_loader.dataset, idx[split_idx:]),
-                              batch_size=config['batch_size'], shuffle=False)
-    print(f"Train: {split_idx}, Val: {n - split_idx}")
+    # Same global stratified validation holdout as the main demos.
+    full_dataset = tc.load_dataset(train_images_dir, train_masks_dir, config)
+    full_dataset = tc.cap_samples(full_dataset, config.get('max_samples'), config['seed'])
+    tr_idx, va_idx, _ = tc.holdout_validation(full_dataset, config['seed'], config['val_fraction'])
+    train_loader = tc.make_loader(Subset(full_dataset, tr_idx), config['batch_size'], True, config['seed'])
+    val_loader   = tc.make_loader(Subset(full_dataset, va_idx), config['batch_size'], False, config['seed'])
+    print(f"Train: {len(tr_idx)}, Val: {len(va_idx)}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
 
-    model = ClassicalAblationUNetSegmentation(config).to(device)
+    model = tc.build_model(ClassicalAblationUNetSegmentation, config).to(device)
     total_params = _count_torch_params(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
 
@@ -236,8 +258,10 @@ def run_centralized_torch(args):
 
     start_epoch = 0
     train_metrics, val_metrics = [], []
-    if os.path.exists(ckpt_path):
-        ckpt = torch.load(ckpt_path, map_location=device)
+    ckpt = torch.load(ckpt_path, map_location=device) if os.path.exists(ckpt_path) else None
+    if ckpt is not None and not tc.checkpoint_compatible(ckpt):
+        ckpt = None
+    if ckpt is not None:
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
         start_epoch = ckpt.get('epoch', 0)
@@ -280,6 +304,7 @@ def run_centralized_torch(args):
                         f"Accuracy={r['accuracy']:.4f} AUC={r['auc']:.4f} "
                         f"IoU={r['iou']:.4f} Dice={r['dice']:.4f}\n")
             torch.save({'model_state_dict': model.state_dict(),
+                        'run_format': tc.RUN_FORMAT,
                         'optimizer_state_dict': optimizer.state_dict(),
                         'epoch': epoch, 'train_metrics': train_metrics,
                         'val_metrics': val_metrics}, ckpt_path)
@@ -296,8 +321,9 @@ def run_centralized_torch(args):
 
     test_result = None
     if os.path.exists(test_images_dir):
-        test_loader = get_dataloaders(test_images_dir, test_masks_dir,
-                                      config['image_size'], config['batch_size'], shuffle=False)
+        test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
+        test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
+        test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
         test_result = evaluate_model(model, test_loader, device)
         print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
               f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
@@ -307,15 +333,20 @@ def run_centralized_torch(args):
                               title_prefix="Abalation Test - ", filename_prefix="abalation_test_",
                               num_samples=config['num_test_samples'])
 
+    if test_result is None:
+        tc.fail_run(output_dir, f"no test set at {test_images_dir}, refusing to write a summary or tracker row")
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
-                         total_params, val_metrics, test_result, mode='centralized')
+                         total_params, val_metrics, test_result, mode='centralized',
+                         extra_lines=[f"Validation: global held-out {len(va_idx)} samples "
+                                      f"({config['val_fraction']} of the training pool, stratified)"],
+                         provenance=provenance)
     save_results_to_excel(
         demo_name=f"Abalation Centralized Torch Bottleneck (vs {backend})",
         framework="torch", training="centralized",
         variant=f"classical_matched_{config['base_channels']}ch",
         val_metrics=val_metrics[-1] if val_metrics else None,
         test_metrics=test_result, config={**config, 'total_params': total_params},
-        dataset=args.dataset,
+        dataset=args.dataset, provenance=provenance,
     )
     print(f"\nAbalation centralized Torch complete. Results in: {output_dir}")
     print("=" * 60)
@@ -344,16 +375,16 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
         self._fl = fl
         self.client_id = client_id
         self.config = config
-        seed = config['seed'] + client_id
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        self.client_dataset = client_dataset
         self.device = torch.device(device_str if torch.cuda.is_available() else 'cpu')
         self.template_model = None
         self.local_model = None
-        from torch.utils.data import DataLoader
-        self.loader = DataLoader(client_dataset, batch_size=config['batch_size'],
-                                 shuffle=True, num_workers=0,
-                                 generator=torch.Generator().manual_seed(seed))
+        # Shuffle order is re-seeded every round in fit() from
+        # (seed, client_id, server_round), see tc.client_round_seed.
+        self.loader = tc.make_loader(client_dataset, config['batch_size'], True,
+                                     tc.client_round_seed(config['seed'], client_id, 0))
+        self.eval_loader = tc.make_loader(client_dataset, config['batch_size'], False,
+                                          config['seed'])
         print(f"Client {client_id}: {len(client_dataset)} samples on {self.device}")
 
     def get_parameters(self, config):
@@ -363,8 +394,13 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         import torch
         from utilsTorch import ClassicalAblationUNetSegmentation
+        server_round = int(config.get('server_round', 0)) if config else 0
+        round_seed = tc.client_round_seed(self.config['seed'], self.client_id, server_round)
+        torch.manual_seed(round_seed)
+        np.random.seed(round_seed)
+        self.loader = tc.make_loader(self.client_dataset, self.config['batch_size'], True, round_seed)
         if self.template_model is None:
-            self.template_model = ClassicalAblationUNetSegmentation(self.config).to(self.device)
+            self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
         self.local_model = copy.deepcopy(self.template_model).to(self.device)
         if parameters:
             _numpy_to_torch_params(self.local_model, parameters)
@@ -395,11 +431,11 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
     def evaluate(self, parameters, config):
         from utilsTorch import ClassicalAblationUNetSegmentation, evaluate_model
         if self.template_model is None:
-            self.template_model = ClassicalAblationUNetSegmentation(self.config).to(self.device)
+            self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
         m = copy.deepcopy(self.template_model).to(self.device)
         if parameters:
             _numpy_to_torch_params(m, parameters)
-        metrics = evaluate_model(m, self.loader, self.device)
+        metrics = evaluate_model(m, self.eval_loader, self.device)
         return (float(metrics['loss']), len(self.loader.dataset),
                 {"accuracy": float(metrics['accuracy']), "auc": float(metrics['auc']),
                  "iou": float(metrics['iou']), "dice": float(metrics['dice'])})
@@ -421,6 +457,7 @@ class _TorchAblationFedAvg:
         self.round_metrics = []
         self.best_performance = 0.0
         self._current_parameters = None
+        self.failed_rounds = []
         logs_dir = os.path.join(output_dir, 'logs')
         os.makedirs(logs_dir, exist_ok=True)
         self.eval_log = os.path.join(logs_dir, 'evaluation_scores.txt')
@@ -439,6 +476,9 @@ class _TorchAblationFedAvg:
         return self._base.configure_evaluate(server_round, parameters, client_manager)
 
     def aggregate_fit(self, server_round, results, failures):
+        if failures:
+            self.failed_rounds.append((server_round, len(failures), repr(failures[0])[:500]))
+            print(f"Round {server_round}: {len(failures)} client fit failures, first: {repr(failures[0])[:500]}")
         agg = self._base.aggregate_fit(server_round, results, failures)
         if agg is not None:
             self._current_parameters = agg[0]
@@ -453,7 +493,7 @@ class _TorchAblationFedAvg:
             if self.device is None:
                 self.device = torch.device(self.device_str if torch.cuda.is_available() else 'cpu')
             if self.template_model is None:
-                self.template_model = ClassicalAblationUNetSegmentation(self.config).to(self.device)
+                self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
             m = copy.deepcopy(self.template_model).to(self.device)
             _numpy_to_torch_params(m, parameters_to_ndarrays(self._current_parameters))
             metrics = evaluate_model(m, self.val_loader, self.device)
@@ -504,9 +544,14 @@ def run_federated_torch(args):
     test_masks_dir   = os.path.join(base_dir, "Testing", "labels")
 
     if not os.path.exists(train_images_dir):
-        print(f"Training images not found: {train_images_dir}"); return
+        tc.fail_run(None, f"Training images not found: {train_images_dir}")
 
-    matched_config, c_params, q_params = _find_matched_torch_config(backend)
+    overrides = _torch_overrides(args)
+    tc.seed_everything(args.seed, deterministic=False)
+    provenance = collect_provenance(seed=args.seed)
+    print_provenance(provenance)
+
+    matched_config, c_params, q_params = _find_matched_torch_config(backend, overrides)
     config = {
         **matched_config,
         'learning_rate': 1e-4,
@@ -525,6 +570,8 @@ def run_federated_torch(args):
         'dataset': args.dataset,
     }
     config['seed'] = args.seed
+    tc.apply_common_args(config, args)
+    tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     output_dir = f"results/abalation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}_seed{config['seed']}"
     os.makedirs(output_dir, exist_ok=True)
@@ -535,23 +582,18 @@ def run_federated_torch(args):
     device_str = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Device: {device_str}")
 
-    full_dataset = FloodSegmentationDataset(train_images_dir, train_masks_dir, config['image_size'])
-    if config['partition'] == 'dirichlet':
-        client_datasets = _torch_split_dirichlet(
-            full_dataset, config['num_clients'], config['dirichlet_alpha'], config['seed'])
-    else:
-        client_datasets = _torch_split_random(full_dataset, config['num_clients'], config['seed'])
-
-    # Carve validation set from last client
-    last = client_datasets[-1]
-    val_size = len(last) // 5
-    last_idxs = list(range(len(last)))
-    val_dataset = Subset(last.dataset, [last.indices[i] for i in last_idxs[-val_size:]])
-    client_datasets[-1] = Subset(last.dataset, [last.indices[i] for i in last_idxs[:-val_size]])
-    val_loader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
+    full_dataset = tc.load_dataset(train_images_dir, train_masks_dir, config)
+    full_dataset = tc.cap_samples(full_dataset, config.get('max_samples'), config['seed'])
+    # Global validation holdout first, then random IID or label-skew
+    # Dirichlet partitioning (shared with the main federated demos).
+    client_index_lists, val_indices, split_info = tc.build_federated_split(full_dataset, config)
+    client_datasets = [Subset(full_dataset, idxs) for idxs in client_index_lists]
+    val_dataset = Subset(full_dataset, val_indices)
+    val_loader = tc.make_loader(val_dataset, config['batch_size'], False, config['seed'])
     print(f"Validation set: {len(val_dataset)} samples")
 
-    temp = ClassicalAblationUNetSegmentation(config)
+    torch.manual_seed(config['seed'])
+    temp = tc.build_model(ClassicalAblationUNetSegmentation, config)
     total_params = _count_torch_params(temp)
     initial_parameters = ndarrays_to_parameters(_torch_params_to_numpy(temp))
     del temp
@@ -565,6 +607,8 @@ def run_federated_torch(args):
         min_evaluate_clients=1,
         min_available_clients=config['num_clients'],
         initial_parameters=initial_parameters,
+        accept_failures=False,
+        on_fit_config_fn=tc.fit_config_fn,
     )
 
     def client_fn(cid):
@@ -577,14 +621,21 @@ def run_federated_torch(args):
         num_clients=config['num_clients'],
         config=fl.server.ServerConfig(num_rounds=config['fed_rounds']),
         strategy=strategy,
-        client_resources={"num_cpus": 1.0, "num_gpus": 0.1},
+        client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0},
     )
 
+    if strategy.failed_rounds:
+        tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
+                                f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
+    if strategy._current_parameters is None:
+        tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
+    if not strategy.round_metrics:
+        tc.fail_run(output_dir, "no server-side validation round completed")
     print(f"\nFederated training complete. Best AUC: {strategy.best_performance:.4f}")
 
     test_result = None
     if strategy._current_parameters is not None:
-        final_model = ClassicalAblationUNetSegmentation(config)
+        final_model = tc.build_model(ClassicalAblationUNetSegmentation, config)
         final_model.to(torch.device(device_str))
         _numpy_to_torch_params(final_model, parameters_to_ndarrays(strategy._current_parameters))
 
@@ -594,8 +645,9 @@ def run_federated_torch(args):
                                  title_prefix="Abalation Federated Torch Classical ")
 
         if os.path.exists(test_images_dir):
-            test_loader = get_dataloaders(test_images_dir, test_masks_dir,
-                                          config['image_size'], config['batch_size'], shuffle=False)
+            test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
+            test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
+            test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
             test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
             print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
                   f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
@@ -610,15 +662,16 @@ def run_federated_torch(args):
                                   filename_prefix="abalation_fed_test_",
                                   num_samples=config['num_test_samples'])
 
+    if test_result is None:
+        tc.fail_run(output_dir, f"no test evaluation (test set missing at {test_images_dir})")
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, strategy.round_metrics, test_result,
                          mode='federated',
-                         extra_lines=[
-                             f"Partitioning: {config['partition']}" +
-                             (f", alpha={config['dirichlet_alpha']}" if config['partition'] == 'dirichlet' else ""),
+                         extra_lines=split_info + [
                              f"Clients: {config['num_clients']}, Rounds: {config['fed_rounds']}, "
                              f"Local epochs: {config['local_epochs']}",
-                         ])
+                         ],
+                         provenance=provenance)
     save_results_to_excel(
         demo_name=f"Abalation Federated Torch Bottleneck (vs {backend})",
         framework="torch", training="federated",
@@ -626,7 +679,7 @@ def run_federated_torch(args):
         val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
         test_metrics=test_result,
         config={**config, 'total_params': total_params},
-        dataset=args.dataset,
+        dataset=args.dataset, provenance=provenance,
     )
     print(f"\nAbalation federated Torch complete. Results in: {output_dir}")
     print("=" * 60)
@@ -634,7 +687,7 @@ def run_federated_torch(args):
 
 def _write_summary_torch(output_dir, backend, q_params, base_channels,
                          total_params, val_metrics, test_result,
-                         mode='centralized', extra_lines=None):
+                         mode='centralized', extra_lines=None, provenance=None):
     summary_path = os.path.join(output_dir, "results", "summary.txt")
     os.makedirs(os.path.dirname(summary_path), exist_ok=True)
     with open(summary_path, 'w') as f:
@@ -657,6 +710,8 @@ def _write_summary_torch(output_dir, backend, q_params, base_channels,
             f.write(f"  Loss: {test_result['loss']:.4f}\n  Accuracy: {test_result['accuracy']:.4f}\n")
             f.write(f"  AUC: {test_result['auc']:.4f}\n  IoU: {test_result['iou']:.4f}\n")
             f.write(f"  Dice: {test_result['dice']:.4f}\n")
+        if provenance:
+            f.write("\n" + format_provenance(provenance))
 
 
 # ===========================================================================

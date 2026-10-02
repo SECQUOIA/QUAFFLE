@@ -25,15 +25,20 @@ try:
 except ImportError:
     HAS_SEABORN = False
 
-RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+_REPO_DIR = os.path.dirname(os.path.abspath(__file__))
+if _REPO_DIR not in sys.path:
+    sys.path.insert(0, _REPO_DIR)
+from config.seeds import SEEDS  # noqa: E402  single pre-declared seed list
+
+RESULTS_DIR = os.environ.get("QUAFFLE_RESULTS_DIR", os.path.join(_REPO_DIR, "results"))
 DATASETS = ['optical', 'sar', 'combined']
 
-# Common 9-seed pool: every (method, dataset) cell in the 27-cell grid has a
-# completed run for these 9 seeds. Seed 42 is dropped because three quantum
-# runs at that seed timed out (centralized combined, fed-random sar,
-# fed-dirichlet sar) and refilling them would cost ~24h+ each on the ai
-# partition. n=9 is uniform across every cell.
-MAIN_METHOD_SEEDS = {7, 17, 31, 77, 123, 256, 314, 512, 999}
+# One pre-declared seed pool (config/seeds.py) for every method. Seeds are
+# never dropped per method after looking at results. Missing or incomplete
+# runs are reported by report_seed_coverage() and paired statistics use the
+# per-cell intersection of completed seeds, always reporting n and the
+# included and missing seeds.
+MAIN_METHOD_SEEDS = set(SEEDS)
 MAIN_METHOD_SEED_LABELS = {
     "Classical Central", "Quantum Central",
     "Classical Fed (Random)", "Quantum Fed (Random)",
@@ -458,6 +463,7 @@ def load_from_disk():
     """
     rows = []
     skipped_no_summary = 0
+    skipped_dirs = []
     if not os.path.isdir(RESULTS_DIR):
         return pd.DataFrame()
 
@@ -472,6 +478,7 @@ def load_from_disk():
         metrics = _parse_summary(os.path.join(full, "results", "summary.txt"))
         if metrics is None:
             skipped_no_summary += 1
+            skipped_dirs.append(d)
             continue
         rows.append({
             "Method": method,
@@ -488,7 +495,10 @@ def load_from_disk():
         })
 
     if skipped_no_summary:
-        print(f"  Skipped {skipped_no_summary} run dirs without complete summary.txt (in-progress or crashed)")
+        print(f"  Skipped {skipped_no_summary} run dirs without a Test block in summary.txt "
+              f"(failed, in-progress or crashed):")
+        for d in skipped_dirs:
+            print(f"    SKIPPED (no Test block): {d}")
     return pd.DataFrame(rows)
 
 
@@ -505,21 +515,105 @@ def load_all():
     print(f"  {len(df)} runs loaded across {df['Dataset'].nunique()} datasets, "
           f"{df['Method'].nunique()} methods")
 
-    # Restrict to the canonical 10-seed sweep
-    PLOT_SEEDS = {7, 17, 31, 42, 77, 123, 256, 314, 512, 999}
-    df = df[df["Seed"].isin(PLOT_SEEDS)].reset_index(drop=True)
+    # Restrict every method to the single pre-declared seed list.
+    n_before = len(df)
+    df = df[df["Seed"].isin(MAIN_METHOD_SEEDS)].reset_index(drop=True)
+    if len(df) != n_before:
+        print(f"  Dropped {n_before - len(df)} rows with seeds outside config/seeds.py {SEEDS}")
 
-    # Restrict main methods to the common seed pool (see MAIN_METHOD_SEEDS).
-    # Ablation rows keep whatever seeds are available — fed_dirichlet ablation
-    # may still be filling in.
-    is_main = df["Method"].isin(MAIN_METHOD_SEED_LABELS)
-    keep = (~is_main) | df["Seed"].isin(MAIN_METHOD_SEEDS)
-    n_drop = int((~keep).sum())
-    if n_drop:
-        print(f"  Restricting main-method rows to seeds {sorted(MAIN_METHOD_SEEDS)}: dropped {n_drop} non-allowlisted rows")
-    df = df[keep].reset_index(drop=True)
-
+    report_seed_coverage(df)
     return df
+
+
+def report_seed_coverage(df, methods=None):
+    """Print, loudly, every (method, dataset) cell missing seeds from the
+    pre-declared list. Returns {(method, dataset): sorted missing seeds}."""
+    if methods is None:
+        methods = sorted(MAIN_METHOD_SEED_LABELS) + [
+            "Ablation Central", "Ablation Fed (Random)", "Ablation Fed (Dirichlet)"]
+    missing = {}
+    for m in methods:
+        for ds in DATASETS:
+            have = set(int(x) for x in df[(df["Method"] == m) & (df["Dataset"] == ds)]["Seed"].dropna())
+            miss = sorted(set(SEEDS) - have)
+            if miss:
+                missing[(m, ds)] = miss
+    if missing:
+        print("!" * 70)
+        print(f"WARNING: missing completed runs for the pre-declared seed list {SEEDS}")
+        for (m, ds), miss in sorted(missing.items()):
+            print(f"  MISSING  {m:<28} {ds:<9} n={len(SEEDS) - len(miss)}/{len(SEEDS)}  seeds={miss}")
+        print("!" * 70)
+    else:
+        print(f"  Seed coverage complete: every main cell has all {len(SEEDS)} seeds")
+    return missing
+
+
+def paired_stats(deltas):
+    """Mean, std, n, 95% t CI, paired t-test and Wilcoxon signed-rank p-values
+    for a list of per-seed paired differences."""
+    from scipy import stats as _st
+    d = np.asarray(deltas, dtype=float)
+    n = int(d.size)
+    out = {"n": n, "mean": None, "std": None, "ci95_half": None, "tcrit": None,
+           "t_stat": None, "t_p": None, "wilcoxon_stat": None, "wilcoxon_p": None}
+    if n == 0:
+        return out
+    out["mean"] = float(d.mean())
+    out["std"] = float(d.std(ddof=1)) if n > 1 else 0.0
+    if n > 1:
+        tc = float(_st.t.ppf(0.975, df=n - 1))
+        out["tcrit"] = tc
+        out["ci95_half"] = tc * out["std"] / np.sqrt(n)
+        t = _st.ttest_1samp(d, 0.0)
+        out["t_stat"], out["t_p"] = float(t.statistic), float(t.pvalue)
+        if np.any(d != 0):
+            try:
+                w = _st.wilcoxon(d)
+                out["wilcoxon_stat"], out["wilcoxon_p"] = float(w.statistic), float(w.pvalue)
+            except ValueError as e:
+                print(f"  Wilcoxon not computed: {e}")
+    else:
+        out["ci95_half"] = 0.0
+    return out
+
+
+# (regime, quantum method, classical comparator) pairs for paired tests.
+PAIRED_COMPARISONS = [
+    ("Centralized", "Quantum Central", "Classical Central"),
+    ("Federated (Random)", "Quantum Fed (Random)", "Classical Fed (Random)"),
+    ("Federated (Dirichlet)", "Quantum Fed (Dirichlet)", "Classical Fed (Dirichlet)"),
+    ("Centralized ablation", "Quantum Central", "Ablation Central"),
+    ("Federated (Random) ablation", "Quantum Fed (Random)", "Ablation Fed (Random)"),
+    ("Federated (Dirichlet) ablation", "Quantum Fed (Dirichlet)", "Ablation Fed (Dirichlet)"),
+]
+
+
+def paired_tests(seed_df, metric="Test_IoU"):
+    """Paired quantum minus comparator tests per (regime, dataset) on the
+    seeds both methods completed. Reports n, included and missing seeds,
+    paired t-test and Wilcoxon signed-rank."""
+    rows = []
+    for regime, qm, cm in PAIRED_COMPARISONS:
+        for ds in DATASETS:
+            q = seed_df[(seed_df["Method"] == qm) & (seed_df["Dataset"] == ds)].set_index("Seed")[metric].dropna()
+            c = seed_df[(seed_df["Method"] == cm) & (seed_df["Dataset"] == ds)].set_index("Seed")[metric].dropna()
+            shared = sorted(int(x) for x in set(q.index) & set(c.index))
+            if not shared and (q.empty or c.empty):
+                continue
+            deltas = [float(q.loc[s_] - c.loc[s_]) for s_ in shared]
+            st = paired_stats(deltas)
+            rows.append({
+                "Regime": regime, "Dataset": ds, "Quantum": qm, "Comparator": cm,
+                "Metric": metric, "N": st["n"],
+                "Included_Seeds": ",".join(map(str, shared)),
+                "Missing_Seeds": ",".join(map(str, sorted(set(SEEDS) - set(shared)))),
+                "Delta_Mean": st["mean"], "Delta_Std": st["std"],
+                "CI95_Half": st["ci95_half"],
+                "T_Stat": st["t_stat"], "T_P": st["t_p"],
+                "Wilcoxon_Stat": st["wilcoxon_stat"], "Wilcoxon_P": st["wilcoxon_p"],
+            })
+    return pd.DataFrame(rows)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -611,6 +705,11 @@ def save_analysis_excel(df, seed_df):
                 a["Metric"] = metric
                 agg_rows.append(a)
         pd.concat(agg_rows).to_excel(writer, sheet_name="Aggregate_Full", index=False)
+
+        # ── Sheet: paired tests (t-test and Wilcoxon signed-rank) ─────────────
+        pt = pd.concat([paired_tests(seed_df, m) for m in ("Test_IoU", "Test_Dice")
+                        if m in seed_df.columns], ignore_index=True)
+        pt.to_excel(writer, sheet_name="Paired_Tests", index=False)
 
     print(f"\nAnalysis Excel saved: {out_path}")
 
@@ -1650,6 +1749,25 @@ def print_summary(seed_df):
     counts = seed_df.groupby(["Dataset","Method"])["Seed"].nunique().unstack("Dataset")
     print(counts.to_string())
     print()
+
+    for metric in ("Test_IoU", "Test_Dice"):
+        if metric not in seed_df.columns:
+            continue
+        print("=" * 70)
+        print(f"PAIRED TESTS, {metric}: quantum minus comparator, paired by seed "
+              f"(t-test and Wilcoxon signed-rank)")
+        print("=" * 70)
+        pt = paired_tests(seed_df, metric)
+        for _, r in pt.iterrows():
+            if r["N"] == 0:
+                print(f"  {r['Regime']:<32}{r['Dataset']:<9} n=0 (no shared seeds)")
+                continue
+            tp = "NA" if r["T_P"] is None or pd.isna(r["T_P"]) else f"{r['T_P']:.4f}"
+            wp = "NA" if r["Wilcoxon_P"] is None or pd.isna(r["Wilcoxon_P"]) else f"{r['Wilcoxon_P']:.4f}"
+            miss = f"  missing={r['Missing_Seeds']}" if r["Missing_Seeds"] else ""
+            print(f"  {r['Regime']:<32}{r['Dataset']:<9} n={r['N']:<3} delta={r['Delta_Mean']:+.4f} "
+                  f"t_p={tp} wilcoxon_p={wp}{miss}")
+        print()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
