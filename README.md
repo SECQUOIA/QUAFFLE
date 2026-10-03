@@ -165,6 +165,10 @@ Flags that configure the data loader or the model are only forwarded when the un
 
 `config/seeds.py` holds the single pre-declared seed list (7, 17, 31, 42, 77, 123, 256, 314, 512, 999). The SLURM generators in `misc/`, `analyze_results.py`, `scripts/build_table2_data.py` and `scripts/build_forest_plot.py` all import it. Missing runs are reported with n and the missing seed ids rather than hidden by a smaller pool, runs without a Test block are skipped and listed, and paired comparisons report both a paired t-test and a Wilcoxon signed-rank test.
 
+### Running the experiment grid on SLURM
+
+`misc/generate_grid.py` writes one SLURM script per (method, mode, dataset, seed) with time limits derived from measured runtimes, plus `submit_all.sh` and `manifest.csv`, into `misc/grid/<timestamp>/`. Run it with `--dry-run` first to see the job count and the SU estimate. See [docs/RUNNING.md](docs/RUNNING.md) for filters, time limits, staggered submission, resuming and analysis.
+
 ### JAX Implementation (Experimental, not maintained)
 
 The JAX scripts do not include the split, seeding, provenance or failure-handling fixes above.
