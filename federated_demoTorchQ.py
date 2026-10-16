@@ -431,8 +431,10 @@ def main():
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
     tc.apply_common_args(config, args)
-    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart.
-    vtag = tc.variant_tag(config)
+    config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
+    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
+    # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
+    vtag = tc.variant_tag(config) + tc.backend_tag(config)
     if args.partition == 'dirichlet':
         output_dir = f"results/flood_federated_optical_pytorch_pennylane_dirichlet{args.alpha}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
     else:
@@ -443,6 +445,7 @@ def main():
     # workers reseed per client and round in fit().
     tc.seed_everything(config['seed'], deterministic=False)
     provenance = collect_provenance(seed=config['seed'])
+    provenance['q_backend'] = config['q_backend']
     print_provenance(provenance)
 
     # Set seeds for reproducibility (excluding CudnnModule settings to avoid Ray serialization issues)
@@ -451,7 +454,9 @@ def main():
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     print(f"  - Quantum channels: {config['quantum_channels']}")
-    print(f"  - Quantum backend: {config['quantum_backend']}")
+    print(f"  - Quantum family: {config['quantum_backend']}")
+    print(f"  - Quantum circuit simulator (q_backend): {config['q_backend']}, "
+          f"q_sim_device: {config.get('q_sim_device', tc.DEFAULT_Q_SIM_DEVICE)}")
     print(f"  - Image size: {config['image_size']}")
     print(f"  - Batch size: {config['batch_size']}")
     print(f"  - Clients: {config['num_clients']}")
@@ -490,6 +495,8 @@ def main():
         print(f"Model architecture initialized successfully!")
         print(f"Total parameters: {total_params:,}")
         print(f"Trainable parameters: {trainable_params:,}")
+        q_simulator = tc.quantum_simulator_info(temp_model, config)
+        print(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}")
         # Clean up temporary model
         del temp_model
     except Exception as e:
@@ -638,7 +645,8 @@ def main():
             with open(summary_path, 'w') as f:
                 f.write("Flower Federated Quantum Flood Segmentation Results Summary\n")
                 f.write("=" * 50 + "\n\n")
-                f.write(f"Model: QVUNet with {config['quantum_backend']} backend\n")
+                f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
+                f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
                 f.write(f"Quantum channels: {config['quantum_channels']}\n")
                 f.write(f"Base channels: {config['base_channels']}\n")
                 f.write(f"Image size: {config['image_size']}\n")
@@ -684,7 +692,7 @@ def main():
         config=config, val_metrics=final_val, test_metrics=test_result,
         history=strategy.round_metrics, total_params=total_params,
         best_val_auc=strategy.best_performance, knockout=knockout if config.get('quantum_knockout_eval') else None,
-        provenance=provenance,
+        provenance=provenance, q_simulator=q_simulator,
         extra={'resumed_from_round': strategy.resumed_from_round})
 
     # Shared Excel summary: best effort, a tracker failure never fails the run.

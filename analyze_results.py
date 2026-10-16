@@ -3,7 +3,12 @@
 Analyze QUAFFLE experiment results across datasets, methods, partitions, and seeds.
 
 Usage:
-    python analyze_results.py
+    python analyze_results.py [--include-backend pennylane [torch ...] | all]
+
+Quantum runs are filtered by the circuit simulator that produced them
+(q_backend). By default only q_backend='pennylane' runs enter the tables and
+plots; --include-backend adds torch-simulator ('torch') or per-group
+PennyLane ('pennylane_pergroup') runs, e.g. to cross-check the simulators.
 
 Outputs:
     results/analysis_summary.xlsx   — per-seed and aggregate tables
@@ -346,12 +351,18 @@ import re as _re_disk
 import json as _json_disk
 
 # Result directory naming convention:
-#   flood_<central|federated>_optical_pytorch_<classical|pennylane>[_random|_dirichlet0.5][_combined|_sar][_qcN][<vtag>]_seed<N>
+#   flood_<central|federated>_optical_pytorch_<classical|pennylane>[_random|_dirichlet0.5][_combined|_sar][_qcN][<vtag>][<btag>]_seed<N>
 #   abalation_<centralized|federated>_torch_bottleneck_matched_pennylane[_random|_dirichlet0.5][_combined|_sar][<vtag>]_seed<N>
 # <vtag> is the quantum ansatz variant, "_reupload_L<n>" or "_legacy"
 # (quantum and ablation runs only, added 2026-10). Directories without a
 # tag are older runs; their variant is read from the Provenance block of
 # summary.txt (cli_args), see _infer_variant_from_summary.
+# <btag> is the quantum circuit simulator (quantum runs only, added with
+# --q-backend): '' for pennylane, "_qtorch" for the torch statevector
+# simulator, "_qpergroup" for the per-group PennyLane loop. The q_backend
+# recorded in metrics.json is authoritative; a metrics.json without the key
+# was written before the q_backend option was recorded, when the model always
+# used the torch simulator (LEGACY_Q_BACKEND).
 # JAX dirs and old (non-bottleneck) ablation dirs are deliberately excluded.
 
 # The variant whose Method labels stay unsuffixed ("Quantum Central", ...),
@@ -361,6 +372,45 @@ PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
 _DEFAULT_Q_LAYERS = 2
 
 _VTAG_RE = _re_disk.compile(r"_(legacy|reupload_L\d+)$")
+_BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
+_BTAG_TO_BACKEND = {"qtorch": "torch", "qpergroup": "pennylane_pergroup"}
+Q_BACKENDS = ("pennylane", "pennylane_pergroup", "torch")
+DEFAULT_INCLUDE_BACKENDS = ("pennylane",)
+# metrics.json / summary.txt with provenance but no q_backend record:
+# written before q_backend was recorded, the model used the torch simulator.
+LEGACY_Q_BACKEND = "torch"
+# summary.txt without a Provenance block: pre-revision code, which evaluated
+# the circuit with per-item / per-group default.qubit QNodes (the torch
+# simulator did not exist yet).
+PRE_REVISION_Q_BACKEND = "pennylane_pergroup"
+_BACKEND_LABEL = {"torch": "qtorch", "pennylane_pergroup": "qpergroup"}
+
+
+def _backend_from_summary(text):
+    """q_backend of a run that only has summary.txt."""
+    m = _re_disk.search(r"Quantum circuit simulator:.*?q_backend=(\w+)", text or "")
+    if m:
+        return m.group(1)
+    m = _re_disk.search(r"^\s*q_backend:\s*(\w+)", text or "", _re_disk.M)
+    if m and m.group(1) in Q_BACKENDS:
+        return m.group(1)
+    if not _re_disk.search(r"cli_args:", text or ""):
+        return PRE_REVISION_Q_BACKEND
+    cli = _re_disk.search(r"cli_args:\s*(.*)", text).group(1)
+    b = _re_disk.search(r"--q[-_]backend[ =](\w+)", cli)
+    return b.group(1) if b else LEGACY_Q_BACKEND
+
+
+def _with_backend(method, q_backend, label_backends):
+    """Suffix ' [qtorch]' / ' [qpergroup]' when runs of several simulators are
+    analysed together, so per-seed dedup never averages two simulators."""
+    if not label_backends or q_backend in (None, "pennylane"):
+        return method
+    label = f" [{_BACKEND_LABEL.get(q_backend, q_backend)}]"
+    if " QC=" in method:
+        head, qc = method.split(" QC=", 1)
+        return f"{head}{label} QC={qc}"
+    return f"{method}{label}"
 
 
 def _variant_label(variant):
@@ -409,7 +459,8 @@ def _parse_run_dir(dirname):
 def _parse_run_dir_full(dirname):
     """Like _parse_run_dir plus a 7th element: the variant from the directory
     tag ('legacy', 'reupload_L2', ...), None if untagged or not applicable.
-    The Method label here never carries the variant suffix."""
+    The Method label here never carries the variant suffix.
+    See _parse_run_dir_backend for the simulator tag."""
     m = _re_disk.match(r"^(.+)_seed(\d+)$", dirname)
     if not m:
         return None
@@ -417,6 +468,12 @@ def _parse_run_dir_full(dirname):
 
     if "jax" in base:
         return None  # JAX runs are not analysed (legacy code)
+
+    dir_backend = None
+    bm = _BTAG_RE.search(base)
+    if bm:
+        dir_backend = _BTAG_TO_BACKEND[bm.group(1)]
+        base = base[:bm.start()]
 
     variant = None
     vm = _VTAG_RE.search(base)
@@ -474,6 +531,16 @@ def _parse_run_dir_full(dirname):
     return (method, dataset, seed, qc if qc is not None else 32, training, partition, variant)
 
 
+def _parse_run_dir_backend(dirname):
+    """q_backend from the directory tag: 'torch' (_qtorch),
+    'pennylane_pergroup' (_qpergroup) or None (no tag)."""
+    m = _re_disk.match(r"^(.+)_seed(\d+)$", dirname)
+    if not m:
+        return None
+    bm = _BTAG_RE.search(m.group(1))
+    return _BTAG_TO_BACKEND[bm.group(1)] if bm else None
+
+
 def _with_variant(method, variant):
     """Insert the variant suffix before a ' QC=N' suffix so QC parsing
     (method.split('QC=')) keeps working."""
@@ -514,6 +581,9 @@ def _parse_metrics_json(path):
         out["Total_Params"] = int(data["total_params"])
     info = {
         "variant": _variant_from_fields(data.get("q_ansatz"), data.get("q_layers")),
+        # Key absent: written before q_backend was recorded (torch simulator).
+        "q_backend": data.get("q_backend", LEGACY_Q_BACKEND),
+        "q_backend_recorded": "q_backend" in data,
     }
     return out, info
 
@@ -559,10 +629,11 @@ def _parse_summary(path):
     if "Test_IoU" not in out:
         return None
     out["_variant_inferred"] = _infer_variant_from_summary(text)
+    out["_q_backend_inferred"] = _backend_from_summary(text)
     return out
 
 
-def load_from_disk():
+def load_from_disk(label_backends=False):
     """Walk results/ and build the per-run DataFrame. Prefers each run's
     results/metrics.json (canonical, machine-readable) and falls back to
     summary.txt for older runs. Bypasses the Excel logging entirely.
@@ -572,7 +643,10 @@ def load_from_disk():
     Test_/Val_ {Loss, Accuracy, AUC, IoU, Dice}, plus Demo / Variant /
     Dirichlet_Alpha placeholders for backwards-compat with downstream code.
     Method labels carry a " [<variant>]" suffix for non-primary quantum
-    ansatz variants (see PRIMARY_VARIANT).
+    ansatz variants (see PRIMARY_VARIANT). Q_Backend is the circuit
+    simulator of quantum runs (None for classical and ablation runs); with
+    label_backends=True non-pennylane quantum runs also get " [qtorch]" /
+    " [qpergroup]".
     """
     rows = []
     skipped_no_summary = 0
@@ -590,6 +664,7 @@ def load_from_disk():
             continue
         method, dataset, seed, qc, training, partition, dir_variant = parsed
         quantumish = method.startswith("Quantum") or method.startswith("Ablation")
+        dir_backend = _parse_run_dir_backend(d)
 
         js = _parse_metrics_json(os.path.join(full, "results", "metrics.json"))
         if js is not None:
@@ -597,6 +672,12 @@ def load_from_disk():
             source = "metrics.json"
             n_json += 1
             variant = dir_variant or info.get("variant")
+            q_backend = info["q_backend"]
+            if dir_backend and info["q_backend_recorded"] and dir_backend != q_backend:
+                print(f"  WARNING: {d}: directory tag says q_backend={dir_backend!r}, "
+                      f"metrics.json says {q_backend!r}; using metrics.json")
+            elif dir_backend and not info["q_backend_recorded"]:
+                q_backend = dir_backend
         else:
             metrics = _parse_summary(os.path.join(full, "results", "summary.txt"))
             if metrics is None:
@@ -606,16 +687,21 @@ def load_from_disk():
             source = "summary.txt"
             inferred = metrics.pop("_variant_inferred", None)
             variant = dir_variant or inferred
+            q_backend = dir_backend or metrics.pop("_q_backend_inferred", None)
+            metrics.pop("_q_backend_inferred", None)
         if not quantumish:
             variant = None
+        if not method.startswith("Quantum"):
+            q_backend = None  # classical and ablation runs have no circuit
         rows.append({
-            "Method": _with_variant(method, variant),
+            "Method": _with_backend(_with_variant(method, variant), q_backend, label_backends),
             "Dataset": dataset,
             "Seed": seed,
             "Training": training,
             "Partition": partition,
             "Quantum_Channels": qc,
             "Q_Variant": variant,
+            "Q_Backend": q_backend,
             "Run_Dir": d,
             "Source": source,
             "Demo": method,                 # downstream filter compat
@@ -636,16 +722,39 @@ def load_from_disk():
     return pd.DataFrame(rows)
 
 
-def load_all():
+def filter_backends(df, include_backends=DEFAULT_INCLUDE_BACKENDS):
+    """Keep classical / ablation rows and the quantum rows whose Q_Backend is
+    in include_backends. Prints what was excluded."""
+    if df.empty or "Q_Backend" not in df.columns:
+        return df
+    include = set(include_backends)
+    quantum = df["Q_Backend"].notna()
+    keep = ~quantum | df["Q_Backend"].isin(include)
+    dropped = df[~keep]
+    if len(dropped):
+        counts = dropped["Q_Backend"].value_counts().to_dict()
+        print(f"  Excluded {len(dropped)} quantum runs by circuit simulator {counts} "
+              f"(included: {sorted(include)}; use --include-backend to change)")
+    return df[keep].reset_index(drop=True)
+
+
+def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS):
     """Load all per-run results from disk (summary.txt files) and apply
-    seed/method filters. Disk reads are authoritative — the Excel logging
-    has historical column-shift bugs for some seeds (notably 7, 42, 123, 256
-    in the optical sheet)."""
+    seed/method/simulator filters. Disk reads are authoritative — the Excel
+    logging has historical column-shift bugs for some seeds (notably 7, 42,
+    123, 256 in the optical sheet). Quantum runs are restricted to the
+    circuit simulators in include_backends (default: pennylane only)."""
     print("Loading from disk (results/*/results/summary.txt)...")
-    df = load_from_disk()
+    include_backends = tuple(include_backends)
+    df = load_from_disk(label_backends=len(include_backends) > 1)
     if df.empty:
         print("No data found.")
         return df
+    q = df[df["Q_Backend"].notna()]
+    if len(q):
+        print(f"  Quantum runs by circuit simulator (q_backend): "
+              f"{q['Q_Backend'].value_counts().to_dict()}")
+    df = filter_backends(df, include_backends)
     print(f"  {len(df)} runs loaded across {df['Dataset'].nunique()} datasets, "
           f"{df['Method'].nunique()} methods")
 
@@ -1909,9 +2018,25 @@ def print_summary(seed_df):
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
+def parse_args(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(description="Analyze QUAFFLE experiment results")
+    ap.add_argument("--include-backend", nargs="+", default=list(DEFAULT_INCLUDE_BACKENDS),
+                    choices=list(Q_BACKENDS) + ["all"], metavar="Q_BACKEND",
+                    help="Circuit simulators (q_backend) of quantum runs to include: "
+                         f"{', '.join(Q_BACKENDS)} or all (default: pennylane). "
+                         "With more than one, non-pennylane methods get a "
+                         "' [qtorch]' / ' [qpergroup]' label suffix.")
+    args = ap.parse_args(argv)
+    if "all" in args.include_backend:
+        args.include_backend = list(Q_BACKENDS)
+    return args
+
+
 if __name__ == "__main__":
+    _args = parse_args()
     print("Loading data...")
-    df = load_all()
+    df = load_all(include_backends=_args.include_backend)
 
     if df.empty:
         print("No data found — make sure results/results_summary_*.xlsx exist.")

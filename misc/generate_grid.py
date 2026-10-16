@@ -46,18 +46,32 @@ from config.seeds import SEEDS as ALL_SEEDS  # noqa: E402  single pre-declared s
 # q_ansatz=reupload with the default 2 layers. Federated = 4 clients,
 # 25 rounds x 4 local epochs, random partition. Dirichlet is assumed equal
 # to random.
+#
+# The classical and ablation hours were measured with CUDA_LAUNCH_BLOCKING=1
+# in every job script. The flag is no longer exported (it doubled the A100
+# step time of every model, see docs/MODEL.md), so these values are now
+# conservative and will drop once remeasured.
+#
+# Quantum hours are PROVISIONAL until the PennyLane smoke job
+# (misc/smoke_pennylane_fast.sh) has run. Quantum jobs now pass
+# --q-backend pennylane (one broadcast default.qubit QNode call per block
+# forward, circuit on CPU). They are set to ablation x 1.5, which under
+# SAFETY_FACTOR still covers the earlier torch simulator grid (sacct,
+# CUDA_LAUNCH_BLOCKING on, per-cell means in hours: centralized optical 0.16,
+# sar 0.70, combined 0.83, federated optical 0.65, sar 2.81, combined 3.38).
+# Replace them with the smoke job's sacct elapsed hours.
 MEASURED_HOURS = {
     ("classical", "centralized"): 0.10,
     ("ablation", "centralized"): 0.12,
-    # Quantum hours were measured with the PennyLane backend (0.40 / 3.21 h).
-    # The default torch statevector backend ran at 1.02-1.07x the step time
-    # of the matched ablation on an A100 (see docs/MODEL.md,
-    # 2026-10-02), so quantum is estimated as ablation x 1.10.
-    ("quantum", "centralized"): 0.13,
+    ("quantum", "centralized"): 0.18,  # provisional, see above
     ("classical", "federated"): 0.51,
     ("ablation", "federated"): 0.56,
-    ("quantum", "federated"): 0.62,
+    ("quantum", "federated"): 0.84,  # provisional, see above
 }
+# Circuit simulator passed to every quantum job (--q-backend). 'pennylane' is
+# the single-call PennyLane path. Recorded on the command line so the job
+# script shows which simulator produced the results.
+Q_BACKEND = "pennylane"
 OPTICAL_TRAIN_TILES = 200
 TRAIN_TILES = {"optical": 200, "sar": 1119, "combined": 1318}
 DATASET_SCALE = {k: v / OPTICAL_TRAIN_TILES for k, v in TRAIN_TILES.items()}
@@ -147,7 +161,6 @@ module load modtree/gpu
 module load cuda/12.0.1
 source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate quaffle
-export CUDA_LAUNCH_BLOCKING=1
 export XLA_FLAGS="--xla_gpu_enable_cudnn_frontend=false"
 export TF_CPP_MIN_LOG_LEVEL=1
 export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:128"
@@ -190,7 +203,8 @@ def supports_ckpt_every(root, script):
 
 def build_job(method, mode, dataset, seed, root, python=DEFAULT_PYTHON, alpha=0.5,
               q_ansatz="reupload", q_layers=None, knockout=True, quantum_channels=None,
-              ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS):
+              ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
+              q_backend=Q_BACKEND):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -207,6 +221,8 @@ def build_job(method, mode, dataset, seed, root, python=DEFAULT_PYTHON, alpha=0.
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
+    if method == "quantum":
+        args += ["--q-backend", q_backend]
     if method == "quantum" and knockout:
         args += ["--quantum-knockout-eval"]
     qc = MEASURED_QC
@@ -526,6 +542,10 @@ def main(argv=None):
     ap.add_argument("--alpha", type=float, default=0.5, help="Dirichlet alpha (default 0.5)")
     ap.add_argument("--q-ansatz", choices=["reupload", "legacy"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
+    ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
+                    default=Q_BACKEND,
+                    help="Circuit simulator passed to quantum jobs (default %(default)s). Use "
+                         "'torch' only for a cross-check grid, the time limits assume pennylane")
     ap.add_argument("--no-quantum-knockout-eval", dest="knockout", action="store_false",
                     help="Do not pass --quantum-knockout-eval to quantum jobs (on by default)")
     ap.add_argument("--ckpt-every", type=int, default=5,
@@ -566,7 +586,7 @@ def main(argv=None):
                         alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
                         knockout=args.knockout, ckpt_every=args.ckpt_every,
                         ckpt_support=support.get(script, False), safety=args.safety,
-                        floor=args.floor_hours))
+                        floor=args.floor_hours, q_backend=args.q_backend))
     finish(ap, args, jobs, out_dir)
 
 

@@ -1,7 +1,9 @@
 """Equivalence tests for the QuantumBlock circuit simulators.
 
-q_backend='torch' (exact batched statevector simulation) must match
-q_backend='pennylane' (default.qubit QNodes) in outputs and gradients.
+q_backend='pennylane' (one broadcast default.qubit QNode call per forward),
+q_backend='pennylane_pergroup' (one QNode per group, the original path) and
+q_backend='torch' (exact batched statevector simulation) must agree in outputs
+and gradients. The per-group PennyLane path is the reference.
 
 Run with pytest or directly: python tests/test_quantum_backend.py
 """
@@ -21,15 +23,19 @@ TOL32 = 1e-6
 TOL64 = 1e-10
 TOL32_GRAD_REL = 5e-6
 RESULTS = {}
+REF = 'pennylane_pergroup'
+BACKENDS = ('pennylane', 'pennylane_pergroup', 'torch')
+OTHERS = tuple(b for b in BACKENDS if b != REF)
 
 
-def _pair(q_ansatz, q_layers, seed=3, groups=8):
-    a = unet.QuantumBlock(backend='pennylane', quantum_channels=4 * groups, seed=seed,
-                          q_ansatz=q_ansatz, q_layers=q_layers, q_backend='pennylane')
-    b = unet.QuantumBlock(backend='pennylane', quantum_channels=4 * groups, seed=seed,
-                          q_ansatz=q_ansatz, q_layers=q_layers, q_backend='torch')
-    b.load_state_dict(a.state_dict())
-    return a, b
+def _blocks(q_ansatz, q_layers, seed=3, groups=8):
+    """One block per q_backend, all with the reference block's parameters."""
+    out = {qb: unet.QuantumBlock(backend='pennylane', quantum_channels=4 * groups, seed=seed,
+                                 q_ansatz=q_ansatz, q_layers=q_layers, q_backend=qb)
+           for qb in BACKENDS}
+    for qb in OTHERS:
+        out[qb].load_state_dict(out[REF].state_dict())
+    return out
 
 
 def _randomize(block, gen):
@@ -63,41 +69,47 @@ def _reldiff(a, b):
 
 def check_block(q_ansatz, q_layers, dtype, batch=5, seed=0):
     gen = torch.Generator().manual_seed(seed)
-    a, b = _pair(q_ansatz, q_layers)
-    _randomize(a, gen)
-    b.load_state_dict(a.state_dict())
+    blocks = _blocks(q_ansatz, q_layers)
+    _randomize(blocks[REF], gen)
+    for qb in OTHERS:
+        blocks[qb].load_state_dict(blocks[REF].state_dict())
     x = torch.randn(batch, 32, 6, 6, generator=gen) * 1.5
-    ya, gxa, gpa = _run(a, x, dtype)
-    yb, gxb, gpb = _run(b, x, dtype)
-    assert set(gpa) == set(gpb)
-    wn = [n for n in gpa if 'quantum_params' in n]
-    sn = [n for n in gpa if 'input_scales' in n]
-    res = dict(
-        out=_maxdiff(ya, yb),
-        grad_x=_maxdiff(gxa, gxb),
-        grad_w=max(_maxdiff(gpa[n], gpb[n]) for n in wn),
-        grad_s=max([_maxdiff(gpa[n], gpb[n]) for n in sn] or [0.0]),
-        rel_grad_x=_reldiff(gxa, gxb),
-        rel_grad_w=max(_reldiff(gpa[n], gpb[n]) for n in wn),
-        rel_grad_s=max([_reldiff(gpa[n], gpb[n]) for n in sn] or [0.0]),
-        max_abs_grad_w=max(gpa[n].abs().max().item() for n in wn),
-    )
-    key = f"{q_ansatz} L={q_layers} {str(dtype).replace('torch.', '')}"
-    RESULTS[key] = res
-    # Both paths cast the block output to float32, so outputs agree to float32
-    # resolution for any parameter dtype.
-    assert res['out'] < TOL32, (key, res)
-    if dtype == torch.float64:
-        # Exact same math: gradients agree to double precision
-        for k in ('grad_x', 'grad_w', 'grad_s'):
-            assert res[k] < TOL64, (key, k, res)
-    else:
-        # float32 gradients are float32 sums over batch and pixels taken in a
-        # different order by the two paths, so compare relative to their scale.
-        # float32 eps is 1.2e-7, observed relative differences are up to ~1e-6.
-        for k in ('rel_grad_x', 'rel_grad_w', 'rel_grad_s'):
-            assert res[k] < TOL32_GRAD_REL, (key, k, res)
-    return res
+    ya, gxa, gpa = _run(blocks[REF], x, dtype)
+    out = {}
+    for qb in OTHERS:
+        yb, gxb, gpb = _run(blocks[qb], x, dtype)
+        assert set(gpa) == set(gpb)
+        wn = [n for n in gpa if 'quantum_params' in n]
+        sn = [n for n in gpa if 'input_scales' in n]
+        res = dict(
+            out=_maxdiff(ya, yb),
+            grad_x=_maxdiff(gxa, gxb),
+            grad_w=max(_maxdiff(gpa[n], gpb[n]) for n in wn),
+            grad_s=max([_maxdiff(gpa[n], gpb[n]) for n in sn] or [0.0]),
+            rel_grad_x=_reldiff(gxa, gxb),
+            rel_grad_w=max(_reldiff(gpa[n], gpb[n]) for n in wn),
+            rel_grad_s=max([_reldiff(gpa[n], gpb[n]) for n in sn] or [0.0]),
+            max_abs_grad_w=max(gpa[n].abs().max().item() for n in wn),
+        )
+        key = f"{q_ansatz} L={q_layers} {str(dtype).replace('torch.', '')} {REF} vs {qb}"
+        RESULTS[key] = res
+        # All paths cast the block output to float32, so outputs agree to
+        # float32 resolution for any parameter dtype.
+        assert res['out'] < TOL32, (key, res)
+        if qb == 'pennylane':
+            # Same QNode gates, only broadcast: forward is bit-identical
+            assert torch.equal(ya, yb), key
+        if dtype == torch.float64:
+            # Exact same math: gradients agree to double precision
+            for k in ('grad_x', 'grad_w', 'grad_s'):
+                assert res[k] < TOL64, (key, k, res)
+        else:
+            # float32 gradients are float32 sums over batch and pixels taken in
+            # a different order by the paths, so compare relative to their scale.
+            for k in ('rel_grad_x', 'rel_grad_w', 'rel_grad_s'):
+                assert res[k] < TOL32_GRAD_REL, (key, k, res)
+        out[qb] = res
+    return out
 
 
 def test_reupload_l2_f32():
@@ -139,69 +151,100 @@ def test_closed_form_legacy():
 
 def test_state_dict_and_param_count():
     for ans, L in (('legacy', 1), ('reupload', 2), ('reupload', 3)):
-        a, b = _pair(ans, L)
-        assert list(a.state_dict()) == list(b.state_dict())
-        for k in a.state_dict():
-            assert a.state_dict()[k].shape == b.state_dict()[k].shape
-            assert torch.equal(a.state_dict()[k], b.state_dict()[k])
-        na = sum(p.numel() for p in a.parameters())
-        nb = sum(p.numel() for p in b.parameters())
-        assert na == nb == 8 * a.n_params_per_group, (ans, L, na, nb)
-    # Same seed gives the same init for both backends without load_state_dict
-    a = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=11, q_backend='pennylane')
-    b = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=11, q_backend='torch')
-    for k in a.state_dict():
-        assert torch.equal(a.state_dict()[k], b.state_dict()[k])
+        blocks = _blocks(ans, L)
+        a = blocks[REF]
+        for qb in OTHERS:
+            b = blocks[qb]
+            assert list(a.state_dict()) == list(b.state_dict())
+            for k in a.state_dict():
+                assert a.state_dict()[k].shape == b.state_dict()[k].shape
+                assert torch.equal(a.state_dict()[k], b.state_dict()[k])
+        counts = {qb: sum(p.numel() for p in m.parameters()) for qb, m in blocks.items()}
+        assert set(counts.values()) == {8 * a.n_params_per_group}, (ans, L, counts)
+    # Same seed gives the same init for every backend without load_state_dict
+    built = {qb: unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=11, q_backend=qb)
+             for qb in BACKENDS}
+    for qb in OTHERS:
+        for k in built[REF].state_dict():
+            assert torch.equal(built[REF].state_dict()[k], built[qb].state_dict()[k])
+
+
+def test_default_q_backend_is_pennylane():
+    blk = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=0)
+    assert blk.q_backend == 'pennylane' and blk.q_sim_device == 'cpu'
+    assert blk.pennylane_circuits == []
 
 
 def test_no_global_rng_change():
-    torch.manual_seed(123)
-    before = torch.get_rng_state().clone()
-    blk = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=5, q_backend='torch')
-    blk.set_quantum_mode('random', knockout_seed=4)
-    blk(torch.randn(2, 32, 4, 4, generator=torch.Generator().manual_seed(0)))
-    assert torch.equal(before, torch.get_rng_state())
+    for qb in BACKENDS:
+        torch.manual_seed(123)
+        before = torch.get_rng_state().clone()
+        blk = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=5, q_backend=qb)
+        x = torch.randn(2, 32, 4, 4, generator=torch.Generator().manual_seed(0))
+        blk(x)
+        blk.set_quantum_mode('random', knockout_seed=4)
+        blk(x).sum()
+        assert torch.equal(before, torch.get_rng_state()), qb
 
 
 def test_knockout_modes():
     gen = torch.Generator().manual_seed(9)
     x = torch.randn(3, 32, 4, 4, generator=gen)
     for ans, L in (('legacy', 1), ('reupload', 2)):
-        a, b = _pair(ans, L)
-        a.eval()
-        b.eval()
+        blocks = _blocks(ans, L)
+        ref = blocks[REF]
+        trained = {k: v.clone() for k, v in ref.state_dict().items()}
+        for m in blocks.values():
+            m.eval()
         with torch.no_grad():
-            on_a, on_b = a(x), b(x)
-            assert _maxdiff(on_a, on_b) < TOL32
-            for m in (a, b):
+            on = {qb: m(x) for qb, m in blocks.items()}
+            for qb in OTHERS:
+                assert _maxdiff(on[REF], on[qb]) < TOL32, (ans, qb)
+            for m in blocks.values():
                 m.set_quantum_mode('zero')
-            assert torch.count_nonzero(a(x)) == 0 and torch.count_nonzero(b(x)) == 0
-            assert a(x).shape == b(x).shape == on_a.shape
-            for m in (a, b):
+            for qb, m in blocks.items():
+                z = m(x)
+                assert torch.count_nonzero(z) == 0 and z.shape == on[REF].shape, qb
+                assert z.device == x.device
+            for m in blocks.values():
                 m.set_quantum_mode('random', knockout_seed=17)
-            ra, rb = a(x), b(x)
-            d = _maxdiff(ra, rb)
-            RESULTS[f'knockout random {ans}'] = dict(out=d)
-            assert d < TOL32, d
-            assert _maxdiff(ra, on_a) > 1e-3
+            rnd = {qb: m(x) for qb, m in blocks.items()}
+            for qb in OTHERS:
+                d = _maxdiff(rnd[REF], rnd[qb])
+                RESULTS[f'knockout random {ans} {REF} vs {qb}'] = dict(out=d)
+                assert d < TOL32, (qb, d)
+            # Same circuit gates in both PennyLane paths
+            assert torch.equal(rnd[REF], rnd['pennylane'])
+            assert _maxdiff(rnd[REF], on[REF]) > 1e-3
             # Same knockout seed gives the same random circuit again
-            b.set_quantum_mode('random', knockout_seed=17)
-            assert torch.equal(b(x), rb)
-            for m in (a, b):
+            for qb, m in blocks.items():
+                m.set_quantum_mode('random', knockout_seed=17)
+                assert torch.equal(m(x), rnd[qb]), qb
+            for m in blocks.values():
                 m.set_quantum_mode('on')
-            assert torch.equal(a(x), on_a) and torch.equal(b(x), on_b)
+            for qb, m in blocks.items():
+                assert torch.equal(m(x), on[qb]), qb
+        for k, v in ref.state_dict().items():
+            assert torch.equal(v, trained[k])
 
 
 def test_set_q_backend_switch():
     gen = torch.Generator().manual_seed(2)
     x = torch.randn(2, 32, 4, 4, generator=gen)
     blk = unet.QuantumBlock(backend='pennylane', quantum_channels=32, seed=1, q_backend='torch')
+    ys = {}
     with torch.no_grad():
-        yt = blk(x)
-        blk.set_q_backend('pennylane')
-        yp = blk(x)
-        blk.set_q_backend('torch')
-    assert _maxdiff(yt, yp) < TOL32
+        for qb in ('torch', 'pennylane_pergroup', 'pennylane', 'torch'):
+            blk.set_q_backend(qb)
+            ys.setdefault(qb, blk(x))
+    assert blk.pennylane_circuits == []
+    for qb in OTHERS:
+        assert _maxdiff(ys[REF], ys[qb]) < TOL32
+    assert torch.equal(ys[REF], ys['pennylane'])
+    # q_sim_device='model' on a CPU input is the same computation
+    blk.set_q_backend('pennylane').set_q_sim_device('model')
+    with torch.no_grad():
+        assert torch.equal(blk(x), ys['pennylane'])
 
 
 def _full_models(q_ansatz, q_layers, share=True):
@@ -209,37 +252,41 @@ def _full_models(q_ansatz, q_layers, share=True):
     cfg = dict(base_channels=8, init_dim=8, out_dim=2, dim_mults=(1, 2, 4, 8),
                resnet_block_groups=4, quantum_channels=32, quantum_backend='pennylane',
                q_ansatz=q_ansatz, q_layers=q_layers, q_share_blocks=share)
-    cp = dict(cfg, q_backend='pennylane')
-    ct = dict(cfg, q_backend='torch')
-    mp = QVUNetSegmentation(cp, seed=21)
-    mt = QVUNetSegmentation(ct, seed=99)
-    mt.load_state_dict(mp.state_dict())
-    return mp, mt
+    models = {REF: QVUNetSegmentation(dict(cfg, q_backend=REF), seed=21)}
+    for k, qb in enumerate(OTHERS):
+        models[qb] = QVUNetSegmentation(dict(cfg, q_backend=qb), seed=99 + k)
+        models[qb].load_state_dict(models[REF].state_dict())
+    return models
 
 
 def check_full_model(q_ansatz, q_layers, share=True):
-    mp, mt = _full_models(q_ansatz, q_layers, share)
+    models = _full_models(q_ansatz, q_layers, share)
     gen = torch.Generator().manual_seed(4)
     x = torch.randn(2, 3, 16, 16, generator=gen)
     masks = (torch.rand(2, 1, 16, 16, generator=gen) > 0.5).long()
-    res = []
-    for m in (mp, mt):
+    res = {}
+    for qb, m in models.items():
         m.train()
         out = m(x)
         loss = torch.nn.functional.cross_entropy(out, masks.squeeze(1))
         loss.backward()
         grads = {n: p.grad.detach().clone() for n, p in m.named_parameters()}
-        res.append((out.detach(), loss.item(), grads))
-    d_out = _maxdiff(res[0][0], res[1][0])
-    d_loss = abs(res[0][1] - res[1][1])
-    d_grad = max(_maxdiff(res[0][2][n], res[1][2][n]) for n in res[0][2])
-    qnames = [n for n in res[0][2] if 'quantum_params' in n or 'input_scales' in n]
-    d_qgrad = max(_maxdiff(res[0][2][n], res[1][2][n]) for n in qnames)
-    key = f"full model {q_ansatz} L={q_layers} share={share}"
-    RESULTS[key] = dict(out=d_out, loss=d_loss, grad_all=d_grad, grad_q=d_qgrad)
-    assert d_out < 1e-5, d_out
-    assert d_grad < 1e-5, d_grad
-    assert d_qgrad < 1e-6, d_qgrad
+        res[qb] = (out.detach(), loss.item(), grads)
+    r0 = res[REF]
+    for qb in OTHERS:
+        r1 = res[qb]
+        d_out = _maxdiff(r0[0], r1[0])
+        d_loss = abs(r0[1] - r1[1])
+        d_grad = max(_maxdiff(r0[2][n], r1[2][n]) for n in r0[2])
+        qnames = [n for n in r0[2] if 'quantum_params' in n or 'input_scales' in n]
+        d_qgrad = max(_maxdiff(r0[2][n], r1[2][n]) for n in qnames)
+        key = f"full model {q_ansatz} L={q_layers} share={share} {REF} vs {qb}"
+        RESULTS[key] = dict(out=d_out, loss=d_loss, grad_all=d_grad, grad_q=d_qgrad)
+        assert d_out < 1e-5, (qb, d_out)
+        assert d_grad < 1e-5, (qb, d_grad)
+        assert d_qgrad < 1e-6, (qb, d_qgrad)
+        if qb == 'pennylane':
+            assert torch.equal(r0[0], r1[0]), key
 
 
 def test_full_model_reupload():
@@ -260,11 +307,32 @@ def test_full_param_count_unchanged():
                resnet_block_groups=4, quantum_channels=32, quantum_backend='pennylane',
                q_ansatz='reupload', q_layers=2, q_share_blocks=True)
     n = {}
-    for qb in ('pennylane', 'torch'):
-        m = QVUNetSegmentation(dict(cfg, q_backend=qb), seed=0)
-        n[qb] = sum(p.numel() for p in m.parameters())
+    for qb in BACKENDS + (None,):
+        c = dict(cfg) if qb is None else dict(cfg, q_backend=qb)
+        m = QVUNetSegmentation(c, seed=0)
+        n[qb or 'default'] = sum(p.numel() for p in m.parameters())
     RESULTS['param count reupload L=2 shared'] = n
-    assert n['pennylane'] == n['torch'] == 8_758_370, n
+    assert set(n.values()) == {8_758_370}, n
+
+
+def test_state_dict_cross_load():
+    """A checkpoint written by a q_backend='torch' model loads into a
+    q_backend='pennylane' model with strict=True and gives the same outputs."""
+    from utilsTorch.utilsTorch import QVUNetSegmentation
+    cfg = dict(base_channels=8, init_dim=8, out_dim=2, dim_mults=(1, 2, 4, 8),
+               resnet_block_groups=4, quantum_channels=32, quantum_backend='pennylane',
+               q_ansatz='reupload', q_layers=2, q_share_blocks=True)
+    mt = QVUNetSegmentation(dict(cfg, q_backend='torch'), seed=5)
+    mp = QVUNetSegmentation(dict(cfg, q_backend='pennylane'), seed=77)
+    sd = copy.deepcopy(mt.state_dict())
+    mp.model.load_state_dict(sd, strict=True)
+    x = torch.randn(2, 3, 16, 16, generator=torch.Generator().manual_seed(8))
+    mt.eval()
+    mp.eval()
+    with torch.no_grad():
+        d = _maxdiff(mt(x), mp(x))
+    RESULTS['state_dict torch -> pennylane'] = dict(out=d)
+    assert d < 1e-5, d
 
 
 if __name__ == '__main__':
@@ -277,7 +345,7 @@ if __name__ == '__main__':
         except Exception as e:  # report and continue
             failed += 1
             print(f"FAIL {t.__name__}: {e!r}")
-    print("\nmax abs differences (pennylane vs torch):")
+    print("\nmax abs differences:")
     for k, v in RESULTS.items():
         print(f"  {k}: " + ", ".join(f"{a}={b:.3e}" if isinstance(b, float) else f"{a}={b}"
                                       for a, b in v.items()))

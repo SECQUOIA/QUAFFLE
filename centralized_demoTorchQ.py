@@ -64,6 +64,10 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         checkpoint = tc.safe_torch_load(checkpoint_path, map_location=device)
         if checkpoint is not None and not tc.checkpoint_compatible(checkpoint):
             checkpoint = None
+        # Never resume a checkpoint written with another circuit simulator
+        # (a missing q_backend means the torch simulator).
+        if checkpoint is not None and not tc.checkpoint_matches_q_backend(checkpoint, config):
+            checkpoint = None
     if checkpoint is not None:
         checkpoint_loaded = False
         try:
@@ -132,6 +136,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             tc.atomic_torch_save({
                 'model_state_dict': model.state_dict(),
                 'run_format': tc.RUN_FORMAT,
+                'q_backend': config['q_backend'],
                 'optimizer_state_dict': optimizer.state_dict(),
                 'step': step,
                 'train_metrics': train_metrics,
@@ -146,6 +151,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 torch.save({
                     'model_state_dict': model.state_dict(),
                     'run_format': tc.RUN_FORMAT,
+                    'q_backend': config['q_backend'],
                     'optimizer_state_dict': optimizer.state_dict(),
                     'step': step,
                     'train_metrics': train_metrics,
@@ -180,20 +186,26 @@ def main():
     print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     
     tc.apply_common_args(config, args)
-    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart.
-    output_dir = f"results/flood_central_optical_pytorch_pennylane{ds_suffix}{tc.variant_tag(config)}_seed{config['seed']}"
+    config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
+    # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
+    # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
+    output_dir = (f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
+                  f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}")
     print(f"Output directory: {output_dir}")
 
     # Seed python, numpy, torch and cuda once, before any data or model work.
     tc.seed_everything(config['seed'])
     provenance = collect_provenance(seed=config['seed'])
+    provenance['q_backend'] = config['q_backend']
     config['provenance'] = provenance
     print_provenance(provenance)
     
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     print(f"  - Quantum channels: {config['quantum_channels']}")
-    print(f"  - Quantum backend: {config['quantum_backend']}")
+    print(f"  - Quantum family: {config['quantum_backend']}")
+    print(f"  - Quantum circuit simulator (q_backend): {config['q_backend']}, "
+          f"q_sim_device: {config.get('q_sim_device', tc.DEFAULT_Q_SIM_DEVICE)}")
     print(f"  - Image size: {config['image_size']}")
     print(f"  - Batch size: {config['batch_size']}")
     print(f"  - Training steps: {config['num_train_steps']}")
@@ -230,6 +242,8 @@ def main():
         print(f"Model initialized successfully!")
         print(f"Total parameters: {total_params:,}")
         print(f"Trainable parameters: {trainable_params:,}")
+        q_simulator = tc.quantum_simulator_info(model, config)
+        print(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}")
     except Exception as e:
         print(f"Error initializing model: {e}")
         import traceback
@@ -309,7 +323,8 @@ def main():
         with open(summary_path, 'w') as f:
             f.write("Quantum Flood Segmentation Results Summary\n")
             f.write("=" * 50 + "\n\n")
-            f.write(f"Model: QVUNet with {config['quantum_backend']} backend\n")
+            f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
+            f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
             f.write(f"Quantum channels: {config['quantum_channels']}\n")
             f.write(f"Base channels: {config['base_channels']}\n")
             f.write(f"Image size: {config['image_size']}\n")
@@ -360,7 +375,7 @@ def main():
         model_type="quantum", config=excel_config, val_metrics=final_val,
         test_metrics=test_result, history=val_metrics, total_params=total_params,
         knockout=knockout if config.get('quantum_knockout_eval') else None,
-        provenance=provenance)
+        provenance=provenance, q_simulator=q_simulator)
     # Shared Excel summary: best effort, a tracker failure never fails the run.
     tc.safe_tracker_call(
         save_results_to_excel,

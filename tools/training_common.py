@@ -35,6 +35,15 @@ DEFAULT_MIN_CLIENT_SAMPLES = 16
 DEFAULT_CKPT_EVERY = 5
 FED_CKPT_NAME = 'fed_resume.pt'
 
+# Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
+Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
+DEFAULT_Q_BACKEND = 'pennylane'
+Q_SIM_DEVICE_CHOICES = ('cpu', 'model')
+DEFAULT_Q_SIM_DEVICE = 'cpu'
+# Runs written before the q_backend option was recorded have no q_backend
+# record. The model always used the torch statevector simulator then.
+LEGACY_Q_BACKEND = 'torch'
+
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -63,6 +72,15 @@ def add_common_args(parser, quantum=True, federated=False):
         parser.add_argument('--quantum-knockout-eval', action='store_true',
                             help="Also evaluate the test set with the quantum block in "
                                  "mode 'zero' and 'random' and write both to summary.txt")
+        parser.add_argument('--q-backend', choices=list(Q_BACKEND_CHOICES),
+                            default=DEFAULT_Q_BACKEND,
+                            help="Quantum circuit simulator (default: pennylane, one broadcast "
+                                 "default.qubit QNode call per block). 'pennylane_pergroup' is "
+                                 "the old per-group PennyLane loop, 'torch' is the exact torch "
+                                 "statevector cross-check.")
+        parser.add_argument('--q-sim-device', choices=list(Q_SIM_DEVICE_CHOICES),
+                            default=DEFAULT_Q_SIM_DEVICE,
+                            help='Where the PennyLane circuit runs (default: cpu)')
     if federated:
         parser.add_argument('--rounds', type=int, default=None,
                             help='Override the number of federated rounds (debug)')
@@ -99,6 +117,9 @@ def apply_common_args(config, args):
         config['q_layers'] = args.q_layers
     if hasattr(args, 'quantum_knockout_eval'):
         config['quantum_knockout_eval'] = bool(args.quantum_knockout_eval)
+    if hasattr(args, 'q_backend'):
+        config['q_backend'] = args.q_backend
+        config['q_sim_device'] = getattr(args, 'q_sim_device', DEFAULT_Q_SIM_DEVICE)
     if hasattr(args, 'min_client_samples'):
         config['min_client_samples'] = int(args.min_client_samples)
     if getattr(args, 'epochs', None) is not None:
@@ -473,6 +494,28 @@ def checkpoint_compatible(ckpt):
     return True
 
 
+def checkpoint_q_backend(ckpt):
+    """q_backend recorded in a checkpoint dict. A checkpoint without the key
+    was written before the q_backend option was recorded, when the model
+    always used the torch statevector simulator."""
+    if not isinstance(ckpt, dict):
+        return None
+    return ckpt.get('q_backend', LEGACY_Q_BACKEND)
+
+
+def checkpoint_matches_q_backend(ckpt, config):
+    """True if a quantum checkpoint was produced with the circuit simulator
+    of this run (config['q_backend']). A missing key counts as 'torch'."""
+    want = config.get('q_backend', DEFAULT_Q_BACKEND)
+    have = checkpoint_q_backend(ckpt)
+    if have != want:
+        print(f"Ignoring existing checkpoint (q_backend={have!r}"
+              f"{' (not recorded, older code)' if 'q_backend' not in ckpt else ''}, "
+              f"this run uses {want!r}), starting from scratch")
+        return False
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Run naming (variant tag)
 # ---------------------------------------------------------------------------
@@ -511,6 +554,96 @@ def variant_tag(config):
     if ansatz == 'legacy':
         return '_legacy'
     return f'_{ansatz}_L{layers}'
+
+
+_BACKEND_TAGS = {'pennylane': '', 'torch': '_qtorch', 'pennylane_pergroup': '_qpergroup'}
+
+
+def backend_tag(config):
+    """Directory suffix for the quantum circuit simulator, appended after
+    variant_tag in the quantum demos only. '' for the default 'pennylane' so
+    PennyLane runs keep the canonical directory names; '_qtorch' and
+    '_qpergroup' keep cross-check runs (and their checkpoints) apart."""
+    qb = config.get('q_backend', DEFAULT_Q_BACKEND)
+    if qb not in _BACKEND_TAGS:
+        raise ValueError(f"Unknown q_backend {qb!r}, expected one of {sorted(_BACKEND_TAGS)}")
+    return _BACKEND_TAGS[qb]
+
+
+def quantum_simulator_info(model, config=None):
+    """Dict describing the circuit simulator the model was actually built with.
+
+    Uses model.quantum_simulator_info() (QVUNetSegmentation) or
+    simulator_info() of the first QuantumBlock when the model code provides
+    them. Older model code without those methods falls back to the q_backend
+    attribute of the instantiated quantum block, then to config['q_backend'],
+    and marks the dict with 'source' so the summary says where it came from.
+    """
+    config = config or {}
+    for obj in (model, getattr(model, '_model', None)):
+        fn = getattr(obj, 'quantum_simulator_info', None) if obj is not None else None
+        if callable(fn):
+            try:
+                info = fn()
+                if info:
+                    return dict(info)
+            except Exception as e:
+                print(f"WARNING: quantum_simulator_info() failed ({type(e).__name__}: {e})")
+    inner = getattr(model, 'model', None) if model is not None else None
+    inner = inner if inner is not None else model
+    if inner is not None and hasattr(inner, 'modules'):
+        for m in inner.modules():
+            fn = getattr(m, 'simulator_info', None)
+            if callable(fn):
+                try:
+                    info = fn()
+                    if info:
+                        return dict(info)
+                except Exception as e:
+                    print(f"WARNING: simulator_info() failed ({type(e).__name__}: {e})")
+                break
+        for m in inner.modules():
+            if hasattr(m, 'q_backend') and getattr(m, 'backend', None) is not None:
+                info = {'q_backend': getattr(m, 'q_backend'), 'family': getattr(m, 'backend'),
+                        'source': 'quantum block attribute (model code has no simulator_info)'}
+                if info['q_backend'] == 'torch':
+                    info.update(device='exact torch statevector simulator',
+                                diff_method='torch autograd', sim_device='model')
+                return info
+    return {'q_backend': config.get('q_backend', DEFAULT_Q_BACKEND),
+            'family': config.get('quantum_backend'),
+            'source': 'config (model code does not report its simulator)'}
+
+
+def format_quantum_simulator(info):
+    """One-line description of quantum_simulator_info() for summary.txt."""
+    if not info:
+        return 'unknown'
+    qb = info.get('q_backend')
+    if qb is None:
+        return f"none (quantum family: {info.get('family')})"
+    if qb == 'torch':
+        text = 'exact torch statevector simulator (q_backend=torch)'
+    elif info.get('device'):
+        parts = [f"PennyLane {info['device']}"]
+        if info.get('diff_method'):
+            parts.append(str(info['diff_method']))
+        if info.get('interface'):
+            parts.append(f"{info['interface']} interface")
+        if info.get('broadcast'):
+            parts.append(f"broadcast over {info['broadcast']}"
+                         if info['broadcast'].startswith('batch') else str(info['broadcast']))
+        if info.get('sim_device'):
+            parts.append(f"on {info['sim_device']}")
+        text = ', '.join(parts) + f" (q_backend={qb}"
+        if info.get('pennylane_version'):
+            text += f", PennyLane {info['pennylane_version']}"
+        text += ')'
+    else:
+        text = f"q_backend={qb}"
+    if info.get('source'):
+        text += f" [from {info['source']}]"
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -664,6 +797,10 @@ def run_fingerprint(config, model_type):
         'q_layers': layers if quantum else None,
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         'quantum_backend': config.get('quantum_backend') if quantum else None,
+        # Circuit simulator: a checkpoint written with another simulator (or
+        # before q_backend was recorded) is never resumed.
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
         'fed_rounds': int(config['fed_rounds']),
         'local_epochs': int(config['local_epochs']),
         'num_clients': int(config['num_clients']),
@@ -807,7 +944,8 @@ def _clean_metrics(m):
 
 def write_metrics_json(output_dir, *, script, training, model_type, config, val_metrics,
                        test_metrics, history=None, total_params=None, best_val_auc=None,
-                       knockout=None, provenance=None, extra=None):
+                       knockout=None, provenance=None, extra=None,
+                       q_simulator=None):
     """Canonical machine-readable result: <output_dir>/results/metrics.json.
 
     Written right after summary.txt and before the Excel tracker so analysis
@@ -829,6 +967,10 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
         'quantum_channels': config.get('quantum_channels') if quantum else None,
+        # Circuit simulator (quantum runs only). The ablation has no circuit.
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
+        'q_simulator': q_simulator if model_type == 'quantum' else None,
         'total_params': total_params,
         'fed_rounds': config.get('fed_rounds') if training == 'federated' else None,
         'local_epochs': config.get('local_epochs') if training == 'federated' else None,

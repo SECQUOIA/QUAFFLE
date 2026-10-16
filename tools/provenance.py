@@ -33,7 +33,14 @@ PROVENANCE_KEYS = [
     "flwr_version",
     "python_version",
     "start_time",
+    # Quantum circuit simulator of the run (quantum entry points only, set
+    # by the caller from config['q_backend']).
+    "q_backend",
 ]
+
+# Keys that are only written when the caller has set them (classical and
+# ablation runs have no quantum circuit simulator).
+OPTIONAL_PROVENANCE_KEYS = {"q_backend"}
 
 
 def _git(*args):
@@ -87,6 +94,8 @@ def format_provenance(prov):
     """Render a provenance dict as a block for summary.txt."""
     lines = ["Provenance:"]
     for k in PROVENANCE_KEYS:
+        if k in OPTIONAL_PROVENANCE_KEYS and k not in prov:
+            continue
         lines.append(f"  {k}: {prov.get(k)}")
     return "\n".join(lines) + "\n\n"
 

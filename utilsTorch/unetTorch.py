@@ -212,7 +212,8 @@ KNOCKOUT_SEED_OFFSET = 1_000_003
 
 
 def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None,
-                         seed=None, q_ansatz='reupload', q_layers=2, q_backend='torch'):
+                         seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
+                         q_sim_device='cpu'):
     """
     Create a QuantumBlock that processes channels in groups of 4.
 
@@ -224,16 +225,21 @@ def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=N
             torch.Generator seeded with it. If None, the global torch RNG is used.
         q_ansatz: 'legacy' (original circuit) or 'reupload'
         q_layers: Number of re-uploading layers (only used by 'reupload')
-        q_backend: circuit simulator for backend='pennylane'. 'torch' (exact
-            batched statevector simulation in torch) or 'pennylane' (QNodes on
-            default.qubit). Both give the same outputs and gradients.
+        q_backend: circuit simulator for backend='pennylane'. 'pennylane'
+            (default: one broadcast default.qubit QNode call per forward),
+            'pennylane_pergroup' (one QNode call per group, reference) or
+            'torch' (exact batched statevector simulation in torch, cross-check).
+            All give the same outputs and gradients.
+        q_sim_device: 'cpu' (default) or 'model'. Where the q_backend='pennylane'
+            circuit is simulated.
 
     Returns:
         QuantumBlock instance
     """
     return QuantumBlock(backend=backend, quantum_channels=quantum_channels,
                         ptlayer_config=ptlayer_config, seed=seed,
-                        q_ansatz=q_ansatz, q_layers=q_layers, q_backend=q_backend)
+                        q_ansatz=q_ansatz, q_layers=q_layers, q_backend=q_backend,
+                        q_sim_device=q_sim_device)
 
 
 def pennylane_default_circuit(n_qubits=4):
@@ -312,6 +318,59 @@ def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
     return circuit
 
 
+# Broadcast QNodes for q_backend='pennylane', one per (ansatz, layers, qubits).
+# Kept at module level (not on the module instance) so QuantumBlock stays
+# picklable and every block shares the same QNode.
+_FLAT_QNODES = {}
+
+
+def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None):
+    """One default.qubit QNode that evaluates all groups and batch items at once.
+
+    Inputs are broadcast along a leading axis K = B * G:
+      reupload: x [K, 4], weights [K, L, 4, 3], scales [K, L, 4]
+      legacy:   x [K, 4], theta [K, 4]
+    The gate sequence is identical to pennylane_reupload_circuit and
+    pennylane_default_circuit (native RY / Rot / RX / CNOT gates), with
+    diff_method='backprop' and the torch interface.
+    """
+    if n_qubits is None:
+        n_qubits = N_QUBITS
+    key = (q_ansatz, int(n_layers), int(n_qubits))
+    if key in _FLAT_QNODES:
+        return _FLAT_QNODES[key]
+    if not HAS_PENNYLANE:
+        raise ImportError("PennyLane not available, q_backend='pennylane' needs it.")
+    dev = qml.device("default.qubit", wires=n_qubits)
+    if q_ansatz == 'legacy':
+        @qml.qnode(dev, interface="torch", diff_method="backprop")
+        def circuit(x, theta):
+            for j in range(n_qubits):
+                qml.RX(x[:, j], wires=j)
+            for j in range(n_qubits):
+                qml.RY(theta[:, j], wires=j)
+            for j in range(n_qubits - 1):
+                qml.CNOT(wires=[j, j + 1])
+            qml.CNOT(wires=[n_qubits - 1, 0])
+            return [qml.expval(qml.PauliZ(j)) for j in range(n_qubits)]
+    elif q_ansatz == 'reupload':
+        @qml.qnode(dev, interface="torch", diff_method="backprop")
+        def circuit(x, weights, scales):
+            for l in range(int(n_layers)):
+                enc = math.pi * torch.tanh(x * scales[:, l])  # [K, n_qubits]
+                for j in range(n_qubits):
+                    qml.RY(enc[:, j], wires=j)
+                for j in range(n_qubits):
+                    qml.Rot(weights[:, l, j, 0], weights[:, l, j, 1], weights[:, l, j, 2], wires=j)
+                for j in range(n_qubits):
+                    qml.CNOT(wires=[j, (j + 1) % n_qubits])
+            return [qml.expval(qml.PauliZ(j)) for j in range(n_qubits)]
+    else:
+        raise ValueError(f"Unknown q_ansatz {q_ansatz!r}")
+    _FLAT_QNODES[key] = circuit
+    return circuit
+
+
 # --- Exact batched statevector simulator (q_backend='torch') ---
 #
 # Same math as PennyLane default.qubit for the two 4 qubit circuits above,
@@ -320,7 +379,14 @@ def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
 # basis index, as in PennyLane. The simulation runs in complex128 because
 # default.qubit returns float64 expectation values for these circuits. The
 # result is cast to float32 by QuantumBlock exactly like the PennyLane path.
-Q_BACKEND_CHOICES = ('torch', 'pennylane')
+#
+# q_backend values: 'pennylane' (default, one broadcast default.qubit QNode
+# call per block forward), 'pennylane_pergroup' (one QNode call per group,
+# legacy: per group and batch item; test reference), 'torch' (this simulator,
+# cross-check reference).
+Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
+Q_SIM_DEVICE_CHOICES = ('cpu', 'model')
+_PENNYLANE_Q_BACKENDS = ('pennylane', 'pennylane_pergroup')
 _SIM_CACHE = {}
 
 
@@ -479,11 +545,19 @@ class QuantumBlock(nn.Module):
             per group). PennyLane backend only.
         q_layers: Number of re-uploading layers for q_ansatz='reupload'.
         q_backend: how the backend='pennylane' circuits are simulated.
-            'torch' (default) runs an exact statevector simulation of all groups
-            and the whole batch in one pass of torch ops on the input's device.
-            'pennylane' evaluates one default.qubit QNode per group (the
-            original path, kept for verification). Parameters, state_dict and
-            outputs are the same for both. Switch at runtime with set_q_backend.
+            'pennylane' (default) evaluates every group and batch item with ONE
+            broadcast PennyLane default.qubit QNode call per forward
+            (diff_method='backprop', torch interface, native RY/Rot/RX/CNOT gates).
+            'pennylane_pergroup' is the original loop (one QNode call per group,
+            and per batch item for legacy), kept as a test reference.
+            'torch' runs an exact statevector simulation of all groups and the
+            whole batch in plain torch ops on the input's device (cross-check).
+            Parameters, state_dict and outputs are the same for all three.
+            Switch at runtime with set_q_backend.
+        q_sim_device: 'cpu' (default) runs the q_backend='pennylane' circuit on
+            the CPU (16 amplitude statevector, far fewer kernel launches) and
+            moves the result back to the input's device. 'model' runs it on the
+            input's device. Ignored by the other q_backend values.
 
     Knockout: set_quantum_mode('on' | 'zero' | 'random') switches the forward
     pass between the trained circuit, an all-zero output, or the same circuit
@@ -491,7 +565,8 @@ class QuantumBlock(nn.Module):
     parameters and state_dict are not modified.
     """
     def __init__(self, backend='ptlayer', quantum_channels=8, ptlayer_config=None,
-                 seed=None, q_ansatz='reupload', q_layers=2, q_backend='torch'):
+                 seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
+                 q_sim_device='cpu'):
         super().__init__()
 
         if q_ansatz not in Q_ANSATZ_CHOICES:
@@ -500,6 +575,8 @@ class QuantumBlock(nn.Module):
             raise ValueError("q_layers must be >= 1")
         if q_backend not in Q_BACKEND_CHOICES:
             raise ValueError(f"Unknown q_backend {q_backend!r}, expected one of {Q_BACKEND_CHOICES}")
+        if q_sim_device not in Q_SIM_DEVICE_CHOICES:
+            raise ValueError(f"Unknown q_sim_device {q_sim_device!r}, expected one of {Q_SIM_DEVICE_CHOICES}")
 
         self.backend = backend
         self.quantum_channels = quantum_channels
@@ -510,6 +587,7 @@ class QuantumBlock(nn.Module):
         self._random_params = None
         self._random_stacked = None
         self.q_backend = q_backend
+        self.q_sim_device = q_sim_device
         
         # Calculate number of 4-channel groups
         self.num_groups = quantum_channels // 4
@@ -575,11 +653,12 @@ class QuantumBlock(nn.Module):
                 self.tbi = None
                 
         elif backend == 'pennylane':
-            if not HAS_PENNYLANE and q_backend == 'pennylane':
+            if not HAS_PENNYLANE and q_backend in _PENNYLANE_Q_BACKENDS:
                 raise ImportError("PennyLane not available. Install PennyLane or use q_backend='torch'.")
             
-            # QNodes for each 4-channel group (built lazily, only used by
-            # q_backend='pennylane')
+            # Per-group QNodes, only built for q_backend='pennylane_pergroup'.
+            # q_backend='pennylane' uses the module-level broadcast QNode cache
+            # (pennylane_flat_qnode), so nothing unpicklable is stored here.
             self.pennylane_circuits = []
             self.quantum_params = nn.ParameterList()
             # Learnable per-layer input scales (reupload only)
@@ -595,7 +674,7 @@ class QuantumBlock(nn.Module):
                     weights = nn.Parameter(_uniform((self.q_layers, N_QUBITS, 3), -math.pi, math.pi, generator))
                     self.quantum_params.append(weights)
                     self.input_scales.append(nn.Parameter(torch.ones(self.q_layers, N_QUBITS)))
-            if q_backend == 'pennylane':
+            if q_backend == 'pennylane_pergroup':
                 self._build_pennylane_circuits()
                 
         else:
@@ -611,7 +690,7 @@ class QuantumBlock(nn.Module):
 
     def _build_pennylane_circuits(self):
         if not HAS_PENNYLANE:
-            raise ImportError("PennyLane not available, q_backend='pennylane' needs it.")
+            raise ImportError("PennyLane not available, q_backend='pennylane_pergroup' needs it.")
         if self.pennylane_circuits:
             return
         for _ in range(self.num_groups):
@@ -622,14 +701,42 @@ class QuantumBlock(nn.Module):
                     pennylane_reupload_circuit(n_qubits=N_QUBITS, n_layers=self.q_layers))
 
     def set_q_backend(self, q_backend):
-        """Switch the circuit simulator ('torch' or 'pennylane') in place.
-        Parameters are untouched."""
+        """Switch the circuit simulator ('pennylane', 'pennylane_pergroup' or
+        'torch') in place. Parameters are untouched."""
         if q_backend not in Q_BACKEND_CHOICES:
             raise ValueError(f"Unknown q_backend {q_backend!r}, expected one of {Q_BACKEND_CHOICES}")
-        if self.backend == 'pennylane' and q_backend == 'pennylane':
-            self._build_pennylane_circuits()
+        if self.backend == 'pennylane':
+            if q_backend == 'pennylane_pergroup':
+                self._build_pennylane_circuits()
+            else:
+                # Drop the per-group QNodes so the block stays picklable
+                self.pennylane_circuits = []
+                if q_backend == 'pennylane' and not HAS_PENNYLANE:
+                    raise ImportError("PennyLane not available, q_backend='pennylane' needs it.")
         self.q_backend = q_backend
         return self
+
+    def set_q_sim_device(self, q_sim_device):
+        """'cpu' or 'model': where the q_backend='pennylane' circuit runs."""
+        if q_sim_device not in Q_SIM_DEVICE_CHOICES:
+            raise ValueError(f"Unknown q_sim_device {q_sim_device!r}, expected one of {Q_SIM_DEVICE_CHOICES}")
+        self.q_sim_device = q_sim_device
+        return self
+
+    def simulator_info(self):
+        """Plain dict describing how the circuit is simulated (for summaries,
+        metrics.json and provenance)."""
+        if self.backend != 'pennylane':
+            return {'q_backend': None, 'family': self.backend}
+        if self.q_backend == 'torch':
+            return {'q_backend': 'torch', 'device': 'exact torch statevector simulator',
+                    'diff_method': 'torch autograd', 'sim_device': 'model'}
+        return {'q_backend': self.q_backend, 'device': 'default.qubit', 'interface': 'torch',
+                'diff_method': 'backprop',
+                'broadcast': ('batch x groups, one call per block forward'
+                              if self.q_backend == 'pennylane' else 'per group (legacy: per item)'),
+                'sim_device': self.q_sim_device if self.q_backend == 'pennylane' else 'model',
+                'pennylane_version': qml.__version__ if HAS_PENNYLANE else None}
 
     # --- Knockout ---
     def set_quantum_mode(self, mode='on', knockout_seed=0):
@@ -698,6 +805,31 @@ class QuantumBlock(nn.Module):
             y = torch_reupload_expvals(pooled, w, s)
         y = y.reshape(B, G * N_QUBITS).to(torch.float32)
         return y.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, H, W)
+
+    def _forward_pennylane_flat(self, x):
+        """q_backend='pennylane': one broadcast QNode call over (batch x groups)."""
+        B, _, H, W = x.shape
+        G = self.num_groups
+        if G == 0:
+            return torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
+        sim = torch.device('cpu') if self.q_sim_device == 'cpu' else x.device
+        # Same per-channel spatial mean as the per-group path; row k = b * G + g
+        pooled = x[:, :G * N_QUBITS].mean(dim=(2, 3)).reshape(B * G, N_QUBITS).to(sim)
+        w, s = self._stacked_params(sim)
+        w = w.to(sim)
+        circuit = pennylane_flat_qnode(self.q_ansatz, self.q_layers)
+        if self.q_ansatz == 'legacy':
+            theta = w.unsqueeze(0).expand(B, G, N_QUBITS).reshape(B * G, N_QUBITS)
+            y = circuit(pooled, theta)
+        else:
+            L = w.shape[1]
+            s = s.to(sim)
+            wf = w.unsqueeze(0).expand(B, G, L, N_QUBITS, 3).reshape(B * G, L, N_QUBITS, 3)
+            sf = s.unsqueeze(0).expand(B, G, L, N_QUBITS).reshape(B * G, L, N_QUBITS)
+            y = circuit(pooled, wf, sf)
+        y = torch.stack([torch.as_tensor(v).reshape(-1) for v in y], dim=-1)  # [B*G, 4]
+        y = y.reshape(B, G * N_QUBITS).to(device=x.device, dtype=torch.float32)
+        return y.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, H, W)
     
     def forward(self, x, params=None):
         B, C, H, W = x.shape
@@ -741,10 +873,14 @@ class QuantumBlock(nn.Module):
             
             return y.float()
             
+        elif self.backend == 'pennylane' and self.q_backend == 'pennylane':
+            return self._forward_pennylane_flat(x)
+
         elif self.backend == 'pennylane' and self.q_backend == 'torch':
             return self._forward_torch_sim(x)
 
         elif self.backend == 'pennylane':
+            # q_backend='pennylane_pergroup': original per-group loop (reference)
             if not self.pennylane_circuits:
                 raise ValueError('PennyLane circuits not initialized for PennyLane backend')
             

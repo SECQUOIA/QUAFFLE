@@ -106,9 +106,14 @@ class QVUNetSegmentation(torch.nn.Module):
                         seed=None if self.seed is None else int(self.seed) + offset,
                         q_ansatz=q_ansatz,
                         q_layers=q_layers,
-                        # 'torch' (exact batched simulator, default) or
-                        # 'pennylane' (default.qubit QNodes). Same math.
-                        q_backend=self.config.get('q_backend', 'torch'),
+                        # 'pennylane' (default): one broadcast default.qubit
+                        # QNode call per block forward. 'pennylane_pergroup'
+                        # (per-group QNodes) and 'torch' (exact torch
+                        # statevector simulator) are references. Same math.
+                        q_backend=self.config.get('q_backend', 'pennylane'),
+                        # 'cpu' (default) or 'model': where the
+                        # q_backend='pennylane' circuit is simulated.
+                        q_sim_device=self.config.get('q_sim_device', 'cpu'),
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)
@@ -130,6 +135,10 @@ class QVUNetSegmentation(torch.nn.Module):
         self._initialize_model()
         self._model.set_quantum_mode(mode, knockout_seed=knockout_seed)
         return self
+
+    def quantum_simulator_info(self):
+        """How the bottleneck circuit is simulated (see QuantumBlock.simulator_info)."""
+        return self.model.vertex.qresblock1.quantum_block.simulator_info()
     
     @property
     def model(self):
