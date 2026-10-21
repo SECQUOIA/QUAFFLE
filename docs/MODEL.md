@@ -36,8 +36,8 @@ draws, error below 1e-9):
 | `<Z_3>` | `c_0 c_1 c_2 c_3` |
 
 So the legacy block computes fixed products of cosines and can be evaluated
-classically in a few multiplications. It is kept only to reproduce the
-original results.
+classically in a few multiplications. It is kept to reproduce results of
+the original model.
 
 ### `reupload` (default for new runs)
 
@@ -60,7 +60,7 @@ the batch and the 8 groups (one QNode call per block forward pass, see
 `QuantumBlock(q_backend=..., q_sim_device=...)`, the config keys `q_backend`
 and `q_sim_device`, and the training flags `--q-backend` and `--q-sim-device`
 choose how the circuits are evaluated. The math is the same for all three
-simulators. Every reported QUAFFLE number comes from `pennylane`.
+simulators. `pennylane` is the default.
 
 | `q_backend` | how |
 | --- | --- |
@@ -194,12 +194,12 @@ forward and backward): `default.qubit` with backprop 15.05 ms,
 parameters in PennyLane 0.41.1. `lightning.gpu` is not installed. So the
 default stays `default.qubit` with backprop.
 
-GPU numbers for the single call are pending the smoke job
-(`misc/smoke_pennylane_fast.sh`, see `docs/RUNNING.md`). The estimate for an
-A100 without `CUDA_LAUNCH_BLOCKING` is about 110 ms per full step against
-76.9 ms for the ablation (about 1.4x), against 514.0 ms for the per-group path
-(6.7x). That estimate assumes the CPU of an `ai` node is about as fast as the
-login node and is not a measurement.
+GPU numbers for the single call are not included here. The smoke job
+(`misc/smoke_pennylane_fast.sh`, see `docs/RUNNING.md`) measures them. The
+estimate for an A100 without `CUDA_LAUNCH_BLOCKING` is about 110 ms per full
+step against 76.9 ms for the ablation (about 1.4x), against 514.0 ms for the
+per-group path (6.7x). That estimate assumes the CPU of a GPU node is about as
+fast as the login node and is not a measurement.
 
 ### Sharing between the two bottleneck blocks (`q_share_blocks`)
 
@@ -265,20 +265,24 @@ Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
 | `q_layers` | `2` | int >= 1 (reupload only) |
 | `q_share_blocks` | `True` | bool |
 
-Suggested CLI wiring:
+The training scripts set these keys from `--q-ansatz`, `--q-layers`,
+`--q-backend` and `--q-sim-device` (`tools/training_common.py`,
+`apply_common_args`) and build the model with `build_model`. The model
+reads the `q_*` keys from the config and `build_model` passes `seed`:
 
 ```python
-config['q_ansatz'] = args.q_ansatz                # --q-ansatz {legacy,reupload}
-config['q_layers'] = args.q_layers                # --q-layers 2
-model = QVUNetSegmentation(config, seed=config['seed'])
-if args.quantum_knockout_eval != 'on':            # --quantum-knockout-eval {on,zero,random}
-    model.eval()
-    model.set_quantum_mode(args.quantum_knockout_eval, knockout_seed=config['seed'])
+config = tc.apply_common_args(config, args)
+model = tc.build_model(QVUNetSegmentation, config)   # QVUNetSegmentation(config, seed=config['seed'])
 ```
+
+`--quantum-knockout-eval` is an on/off flag. When it is set, the test set is
+evaluated once more in mode `zero` and once in mode `random`
+(`tc.knockout_eval`), the model is switched back to `on` and both results are
+written to `summary.txt` and `metrics.json`.
 
 To reproduce the original architecture pass `q_ansatz='legacy'`. Note that
 the seeding and weight standardization fixes still apply, so legacy runs are
-not bit identical to the original ones. Code that does not pass `seed` keeps
+not bit identical to runs of the original code. Code that does not pass `seed` keeps
 working and uses the global RNG. In federated code every client and the
 server should build the template model with the same `seed` so the initial
 global weights agree.

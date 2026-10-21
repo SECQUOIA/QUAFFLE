@@ -1,8 +1,40 @@
 error_logs/
 output_logs/
 outputs/
-misc/
+# misc/ holds local job scripts. Only the generators and the smoke template are tracked.
+misc/*
+!misc/generate_*.py
+!misc/smoke_pennylane_fast.sh
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
 results/
 data/
+
+# Dataset (worktrees use a symlink named data, which data/ does not match)
+data
+
+# OS files
+.DS_Store
+
+# Logs, run outputs and archives
+output_logs_*
+error_logs_*
+*_logs_*/
+bench_logs/
+outputs_past
+results_archive*
+smoke_plfast/
+misc/grid/
+figures/
+
+# Local cluster configuration (copy config/cluster.example.json)
+config/cluster.local.*
+
+# Tracker spreadsheets, lock files and checkpoints
+*.xlsx
+*.lock
+*.pt

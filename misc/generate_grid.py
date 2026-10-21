@@ -3,7 +3,7 @@
 
 Axes
   method   classical (FedU-Net), ablation (matched classical bottleneck,
-           abalation_studies.py), quantum (QUAFFLE)
+           ablation_studies.py), quantum (QUAFFLE)
   mode     centralized, fed-random, fed-dirichlet (label-skew, --alpha)
   dataset  optical, sar, combined
   seed     config/seeds.py SEEDS (a --seeds subset is validated against it)
@@ -12,12 +12,17 @@ Output (default <root>/misc/grid/<timestamp>/)
   one .sh per job, submit_all.sh, manifest.csv
 Existing files are never overwritten.
 
-Time limits come from runtimes measured on 2026-10-02 (one GPU on the ai
-partition, optical, 200 training tiles) scaled by dataset size and a safety
+Time limits come from runtimes measured on 2026-10-02 (one A100 GPU,
+optical, 200 training tiles) scaled by dataset size and a safety
 factor, rounded up to whole hours with a floor. See time_limit() below.
 
 This module is also imported by the other misc/generate_*.py scripts so that
 every generator uses the same time limits and the same script header.
+
+Cluster settings (account, partition, python, conda, modules, mail) are not
+hard-coded. Copy config/cluster.example.json to config/cluster.local.json
+(gitignored) and fill it in, or use QUAFFLE_* environment variables or the
+flags below. A SLURM account is required to write scripts.
 """
 import argparse
 import csv
@@ -41,19 +46,19 @@ from config.seeds import SEEDS as ALL_SEEDS  # noqa: E402  single pre-declared s
 # Measured runtimes and time limits
 # ---------------------------------------------------------------------------
 
-# Wall-clock hours measured on 2026-10-02, 1 GPU on the ai partition, optical
+# Wall-clock hours measured on 2026-10-02 on one A100 GPU, optical
 # dataset (200 training tiles, 35 val, 71 test), quantum_channels=32,
 # q_ansatz=reupload with the default 2 layers. Federated = 4 clients,
 # 25 rounds x 4 local epochs, random partition. Dirichlet is assumed equal
 # to random.
 #
 # The classical and ablation hours were measured with CUDA_LAUNCH_BLOCKING=1
-# in every job script. The flag is no longer exported (it doubled the A100
-# step time of every model, see docs/MODEL.md), so these values are now
-# conservative and will drop once remeasured.
+# in every job script. The generated scripts do not export it (it doubled the
+# A100 step time of every model, see docs/MODEL.md), so these values are
+# conservative.
 #
-# Quantum hours are PROVISIONAL until the PennyLane smoke job
-# (misc/smoke_pennylane_fast.sh) has run. Quantum jobs now pass
+# Quantum hours are provisional estimates until the PennyLane smoke job
+# (misc/smoke_pennylane_fast.sh) has been run. Quantum jobs pass
 # --q-backend pennylane (one broadcast default.qubit QNode call per block
 # forward, circuit on CPU). They are set to ablation x 1.5, which under
 # SAFETY_FACTOR still covers the earlier torch simulator grid (sacct,
@@ -87,8 +92,8 @@ DATASETS = ["optical", "sar", "combined"]
 SCRIPT = {
     ("classical", "centralized"): "centralized_demoTorchClassical.py",
     ("classical", "federated"): "federated_demoTorchClassical.py",
-    ("ablation", "centralized"): "abalation_studies.py",
-    ("ablation", "federated"): "abalation_studies.py",
+    ("ablation", "centralized"): "ablation_studies.py",
+    ("ablation", "federated"): "ablation_studies.py",
     ("quantum", "centralized"): "centralized_demoTorchQ.py",
     ("quantum", "federated"): "federated_demoTorchQ.py",
 }
@@ -136,51 +141,155 @@ def fmt_hms(hours):
 # Script template (shared by every generator)
 # ---------------------------------------------------------------------------
 
-DEFAULT_ACCOUNT = "YOUR_ACCOUNT"
-DEFAULT_PARTITION = "ai"
-DEFAULT_PYTHON = "python"
-DEFAULT_MAIL = "you@example.com"
-
-HEADER = r"""#!/bin/bash
-#SBATCH -A {account}
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-{cpus_line}#SBATCH --gpus-per-node=1
-#SBATCH --mem=64G
-#SBATCH --time={time}
-#SBATCH -J {job_name}
-#SBATCH -o {root}/output_logs/%x.o%j
-#SBATCH -e {root}/error_logs/%x.e%j
-#SBATCH -p {partition}
-#SBATCH --mail-user={mail_user}
-#SBATCH --mail-type=END,FAIL
-# Expected runtime {exp_h:.2f} h (limit {limit_h} h). {note}
-
-module purge
-module load modtree/gpu
-module load cuda/12.0.1
-source $HOME/miniconda3/etc/profile.d/conda.sh
-conda activate quaffle
-export XLA_FLAGS="--xla_gpu_enable_cudnn_frontend=false"
-export TF_CPP_MIN_LOG_LEVEL=1
-export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:128"
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="*"
-cd {root_q} || exit 1
-echo "git: $(git rev-parse HEAD 2>/dev/null || echo unknown) branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) dirty=$(test -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" && echo clean || echo dirty)"
-echo "host=$(hostname) SLURM_JOB_ID=$SLURM_JOB_ID"
-nvidia-smi --query-gpu=name,memory.total --format=csv
-"""
+# Cluster settings. Nothing site specific is hard-coded here. Values are
+# resolved per key in this order (first hit wins):
+#   1. command-line flag (--account, --partition, --python, ...)
+#   2. environment variable QUAFFLE_<KEY> (for example QUAFFLE_ACCOUNT)
+#   3. config/cluster.local.json (or the file named by --cluster-config or
+#      QUAFFLE_CLUSTER_CONFIG). Copy config/cluster.example.json to start.
+#   4. the defaults below
+# account has no default. Writing scripts without one is an error.
+CLUSTER_CONFIG_DEFAULT = os.path.join(REPO_DIR, "config", "cluster.local.json")
+CLUSTER_DEFAULTS = OrderedDict([
+    ("account", None),            # SLURM account (-A). Required.
+    ("partition", None),          # SLURM partition (-p). Omitted when unset.
+    ("python", "python"),         # Python interpreter used in the job command
+    ("conda_sh", None),           # path to etc/profile.d/conda.sh, sourced when set
+    ("conda_env", None),          # conda env activated when set
+    ("modules", []),              # modules loaded after "module purge" (none: no module lines)
+    ("mail_user", None),          # --mail-user. Mail lines are omitted when unset
+    ("mail_type", "END,FAIL"),    # --mail-type, only used with mail_user
+    ("gpus", 1),                  # --gpus-per-node
+    ("cpus_per_task", 8),         # --cpus-per-task for federated jobs (centralized: unset)
+    ("mem", "64G"),               # --mem
+    ("output_log_dir", "output_logs"),  # SLURM stdout folder under the root
+    ("error_log_dir", "error_logs"),    # SLURM stderr folder under the root
+    # Export a git safe.directory entry for the root in each job, so that the
+    # "git:" provenance line works when the user running the job does not own
+    # the checkout. Off by default.
+    ("git_safe_directory", False),
+])
+CLUSTER_INT_KEYS = ("gpus", "cpus_per_task")
+CLUSTER_BOOL_KEYS = ("git_safe_directory",)
+ACCOUNT_PLACEHOLDER = "YOUR_ACCOUNT"
 
 
-def render_script(job_name, command, limit_h, exp_h, root, cpus=None,
-                  account=DEFAULT_ACCOUNT, partition=DEFAULT_PARTITION,
-                  mail_user=DEFAULT_MAIL, note=""):
-    """Full SLURM script text. command is the shell command line to run."""
-    cpus_line = "#SBATCH --cpus-per-task=%d\n" % cpus if cpus else ""
-    head = HEADER.format(account=account, partition=partition, cpus_line=cpus_line,
-                         time=fmt_hms(limit_h), job_name=job_name, root=root,
-                         root_q=shlex.quote(root), mail_user=mail_user,
-                         exp_h=exp_h, limit_h=limit_h, note=note)
+def _parse_modules(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [m for m in re.split(r"[,\s]+", value) if m]
+    return [str(m) for m in value]
+
+
+def _parse_bool(value):
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in ("1", "true", "yes", "on"):
+        return True
+    if s in ("0", "false", "no", "off", ""):
+        return False
+    raise SystemExit("not a boolean value: %r (use true or false)" % (value,))
+
+
+def load_cluster_config(path=None):
+    """Return the dict from the cluster config file, or {} if it does not exist."""
+    import json
+    explicit = path or os.environ.get("QUAFFLE_CLUSTER_CONFIG")
+    path = explicit or CLUSTER_CONFIG_DEFAULT
+    if not os.path.exists(path):
+        if explicit:
+            raise SystemExit("cluster config %s not found" % path)
+        return {}
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    unknown = sorted(k for k in data if k not in CLUSTER_DEFAULTS and not k.startswith("_"))
+    if unknown:
+        raise SystemExit("unknown keys in %s: %s (known: %s)"
+                         % (path, ", ".join(unknown), ", ".join(CLUSTER_DEFAULTS)))
+    return data
+
+
+def resolve_cluster(cli=None, path=None):
+    """Merge CLI values, QUAFFLE_* environment variables, the config file and
+    the defaults into one settings dict."""
+    cli = cli or {}
+    filecfg = load_cluster_config(path)
+    out = OrderedDict()
+    for key, default in CLUSTER_DEFAULTS.items():
+        env = os.environ.get("QUAFFLE_" + key.upper())
+        if cli.get(key) is not None:
+            val = cli[key]
+        elif env not in (None, ""):
+            val = env
+        elif filecfg.get(key) is not None:
+            val = filecfg[key]
+        else:
+            val = default
+        if key == "modules":
+            val = _parse_modules(val)
+        elif key in CLUSTER_BOOL_KEYS:
+            val = _parse_bool(val)
+        elif key in CLUSTER_INT_KEYS and val is not None:
+            val = int(val)
+        elif val is not None:
+            val = str(val)
+        if val == "":
+            val = None
+        out[key] = val
+    return out
+
+
+def render_script(job_name, command, limit_h, exp_h, root, cpus=None, cluster=None, note=""):
+    """Full SLURM script text. command is the shell command line to run.
+    cluster is a dict from resolve_cluster()."""
+    c = dict(CLUSTER_DEFAULTS)
+    c.update(cluster or {})
+    lines = ["#!/bin/bash",
+             "#SBATCH -A %s" % (c["account"] or ACCOUNT_PLACEHOLDER),
+             "#SBATCH --nodes=1",
+             "#SBATCH --ntasks-per-node=1"]
+    if cpus:
+        lines.append("#SBATCH --cpus-per-task=%d" % cpus)
+    lines += ["#SBATCH --gpus-per-node=%d" % int(c["gpus"]),
+              "#SBATCH --mem=%s" % c["mem"],
+              "#SBATCH --time=%s" % fmt_hms(limit_h),
+              "#SBATCH -J %s" % job_name,
+              "#SBATCH -o %s/%s/%%x.o%%j" % (root, c["output_log_dir"]),
+              "#SBATCH -e %s/%s/%%x.e%%j" % (root, c["error_log_dir"])]
+    if c["partition"]:
+        lines.append("#SBATCH -p %s" % c["partition"])
+    if c["mail_user"]:
+        lines.append("#SBATCH --mail-user=%s" % c["mail_user"])
+        if c["mail_type"]:
+            lines.append("#SBATCH --mail-type=%s" % c["mail_type"])
+    lines += ["# Expected runtime %.2f h (limit %s h). %s" % (exp_h, limit_h, note), ""]
+    if c["modules"]:
+        lines.append("module purge")
+        lines += ["module load %s" % m for m in c["modules"]]
+    if c["conda_sh"]:
+        lines.append("source %s" % shlex.quote(c["conda_sh"]))
+    if c["conda_env"]:
+        lines.append("conda activate %s" % shlex.quote(c["conda_env"]))
+    lines += [
+        'export XLA_FLAGS="--xla_gpu_enable_cudnn_frontend=false"',
+        "export TF_CPP_MIN_LOG_LEVEL=1",
+        'export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:128"',
+    ]
+    if c["git_safe_directory"]:
+        lines.append("export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory "
+                     "GIT_CONFIG_VALUE_0=%s" % shlex.quote(root))
+    lines += [
+        "cd %s || exit 1" % shlex.quote(root),
+        'echo "git: $(git rev-parse HEAD 2>/dev/null || echo unknown) '
+        'branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) '
+        'dirty=$(test -z "$(git status --porcelain --untracked-files=no 2>/dev/null)" '
+        '&& echo clean || echo dirty)"',
+        'echo "host=$(hostname) SLURM_JOB_ID=$SLURM_JOB_ID"',
+        "nvidia-smi --query-gpu=name,memory.total --format=csv",
+    ]
+    head = "\n".join(lines) + "\n"
     return head + 'echo "cmd: {}"\n{}\n'.format(command.replace('"', '\\"'), command)
 
 
@@ -201,10 +310,10 @@ def supports_ckpt_every(root, script):
     return False
 
 
-def build_job(method, mode, dataset, seed, root, python=DEFAULT_PYTHON, alpha=0.5,
+def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               q_ansatz="reupload", q_layers=None, knockout=True, quantum_channels=None,
               ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
-              q_backend=Q_BACKEND):
+              q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"]):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -264,15 +373,18 @@ def build_job(method, mode, dataset, seed, root, python=DEFAULT_PYTHON, alpha=0.
         ("dataset", dataset), ("seed", seed),
         ("ansatz", q_ansatz if method != "classical" else ""),
         ("script", script), ("args", args), ("command", command),
-        ("exp_h", exp), ("limit_h", limit), ("cpus", 8 if kind == "federated" else None),
+        ("exp_h", exp), ("limit_h", limit), ("cpus", cpus if kind == "federated" else None),
         ("ckpt", ckpt),
         ("variant", "" if quantum_channels is None else "qc%d" % quantum_channels),
     ])
 
 
-def write_jobs(jobs, out_dir, root, account, partition, mail_user, stagger=0,
-               max_concurrent=0, overwrite=False):
+def write_jobs(jobs, out_dir, root, cluster, stagger=0, max_concurrent=0, overwrite=False):
     """Write one script per job plus submit_all.sh and manifest.csv into out_dir."""
+    if not cluster.get("account"):
+        raise SystemExit("no SLURM account set. Pass --account, export QUAFFLE_ACCOUNT, or set "
+                         "\"account\" in config/cluster.local.json (copy "
+                         "config/cluster.example.json)")
     os.makedirs(out_dir, exist_ok=True)
     names = []
     for j in jobs:
@@ -282,8 +394,7 @@ def write_jobs(jobs, out_dir, root, account, partition, mail_user, stagger=0,
             raise SystemExit("refusing to overwrite existing %s" % path)
         note = "ckpt-every on." if j["ckpt"] else ""
         text = render_script(j["job_name"], j["command"], j["limit_h"], j["exp_h"], root,
-                             cpus=j["cpus"], account=account, partition=partition,
-                             mail_user=mail_user, note=note)
+                             cpus=j["cpus"], cluster=cluster, note=note)
         with open(path, "w", newline="\n") as f:
             f.write(text)
         os.chmod(path, 0o755)
@@ -302,7 +413,8 @@ def write_jobs(jobs, out_dir, root, account, partition, mail_user, stagger=0,
         "set -euo pipefail",
         'HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"',
         "cd %s" % shlex.quote(root),
-        "mkdir -p output_logs error_logs",
+        "mkdir -p %s %s" % (shlex.quote(cluster["output_log_dir"]),
+                            shlex.quote(cluster["error_log_dir"])),
         'LOG="$HERE/submitted.txt"',
         "declare -a IDS=()",
         "",
@@ -465,13 +577,36 @@ def _validate_seeds(ap, seeds):
 
 
 def add_cluster_args(ap):
-    ap.add_argument("--account", default=DEFAULT_ACCOUNT)
-    ap.add_argument("--partition", default=DEFAULT_PARTITION)
+    g = ap.add_argument_group(
+        "cluster settings",
+        "Each value is taken from the flag, else the QUAFFLE_<KEY> environment variable, else "
+        "config/cluster.local.json, else the built-in default. See config/cluster.example.json")
+    g.add_argument("--cluster-config", default=None, metavar="PATH",
+                   help="Cluster settings JSON (default: $QUAFFLE_CLUSTER_CONFIG or "
+                        "config/cluster.local.json when it exists)")
+    g.add_argument("--account", default=None, help="SLURM account (required to write scripts)")
+    g.add_argument("--partition", default=None)
+    g.add_argument("--python", default=None, help="Python interpreter used in the job command")
+    g.add_argument("--conda-sh", default=None, help="conda.sh to source in the job")
+    g.add_argument("--conda-env", default=None, help="conda env to activate in the job")
+    g.add_argument("--modules", nargs="*", default=None,
+                   help="Modules to load after 'module purge'")
+    g.add_argument("--mail-user", default=None, help="Mail address (mail lines omitted if unset)")
+    g.add_argument("--mail-type", default=None)
+    g.add_argument("--gpus", type=int, default=None, help="GPUs per node")
+    g.add_argument("--cpus-per-task", type=int, default=None, help="CPUs for federated jobs")
+    g.add_argument("--mem", default=None)
+    g.add_argument("--output-log-dir", default=None, help="SLURM stdout folder under --root")
+    g.add_argument("--error-log-dir", default=None, help="SLURM stderr folder under --root")
+    g.add_argument("--git-safe-directory", dest="git_safe_directory", action="store_true",
+                   default=None,
+                   help="Mark --root as a git safe.directory in each job (needed only when the "
+                        "user running the jobs does not own the checkout)")
+    g.add_argument("--no-git-safe-directory", dest="git_safe_directory", action="store_false",
+                   default=None, help="Do not export a git safe.directory entry (default)")
     ap.add_argument("--root", default=REPO_DIR,
                     help="Repo checkout the jobs cd into and run from (default: the checkout "
                          "this generator lives in, %(default)s)")
-    ap.add_argument("--python", default=DEFAULT_PYTHON)
-    ap.add_argument("--mail-user", default=DEFAULT_MAIL)
     ap.add_argument("--safety", type=float, default=SAFETY_FACTOR,
                     help="Time limit = ceil(expected hours x safety) (default %(default)s)")
     ap.add_argument("--floor-hours", type=int, default=FLOOR_HOURS)
@@ -492,12 +627,29 @@ def add_cluster_args(ap):
     return ap
 
 
+def resolve_cluster_args(args):
+    """Resolve the cluster settings for parsed args. Sets args.cluster and
+    args.python, args.partition, args.account from it. Idempotent."""
+    if getattr(args, "cluster", None) is not None:
+        return args.cluster
+    cli = {k: getattr(args, k, None) for k in CLUSTER_DEFAULTS}
+    args.cluster = resolve_cluster(cli, args.cluster_config)
+    args.python = args.cluster["python"]
+    args.partition = args.cluster["partition"]
+    args.account = args.cluster["account"]
+    return args.cluster
+
+
 def finish(ap, args, jobs, out_dir):
     """Shared tail for every generator: summary, checks, budget, write."""
+    cluster = resolve_cluster_args(args)
     table, over = summary_table(jobs, args.budget)
     print(table)
     if not args.no_reservation_check:
-        check_reservations(jobs, args.partition, args.stagger_minutes)
+        if args.partition:
+            check_reservations(jobs, args.partition, args.stagger_minutes)
+        else:
+            print("reservations: no partition set, skipped")
     if args.check_flags and jobs:
         if not check_flags(jobs, args.root, args.python, args.check_ssh):
             print("check-flags FAILED, nothing written")
@@ -508,11 +660,14 @@ def finish(ap, args, jobs, out_dir):
     if args.dry_run:
         print("dry-run: would write %d scripts + submit_all.sh + manifest.csv to %s"
               % (len(jobs), out_dir))
+        print("cluster: account=%s partition=%s python=%s conda_env=%s mail=%s"
+              % (cluster["account"] or ACCOUNT_PLACEHOLDER + " (not set, required to write)",
+                 cluster["partition"], cluster["python"], cluster["conda_env"],
+                 "on" if cluster["mail_user"] else "off"))
         for j in jobs[:3]:
             print("  e.g. %s.sh  %s  [%s]" % (j["name"], j["command"], fmt_hms(j["limit_h"])))
         return
-    write_jobs(jobs, out_dir, args.root, args.account, args.partition, args.mail_user,
-               args.stagger_minutes, args.max_concurrent)
+    write_jobs(jobs, out_dir, args.root, cluster, args.stagger_minutes, args.max_concurrent)
     print("wrote %d scripts, submit_all.sh and manifest.csv to %s" % (len(jobs), out_dir))
     print("submit with: bash %s" % os.path.join(out_dir, "submit_all.sh"))
 
@@ -531,7 +686,24 @@ def guard_out_dir(ap, out_dir):
     return out_dir
 
 
+def print_cluster_env(argv):
+    """Print shell export lines for the resolved cluster settings, for job
+    scripts such as misc/smoke_pennylane_fast.sh that cannot read JSON."""
+    ap = argparse.ArgumentParser(prog="generate_grid.py --print-cluster-env")
+    ap.add_argument("--cluster-config", default=None)
+    args = ap.parse_args(argv)
+    for key, val in resolve_cluster(None, args.cluster_config).items():
+        if isinstance(val, list):
+            val = " ".join(val)
+        elif isinstance(val, bool):
+            val = "true" if val else "false"
+        print("export QUAFFLE_%s=%s" % (key.upper(), shlex.quote("" if val is None else str(val))))
+
+
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["--print-cluster-env"]:
+        return print_cluster_env(argv[1:])
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--methods", nargs="+", choices=METHODS, default=METHODS)
@@ -556,6 +728,7 @@ def main(argv=None):
     add_cluster_args(ap)
     args = ap.parse_args(argv)
     seeds = _validate_seeds(ap, args.seeds)
+    cluster = resolve_cluster_args(args)
     args.root = os.path.abspath(args.root)
     out_dir = guard_out_dir(ap, args.out_dir or default_out_dir(args.root))
 
@@ -586,7 +759,8 @@ def main(argv=None):
                         alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
                         knockout=args.knockout, ckpt_every=args.ckpt_every,
                         ckpt_support=support.get(script, False), safety=args.safety,
-                        floor=args.floor_hours, q_backend=args.q_backend))
+                        floor=args.floor_hours, q_backend=args.q_backend,
+                        cpus=cluster["cpus_per_task"]))
     finish(ap, args, jobs, out_dir)
 
 

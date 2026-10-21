@@ -6,8 +6,8 @@ federated_demoTorchQ.py with --quantum_channels {64,128,256} (or --qc) x
 config/seeds.py (or a --seeds subset). qc=32 is the main grid
 (misc/generate_grid.py --methods quantum).
 
-Time limits, the script header and --mail-type=END,FAIL come from
-misc/generate_grid.py. The circuit runs once per 4-channel group, so the
+Time limits, the script header and the cluster settings (see
+config/cluster.example.json) come from misc/generate_grid.py. The circuit runs once per 4-channel group, so the
 quantum overhead in the measured qc=32 runtime is scaled by qc/32. That is
 an extrapolation, not a measurement. Run one seed first and check sacct.
 
@@ -40,6 +40,7 @@ def main(argv=None):
     gg.add_cluster_args(ap)
     args = ap.parse_args(argv)
     seeds = gg._validate_seeds(ap, args.seeds)
+    cluster = gg.resolve_cluster_args(args)
     bad = [q for q in args.qc if q < 4 or q % 4]
     if bad:
         ap.error("--qc values must be multiples of 4: %s" % bad)
@@ -60,7 +61,8 @@ def main(argv=None):
                         alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
                         knockout=args.knockout, quantum_channels=qc,
                         ckpt_every=args.ckpt_every, ckpt_support=support,
-                        safety=args.safety, floor=args.floor_hours))
+                        safety=args.safety, floor=args.floor_hours,
+                        cpus=cluster["cpus_per_task"]))
     gg.finish(ap, args, jobs, out_dir)
 
 

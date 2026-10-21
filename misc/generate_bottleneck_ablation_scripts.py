@@ -4,12 +4,13 @@
 Thin wrapper around misc/generate_grid.py with --methods ablation: the seeds
 in config/seeds.py (or a --seeds subset) x {centralized, fed-random,
 fed-dirichlet} x {optical, sar, combined}. Time limits, the script header
-and --mail-type=END,FAIL come from generate_grid.py.
+and the cluster settings (see config/cluster.example.json) come from
+generate_grid.py.
 
 The ablation uses ClassicalAblationUNetSegmentation, the fixed architecture
 where only the bottleneck QuantumBlock is swapped for a parameter-matched
 classical module. This is distinct from the old base_channels=28 "matched"
-ablation whose results live under results/abalation_*_torch_classical_matched_*.
+ablation whose results live under results/ablation_*_torch_classical_matched_*.
 
 Scripts go to misc/grid/ablation_<timestamp>/ (or --out-dir), never misc/.
 """

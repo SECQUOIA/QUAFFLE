@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared training plumbing for the Torch demos and abalation_studies.py.
+"""Shared training plumbing for the Torch demos and ablation_studies.py.
 
 Keeps the parts that must be identical across the quantum, classical and
 ablation runs in one place:
@@ -52,9 +52,8 @@ LEGACY_Q_BACKEND = 'torch'
 def add_common_args(parser, quantum=True, federated=False):
     """Add the flags shared by every Torch entry point.
 
-    Defaults select the new behaviour. Every flag is passed on to the data
-    and model code only when that code accepts it (signature checks), so the
-    scripts run both before and after the data and model branches merge.
+    Defaults select the current behaviour. Every flag is passed on to the
+    data and model code only when that code accepts it (signature checks).
     """
     parser.add_argument('--legacy-data', action='store_true',
                         help='Use the pre-fix data loader behaviour (if the loader supports it)')
@@ -415,7 +414,7 @@ def _call_set_mode(obj, mode, knockout_seed):
 def set_quantum_mode(model, mode, knockout_seed=0):
     """Switch the quantum bottleneck between 'on', 'zero' and 'random'.
 
-    Uses set_quantum_mode() on the wrapper or inner model (model branch API),
+    Uses set_quantum_mode() on the wrapper or inner model when it has one,
     else on any submodule, falling back to a `quantum_mode` attribute.
     Returns True if the switch was applied somewhere.
     """

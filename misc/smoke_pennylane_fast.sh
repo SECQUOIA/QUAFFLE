@@ -1,4 +1,10 @@
 #!/bin/bash
+# Template SLURM directives. #SBATCH lines cannot read environment variables,
+# so either edit YOUR_ACCOUNT here or override it on the sbatch command line
+# (command-line flags take precedence over #SBATCH lines), for example
+#   sbatch -A <account> -p <gpu partition> misc/smoke_pennylane_fast.sh
+# The log paths are relative to the directory sbatch is run from, which must
+# already contain output_logs/ and error_logs/.
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -9,40 +15,61 @@
 #SBATCH -J plfast_smoke
 #SBATCH -o output_logs/%x.o%j
 #SBATCH -e error_logs/%x.e%j
-#SBATCH -p ai
-#SBATCH --mail-user=you@example.com
-#SBATCH --mail-type=END,FAIL
 #
 # Smoke and benchmark job for the single-call PennyLane quantum block.
 #
-# Runs the code of the merged checkout ROOT but writes every result, log and
+# Runs the code of the checkout ROOT but writes every result, log and
 # benchmark file under SMOKE_ROOT. The demo scripts write to the relative path
 # results/..., and read data/... relative to the working directory, so the
 # training commands run with SMOKE_ROOT as the working directory (which holds
 # a data symlink to ROOT/data) and call the scripts by absolute path in ROOT.
 # Nothing is written to ROOT/results.
 #
-# SLURM stdout/stderr go to the existing grid log folders (output_logs,
-# error_logs) under the default ROOT. Submit with
-#   sbatch misc/smoke_pennylane_fast.sh
-# and override the checkout with  sbatch --export=ALL,ROOT=/path misc/...
+# Environment (all optional):
+#   ROOT          checkout to run (default: the sbatch submit directory)
+#   SMOKE_ROOT    output folder (default: $ROOT/smoke_plfast)
+#   PY            python interpreter (default: QUAFFLE_PYTHON, else python)
+#   QUAFFLE_*     cluster settings. When config/cluster.local.json exists in
+#                 ROOT its values are loaded through misc/generate_grid.py
+#                 --print-cluster-env. Already exported QUAFFLE_* variables
+#                 take precedence. Used here: QUAFFLE_MODULES,
+#                 QUAFFLE_CONDA_SH, QUAFFLE_CONDA_ENV, QUAFFLE_PYTHON,
+#                 QUAFFLE_GIT_SAFE_DIRECTORY (true: mark ROOT as a git
+#                 safe.directory for the provenance line, default off).
+# Pass variables with  sbatch --export=ALL,ROOT=/path misc/smoke_pennylane_fast.sh
 #
 # CUDA_LAUNCH_BLOCKING is NOT exported. Step 1 sets it for one benchmark run
 # only, to measure its cost.
 
 ROOT=${ROOT:-${SLURM_SUBMIT_DIR:-$(pwd)}}
 SMOKE_ROOT=${SMOKE_ROOT:-$ROOT/smoke_plfast}
-PY=${PY:-python}
 
-module purge
-module load modtree/gpu
-module load cuda/12.0.1
-source $HOME/miniconda3/etc/profile.d/conda.sh
-conda activate quaffle
+if [ -f "$ROOT/config/cluster.local.json" ] && command -v python3 >/dev/null 2>&1; then
+    eval "$(python3 "$ROOT/misc/generate_grid.py" --print-cluster-env)" || exit 1
+fi
+PY=${PY:-${QUAFFLE_PYTHON:-python}}
+
+if [ -n "$QUAFFLE_MODULES" ]; then
+    module purge
+    for m in $QUAFFLE_MODULES; do
+        module load "$m"
+    done
+fi
+if [ -n "$QUAFFLE_CONDA_SH" ]; then
+    # shellcheck disable=SC1090
+    source "$QUAFFLE_CONDA_SH"
+fi
+if [ -n "$QUAFFLE_CONDA_ENV" ]; then
+    conda activate "$QUAFFLE_CONDA_ENV"
+fi
 export XLA_FLAGS="--xla_gpu_enable_cudnn_frontend=false"
 export TF_CPP_MIN_LOG_LEVEL=1
 export PYTORCH_CUDA_ALLOC_CONF="max_split_size_mb:128"
-export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="*"
+case "${QUAFFLE_GIT_SAFE_DIRECTORY:-false}" in
+    1|true|True|TRUE|yes|on)
+        export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$ROOT"
+        ;;
+esac
 export PYTHONDONTWRITEBYTECODE=1
 # The scripts run from SMOKE_ROOT, so make the code in ROOT importable for
 # the main process and for the Ray workers of the federated simulation.
@@ -55,7 +82,7 @@ if [ ! -e "$SMOKE_ROOT/data" ]; then
 fi
 cd "$SMOKE_ROOT" || exit 1
 
-echo "ROOT=$ROOT SMOKE_ROOT=$SMOKE_ROOT"
+echo "ROOT=$ROOT SMOKE_ROOT=$SMOKE_ROOT PY=$PY"
 echo "git: $(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown) branch=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null) dirty=$(test -z "$(git -C "$ROOT" status --porcelain --untracked-files=no 2>/dev/null)" && echo clean || echo dirty)"
 echo "host=$(hostname) SLURM_JOB_ID=$SLURM_JOB_ID cpus=$SLURM_CPUS_PER_TASK"
 nvidia-smi --query-gpu=name,memory.total --format=csv

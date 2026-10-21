@@ -98,7 +98,7 @@ def save_results_to_excel(demo_name, framework, training, variant, val_metrics, 
     try:
         import openpyxl
     except ImportError:
-        print("Warning: openpyxl not installed — skipping Excel export. Install with: pip install openpyxl")
+        print("Warning: openpyxl not installed, skipping Excel export. Install with: pip install openpyxl")
         return
 
     excel_path = os.path.join(_RESULTS_DIR, f"results_summary_{dataset}.xlsx")

@@ -23,9 +23,12 @@ never silently replaced by a smaller pool.
 
 Source of truth: each run's results/summary.txt, read via
 analyze_results.load_from_disk (runs without a Test block are skipped and
-logged). Output is a JSON file at
-results/headline_pooled_table2_data.json.
+logged). Output is a JSON file headline_pooled_table2_data.json in
+--out-dir (default: $QUAFFLE_ANALYSIS_OUT_DIR, else <repo>/results).
+
+Usage: python scripts/build_table2_data.py [--out-dir DIR]
 """
+import argparse
 import os
 import sys
 import json
@@ -44,7 +47,9 @@ import analyze_results as ar  # noqa: E402
 
 from config.seeds import SEEDS  # noqa: E402
 
-OUT_PATH = os.path.join(REPO_ROOT, "results", "headline_pooled_table2_data.json")
+OUT_NAME = "headline_pooled_table2_data.json"
+OUT_PATH = os.path.join(os.environ.get("QUAFFLE_ANALYSIS_OUT_DIR", os.path.join(REPO_ROOT, "results")),
+                        OUT_NAME)
 COMMON_SEEDS = set(SEEDS)
 
 
@@ -80,7 +85,12 @@ def agg_paired(deltas):
     return ar.paired_stats(deltas)
 
 
-def main():
+def main(argv=None):
+    global OUT_PATH
+    ap = argparse.ArgumentParser(description="Headline pooled Optical+SAR table data.")
+    ap.add_argument("--out-dir", default=os.path.dirname(OUT_PATH),
+                    help="Output folder (default %(default)s)")
+    OUT_PATH = os.path.join(os.path.abspath(ap.parse_args(argv).out_dir), OUT_NAME)
     # Read every run's summary.txt (runs without a Test block are skipped
     # and logged by load_from_disk).
     df = ar.load_from_disk()

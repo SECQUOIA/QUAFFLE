@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
                         help='Data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
-                        help='Dirichlet concentration parameter — lower = more non-IID (default: 0.5)')
+                        help='Dirichlet concentration parameter, lower = more non-IID (default: 0.5)')
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')

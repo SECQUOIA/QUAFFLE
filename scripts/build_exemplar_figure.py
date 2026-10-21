@@ -10,12 +10,16 @@ For each modality:
     (visually informative AND model performs reasonably)
   - Saves the picked sample's image / mask / prediction as a 3-panel composite
 
-Outputs go to: <repo>/figures/exemplars/
+Outputs go to --out-dir (default: $QUAFFLE_FIGURES_DIR/exemplars, else
+<repo>/figures/exemplars/):
   exemplars_grid.png  -- the exemplar figure
   meta.json           -- which sample index was picked for each modality and its IoU
 
-Run with: python scripts/build_exemplar_figure.py
+Checkpoints are read from $QUAFFLE_RESULTS_DIR (default <repo>/results) and the
+test tiles from <repo>/data. Run from anywhere:
+  python scripts/build_exemplar_figure.py [--out-dir DIR]
 """
+import argparse
 import os
 import sys
 import json
@@ -25,7 +29,9 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-OUT_DIR   = os.path.join(REPO_ROOT, "figures", "exemplars")
+RESULTS_DIR = os.environ.get("QUAFFLE_RESULTS_DIR", os.path.join(REPO_ROOT, "results"))
+OUT_DIR = os.path.join(os.environ.get("QUAFFLE_FIGURES_DIR", os.path.join(REPO_ROOT, "figures")),
+                       "exemplars")
 DATA_ROOT = os.path.join(REPO_ROOT, "data")
 
 # QUAFFLE federated-quantum checkpoints (seed 999, random partition) for each dataset.
@@ -39,7 +45,7 @@ EXEMPLAR_VARIANT = os.environ.get("QUAFFLE_EXEMPLAR_VARIANT", "reupload_L2")
 
 
 def _fed_ckpt(ds_suffix, seed=999):
-    base = os.path.join(REPO_ROOT, "results", f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}")
+    base = os.path.join(RESULTS_DIR, f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}")
     candidates = [f"{base}_{EXEMPLAR_VARIANT}_seed{seed}", f"{base}_seed{seed}"]
     for d in candidates:
         for name in ("checkpoint_round_25.pt", "fed_resume.pt"):
@@ -139,7 +145,11 @@ def select_best_sample(model, loader, device, min_flood_frac=0.05, max_samples=2
     return best
 
 
-def main():
+def main(argv=None):
+    global OUT_DIR
+    ap = argparse.ArgumentParser(description="Build the exemplar figure.")
+    ap.add_argument("--out-dir", default=OUT_DIR, help="Output folder (default %(default)s)")
+    OUT_DIR = os.path.abspath(ap.parse_args(argv).out_dir)
     os.makedirs(OUT_DIR, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")

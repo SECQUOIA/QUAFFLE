@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
                         help='Data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
-                        help='Dirichlet concentration parameter — lower = more non-IID (default: 0.5)')
+                        help='Dirichlet concentration parameter, lower = more non-IID (default: 0.5)')
     return parser.parse_args()
 
 

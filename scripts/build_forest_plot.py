@@ -15,15 +15,17 @@ For each common seed s present in BOTH method's results for that cell, compute
 Then aggregate Δ_mean, Δ_std, n, a paired t-test, a Wilcoxon signed-rank
 test and a 95% paired-difference CI using Student's t:
     CI95_half = t_{0.975, n-1} · Δ_std / √n
-(Replaces the prior normal approximation 1.96·Δ_std/√n; at n=4 the t critical
-value 3.182 is markedly wider than 1.96 and matches the small-sample expectation.)
+Student's t is used instead of the normal value 1.96 because the number of
+seeds is small (at n=4 the t critical value is 3.182).
 
-Outputs:
-  - PNG: <out dir>/iou_delta_forest.png (QUAFFLE_FOREST_OUT_DIR, default <repo>/figures/forest)
-  - JSON: same dir, iou_delta_forest_data.json (per-cell stats + per-seed Δ)
+Outputs go to --out-dir (default: $QUAFFLE_FOREST_OUT_DIR, else
+$QUAFFLE_FIGURES_DIR/forest, else <repo>/figures/forest/):
+  - PNG: iou_delta_forest.png
+  - JSON: iou_delta_forest_data.json (per-cell stats + per-seed Δ)
 
-The JSON is also the data source for the headline mini-table.
+Usage: python scripts/build_forest_plot.py [--out-dir DIR]
 """
+import argparse
 import os
 import sys
 import json
@@ -39,7 +41,9 @@ from scipy.stats import t as student_t
 REPO_ROOT = os.environ.get("QUAFFLE_REPO_ROOT",
                            os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")))
 OUT_DIR   = os.environ.get("QUAFFLE_FOREST_OUT_DIR",
-                           os.path.join(REPO_ROOT, "figures", "forest"))
+                           os.path.join(os.environ.get("QUAFFLE_FIGURES_DIR",
+                                                       os.path.join(REPO_ROOT, "figures")),
+                                        "forest"))
 sys.path.insert(0, REPO_ROOT)
 from config.seeds import SEEDS  # noqa: E402
 COMMON_SEEDS = set(SEEDS)
@@ -113,7 +117,11 @@ def aggregate(deltas):
     return paired_stats(deltas)
 
 
-def main():
+def main(argv=None):
+    global OUT_DIR
+    ap = argparse.ArgumentParser(description="Paired IoU forest plot.")
+    ap.add_argument("--out-dir", default=OUT_DIR, help="Output folder (default %(default)s)")
+    OUT_DIR = os.path.abspath(ap.parse_args(argv).out_dir)
     os.makedirs(OUT_DIR, exist_ok=True)
     print(f"Loading per-seed IoU from {REPO_ROOT}/results/")
     per_seed = load_per_seed_iou()

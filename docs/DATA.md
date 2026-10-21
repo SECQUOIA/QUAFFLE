@@ -25,6 +25,45 @@ Both tools are deterministic. The manifests store file md5s and decoded
 pixel md5s for every pair, so a changed dataset can be detected by rerunning
 the tool and diffing the JSON.
 
+## Building flood_combined
+
+`flood_combined` is not a separate download. It holds every file of
+`flood_optical` and `flood_SAR`, unchanged, in one folder per split
+(`Training`, `Testing`) and kind (`images`, `labels`):
+
+* Optical files keep their names.
+* A SAR file whose name already exists in the optical folder of the same
+  split and kind gets ` copy` before the extension. For example SAR
+  `Training/images/164.tif` becomes `Training/images/164 copy.tif` and its
+  label `Training/labels/164.png` becomes `Training/labels/164 copy.png`.
+* All other SAR files keep their names.
+
+With the tiles used here this renames 142 SAR training pairs (names 164 to
+305) and 71 SAR test pairs (names 0 to 70), which gives 1702 training and 235
+test pairs. The file md5s in the three manifests confirm that every
+combined file is a byte-identical copy of its optical or SAR source. The
+loader checks the folder against `splits/flood_combined.json` and stops with
+an error if a listed name is missing.
+
+From inside `data/`:
+
+```bash
+for split in Training Testing; do
+  for kind in images labels; do
+    dst=flood_combined/$split/$kind
+    mkdir -p "$dst"
+    cp flood_optical/$split/$kind/* "$dst/"
+    for f in flood_SAR/$split/$kind/*; do
+      b=$(basename "$f")
+      if [ -e "flood_optical/$split/$kind/$b" ]; then
+        b="${b%.*} copy.${b##*.}"
+      fi
+      cp "$f" "$dst/$b"
+    done
+  done
+done
+```
+
 ## Train/test leakage
 
 ### Method
@@ -60,7 +99,7 @@ Details:
 * Among the 151 duplicate training tiles there are 18 duplicate groups whose
   masks disagree. One copy is kept, chosen by name order.
 * `flood_combined` is optical plus SAR (name clashes resolved with a ` copy`
-  suffix), so it inherits exactly the SAR leakage and duplicates. The
+  suffix on the SAR file, see "Building flood_combined"), so it inherits exactly the SAR leakage and duplicates. The
   optical part of combined is clean.
 
 ### Near-duplicate check
@@ -93,7 +132,7 @@ track 2 band table on the same page (`Table.png`).
 
 SAR, 6 bands, 512 x 512, 10 m (flood_SAR):
 
-| Index | Name in code | Content | Observed range in local tiles |
+| Index | Name in code | Content | Observed range in the tiles |
 |---|---|---|---|
 | 1 | VV | Sentinel-1 VV | 0 to 32765, heavy tail, saturates at 32765 |
 | 2 | VH | Sentinel-1 VH | 0 to 32765 |
@@ -102,7 +141,7 @@ SAR, 6 bands, 512 x 512, 10 m (flood_SAR):
 | 5 | WORLDCOVER | ESA WorldCover class | multiples of 10, 10 to 90 |
 | 6 | WATER_OCC | Global Surface Water occurrence | 0 to 100 |
 
-Optical, 12 bands, 128 x 128 in the local copy (the contest figure says 512
+Optical, 12 bands, 128 x 128 in the copy used here (the contest figure says 512
 pixels at 30 m) (flood_optical):
 
 | Index | Name in code | Content | Observed range |

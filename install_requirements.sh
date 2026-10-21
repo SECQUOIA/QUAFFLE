@@ -4,7 +4,7 @@ set -e
 
 MODE=${1:-gpu}
 
-echo "Installing QFedUNet requirements in $MODE mode..."
+echo "Installing QUAFFLE requirements in $MODE mode..."
 
 # Install core dependencies that are common to both CPU and GPU
 echo "Installing core dependencies..."
@@ -22,6 +22,7 @@ pip install \
     tensorflow==2.19.0 \
     scikit-learn==1.7.0 \
     openpyxl==3.1.5 \
+    pandas==3.0.2 \
     flwr==1.19.0 \
     flwr[simulation]==1.19.0
 

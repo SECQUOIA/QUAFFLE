@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-abalation_studies.py
+ablation_studies.py
 
 Parameter-matched classical UNet ablation against quantum (QVUNet) models.
 Supports both PyTorch (Torch) and JAX (Flax/PennyLane) frameworks, and both
@@ -16,13 +16,13 @@ For each framework × mode combination, the script:
   3. Trains that ablation model under identical conditions.
 
 Usage:
-    python abalation_studies.py --framework torch --mode centralized
-    python abalation_studies.py --framework torch --mode centralized --quantum-backend ptlayer
-    python abalation_studies.py --framework torch --mode federated
-    python abalation_studies.py --framework torch --mode federated --partition dirichlet --alpha 0.5
-    python abalation_studies.py --framework jax  --mode centralized
-    python abalation_studies.py --framework jax  --mode federated
-    python abalation_studies.py --framework jax  --mode federated --partition dirichlet --alpha 0.5
+    python ablation_studies.py --framework torch --mode centralized
+    python ablation_studies.py --framework torch --mode centralized --quantum-backend ptlayer
+    python ablation_studies.py --framework torch --mode federated
+    python ablation_studies.py --framework torch --mode federated --partition dirichlet --alpha 0.5
+    python ablation_studies.py --framework jax  --mode centralized
+    python ablation_studies.py --framework jax  --mode federated
+    python ablation_studies.py --framework jax  --mode federated --partition dirichlet --alpha 0.5
 """
 
 import os
@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
                         help='Federated data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
-                        help='Dirichlet alpha — lower = more non-IID (default: 0.5)')
+                        help='Dirichlet alpha, lower = more non-IID (default: 0.5)')
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')
@@ -104,11 +104,11 @@ def _count_torch_params(model):
 def _find_matched_torch_config(backend, overrides=None):
     """Parameter-matched ablation config.
 
-    The ablation now uses ClassicalAblationUNetSegmentation — same QVUNet
+    The ablation uses ClassicalAblationUNetSegmentation: the same QVUNet
     architecture as the quantum model, with the PQC-based QuantumBlock swapped
-    for a lightweight 1x1-conv ClassicalBottleneckBlock. This replaces the
-    earlier binary-search-on-base_channels approach, which could never get
-    closer than ~18% due to GroupNorm divisibility constraints.
+    for a lightweight 1x1-conv ClassicalBottleneckBlock. Matching the
+    parameter count by searching over base_channels instead cannot get closer
+    than about 18% because of GroupNorm divisibility constraints.
     """
     from utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation
 
@@ -190,7 +190,7 @@ def run_centralized_torch(args):
     base_dir = _DATA_DIRS[args.dataset]
 
     print("=" * 60)
-    print("Ablation (Torch) — Parameter-Matched Classical UNet (Centralized)")
+    print("Ablation (Torch): Parameter-Matched Classical UNet (Centralized)")
     print(f"Reference quantum backend: {backend}")
     print("=" * 60)
 
@@ -224,7 +224,7 @@ def run_centralized_torch(args):
     config['seed'] = args.seed
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
-    output_dir = f"results/abalation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}"
+    output_dir = f"results/ablation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}"
     print(f"Output directory: {output_dir}")
 
     if getattr(args, 'epochs', None) is not None:
@@ -270,7 +270,7 @@ def run_centralized_torch(args):
         train_metrics = ckpt.get('train_metrics', [])
         val_metrics   = ckpt.get('val_metrics', [])
         tc.restore_rng_state(ckpt.get('rng_state'), train_loader)
-        print(f"Checkpoint loaded — resuming from epoch {start_epoch}")
+        print(f"Checkpoint loaded, resuming from epoch {start_epoch}")
     else:
         print("No checkpoint found, starting from scratch")
 
@@ -285,7 +285,7 @@ def run_centralized_torch(args):
                     f"Accuracy={r['accuracy']:.4f} AUC={r['auc']:.4f} "
                     f"IoU={r['iou']:.4f} Dice={r['dice']:.4f}\n")
         save_training_curves(val_metrics, output_dir,
-                             title_prefix="Abalation Centralized Torch Classical ")
+                             title_prefix="Ablation Centralized Torch Classical ")
 
     from utilsTorch import train_one_epoch
     epoch = start_epoch
@@ -317,11 +317,11 @@ def run_centralized_torch(args):
                            os.path.join(output_dir, f'checkpoint_epoch_{epoch}.pt'))
         if epoch % 50 == 0 and val_metrics:
             save_training_curves(val_metrics, output_dir,
-                                 title_prefix="Abalation Centralized Torch Classical ")
+                                 title_prefix="Ablation Centralized Torch Classical ")
 
     if val_metrics:
         save_training_curves(val_metrics, output_dir,
-                             title_prefix="Abalation Centralized Torch Classical ")
+                             title_prefix="Ablation Centralized Torch Classical ")
 
     test_result = None
     if os.path.exists(test_images_dir):
@@ -334,7 +334,7 @@ def run_centralized_torch(args):
               f"Dice={test_result['dice']:.4f}")
         if config['save_samples']:
             visualize_results(model, test_loader, device, output_dir,
-                              title_prefix="Abalation Test - ", filename_prefix="abalation_test_",
+                              title_prefix="Ablation Test - ", filename_prefix="ablation_test_",
                               num_samples=config['num_test_samples'])
 
     if test_result is None:
@@ -352,14 +352,14 @@ def run_centralized_torch(args):
         extra={'reference_quantum_params': q_params})
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name=f"Abalation Centralized Torch Bottleneck (vs {backend})",
+        demo_name=f"Ablation Centralized Torch Bottleneck (vs {backend})",
         framework="torch", training="centralized",
         variant=f"classical_matched_{config['base_channels']}ch",
         val_metrics=val_metrics[-1] if val_metrics else None,
         test_metrics=test_result, config={**config, 'total_params': total_params},
         dataset=args.dataset, provenance=provenance,
     )
-    print(f"\nAbalation centralized Torch complete. Results in: {output_dir}")
+    print(f"\nAblation centralized Torch complete. Results in: {output_dir}")
     print("=" * 60)
 
 
@@ -561,7 +561,7 @@ def run_federated_torch(args):
     suffix  = f"_dirichlet{args.alpha}" if args.partition == 'dirichlet' else "_random"
 
     print("=" * 60)
-    print("Ablation (Torch) — Parameter-Matched Classical UNet (Federated)")
+    print("Ablation (Torch): Parameter-Matched Classical UNet (Federated)")
     print(f"Reference quantum backend: {backend}  |  Partition: {args.partition}"
           + (f"  alpha={args.alpha}" if args.partition == 'dirichlet' else ""))
     print("=" * 60)
@@ -603,7 +603,7 @@ def run_federated_torch(args):
     tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
-    output_dir = f"results/abalation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}"
+    output_dir = f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}"
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory: {output_dir}")
 
@@ -628,7 +628,7 @@ def run_federated_torch(args):
     total_params = _count_torch_params(temp)
     initial_parameters = ndarrays_to_parameters(_torch_params_to_numpy(temp))
     del temp
-    print(f"Model initialized — {total_params:,} parameters")
+    print(f"Model initialized: {total_params:,} parameters")
 
     strategy = _TorchAblationFedAvg(
         val_loader=val_loader, config=config, device_str=device_str, output_dir=output_dir,
@@ -686,8 +686,8 @@ def run_federated_torch(args):
 
         if strategy.round_metrics:
             save_training_curves(strategy.round_metrics, output_dir,
-                                 prefix="abalation_fed_",
-                                 title_prefix="Abalation Federated Torch Classical ")
+                                 prefix="ablation_fed_",
+                                 title_prefix="Ablation Federated Torch Classical ")
 
         if os.path.exists(test_images_dir):
             test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
@@ -703,8 +703,8 @@ def run_federated_torch(args):
                         f"IoU={test_result['iou']:.4f} Dice={test_result['dice']:.4f}\n")
             if config['save_samples']:
                 visualize_results(final_model, test_loader, torch.device(device_str), output_dir,
-                                  title_prefix="Abalation Fed Test - ",
-                                  filename_prefix="abalation_fed_test_",
+                                  title_prefix="Ablation Fed Test - ",
+                                  filename_prefix="ablation_fed_test_",
                                   num_samples=config['num_test_samples'])
 
     if test_result is None:
@@ -728,7 +728,7 @@ def run_federated_torch(args):
                'resumed_from_round': strategy.resumed_from_round})
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name=f"Abalation Federated Torch Bottleneck (vs {backend})",
+        demo_name=f"Ablation Federated Torch Bottleneck (vs {backend})",
         framework="torch", training="federated",
         variant=f"classical_matched_{config['base_channels']}ch",
         val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
@@ -736,7 +736,7 @@ def run_federated_torch(args):
         config={**config, 'total_params': total_params},
         dataset=args.dataset, provenance=provenance,
     )
-    print(f"\nAbalation federated Torch complete. Results in: {output_dir}")
+    print(f"\nAblation federated Torch complete. Results in: {output_dir}")
     print("=" * 60)
 
 
@@ -968,7 +968,7 @@ def run_centralized_jax(args):
     test_masks_dir   = os.path.join(base_dir, "Testing", "labels")
 
     print("=" * 60)
-    print("Ablation (JAX) — Parameter-Matched Classical UNet (Centralized)")
+    print("Ablation (JAX): Parameter-Matched Classical UNet (Centralized)")
     print("=" * 60)
 
     if not os.path.exists(train_images_dir):
@@ -985,7 +985,7 @@ def run_centralized_jax(args):
     config_dict.eval_every = 10
     config = config_dict
 
-    output_dir = f"results/abalation_centralized_jax_classical_matched_seed{config.seed}"
+    output_dir = f"results/ablation_centralized_jax_classical_matched_seed{config.seed}"
     os.makedirs(output_dir, exist_ok=True)
     ckpt_dir = os.path.join(output_dir, "checkpoints")
     os.makedirs(ckpt_dir, exist_ok=True)
@@ -1013,7 +1013,7 @@ def run_centralized_jax(args):
         if restored is not None and hasattr(restored, 'step'):
             state = restored
             start_step = int(state.step)
-            print(f"Checkpoint loaded — resuming from step {start_step}")
+            print(f"Checkpoint loaded, resuming from step {start_step}")
         else:
             print("No valid checkpoint, starting from scratch")
     except Exception as e:
@@ -1058,7 +1058,7 @@ def run_centralized_jax(args):
 
             if (current_step + 1) % 50 == 0 and val_metrics:
                 save_training_curves(val_metrics, output_dir,
-                                     title_prefix="Abalation Centralized JAX Classical ")
+                                     title_prefix="Ablation Centralized JAX Classical ")
 
         # Recover final single-device state
         final_params = jax.tree_util.tree_map(lambda x: x[0], pmap_state.params)
@@ -1066,7 +1066,7 @@ def run_centralized_jax(args):
 
         if val_metrics:
             save_training_curves(val_metrics, output_dir,
-                                 title_prefix="Abalation Centralized JAX Classical ")
+                                 title_prefix="Ablation Centralized JAX Classical ")
 
     # Test
     test_result = None
@@ -1086,13 +1086,13 @@ def run_centralized_jax(args):
                        val_metrics if 'val_metrics' in dir() else [], test_result,
                        mode='centralized')
     save_results_to_excel(
-        demo_name="Abalation Centralized JAX Classical (matched)",
+        demo_name="Ablation Centralized JAX Classical (matched)",
         framework="jax", training="centralized",
         variant=f"classical_matched_{config.base_channels}ch",
         val_metrics=val_metrics[-1] if ('val_metrics' in dir() and val_metrics) else None,
         test_metrics=test_result, config=config,
     )
-    print(f"\nAbalation centralized JAX complete. Results in: {output_dir}")
+    print(f"\nAblation centralized JAX complete. Results in: {output_dir}")
     print("=" * 60)
 
 
@@ -1241,7 +1241,7 @@ def run_federated_jax(args):
     suffix = f"_dirichlet{args.alpha}" if args.partition == 'dirichlet' else "_random"
 
     print("=" * 60)
-    print("Ablation (JAX) — Parameter-Matched Classical UNet (Federated)")
+    print("Ablation (JAX): Parameter-Matched Classical UNet (Federated)")
     print(f"Partition: {args.partition}" +
           (f"  alpha={args.alpha}" if args.partition == 'dirichlet' else ""))
     print("=" * 60)
@@ -1268,7 +1268,7 @@ def run_federated_jax(args):
     config.partition         = args.partition
     config.dirichlet_alpha   = args.alpha
 
-    output_dir = f"results/abalation_federated_jax_classical_matched{suffix}_seed{config.seed}"
+    output_dir = f"results/ablation_federated_jax_classical_matched{suffix}_seed{config.seed}"
     os.makedirs(output_dir, exist_ok=True)
 
     print(f"Matched base_channels={config.base_channels}  "
@@ -1325,8 +1325,8 @@ def run_federated_jax(args):
 
     if strategy.round_metrics:
         save_training_curves(strategy.round_metrics, output_dir,
-                             prefix="abalation_fed_",
-                             title_prefix="Abalation Federated JAX Classical ")
+                             prefix="ablation_fed_",
+                             title_prefix="Ablation Federated JAX Classical ")
 
     test_result = None
     if strategy._current_parameters is not None and os.path.exists(test_images_dir):
@@ -1344,7 +1344,7 @@ def run_federated_jax(args):
                     f"Accuracy={test_result['accuracy']:.4f} AUC={test_result['auc']:.4f} "
                     f"IoU={test_result['iou']:.4f} Dice={test_result['dice']:.4f}\n")
         visualize_results(final_state, test_images, test_masks, config, output_dir,
-                          title_prefix="Abalation Fed JAX ", filename_prefix="abalation_fed_jax_")
+                          title_prefix="Ablation Fed JAX ", filename_prefix="ablation_fed_jax_")
 
     _write_summary_jax(output_dir, q_params, config.base_channels, c_params,
                        strategy.round_metrics, test_result, mode='federated',
@@ -1355,13 +1355,13 @@ def run_federated_jax(args):
                            f"Local epochs: {config.local_epochs}",
                        ])
     save_results_to_excel(
-        demo_name="Abalation Federated JAX Classical (matched)",
+        demo_name="Ablation Federated JAX Classical (matched)",
         framework="jax", training="federated",
         variant=f"classical_matched_{config.base_channels}ch",
         val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
         test_metrics=test_result, config=config,
     )
-    print(f"\nAbalation federated JAX complete. Results in: {output_dir}")
+    print(f"\nAblation federated JAX complete. Results in: {output_dir}")
     print("=" * 60)
 
 

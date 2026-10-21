@@ -268,7 +268,7 @@ def load_dataset_excel(dataset):
     """Load all seed sheets from results_summary_{dataset}.xlsx into one DataFrame."""
     path = os.path.join(RESULTS_DIR, f"results_summary_{dataset}.xlsx")
     if not os.path.exists(path):
-        print(f"  [warn] {path} not found — skipping")
+        print(f"  [warn] {path} not found, skipping")
         return pd.DataFrame()
 
     sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl")
@@ -309,6 +309,8 @@ def assign_method(row):
     partition= str(row.get("Partition","")).lower()
     demo     = str(row.get("Demo",     "")).lower()
 
+    # "abalation" is the misspelled prefix written before the script was
+    # renamed to ablation_studies.py. Accepted for backward compatibility.
     is_ablation = "abalation" in demo or "ablation" in demo
     # Drop the invalid old-architecture ablation rows (7.2M params, bc=28).
     # Keep only the new bottleneck-matched ablation rows (8.76M params).
@@ -352,7 +354,9 @@ import json as _json_disk
 
 # Result directory naming convention:
 #   flood_<central|federated>_optical_pytorch_<classical|pennylane>[_random|_dirichlet0.5][_combined|_sar][_qcN][<vtag>][<btag>]_seed<N>
-#   abalation_<centralized|federated>_torch_bottleneck_matched_pennylane[_random|_dirichlet0.5][_combined|_sar][<vtag>]_seed<N>
+#   ablation_<centralized|federated>_torch_bottleneck_matched_pennylane[_random|_dirichlet0.5][_combined|_sar][<vtag>]_seed<N>
+#   (runs made before ablation_studies.py was renamed use the misspelled
+#   prefix "abalation_", which is parsed the same way)
 # <vtag> is the quantum ansatz variant, "_reupload_L<n>" or "_legacy"
 # (quantum and ablation runs only, added 2026-10). Directories without a
 # tag are older runs; their variant is read from the Provenance block of
@@ -487,6 +491,7 @@ def _parse_run_dir_full(dirname):
     qc = int(qc_m.group(1)) if qc_m else 32
     qc_suffix = f" QC={qc}" if qc != 32 else ""
 
+    # "abalation_" is the misspelled prefix of runs made before the rename (backward compatible)
     if base.startswith("abalation_") or base.startswith("ablation_"):
         if "bottleneck" not in base:
             return None  # old base_channels=28 architecture; superseded
@@ -1178,7 +1183,7 @@ _REGIME_TITLE = {
 def _effective_n_seeds(seed_df, methods):
     """Floor of unique-seed counts across the (Dataset, Method) pairs that
     appear in a plot. Reflects the worst-covered cell, which is the honest n
-    for cross-method comparisons (some ablation reruns lag the headline runs).
+    for cross-method comparisons (some cells can have fewer completed seeds).
     """
     if seed_df.empty or not methods:
         return 0
@@ -1411,7 +1416,8 @@ def plot_parameter_counts(df):
         "Centralized Quantum Torch":                            "Quantum\n(Centralized)",
         "Federated Quantum Torch":                              "Quantum\n(Federated)",
         # Old broken-arch (bc=28) ablations — should never appear post-filter, but
-        # keep mapped in case any leak through.
+        # keep mapped in case any leak through. "Abalation" is the misspelled
+        # demo name of runs made before the rename (backward compatible).
         "Abalation Centralized Torch Classical (vs pennylane)": "Ablation\n(Centralized)",
         "Abalation Federated Torch Classical (vs pennylane)":   "Ablation\n(Federated)",
         "Ablation Centralized Torch Classical":                 "Ablation\n(Centralized)",
@@ -1421,6 +1427,8 @@ def plot_parameter_counts(df):
         "Abalation Federated Torch Bottleneck (vs pennylane)":   "Ablation\n(Federated)",
         "Ablation Centralized Torch Bottleneck":                 "Ablation\n(Centralized)",
         "Ablation Federated Torch Bottleneck":                   "Ablation\n(Federated)",
+        "Ablation Centralized Torch Bottleneck (vs pennylane)":  "Ablation\n(Centralized)",
+        "Ablation Federated Torch Bottleneck (vs pennylane)":    "Ablation\n(Federated)",
     }
     param_df["Label"] = param_df["Demo"].map(label_map).fillna(param_df["Demo"])
 
@@ -1430,7 +1438,7 @@ def plot_parameter_counts(df):
     # Colour by type
     def _color(row):
         d = row["Demo"].lower()
-        if "abalation" in d or "ablation" in d:
+        if "abalation" in d or "ablation" in d:  # abalation: pre-rename runs
             return CATEGORY_COLOR["Ablation"]
         if "quantum" in row["Variant"]:
             return CATEGORY_COLOR["Quantum"]
@@ -1483,7 +1491,7 @@ def _collect_param_table(df):
     def _category(row):
         demo = str(row.get("Demo", "")).lower()
         variant = str(row.get("Variant", "")).lower()
-        if "abalation" in demo or "ablation" in demo:
+        if "abalation" in demo or "ablation" in demo:  # abalation: pre-rename runs
             return "Ablation"
         if "quantum" in variant:
             return "Quantum"
@@ -1976,13 +1984,13 @@ def save_all_plots(seed_df, raw_df=None):
 
 def print_summary(seed_df):
     print("\n" + "="*70)
-    print("AGGREGATE RESULTS — Test IoU (mean ± std across seeds)")
+    print("AGGREGATE RESULTS: Test IoU (mean ± std across seeds)")
     print("="*70)
     pivot = make_pivot(seed_df, "Test_IoU")
     print(pivot.to_string())
 
     print("\n" + "="*70)
-    print("AGGREGATE RESULTS — Test Dice (mean ± std across seeds)")
+    print("AGGREGATE RESULTS: Test Dice (mean ± std across seeds)")
     print("="*70)
     pivot = make_pivot(seed_df, "Test_Dice")
     print(pivot.to_string())
@@ -2039,7 +2047,7 @@ if __name__ == "__main__":
     df = load_all(include_backends=_args.include_backend)
 
     if df.empty:
-        print("No data found — make sure results/results_summary_*.xlsx exist.")
+        print("No data found, make sure results/results_summary_*.xlsx exist.")
         sys.exit(1)
 
     print(f"\nTotal rows: {len(df)}")
