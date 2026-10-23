@@ -397,11 +397,13 @@ def main():
 
     _DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
     # Data paths
-    base_dir = _DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir = os.path.join(base_dir, "Training", "labels")
-    test_images_dir = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
     print("=" * 60)
     print("Federated Classical Flood Segmentation Demo with Flower")
     print("Using Classical U-Net with PyTorch")
@@ -415,13 +417,14 @@ def main():
     config['seed'] = args.seed
     config['dataset'] = args.dataset
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    if args.partition == 'dirichlet':
-        output_dir = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}_seed{config['seed']}"
-    else:
-        output_dir = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}_seed{config['seed']}"
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
     tc.apply_common_args(config, args)
+    if args.partition == 'dirichlet':
+        default_out = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}_seed{config['seed']}"
+    else:
+        default_out = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}_seed{config['seed']}"
+    output_dir = tc.resolve_output_dir(default_out, config, args)
 
     # Seed python, numpy, torch and cuda once in the driver process. Ray
     # workers reseed per client and round in fit().
@@ -523,7 +526,7 @@ def main():
 
     # Start Flower simulation
     if remaining_rounds > 0:
-        fl.simulation.start_simulation(
+        tc.start_flower_simulation(
             client_fn=client_fn,
             num_clients=config['num_clients'],
             config=fl.server.ServerConfig(num_rounds=remaining_rounds),
@@ -562,37 +565,35 @@ def main():
         test_result = None
         
         # Test and visualize with final global model
-        if config['save_samples']:
-            if os.path.exists(test_images_dir):
-                print("Loading test data for evaluation and visualization...")
-                test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
-                test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
-                test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
-                
-                # Evaluate on test set
-                print("Evaluating on test set...")
-                test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
-                print(f"Test Results - Loss: {test_result['loss']:.4f}, "
-                      f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+        if os.path.exists(test_images_dir):
+            print("Loading test data for evaluation and visualization...")
+            test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
+            test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
+            test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
+            
+            # Evaluate on test set
+            print("Evaluating on test set...")
+            test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
+            print(f"Test Results - Loss: {test_result['loss']:.4f}, "
+                  f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
 
-                # Log test results to evaluation log file
-                with open(strategy.eval_log_path, 'a') as f:
-                    f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
-                
-                # Save test samples
+            # Log test results to evaluation log file
+            with open(strategy.eval_log_path, 'a') as f:
+                f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
+            
+            if config['save_samples']:
                 print("Saving test samples...")
                 visualize_results(final_model, test_loader, torch.device(device_str), output_dir, 
                                  title_prefix="Flower Federated Test - ", 
                                  filename_prefix="flower_fed_test_", 
                                  num_samples=config['num_test_samples'])
-            else:
-                print("Test directory not found, using validation data for visualization...")
-                # Save validation samples
-                print("Saving validation samples...")
-                visualize_results(final_model, val_loader, torch.device(device_str), output_dir,
-                                 title_prefix="Flower Federated Validation - ", 
-                                 filename_prefix="flower_fed_val_", 
-                                 num_samples=config['num_val_samples'])
+        elif config['save_samples']:
+            print("Test directory not found, using validation data for visualization...")
+            print("Saving validation samples...")
+            visualize_results(final_model, val_loader, torch.device(device_str), output_dir,
+                             title_prefix="Flower Federated Validation - ", 
+                             filename_prefix="flower_fed_val_", 
+                             num_samples=config['num_val_samples'])
         
         if test_result is None:
             tc.fail_run(output_dir, "no test evaluation (test set missing or save_samples disabled)")

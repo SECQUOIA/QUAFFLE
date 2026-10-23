@@ -147,11 +147,13 @@ DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined
 
 def main():
     args = parse_args()
-    base_dir = DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir = os.path.join(base_dir, "Training", "labels")
-    test_images_dir = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
     print("=" * 60)
     print("Classical Flood Segmentation Demo")
     print("Using Classical U-Net with PyTorch")
@@ -164,9 +166,12 @@ def main():
     config['seed'] = args.seed
     config['dataset'] = args.dataset
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    output_dir = f"results/flood_central_optical_pytorch_classical{ds_suffix}_seed{config['seed']}"
-
     tc.apply_common_args(config, args)
+    output_dir = tc.resolve_output_dir(
+        f"results/flood_central_optical_pytorch_classical{ds_suffix}_seed{config['seed']}",
+        config,
+        args,
+    )
 
     # Seed python, numpy, torch and cuda once, before any data or model work.
     tc.seed_everything(config['seed'])

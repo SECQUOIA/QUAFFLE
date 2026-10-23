@@ -167,11 +167,13 @@ DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined
 
 def main():
     args = parse_args()
-    base_dir = DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir = os.path.join(base_dir, "Training", "labels")
-    test_images_dir = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
     print("=" * 60)
     print("Quantum Flood Segmentation Demo")
     print("=" * 60)
@@ -189,8 +191,12 @@ def main():
     config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
     # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
     # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
-    output_dir = (f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
-                  f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}")
+    output_dir = tc.resolve_output_dir(
+        f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
+        f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}",
+        config,
+        args,
+    )
     print(f"Output directory: {output_dir}")
 
     # Seed python, numpy, torch and cuda once, before any data or model work.

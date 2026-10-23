@@ -187,17 +187,18 @@ def run_centralized_torch(args):
 
     _DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
     backend = args.quantum_backend
-    base_dir = _DATA_DIRS[args.dataset]
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
 
     print("=" * 60)
     print("Ablation (Torch): Parameter-Matched Classical UNet (Centralized)")
     print(f"Reference quantum backend: {backend}")
     print("=" * 60)
-
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir  = os.path.join(base_dir, "Training", "labels")
-    test_images_dir  = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir   = os.path.join(base_dir, "Testing", "labels")
 
     if not os.path.exists(train_images_dir):
         tc.fail_run(None, f"Training images not found: {train_images_dir}")
@@ -222,13 +223,15 @@ def run_centralized_torch(args):
         'dataset': args.dataset,
     }
     config['seed'] = args.seed
+    tc.apply_common_args(config, args)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
-    output_dir = f"results/ablation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}"
+    output_dir = tc.resolve_output_dir(
+        f"results/ablation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}",
+        config,
+        args,
+    )
     print(f"Output directory: {output_dir}")
-
-    if getattr(args, 'epochs', None) is not None:
-        config['num_epochs'] = int(args.epochs)
 
     # Reseed after the parameter-count probes so the ablation model init only
     # depends on the seed.
@@ -330,6 +333,7 @@ def run_centralized_torch(args):
                              title_prefix="Ablation Centralized Torch Classical ")
 
     test_result = None
+    knockout = None
     if os.path.exists(test_images_dir):
         test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
         test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
@@ -338,6 +342,10 @@ def run_centralized_torch(args):
         print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
               f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
               f"Dice={test_result['dice']:.4f}")
+        if config.get('quantum_knockout_eval'):
+            print("Quantum knockout evaluation on the test set...")
+            knockout = tc.knockout_eval(model, test_loader, device, evaluate_model,
+                                        knockout_seed=config['seed'])
         if config['save_samples']:
             visualize_results(model, test_loader, device, output_dir,
                               title_prefix="Ablation Test - ", filename_prefix="ablation_test_",
@@ -349,12 +357,14 @@ def run_centralized_torch(args):
                          total_params, val_metrics, test_result, mode='centralized',
                          extra_lines=[f"Validation: global held-out {len(va_idx)} samples "
                                       f"({config['val_fraction']} of the training pool, stratified)"],
-                         provenance=provenance)
+                         provenance=provenance, knockout=knockout)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="centralized",
         model_type="ablation", config=config,
         val_metrics=val_metrics[-1] if val_metrics else None, test_metrics=test_result,
-        history=val_metrics, total_params=total_params, provenance=provenance,
+        history=val_metrics, total_params=total_params,
+        knockout=knockout if config.get('quantum_knockout_eval') else None,
+        provenance=provenance,
         extra={'reference_quantum_params': q_params})
     tc.safe_tracker_call(
         save_results_to_excel,
@@ -575,11 +585,13 @@ def run_federated_torch(args):
           + (f"  alpha={args.alpha}" if args.partition == 'dirichlet' else ""))
     print("=" * 60)
 
-    base_dir        = _DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir  = os.path.join(base_dir, "Training", "labels")
-    test_images_dir  = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir   = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
 
     if not os.path.exists(train_images_dir):
         tc.fail_run(None, f"Training images not found: {train_images_dir}")
@@ -612,7 +624,11 @@ def run_federated_torch(args):
     tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
-    output_dir = f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}"
+    output_dir = tc.resolve_output_dir(
+        f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}",
+        config,
+        args,
+    )
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory: {output_dir}")
 
@@ -667,7 +683,7 @@ def run_federated_torch(args):
     if remaining_rounds > 0:
         print(f"\nStarting Flower federated training: rounds {strategy.round_offset + 1}.."
               f"{config['fed_rounds']} ({remaining_rounds} of {config['fed_rounds']})...")
-        fl.simulation.start_simulation(
+        tc.start_flower_simulation(
             client_fn=client_fn,
             num_clients=config['num_clients'],
             config=fl.server.ServerConfig(num_rounds=remaining_rounds),
@@ -688,6 +704,7 @@ def run_federated_torch(args):
     print(f"\nFederated training complete. Best AUC: {strategy.best_performance:.4f}")
 
     test_result = None
+    knockout = None
     if strategy._current_parameters is not None:
         final_model = tc.build_model(ClassicalAblationUNetSegmentation, config)
         final_model.to(torch.device(device_str))
@@ -706,6 +723,10 @@ def run_federated_torch(args):
             print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
                   f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
                   f"Dice={test_result['dice']:.4f}")
+            if config.get('quantum_knockout_eval'):
+                print("Quantum knockout evaluation on the test set...")
+                knockout = tc.knockout_eval(final_model, test_loader, torch.device(device_str), evaluate_model,
+                                            knockout_seed=config['seed'])
             with open(strategy.eval_log, 'a') as f:
                 f.write(f"Final Test: Loss={test_result['loss']:.4f} "
                         f"Accuracy={test_result['accuracy']:.4f} AUC={test_result['auc']:.4f} "
@@ -725,13 +746,14 @@ def run_federated_torch(args):
                              f"Clients: {config['num_clients']}, Rounds: {config['fed_rounds']}, "
                              f"Local epochs: {config['local_epochs']}",
                          ],
-                         provenance=provenance)
+                         provenance=provenance, knockout=knockout)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated",
         model_type="ablation", config=config,
         val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
         test_metrics=test_result, history=strategy.round_metrics,
         total_params=total_params, best_val_auc=strategy.best_performance,
+        knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance,
         extra={'reference_quantum_params': q_params,
                'resumed_from_round': strategy.resumed_from_round})
@@ -751,7 +773,8 @@ def run_federated_torch(args):
 
 def _write_summary_torch(output_dir, backend, q_params, base_channels,
                          total_params, val_metrics, test_result,
-                         mode='centralized', extra_lines=None, provenance=None):
+                         mode='centralized', extra_lines=None, provenance=None,
+                         knockout=None):
     summary_path = os.path.join(output_dir, "results", "summary.txt")
     os.makedirs(os.path.dirname(summary_path), exist_ok=True)
     with open(summary_path, 'w') as f:
@@ -774,6 +797,8 @@ def _write_summary_torch(output_dir, backend, q_params, base_channels,
             f.write(f"  Loss: {test_result['loss']:.4f}\n  Accuracy: {test_result['accuracy']:.4f}\n")
             f.write(f"  AUC: {test_result['auc']:.4f}\n  IoU: {test_result['iou']:.4f}\n")
             f.write(f"  Dice: {test_result['dice']:.4f}\n")
+        if knockout:
+            f.write("\n" + tc.format_knockout(knockout))
         if provenance:
             f.write("\n" + format_provenance(provenance))
 

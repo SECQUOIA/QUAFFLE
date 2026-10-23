@@ -33,22 +33,30 @@ class FloodSegmentationDataset(Dataset):
     three bands, per-image percentile stretch. See docs/DATA.md.
     """
     def __init__(self, images_dir, masks_dir, image_size, legacy=None, bands=None,
-                 manifest=None, stats_path=None):
+                 manifest=None, stats_path=None, max_samples=None, sample_seed=42,
+                 data_root=None, seed=None, val_fraction=None, fit_only=None):
         self.samples, self.names = flood_data.load_samples(
             images_dir, masks_dir, image_size, legacy=legacy, bands=bands,
-            manifest=manifest, stats_path=stats_path, progress=tqdm)
+            manifest=manifest, stats_path=stats_path, progress=tqdm,
+            max_samples=max_samples, sample_seed=sample_seed, data_root=data_root,
+            seed=seed, val_fraction=val_fraction, fit_only=fit_only)
     def __len__(self):
         return len(self.samples)
     def __getitem__(self, idx):
         img, mask = self.samples[idx]
-        img = torch.from_numpy(img.transpose(2, 0, 1)).float()  # CHW
-        mask = torch.from_numpy(mask.transpose(2, 0, 1)).float()  # 1HW
+        img = torch.from_numpy(np.array(img.transpose(2, 0, 1), dtype=np.float32, copy=True))  # CHW
+        mask = torch.from_numpy(np.array(mask.transpose(2, 0, 1), dtype=np.float32, copy=True))  # 1HW
         return img, mask
 
 def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2, shuffle=True,
-                    legacy=None, bands=None, manifest=None, stats_path=None):
-    dataset = FloodSegmentationDataset(images_dir, masks_dir, image_size, legacy=legacy,
-                                       bands=bands, manifest=manifest, stats_path=stats_path)
+                    legacy=None, bands=None, manifest=None, stats_path=None,
+                    max_samples=None, sample_seed=42, data_root=None,
+                    seed=None, val_fraction=None, fit_only=None):
+    dataset = FloodSegmentationDataset(
+        images_dir, masks_dir, image_size, legacy=legacy, bands=bands,
+        manifest=manifest, stats_path=stats_path, max_samples=max_samples,
+        sample_seed=sample_seed, data_root=data_root, seed=seed,
+        val_fraction=val_fraction, fit_only=fit_only)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     return loader
 
@@ -433,6 +441,8 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     
     if not metrics:
         print("No metrics to save")
+        return
+    if os.environ.get("QUAFFLE_SKIP_CURVE_PLOTS", "0").lower() in ("1", "true", "yes"):
         return
     
     # Extract metrics - handle different key formats
