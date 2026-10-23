@@ -21,86 +21,34 @@ from typing import List
 # Import quantum model
 from . import unetJAX as unet
 
+import sys as _sys
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in _sys.path:
+    _sys.path.insert(0, _REPO_ROOT)
+import flood_data
+from flood_data import set_data_defaults
+
 # Disable TensorFlow GPU usage
 tf.config.experimental.set_visible_devices([], "GPU")
 
-def load_dataset(images_dir, masks_dir, config):
-    """Load images and masks for segmentation."""
-    # Get TIFF files
-    image_paths = glob.glob(os.path.join(images_dir, "*.tif")) + \
-                  glob.glob(os.path.join(images_dir, "*.tiff"))
-    
-    if not image_paths:
-        raise ValueError(f"No TIFF images found in {images_dir}")
-    
-    images, masks = [], []
-    
-    for img_path in tqdm(image_paths, desc="Loading data"):
-        img_name = os.path.splitext(os.path.basename(img_path))[0]
-        
-        # Find corresponding mask
-        mask_path = None
-        for ext in ['.png', '.jpg', '.tif']:
-            potential_mask = os.path.join(masks_dir, img_name + ext)
-            if os.path.exists(potential_mask):
-                mask_path = potential_mask
-                break
-        
-        if mask_path is None:
-            continue
-        
-        try:
-            # Load image with rasterio for multi-band TIFF
-            try:
-                import rasterio
-                with rasterio.open(img_path) as src:
-                    img_data = src.read()[:3]  # Take first 3 bands as RGB
-                    img_array = np.transpose(img_data, (1, 2, 0))
-                    
-                    # Normalize based on data type
-                    if img_array.dtype == np.uint8:
-                        img_array = img_array.astype(np.float32) / 255.0
-                    elif img_array.dtype == np.uint16:
-                        img_array = img_array.astype(np.float32) / 65535.0
-                    else:
-                        # Percentile normalization for float data
-                        img_array = img_array.astype(np.float32)
-                        for c in range(3):
-                            channel = img_array[:, :, c]
-                            low, high = np.percentile(channel, [2, 98])
-                            if high > low:
-                                img_array[:, :, c] = np.clip((channel - low) / (high - low), 0, 1)
-                    
-                    # Resize
-                    img = Image.fromarray((img_array * 255).astype(np.uint8))
-                    img = img.resize((config.image_size, config.image_size), Image.LANCZOS)
-                    img_array = np.array(img, dtype=np.float32) / 255.0
-                    
-            except ImportError:
-                # Fallback to PIL
-                img = Image.open(img_path).convert('RGB')
-                img = img.resize((config.image_size, config.image_size), Image.LANCZOS)
-                img_array = np.array(img, dtype=np.float32) / 255.0
-            
-            # Normalize to [-1, 1]
-            img_array = img_array * 2.0 - 1.0
-            
-            # Load mask
-            mask = Image.open(mask_path).convert('L')
-            mask = mask.resize((config.image_size, config.image_size), Image.NEAREST)
-            mask_array = np.array(mask, dtype=np.float32) / 255.0
-            mask_array = (mask_array > 0.001).astype(np.float32)[..., np.newaxis]
-            
-            images.append(img_array)
-            masks.append(mask_array)
-            
-        except Exception as e:
-            print(f"Error loading {img_path}: {e}")
-            continue
-    
-    if not images:
-        raise ValueError("No valid image-mask pairs loaded")
-    
+def load_dataset(images_dir, masks_dir, config, legacy=None, bands=None, manifest=None,
+                 stats_path=None):
+    """Load images (NHWC in [-1, 1]) and masks (NHW1) for segmentation.
+
+    Clean mode by default (split manifest, named bands, training-split
+    normalization). legacy=True, config.legacy_data=True,
+    set_data_defaults(legacy=True) or QUAFFLE_LEGACY_DATA=1 restores the
+    original loader. See docs/DATA.md.
+    """
+    if legacy is None and hasattr(config, "get"):
+        legacy = config.get("legacy_data", None)
+    if bands is None and hasattr(config, "get"):
+        bands = config.get("bands", None)
+    samples, _ = flood_data.load_samples(
+        images_dir, masks_dir, config.image_size, legacy=legacy, bands=bands,
+        manifest=manifest, stats_path=stats_path, progress=tqdm)
+    images = [x[0] for x in samples]
+    masks = [x[1] for x in samples]
     return np.stack(images), np.stack(masks)
 
 def create_data_iterator(images, masks, config):
@@ -219,42 +167,56 @@ def evaluate_model(state, images, masks, config):
     import jax.numpy as jnp
     batch_size = config.batch_size
     total_loss = total_accuracy = num_batches = 0
+    total_intersection = total_pred_pos = total_true_pos = 0
     all_probs = []
     all_labels = []
-    
+
     for i in range(0, len(images), batch_size):
         batch_images = images[i:i + batch_size]
         batch_masks = masks[i:i + batch_size]
-        
+
         if len(batch_images) < batch_size:
             break
-        
+
         logits = state.apply_fn(state.params, batch_images)
         loss = segmentation_loss(logits, batch_masks)
-        
+
         predictions = jnp.argmax(logits, axis=-1)
         probabilities = jax.nn.softmax(logits, axis=-1)[..., 1]  # Flood probability
         true_labels = batch_masks.astype(jnp.int32).squeeze(-1)
         accuracy = jnp.mean(predictions == true_labels)
-        
+
+        # IoU and Dice accumulation
+        pred_pos = np.array(predictions == 1)
+        true_pos = np.array(true_labels == 1)
+        total_intersection += int(np.sum(pred_pos & true_pos))
+        total_pred_pos += int(np.sum(pred_pos))
+        total_true_pos += int(np.sum(true_pos))
+
         # Collect for AUC calculation
         all_probs.extend(np.array(probabilities).flatten())
         all_labels.extend(np.array(true_labels).flatten())
-        
+
         total_loss += loss
         total_accuracy += accuracy
         num_batches += 1
-    
+
+    union = total_pred_pos + total_true_pos - total_intersection
+    iou = total_intersection / union if union > 0 else 0.0
+    dice = 2 * total_intersection / (total_pred_pos + total_true_pos) if (total_pred_pos + total_true_pos) > 0 else 0.0
+
     # Calculate AUC
     try:
         auc_score = roc_auc_score(all_labels, all_probs)
     except:
         auc_score = 0.0  # Fallback if AUC calculation fails
-    
+
     return {
         'loss': total_loss / num_batches if num_batches > 0 else 0.0,
         'accuracy': total_accuracy / num_batches if num_batches > 0 else 0.0,
-        'auc': auc_score
+        'auc': auc_score,
+        'iou': iou,
+        'dice': dice,
     }
 
 def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
@@ -283,7 +245,9 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     losses = [m['loss'] for m in metrics]
     accuracies = [m['accuracy'] for m in metrics]
     aucs = [m['auc'] for m in metrics]
-    
+    ious = [m.get('iou', 0.0) for m in metrics]
+    dices = [m.get('dice', 0.0) for m in metrics]
+
     # 1. Loss curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, losses, 'b-', label='Loss', linewidth=2)
@@ -295,7 +259,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}loss_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 2. Accuracy curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, accuracies, 'r-', label='Accuracy', linewidth=2)
@@ -307,7 +271,7 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}accuracy_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
     # 3. AUC curve
     plt.figure(figsize=(10, 6))
     plt.plot(x_values, aucs, 'g-', label='AUC', linewidth=2)
@@ -320,7 +284,33 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     plt.tight_layout()
     plt.savefig(os.path.join(results_dir, f'{prefix}auc_curve.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    
+
+    # 4. IoU curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, ious, 'm-', label='IoU', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('IoU Score')
+    plt.title(f'{title_prefix}IoU Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}iou_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # 5. Dice curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, dices, 'c-', label='Dice', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel('Dice Score')
+    plt.title(f'{title_prefix}Dice Score')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.savefig(os.path.join(results_dir, f'{prefix}dice_curve.png'), dpi=150, bbox_inches='tight')
+    plt.close()
+
     print(f"Training curves saved with prefix '{prefix}'")
 
 def visualize_results(state, test_images, test_masks, config, output_dir, title_prefix="", filename_prefix="", num_samples=4):

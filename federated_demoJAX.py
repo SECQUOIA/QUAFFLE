@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import argparse
 import numpy as np
 import ml_collections
 from tqdm import tqdm
@@ -9,30 +10,56 @@ from flwr.common import Parameters, FitRes, EvaluateRes, parameters_to_ndarrays,
 from flwr.server.strategy import FedAvg
 
 from utilsJAX import *
+from results_tracker import save_results_to_excel
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Federated Quantum JAX Flood Segmentation")
+    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+                        help='Data partitioning strategy (default: random)')
+    parser.add_argument('--alpha', type=float, default=0.5,
+                        help='Dirichlet concentration parameter, lower = more non-IID (default: 0.5)')
+    return parser.parse_args()
+
 
 def split_data_among_clients(images, masks, num_clients, seed=42):
-    """Split data among multiple clients for federated learning."""
+    """Random IID split of numpy arrays among clients."""
     import jax
     key = jax.random.PRNGKey(seed)
     key, subkey = jax.random.split(key)
-    
-    # Shuffle data
-    indices = jax.random.permutation(subkey, len(images))
+    indices = np.array(jax.random.permutation(subkey, len(images)))
     shuffled_images = images[indices]
     shuffled_masks = masks[indices]
-    
-    # Split among clients
     client_data = []
     samples_per_client = len(images) // num_clients
-    
     for i in range(num_clients):
         start_idx = i * samples_per_client
         end_idx = start_idx + samples_per_client if i < num_clients - 1 else len(images)
-        client_images = shuffled_images[start_idx:end_idx]
-        client_masks = shuffled_masks[start_idx:end_idx]
-        client_data.append((client_images, client_masks))
-    
+        client_data.append((shuffled_images[start_idx:end_idx], shuffled_masks[start_idx:end_idx]))
     return client_data
+
+
+def get_flood_labels_numpy(masks):
+    """Label each sample: 1=flood-dominant (flood ratio > 5%), 0=non-flood. masks: [N, H, W, 1]"""
+    flood_ratio = masks.mean(axis=(1, 2, 3))
+    return (flood_ratio > 0.05).astype(int)
+
+
+def split_data_dirichlet(images, masks, num_clients, alpha, seed=42):
+    """Dirichlet non-IID split of numpy arrays."""
+    rng = np.random.default_rng(seed)
+    labels = get_flood_labels_numpy(masks)
+    classes = np.unique(labels)
+    client_indices = [[] for _ in range(num_clients)]
+    for c in classes:
+        class_idx = np.where(labels == c)[0]
+        rng.shuffle(class_idx)
+        proportions = rng.dirichlet(alpha * np.ones(num_clients))
+        splits = (np.cumsum(proportions) * len(class_idx)).astype(int)[:-1]
+        for cid, chunk in enumerate(np.split(class_idx, splits)):
+            client_indices[cid].extend(chunk.tolist())
+    sizes = [len(idxs) for idxs in client_indices]
+    print(f"Dirichlet (alpha={alpha}) client sizes: {sizes}")
+    return [(images[idxs], masks[idxs]) for idxs in client_indices]
 
 def jax_params_to_numpy(params) -> List[np.ndarray]:
     """Convert JAX parameters to numpy arrays."""
@@ -252,11 +279,11 @@ class QuantumFedAvg(FedAvg):
                 self.round_metrics.append(metrics)
                 
                 print(f"Global evaluation - Round {server_round}: "
-                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}")
-                
+                      f"Loss={metrics['loss']:.4f}, Acc={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}")
+
                 # Log evaluation scores to text file
                 with open(self.eval_log_path, 'a') as f:
-                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}\n")
+                    f.write(f"Round {server_round}: Loss={metrics['loss']:.4f}, Accuracy={metrics['accuracy']:.4f}, AUC={metrics['auc']:.4f}, IoU={metrics['iou']:.4f}, Dice={metrics['dice']:.4f}\n")
         
         return aggregated_result
     
@@ -272,33 +299,43 @@ class QuantumFedAvg(FedAvg):
 
 def main():
     """Run federated quantum flood segmentation demo with Flower."""
+    args = parse_args()
+
     # Data paths
     base_dir = "data/flood_optical"
     train_images_dir = os.path.join(base_dir, "Training", "images")
     train_masks_dir = os.path.join(base_dir, "Training", "labels")
     test_images_dir = os.path.join(base_dir, "Testing", "images")
     test_masks_dir = os.path.join(base_dir, "Testing", "labels")
-    output_dir = "results/flood_federated_optical_jax_pennylane"
-    
     print("Federated Quantum Flood Segmentation Demo with Flower")
     print("Using QVUNet with PennyLane quantum circuits in Flower federated setting")
-    
+
     # Check data
     if not os.path.exists(train_images_dir):
         print(f"Training images not found: {train_images_dir}")
         return
-    
+
     config = get_config()
+    if args.partition == 'dirichlet':
+        output_dir = f"results/flood_federated_optical_jax_pennylane_dirichlet{args.alpha}_seed{config.seed}"
+    else:
+        output_dir = f"results/flood_federated_optical_jax_pennylane_random_seed{config.seed}"
+    config.partition = args.partition
+    config.dirichlet_alpha = args.alpha
     print(f"Configuration: {config.num_clients} clients, {config.fed_rounds} rounds")
     print(f"Quantum: {config.quantum_channels} channels, {config.name_ansatz} ansatz")
+    print(f"Partitioning: {config.partition}" + (f", alpha={config.dirichlet_alpha}" if config.partition == 'dirichlet' else ""))
     
     # Load and split data
     print("Loading training data...")
     train_images, train_masks = load_dataset(train_images_dir, train_masks_dir, config)
     
     # Split data for federated learning
-    print(f"Splitting data among {config.num_clients} clients...")
-    client_data = split_data_among_clients(train_images, train_masks, int(config.num_clients), int(config.seed))
+    print(f"Splitting data among {config.num_clients} clients ({config.partition} partitioning)...")
+    if config.partition == 'dirichlet':
+        client_data = split_data_dirichlet(train_images, train_masks, int(config.num_clients), float(config.dirichlet_alpha), int(config.seed))
+    else:
+        client_data = split_data_among_clients(train_images, train_masks, int(config.num_clients), int(config.seed))
     
     # Create validation set from last client's data (for global evaluation)
     val_split = int(0.2 * len(client_data[-1][0]))
@@ -360,11 +397,11 @@ def main():
             print("Evaluating on test set...")
             test_result = evaluate_model(final_state, test_images, test_masks, config)
             print(f"Test Results - Loss: {test_result['loss']:.4f}, "
-                  f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}")
-            
+                  f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
             # Log test results to evaluation log file
             with open(strategy.eval_log_path, 'a') as f:
-                f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}\n")
+                f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
             
             visualize_results(final_state, test_images, test_masks, config, output_dir, 
                              title_prefix="Flower Federated ", filename_prefix="flower_fed_")
@@ -378,6 +415,19 @@ def main():
             save_training_curves(strategy.round_metrics, output_dir, prefix="flower_fed_", 
                                 title_prefix="Flower Federated Learning - ")
     
+    # Save results to shared Excel summary
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    test_result_for_excel = test_result if 'test_result' in dir() else None
+    save_results_to_excel(
+        demo_name="Federated Quantum JAX",
+        framework="jax",
+        training="federated",
+        variant="quantum",
+        val_metrics=final_val,
+        test_metrics=test_result_for_excel,
+        config=config,
+    )
+
     print(f"\nFlower federated demo completed! Results in {output_dir}")
 
 if __name__ == "__main__":

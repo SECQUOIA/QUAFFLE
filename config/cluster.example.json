@@ -1,0 +1,17 @@
+{
+  "_comment": "Copy to config/cluster.local.json (gitignored) and fill in. Keys left null or removed use the defaults in misc/generate_grid.py. Every key can also be set with a QUAFFLE_<KEY> environment variable or a generate_grid.py flag.",
+  "account": "YOUR_SLURM_ACCOUNT",
+  "partition": "YOUR_GPU_PARTITION",
+  "python": "/path/to/conda/envs/quaffle/bin/python",
+  "conda_sh": "/path/to/conda/etc/profile.d/conda.sh",
+  "conda_env": "quaffle",
+  "modules": ["cuda/12.0.1"],
+  "mail_user": null,
+  "mail_type": "END,FAIL",
+  "gpus": 1,
+  "cpus_per_task": 8,
+  "mem": "64G",
+  "output_log_dir": "output_logs",
+  "error_log_dir": "error_logs",
+  "git_safe_directory": false
+}
