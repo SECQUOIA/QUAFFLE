@@ -59,7 +59,9 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     checkpoint = None
     if os.path.exists(checkpoint_path):
         checkpoint = tc.safe_torch_load(checkpoint_path, map_location=device)
-        if checkpoint is not None and not tc.checkpoint_compatible(checkpoint):
+        if checkpoint is not None and not tc.checkpoint_matches_centralized(
+            checkpoint, config, 'classical', checkpoint_path
+        ):
             checkpoint = None
     if checkpoint is not None:
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -112,6 +114,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             tc.atomic_torch_save({
                 'model_state_dict': model.state_dict(),
                 'run_format': tc.RUN_FORMAT,
+                'fingerprint': tc.centralized_fingerprint(config, 'classical'),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'epoch': epoch,
                 'step': epoch,
@@ -127,6 +130,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 torch.save({
                     'model_state_dict': model.state_dict(),
                     'run_format': tc.RUN_FORMAT,
+                    'fingerprint': tc.centralized_fingerprint(config, 'classical'),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': epoch,
                     'step': epoch,

@@ -46,32 +46,28 @@ from config.seeds import SEEDS as ALL_SEEDS  # noqa: E402  single pre-declared s
 # Measured runtimes and time limits
 # ---------------------------------------------------------------------------
 
-# Wall-clock hours measured on 2026-10-02 on one A100 GPU, optical
-# dataset (200 training tiles, 35 val, 71 test), quantum_channels=32,
-# q_ansatz=reupload with the default 2 layers. Federated = 4 clients,
-# 25 rounds x 4 local epochs, random partition. Dirichlet is assumed equal
-# to random.
+# Wall-clock hours on one A100 GPU, optical dataset (200 training tiles,
+# 35 val, 71 test), quantum_channels=32, q_ansatz=reupload with the default
+# 2 layers, without CUDA_LAUNCH_BLOCKING. Federated = 4 clients, 25 rounds x
+# 4 local epochs, random partition. Dirichlet is assumed equal to random.
 #
-# The classical and ablation hours were measured with CUDA_LAUNCH_BLOCKING=1
-# in every job script. The generated scripts do not export it (it doubled the
-# A100 step time of every model, see docs/MODEL.md), so these values are
-# conservative.
+# Quantum values are measured wall-clock hours from the 2026-10-22 PennyLane
+# smoke run (--q-backend pennylane, q_sim_device=cpu, CUDA_LAUNCH_BLOCKING
+# unset): 314 s (0.09 h) centralized and 428 s (0.12 h) federated.
 #
-# Quantum hours are provisional estimates until the PennyLane smoke job
-# (misc/smoke_pennylane_fast.sh) has been run. Quantum jobs pass
-# --q-backend pennylane (one broadcast default.qubit QNode call per block
-# forward, circuit on CPU). They are set to ablation x 1.5, which under
-# SAFETY_FACTOR still covers the earlier torch simulator grid (sacct,
-# CUDA_LAUNCH_BLOCKING on, per-cell means in hours: centralized optical 0.16,
-# sar 0.70, combined 0.83, federated optical 0.65, sar 2.81, combined 3.38).
-# Replace them with the smoke job's sacct elapsed hours.
+# Classical and ablation values are blocking-off estimates aligned to the same
+# execution regime: in the 2026-10-22 no-blocking A100 step benchmark the
+# matched ablation step is 45.2 ms vs 67.9 ms for PennyLane quantum (ratio
+# 0.67), and removing CUDA_LAUNCH_BLOCKING=1 halved step times relative to the
+# earlier 2026-10-02 blocking-on runs (which took 0.10 h / 0.12 h centralized
+# and 0.51 h / 0.56 h federated; see docs/MODEL.md).
 MEASURED_HOURS = {
-    ("classical", "centralized"): 0.10,
-    ("ablation", "centralized"): 0.12,
-    ("quantum", "centralized"): 0.18,  # provisional, see above
-    ("classical", "federated"): 0.51,
-    ("ablation", "federated"): 0.56,
-    ("quantum", "federated"): 0.84,  # provisional, see above
+    ("classical", "centralized"): 0.05,  # estimate (blocking off; 0.10 h with CUDA_LAUNCH_BLOCKING=1)
+    ("ablation", "centralized"): 0.06,   # estimate (blocking off; 0.12 h with CUDA_LAUNCH_BLOCKING=1)
+    ("quantum", "centralized"): 0.09,    # measured 2026-10-22 smoke run (314 s, blocking off)
+    ("classical", "federated"): 0.07,    # estimate (blocking off; 0.51 h with CUDA_LAUNCH_BLOCKING=1)
+    ("ablation", "federated"): 0.08,     # estimate (blocking off; 0.56 h with CUDA_LAUNCH_BLOCKING=1)
+    ("quantum", "federated"): 0.12,      # measured 2026-10-22 smoke run (428 s, blocking off)
 }
 # Circuit simulator passed to every quantum job (--q-backend). 'pennylane' is
 # the single-call PennyLane path. Recorded on the command line so the job

@@ -89,6 +89,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv
 
 TAG=${SLURM_JOB_ID:-manual}
 SUMMARY=()
+FAILED=0
 
 step() {
     # step NAME CMD...   run CMD, print and record its elapsed seconds and exit code
@@ -103,6 +104,10 @@ step() {
     t1=$(date +%s)
     echo "=== $name: elapsed $((t1 - t0)) s, exit $rc"
     SUMMARY+=("$name elapsed=$((t1 - t0))s exit=$rc")
+    if [ "$rc" -ne 0 ]; then
+        FAILED=1
+    fi
+    return "$rc"
 }
 
 # 1. Benchmark, once with CUDA_LAUNCH_BLOCKING=1 and once without.
@@ -115,8 +120,9 @@ step bench_noblocking "$PY" "$ROOT/tools/bench_quantum.py" \
 if [ -f "$ROOT/tests/test_pennylane_fast.py" ]; then
     step exactness_gpu "$PY" "$ROOT/tests/test_pennylane_fast.py" --device cuda
 else
-    echo "tests/test_pennylane_fast.py not found in $ROOT, GPU exactness step skipped"
-    SUMMARY+=("exactness_gpu skipped (test file missing)")
+    echo "tests/test_pennylane_fast.py not found in $ROOT, GPU exactness step failed"
+    SUMMARY+=("exactness_gpu exit=1 (test file missing)")
+    FAILED=1
 fi
 
 # 3. Centralized training smoke (torch simulator grid run took 0.16 h).
@@ -139,3 +145,7 @@ done
 echo
 echo "=== summary"
 printf '%s\n' "${SUMMARY[@]}"
+if [ "$FAILED" -ne 0 ]; then
+    echo "=== smoke_pennylane_fast: FAILED (one or more required steps exited non-zero)" >&2
+    exit 1
+fi

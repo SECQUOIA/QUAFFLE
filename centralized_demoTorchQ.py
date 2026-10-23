@@ -62,11 +62,9 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     checkpoint = None
     if os.path.exists(checkpoint_path):
         checkpoint = tc.safe_torch_load(checkpoint_path, map_location=device)
-        if checkpoint is not None and not tc.checkpoint_compatible(checkpoint):
-            checkpoint = None
-        # Never resume a checkpoint written with another circuit simulator
-        # (a missing q_backend means the torch simulator).
-        if checkpoint is not None and not tc.checkpoint_matches_q_backend(checkpoint, config):
+        if checkpoint is not None and not tc.checkpoint_matches_centralized(
+            checkpoint, config, 'quantum', checkpoint_path
+        ):
             checkpoint = None
     if checkpoint is not None:
         checkpoint_loaded = False
@@ -136,7 +134,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             tc.atomic_torch_save({
                 'model_state_dict': model.state_dict(),
                 'run_format': tc.RUN_FORMAT,
-                'q_backend': config['q_backend'],
+                'q_backend': config.get('q_backend', tc.DEFAULT_Q_BACKEND),
+                'fingerprint': tc.centralized_fingerprint(config, 'quantum'),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'step': step,
                 'train_metrics': train_metrics,
@@ -151,7 +150,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 torch.save({
                     'model_state_dict': model.state_dict(),
                     'run_format': tc.RUN_FORMAT,
-                    'q_backend': config['q_backend'],
+                    'q_backend': config.get('q_backend', tc.DEFAULT_Q_BACKEND),
+                    'fingerprint': tc.centralized_fingerprint(config, 'quantum'),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'step': step,
                     'train_metrics': train_metrics,

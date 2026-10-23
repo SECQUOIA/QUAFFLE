@@ -171,18 +171,9 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         
         print(f"Client {self.client_id} starting local training...")
         
-        server_round = int(config.get('server_round', 0)) if config else 0
-        if server_round == 0:
-            print(f"Client {self.client_id}: no server_round in fit config, "
-                  f"shuffle seed falls back to round 0")
-        training_seed = tc.client_round_seed(self.config['seed'], self.client_id, server_round)
-        torch.manual_seed(training_seed)
-        torch.cuda.manual_seed_all(training_seed)
-        np.random.seed(training_seed)
+        training_seed = tc.seed_client_round(self.config['seed'], self.client_id, config)
         self.client_loader = tc.make_loader(
             self.client_dataset, self.config['batch_size'], True, training_seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
         
         if self.template_model is None:
             self.template_model = tc.build_model(UNetSegmentation, self.config)

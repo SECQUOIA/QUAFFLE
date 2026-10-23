@@ -209,6 +209,7 @@ QUANTUM_MODES = ('on', 'zero', 'random')
 # Added to knockout_seed so the 'random' knockout never reuses the exact stream
 # that initialized the trained parameters (e.g. run seed == knockout seed).
 KNOCKOUT_SEED_OFFSET = 1_000_003
+QUANTUM_INIT_SEED_OFFSET = 500_009
 
 
 def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None,
@@ -1193,7 +1194,7 @@ class ClassicalBottleneckBlock(nn.Module):
     Interface matches QuantumBlock: forward(x, params=None) with x shaped
     [B, quantum_channels, H, W], plus set_quantum_mode for the same knockout.
     """
-    def __init__(self, quantum_channels=8, kind='linear', hidden=None):
+    def __init__(self, quantum_channels=8, kind='linear', hidden=None, seed=None):
         super().__init__()
         if kind not in ('linear', 'mlp'):
             raise ValueError(f"Unknown classical bottleneck kind {kind!r}")
@@ -1205,7 +1206,12 @@ class ClassicalBottleneckBlock(nn.Module):
         self.hidden = hidden if hidden is not None else 3
         self.quantum_mode = 'on'
         self._random_groups = None
-        self.per_group = nn.ModuleList([self._make_group() for _ in range(self.num_groups)])
+        if seed is None:
+            self.per_group = nn.ModuleList([self._make_group() for _ in range(self.num_groups)])
+        else:
+            with torch.random.fork_rng(devices=[]):
+                torch.default_generator.manual_seed(int(seed) + QUANTUM_INIT_SEED_OFFSET)
+                self.per_group = nn.ModuleList([self._make_group() for _ in range(self.num_groups)])
 
     def _make_group(self):
         if self.kind == 'linear':
@@ -1222,7 +1228,7 @@ class ClassicalBottleneckBlock(nn.Module):
         self._random_groups = None
         if mode == 'random':
             with torch.random.fork_rng(devices=[]):
-                torch.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
+                torch.default_generator.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
                 # Plain list so the random copy is not registered in state_dict
                 self._random_groups = [self._make_group() for _ in range(self.num_groups)]
         return self

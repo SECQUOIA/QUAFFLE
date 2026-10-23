@@ -38,3 +38,8 @@ config/cluster.local.*
 *.xlsx
 *.lock
 *.pt
+
+# Internal handoff notes, archives and planning documents
+HANDOFF.md
+*handoff*.zip
+plans/

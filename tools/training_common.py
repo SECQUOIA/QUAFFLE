@@ -396,6 +396,25 @@ def client_round_seed(seed, client_id, server_round):
     return derive_seed(seed, 1000 + int(client_id), int(server_round))
 
 
+def seed_client_round(seed, client_id, fit_config=None):
+    """Seed python, numpy, torch, cuda and CuDNN deterministically for one
+    federated client fit() call, and return the derived round_seed."""
+    import torch
+    server_round = int(fit_config.get('server_round', 0)) if fit_config else 0
+    if server_round == 0:
+        print(f"Client {client_id}: no server_round in fit config, "
+              f"shuffle seed falls back to round 0")
+    round_seed = client_round_seed(seed, client_id, server_round)
+    random.seed(round_seed)
+    np.random.seed(round_seed)
+    torch.manual_seed(round_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(round_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    return round_seed
+
+
 # ---------------------------------------------------------------------------
 # Quantum knockout evaluation
 # ---------------------------------------------------------------------------
@@ -481,7 +500,7 @@ def format_knockout(knock):
 # Bumped whenever the split, seeding or data pipeline changes so that a rerun
 # never silently resumes a checkpoint produced by older code in the same
 # results directory.
-RUN_FORMAT = "split-v2"
+RUN_FORMAT = "split-v3"
 
 
 def checkpoint_compatible(ckpt):
@@ -489,6 +508,81 @@ def checkpoint_compatible(ckpt):
     if fmt != RUN_FORMAT:
         print(f"Ignoring existing checkpoint (run_format={fmt!r}, expected {RUN_FORMAT!r}), "
               f"starting from scratch")
+        return False
+    return True
+
+
+def centralized_fingerprint(config, model_type):
+    """Settings that must match for a centralized checkpoint to be resumed."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    epochs_or_steps = config.get('num_epochs', config.get('num_train_steps'))
+    base_channels = config.get('base_channels')
+    init_dim = config.get('init_dim', base_channels)
+    out_dim = config.get('out_dim', 2)
+    dim_mults = [int(m) for m in config.get('dim_mults', (1, 2, 4, 8))]
+    resnet_block_groups = int(config.get('resnet_block_groups', 8))
+    return {
+        'model_type': model_type,
+        'dataset': config.get('dataset', 'optical'),
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': layers if quantum else None,
+        'quantum_channels': (int(config['quantum_channels'])
+                             if quantum and config.get('quantum_channels') is not None else None),
+        'quantum_backend': (config.get('quantum_backend', 'pennylane')
+                            if model_type == 'quantum' else None),
+        'ptlayer_config': (config.get('ptlayer_config', None)
+                           if model_type == 'quantum' else None),
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
+        'q_sim_device': (config.get('q_sim_device', DEFAULT_Q_SIM_DEVICE)
+                         if model_type == 'quantum' else None),
+        'q_share_blocks': bool(config.get('q_share_blocks', True)) if quantum else None,
+        'epochs_or_steps': int(epochs_or_steps) if epochs_or_steps is not None else None,
+        'batch_size': int(config['batch_size']),
+        'learning_rate': float(config['learning_rate']),
+        'base_channels': int(base_channels) if base_channels is not None else None,
+        'init_dim': int(init_dim) if init_dim is not None else None,
+        'out_dim': int(out_dim) if out_dim is not None else None,
+        'dim_mults': dim_mults,
+        'resnet_block_groups': resnet_block_groups,
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
+        'max_samples': config.get('max_samples'),
+        'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
+        'legacy_data': bool(config.get('legacy_data', False)),
+    }
+
+
+def checkpoint_matches_centralized(ckpt, config, model_type, path=None):
+    """Validate run_format, q_backend (if quantum), and centralized_fingerprint.
+    Moves incompatible checkpoints aside when `path` is provided."""
+    if not isinstance(ckpt, dict):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    if not checkpoint_compatible(ckpt):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    if model_type == 'quantum' and not checkpoint_matches_q_backend(ckpt, config):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    want = centralized_fingerprint(config, model_type)
+    saved = ckpt.get('fingerprint')
+    if not isinstance(saved, dict):
+        print("Rejecting centralized checkpoint (missing fingerprint from older code), "
+              "starting from scratch")
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    diff = {k: (saved.get(k), v) for k, v in want.items() if saved.get(k) != v}
+    if diff:
+        print("Rejecting centralized checkpoint, config differs (saved, current): "
+              + ", ".join(f"{k}={a!r}->{b!r}" for k, (a, b) in sorted(diff.items())))
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
         return False
     return True
 

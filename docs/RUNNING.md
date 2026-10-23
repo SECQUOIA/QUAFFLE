@@ -64,19 +64,19 @@ Two more generators are thin wrappers that share the same time limits, header an
 
 ## 2. Time limits and cost
 
-Runtimes were measured on one A100 GPU, optical (200 training tiles), federated with 4 clients and 25 rounds of 4 local epochs. Classical and ablation were measured with `CUDA_LAUNCH_BLOCKING=1`, so they are conservative because the generated scripts do not set the flag.
+Runtimes on one A100 GPU, optical (200 training tiles), federated with 4 clients and 25 rounds of 4 local epochs, without `CUDA_LAUNCH_BLOCKING`:
 
-| method | centralized | federated |
-|---|---|---|
-| classical | 0.10 h | 0.51 h |
-| ablation | 0.12 h | 0.56 h |
-| quantum | 0.18 h (provisional) | 0.84 h (provisional) |
+| method | centralized | federated | basis |
+|---|---|---|---|
+| classical | 0.05 h (est.) | 0.07 h (est.) | blocking-off estimate (0.10 h / 0.51 h with `CUDA_LAUNCH_BLOCKING=1`) |
+| ablation | 0.06 h (est.) | 0.08 h (est.) | blocking-off estimate from 45.2 ms vs 67.9 ms step time (0.12 h / 0.56 h with `CUDA_LAUNCH_BLOCKING=1`) |
+| quantum | 0.09 h | 0.12 h | measured in 2026-10-22 PennyLane smoke run (314 s centralized, 428 s federated) |
 
-The quantum values are ablation x 1.5 and are provisional until replaced by measured hours from the smoke job (section 6). Under the 2x safety factor they still cover the measured runtimes of the earlier torch simulator grid (per-cell mean hours with blocking on: centralized optical 0.16, SAR 0.70, combined 0.83, federated optical 0.65, SAR 2.81, combined 3.38).
+The quantum values are the measured wall-clock durations from the 2026-10-22 PennyLane smoke job (`--q-backend pennylane`, `q_sim_device='cpu'`, `CUDA_LAUNCH_BLOCKING` unset; section 6). Classical and ablation values are blocking-off estimates aligned to the same regime using the no-blocking A100 step benchmark (`45.2 ms` ablation vs `67.9 ms` quantum) and the earlier 2026-10-02 blocking-on runs (`0.10 h` / `0.12 h` centralized, `0.51 h` / `0.56 h` federated).
 
 Expected hours are scaled by training tiles (SAR 1119 is 5.6x optical, combined 1318 is 6.6x). Dirichlet is assumed equal to random. For quantum jobs the circuit overhead (quantum minus ablation) is also scaled by `quantum_channels/32` and `q_layers/2`. That part is an extrapolation. The time limit is `ceil(expected x 2)` hours with a floor of 1 hour (`--safety`, `--floor-hours`). The summary table shows expected SU and the worst case if every job hits its limit. With `--budget` the generator refuses to write when the expected total is over budget.
 
-The full grid (270 jobs, 10 seeds) is about 556 SU expected and 1290 SU worst case with the provisional quantum hours. Regenerate after updating `MEASURED_HOURS` in `misc/generate_grid.py`.
+The full grid (270 jobs, 10 seeds) is about 98 SU expected and 310 SU worst case with the calibrated hours in `MEASURED_HOURS` in `misc/generate_grid.py`.
 
 When a partition is set, the generator also reads `scontrol show reservation` and warns when a maintenance reservation on the partition starts before a job's limit would end. Such jobs stay PENDING until the reservation ends. Check `sinfo -T` before a large submission.
 

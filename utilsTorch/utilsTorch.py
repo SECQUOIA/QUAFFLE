@@ -55,12 +55,12 @@ def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2
 def _build_seeded(seed, build_fn):
     """Run build_fn() and return its result. If seed is None the global torch RNG
     is used as seeded by the caller. If seed is an int the whole construction
-    runs under a forked RNG seeded with it, so the result depends only on seed
-    and the caller's global RNG state is left untouched."""
+    runs under a forked CPU RNG seeded with it, so the result depends only on
+    seed and the caller's CPU and CUDA RNG states are left untouched."""
     if seed is None:
         return build_fn()
     with torch.random.fork_rng(devices=[]):
-        torch.manual_seed(int(seed))
+        torch.default_generator.manual_seed(int(seed))
         return build_fn()
 
 
@@ -220,11 +220,15 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                 kind, hidden = 'mlp', unet.matched_mlp_hidden(16 * q_layers)
 
             def build():
-                def make_block():
-                    return unet.ClassicalBottleneckBlock(quantum_channels=quantum_channels,
-                                                         kind=kind, hidden=hidden)
-                classical_bottleneck = make_block()
-                block2 = None if share else make_block()
+                def make_block(offset):
+                    return unet.ClassicalBottleneckBlock(
+                        quantum_channels=quantum_channels,
+                        kind=kind,
+                        hidden=hidden,
+                        seed=None if self.seed is None else int(self.seed) + offset,
+                    )
+                classical_bottleneck = make_block(0)
+                block2 = None if share else make_block(1)
                 return unet.QVUNet(
                     dim=self.config['base_channels'],
                     quantum_block=classical_bottleneck,

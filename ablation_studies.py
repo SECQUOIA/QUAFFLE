@@ -261,7 +261,9 @@ def run_centralized_torch(args):
     start_epoch = 0
     train_metrics, val_metrics = [], []
     ckpt = tc.safe_torch_load(ckpt_path, map_location=device)
-    if ckpt is not None and not tc.checkpoint_compatible(ckpt):
+    if ckpt is not None and not tc.checkpoint_matches_centralized(
+        ckpt, config, 'ablation', ckpt_path
+    ):
         ckpt = None
     if ckpt is not None:
         model.load_state_dict(ckpt['model_state_dict'])
@@ -308,12 +310,16 @@ def run_centralized_torch(args):
                         f"IoU={r['iou']:.4f} Dice={r['dice']:.4f}\n")
             tc.atomic_torch_save({'model_state_dict': model.state_dict(),
                                   'run_format': tc.RUN_FORMAT,
+                                  'fingerprint': tc.centralized_fingerprint(config, 'ablation'),
                                   'optimizer_state_dict': optimizer.state_dict(),
                                   'epoch': epoch, 'train_metrics': train_metrics,
                                   'val_metrics': val_metrics,
                                   'rng_state': tc.rng_state(train_loader)}, ckpt_path)
             if epoch % 100 == 0:
-                torch.save({'model_state_dict': model.state_dict(), 'epoch': epoch},
+                torch.save({'model_state_dict': model.state_dict(),
+                            'run_format': tc.RUN_FORMAT,
+                            'fingerprint': tc.centralized_fingerprint(config, 'ablation'),
+                            'epoch': epoch},
                            os.path.join(output_dir, f'checkpoint_epoch_{epoch}.pt'))
         if epoch % 50 == 0 and val_metrics:
             save_training_curves(val_metrics, output_dir,
@@ -405,11 +411,14 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         import torch
         from utilsTorch import ClassicalAblationUNetSegmentation
-        server_round = int(config.get('server_round', 0)) if config else 0
-        round_seed = tc.client_round_seed(self.config['seed'], self.client_id, server_round)
+        round_seed = tc.seed_client_round(self.config['seed'], self.client_id, config)
         torch.manual_seed(round_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(round_seed)
         np.random.seed(round_seed)
         self.loader = tc.make_loader(self.client_dataset, self.config['batch_size'], True, round_seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         if self.template_model is None:
             self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
         self.local_model = copy.deepcopy(self.template_model).to(self.device)
