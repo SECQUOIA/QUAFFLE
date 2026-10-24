@@ -24,19 +24,20 @@ EQUIVALENT circuit using the same gate sequence and settings.
 Reference in codebase: pennylane_default_circuit() and
 pennylane_reupload_circuit() in utilsTorch/unetTorch.py. See docs/MODEL.md.
 
-Training uses q_backend='torch' by default, an exact torch statevector
-simulation of the same circuits (torch_legacy_expvals and
-torch_reupload_expvals in utilsTorch/unetTorch.py). It gives the same <Z>
-values as the PennyLane QNodes drawn here, see tests/test_quantum_backend.py.
+Training uses q_backend='pennylane' by default (batched PennyLane QNode with
+backprop differentiation), with an optional exact torch statevector simulator
+(q_backend='torch', torch_legacy_expvals and torch_reupload_expvals in
+utilsTorch/unetTorch.py) that produces identical <Z> values; see
+tests/test_quantum_backend.py.
 
 Outputs:
-    results/plots/quantum_circuit.txt        — text diagram (qml.draw)
-    results/plots/quantum_circuit.png        — matplotlib diagram (qml.draw_mpl)
-    results/plots/quantum_circuit_bloch.png  — per-qubit <Z> bar chart with
-                                                sample input/params (optional)
+    results/plots/quantum_circuit.txt                         — text diagram (qml.draw)
+    results/plots/quantum_circuit.png                         — matplotlib diagram (qml.draw_mpl)
+    results/plots/quantum_circuit_expvals.png                 — per-qubit <Z> bar chart
+    results/plots/quaffle_circuits_legacy_vs_reupload.{png,pdf} — side-by-side comparison (--q-ansatz compare)
 
 Usage:
-    python visualize_circuit.py [--q-ansatz reupload|legacy] [--q-layers 2]
+    python visualize_circuit.py [--q-ansatz reupload|legacy|compare] [--q-layers 2]
 """
 
 import os
@@ -45,6 +46,8 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.patches import FancyBboxPatch, Circle, Arc
 
 import pennylane as qml
 
@@ -165,19 +168,271 @@ def save_expval_barplot(circuit, x, params, path):
     return vals
 
 
-def main():
+def _draw_gate_box(ax, x_center, y_center, width, height, label, facecolor, edgecolor, fontsize=9.5):
+    box = FancyBboxPatch(
+        (x_center - width / 2, y_center - height / 2),
+        width,
+        height,
+        boxstyle="round,pad=0.06,rounding_size=0.08",
+        facecolor=facecolor,
+        edgecolor=edgecolor,
+        linewidth=1.2,
+        zorder=3,
+    )
+    ax.add_patch(box)
+    ax.text(x_center, y_center, label, ha="center", va="center", fontsize=fontsize, zorder=4)
+
+
+def _draw_cnot(ax, x_pos, y_ctrl, y_targ):
+    ax.plot([x_pos, x_pos], [y_ctrl, y_targ], color="#111111", linewidth=1.3, zorder=3)
+    ctrl = Circle((x_pos, y_ctrl), radius=0.08, facecolor="#111111", edgecolor="#111111", zorder=5)
+    ax.add_patch(ctrl)
+    targ = Circle((x_pos, y_targ), radius=0.17, facecolor="white", edgecolor="#111111", linewidth=1.3, zorder=4)
+    ax.add_patch(targ)
+    ax.plot([x_pos - 0.17, x_pos + 0.17], [y_targ, y_targ], color="#111111", linewidth=1.2, zorder=5)
+    ax.plot([x_pos, x_pos], [y_targ - 0.17, y_targ + 0.17], color="#111111", linewidth=1.2, zorder=5)
+
+
+def _draw_meter(ax, x_center, y_center, width=0.72, height=0.52):
+    rect = mpatches.Rectangle(
+        (x_center - width / 2, y_center - height / 2),
+        width,
+        height,
+        facecolor="#FFF4D6",
+        edgecolor="#B5851D",
+        linewidth=1.2,
+        zorder=3,
+    )
+    ax.add_patch(rect)
+    arc = Arc(
+        (x_center, y_center - 0.10),
+        width=width * 0.65,
+        height=height * 0.72,
+        angle=0,
+        theta1=15,
+        theta2=165,
+        color="#B5851D",
+        linewidth=1.2,
+        zorder=4,
+    )
+    ax.add_patch(arc)
+    ax.plot(
+        [x_center, x_center + width * 0.20],
+        [y_center - 0.12, y_center + 0.16],
+        color="#B5851D",
+        linewidth=1.2,
+        zorder=4,
+    )
+
+
+def save_comparison_diagram(out_dir: str, n_layers: int = 2):
+    """Render the two-panel legacy vs. reupload circuit schematic to PNG and PDF."""
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "quaffle_circuits_legacy_vs_reupload.png")
+    pdf_path = os.path.join(out_dir, "quaffle_circuits_legacy_vs_reupload.pdf")
+
+    fig, (ax_top, ax_bot) = plt.subplots(2, 1, figsize=(13.5, 9.2))
+    wire_ys = [3.0, 2.0, 1.0, 0.0]
+
+    # ── Top panel: Legacy circuit ────────────────────────────────────────────
+    ax_top.set_xlim(-0.8, 12.2)
+    ax_top.set_ylim(-1.15, 4.15)
+    ax_top.axis("off")
+    ax_top.text(
+        -0.6,
+        3.95,
+        "Original circuit (q_ansatz='legacy', the paper's Figure 5)   |   1 layer, 4 trainable parameters per circuit",
+        fontsize=11.5,
+        ha="left",
+        va="center",
+    )
+
+    for i, y in enumerate(wire_ys):
+        ax_top.text(-0.15, y, rf"$q_{i}\;|0\rangle$", ha="right", va="center", fontsize=10.5)
+        ax_top.plot([0.0, 7.6], [y, y], color="#333333", linewidth=0.9, zorder=1)
+        _draw_gate_box(ax_top, 0.85, y, 1.15, 0.56, rf"$R_X(z_{i})$", "#D9E8FB", "#2F5597")
+        _draw_gate_box(ax_top, 2.35, y, 1.15, 0.56, rf"$R_Y(\varphi_{i})$", "#DCF2DE", "#2E7D32")
+        _draw_meter(ax_top, 5.95, y, width=0.80, height=0.56)
+        ax_top.text(6.55, y, rf"$\langle Z_{i}\rangle$", ha="left", va="center", fontsize=10.0)
+
+    cnot_xs_legacy = [3.45, 3.95, 4.45, 4.95]
+    for step_idx, cx in enumerate(cnot_xs_legacy):
+        y_c = wire_ys[step_idx]
+        y_t = wire_ys[(step_idx + 1) % N_QUBITS]
+        _draw_cnot(ax_top, cx, y_c, y_t)
+
+    # Group dashed boxes on top panel
+    group_specs_top = [
+        (0.15, 1.55, "encoding", "#2F5597"),
+        (1.65, 3.05, "trainable", "#2E7D32"),
+        (3.20, 5.20, "CNOT ring", "#333333"),
+    ]
+    for x0, x1, glabel, gcol in group_specs_top:
+        rect = mpatches.Rectangle(
+            (x0, -0.45),
+            x1 - x0,
+            4.05,
+            fill=False,
+            edgecolor=gcol,
+            linestyle="--",
+            linewidth=1.0,
+            zorder=2,
+        )
+        ax_top.add_patch(rect)
+        ax_top.text((x0 + x1) / 2, 3.72, glabel, color=gcol, fontsize=9.5, ha="center", va="bottom")
+
+    ax_top.text(
+        0.15,
+        -0.82,
+        r"Outputs reduce to products of $c_i = \cos(z_i)\cos(\varphi_i)$:  "
+        r"$\langle Z_0\rangle = c_1 c_2 c_3$,  "
+        r"$\langle Z_1\rangle = c_0 c_1$,  "
+        r"$\langle Z_2\rangle = c_0 c_1 c_2$,  "
+        r"$\langle Z_3\rangle = c_0 c_1 c_2 c_3$",
+        color="#9B1B1B",
+        fontsize=9.8,
+        ha="left",
+        va="center",
+    )
+
+    # ── Bottom panel: Data-reuploading circuit ───────────────────────────────
+    n_layers = max(1, int(n_layers))
+    layer_width = 5.05
+    total_x = 0.25 + n_layers * layer_width + 1.8
+    ax_bot.set_xlim(-0.8, max(12.2, total_x))
+    ax_bot.set_ylim(-1.15, 4.15)
+    ax_bot.axis("off")
+    ax_bot.text(
+        -0.6,
+        3.95,
+        f"New circuit (q_ansatz='reupload', current default)   |   "
+        f"{n_layers} layers, {16 * n_layers} trainable parameters per circuit",
+        fontsize=11.5,
+        ha="left",
+        va="center",
+    )
+
+    meter_x = 0.25 + n_layers * layer_width + 0.55
+    wire_end_x = meter_x + 1.15
+    for i, y in enumerate(wire_ys):
+        ax_bot.text(-0.15, y, rf"$q_{i}\;|0\rangle$", ha="right", va="center", fontsize=10.5)
+        ax_bot.plot([0.0, wire_end_x], [y, y], color="#333333", linewidth=0.9, zorder=1)
+        _draw_meter(ax_bot, meter_x, y, width=0.68, height=0.54)
+        ax_bot.text(meter_x + 0.48, y, rf"$\langle Z_{i}\rangle$", ha="left", va="center", fontsize=10.0)
+
+    for l_idx in range(n_layers):
+        l_num = l_idx + 1
+        x_base = 0.20 + l_idx * layer_width
+        enc_x = x_base + 0.85
+        rot_x = x_base + 2.55
+        cnot_xs = [x_base + 3.60 + 0.36 * k for k in range(N_QUBITS)]
+
+        for i, y in enumerate(wire_ys):
+            _draw_gate_box(
+                ax_bot,
+                enc_x,
+                y,
+                1.52,
+                0.56,
+                rf"$R_Y(\pi\tanh(s_{i}^{{({l_num})}} z_{i}))$",
+                "#D9E8FB",
+                "#2F5597",
+                fontsize=8.8,
+            )
+            _draw_gate_box(
+                ax_bot,
+                rot_x,
+                y,
+                1.52,
+                0.56,
+                rf"$\mathrm{{Rot}}(\phi, \theta, \omega)_{i}^{{({l_num})}}$",
+                "#DCF2DE",
+                "#2E7D32",
+                fontsize=8.8,
+            )
+
+        for step_idx, cx in enumerate(cnot_xs):
+            y_c = wire_ys[step_idx]
+            y_t = wire_ys[(step_idx + 1) % N_QUBITS]
+            _draw_cnot(ax_bot, cx, y_c, y_t)
+
+        layer_rect = mpatches.Rectangle(
+            (x_base, -0.45),
+            layer_width - 0.10,
+            4.05,
+            fill=False,
+            edgecolor="#6A3D9A",
+            linestyle="--",
+            linewidth=1.0,
+            zorder=2,
+        )
+        ax_bot.add_patch(layer_rect)
+        ax_bot.text(
+            x_base + (layer_width - 0.10) / 2,
+            3.72,
+            f"layer {l_num}: re-encode input, trainable rotations, CNOT ring",
+            color="#6A3D9A",
+            fontsize=9.3,
+            ha="center",
+            va="bottom",
+        )
+
+    ax_bot.text(
+        0.20,
+        -0.78,
+        r"$s =$ trainable input scale per qubit and layer.  "
+        r"$\mathrm{Rot} =$ general single-qubit rotation (3 trainable angles).  "
+        r"Same input $z$ is encoded again in each layer (data re-uploading).",
+        color="#222222",
+        fontsize=9.5,
+        ha="left",
+        va="center",
+    )
+
+    fig.text(
+        0.02,
+        0.015,
+        "Both: one circuit per group of 4 bottleneck channels (8 groups for 32 quantum channels). "
+        "Input z = each channel averaged over the whole image. Output: 4 expectation values per group.",
+        fontsize=9.2,
+        color="#333333",
+    )
+
+    plt.tight_layout(rect=[0.0, 0.035, 1.0, 1.0])
+    fig.savefig(png_path, dpi=220, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
+    plt.close(fig)
+    return png_path, pdf_path
+
+
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Visualize the QUAFFLE quantum circuit.")
     parser.add_argument("--seed", type=int, default=42,
                         help="Seed for sample input/params (default: 42)")
     parser.add_argument("--out-dir", default=OUT_DIR,
                         help=f"Output directory (default: {OUT_DIR})")
-    parser.add_argument("--q-ansatz", choices=["reupload", "legacy"], default="reupload",
-                        help="Circuit to draw (default: reupload)")
+    parser.add_argument("--q-ansatz", choices=["reupload", "legacy", "compare"], default="reupload",
+                        help="Circuit to draw: reupload, legacy, or compare (default: reupload)")
+    parser.add_argument("--compare-legacy-reupload", action="store_true",
+                        help="Alias for --q-ansatz compare")
     parser.add_argument("--q-layers", type=int, default=2,
-                        help="Re-uploading layers for --q-ansatz reupload (default: 2)")
-    args = parser.parse_args()
+                        help="Re-uploading layers for --q-ansatz reupload/compare (default: 2)")
+    args = parser.parse_args(argv)
+    if args.compare_legacy_reupload:
+        args.q_ansatz = "compare"
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
 
     os.makedirs(args.out_dir, exist_ok=True)
+    if args.q_ansatz == "compare":
+        png_path, pdf_path = save_comparison_diagram(args.out_dir, n_layers=args.q_layers)
+        print(f"Saved: {png_path}")
+        print(f"Saved: {pdf_path}")
+        return png_path, pdf_path
+
     if args.q_ansatz == "reupload":
         circuit = build_reupload_circuit(N_QUBITS, args.q_layers)
         suffix = f"_reupload_L{args.q_layers}"

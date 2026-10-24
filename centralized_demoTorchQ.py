@@ -135,6 +135,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         print("Performing initial evaluation at step 0...")
         val_result = evaluate_model(model, val_loader, device)
         val_result['step'] = step
+        val_result['epoch'] = step
         val_metrics.append(val_result)
         cand_score = tc.extract_val_score(val_result, select_metric)
         if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
@@ -154,12 +155,13 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     while step < config['num_train_steps']:
         avg_loss, accuracy = train_one_epoch(model, train_loader, optimizer, device)
         step += 1
-        train_metrics.append({'step': step, 'loss': avg_loss, 'accuracy': accuracy, 'auc': 0.0})
+        train_metrics.append({'step': step, 'epoch': step, 'loss': avg_loss, 'accuracy': accuracy, 'auc': 0.0})
         if step % config['log_every'] == 0:
             print(f"Step {step}: Loss = {avg_loss:.4f}, Accuracy = {accuracy:.4f}")
         if step % config['eval_every'] == 0:
             val_result = evaluate_model(model, val_loader, device)
             val_result['step'] = step
+            val_result['epoch'] = step
             val_metrics.append(val_result)
             cand_score = tc.extract_val_score(val_result, select_metric)
             if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):

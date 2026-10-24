@@ -2,18 +2,20 @@
 """
 Build the headline pooled Optical+SAR comparison table data.
 
-Five rows on the pooled Optical+SAR setting:
-  1. Fed U-Net (random)              [baseline for rows 2-3]
+Six rows on the pooled Optical+SAR setting:
+  1. Fed U-Net (random)                [baseline for rows 2-3]
   2. Fed Ablation (random)
   3. QUAFFLE (random)
-  4. Fed U-Net (Dirichlet alpha=0.5) [baseline for row 5]
-  5. QUAFFLE (Dirichlet alpha=0.5)
+  4. Fed U-Net (Dirichlet alpha=0.5)   [baseline for rows 5-6]
+  5. Fed Ablation (Dirichlet alpha=0.5)
+  6. QUAFFLE (Dirichlet alpha=0.5)
 
 For each row:
   - mean +/- std of Test_IoU and Test_Dice across the row's seed pool
   - n (number of seeds contributing)
 For non-baseline rows:
-  - paired ΔIoU and ΔDice against the same-partition Fed U-Net
+  - paired ΔIoU and ΔDice against the same-partition Fed U-Net (and for QUAFFLE
+    rows, also paired ΔIoU and ΔDice against the same-partition Fed Ablation)
   - 95% paired-difference CI using Student's t on n-1 dof
   - paired t-test and Wilcoxon signed-rank p-values
 
@@ -21,9 +23,9 @@ Every row uses the single pre-declared seed list in config/seeds.py. Seeds
 without a completed run (no Test block) are reported as missing with n,
 never silently replaced by a smaller pool.
 
-Source of truth: each run's results/summary.txt, read via
-analyze_results.load_from_disk (runs without a Test block are skipped and
-logged). Output is a JSON file headline_pooled_table2_data.json in
+Source of truth: each run's results/metrics.json (or summary.txt fallback),
+read via analyze_results.load_from_disk (runs without a Test block are skipped
+and logged). Output is a JSON file headline_pooled_table2_data.json in
 --out-dir (default: $QUAFFLE_ANALYSIS_OUT_DIR, else <repo>/results).
 
 Usage: python scripts/build_table2_data.py [--out-dir DIR]
@@ -110,11 +112,12 @@ def main(argv=None):
     # Per-row, per-seed maps
     # All rows use the pre-declared seed list (config/seeds.py).
     METHODS_FOR_TABLE = {
-        "fed_unet_random":     ("Fed U-Net (random)",            "Classical Fed (Random)",    True),
-        "fed_ablation_random": ("Fed Ablation (random)",         "Ablation Fed (Random)",     True),
-        "quaffle_random":      ("QUAFFLE (random)",              "Quantum Fed (Random)",      True),
-        "fed_unet_dirichlet":  ("Fed U-Net (Dirichlet a=0.5)",   "Classical Fed (Dirichlet)", True),
-        "quaffle_dirichlet":   ("QUAFFLE (Dirichlet a=0.5)",     "Quantum Fed (Dirichlet)",   True),
+        "fed_unet_random":        ("Fed U-Net (random)",               "Classical Fed (Random)",    True),
+        "fed_ablation_random":    ("Fed Ablation (random)",            "Ablation Fed (Random)",     True),
+        "quaffle_random":         ("QUAFFLE (random)",                 "Quantum Fed (Random)",      True),
+        "fed_unet_dirichlet":     ("Fed U-Net (Dirichlet a=0.5)",      "Classical Fed (Dirichlet)", True),
+        "fed_ablation_dirichlet": ("Fed Ablation (Dirichlet a=0.5)",   "Ablation Fed (Dirichlet)",  True),
+        "quaffle_dirichlet":      ("QUAFFLE (Dirichlet a=0.5)",        "Quantum Fed (Dirichlet)",   True),
     }
 
     per_seed_iou = {}
@@ -129,11 +132,16 @@ def main(argv=None):
     # Build output rows
     rows = []
     pairings = {
-        "fed_unet_random":     None,                    # baseline row
-        "fed_ablation_random": "fed_unet_random",
-        "quaffle_random":      "fed_unet_random",
-        "fed_unet_dirichlet":  None,                    # baseline row
-        "quaffle_dirichlet":   "fed_unet_dirichlet",
+        "fed_unet_random":        None,                    # baseline row
+        "fed_ablation_random":    "fed_unet_random",
+        "quaffle_random":         "fed_unet_random",
+        "fed_unet_dirichlet":     None,                    # baseline row
+        "fed_ablation_dirichlet": "fed_unet_dirichlet",
+        "quaffle_dirichlet":      "fed_unet_dirichlet",
+    }
+    ablation_pairings = {
+        "quaffle_random":    "fed_ablation_random",
+        "quaffle_dirichlet": "fed_ablation_dirichlet",
     }
 
     for key, (display, internal, _) in METHODS_FOR_TABLE.items():
@@ -157,6 +165,14 @@ def main(argv=None):
             row["paired_seeds"] = [s for s, _ in di_pairs]
             row["delta_iou"]  = agg_paired([d for _, d in di_pairs])
             row["delta_dice"] = agg_paired([d for _, d in dd_pairs])
+        abl_key = ablation_pairings.get(key)
+        if abl_key is not None:
+            di_abl = paired_diff(per_seed_iou[key], per_seed_iou[abl_key])
+            dd_abl = paired_diff(per_seed_dice[key], per_seed_dice[abl_key])
+            row["ablation_baseline_key"] = abl_key
+            row["paired_seeds_vs_ablation"] = [s for s, _ in di_abl]
+            row["delta_iou_vs_ablation"]  = agg_paired([d for _, d in di_abl])
+            row["delta_dice_vs_ablation"] = agg_paired([d for _, d in dd_abl])
         rows.append(row)
 
     # Pretty-print summary
@@ -176,6 +192,9 @@ def main(argv=None):
             dd = r["delta_dice"]
             if di["n"] == 0:
                 di_str = dd_str = "(no paired seeds)"
+            elif di["ci95_half"] is None:
+                di_str = f"{di['mean']:+.3f} [CI undefined, n={di['n']}]"
+                dd_str = f"{dd['mean']:+.3f} [CI undefined, n={dd['n']}]"
             else:
                 di_str = f"{di['mean']:+.3f} [{di['mean']-di['ci95_half']:+.3f}, {di['mean']+di['ci95_half']:+.3f}] n={di['n']}"
                 dd_str = f"{dd['mean']:+.3f} [{dd['mean']-dd['ci95_half']:+.3f}, {dd['mean']+dd['ci95_half']:+.3f}] n={dd['n']}"
@@ -184,6 +203,16 @@ def main(argv=None):
             fmt = lambda v: "NA" if v is None else f"{v:.4f}"
             print(f"      ΔIoU  paired t p={fmt(r['delta_iou']['t_p'])}  Wilcoxon p={fmt(r['delta_iou']['wilcoxon_p'])}")
             print(f"      ΔDice paired t p={fmt(r['delta_dice']['t_p'])}  Wilcoxon p={fmt(r['delta_dice']['wilcoxon_p'])}")
+        if "delta_iou_vs_ablation" in r and r["delta_iou_vs_ablation"]["n"] > 0:
+            di_a = r["delta_iou_vs_ablation"]
+            dd_a = r["delta_dice_vs_ablation"]
+            if di_a["ci95_half"] is None:
+                dia_str = f"{di_a['mean']:+.3f} [CI undefined, n={di_a['n']}]"
+                dda_str = f"{dd_a['mean']:+.3f} [CI undefined, n={dd_a['n']}]"
+            else:
+                dia_str = f"{di_a['mean']:+.3f} [{di_a['mean']-di_a['ci95_half']:+.3f}, {di_a['mean']+di_a['ci95_half']:+.3f}] n={di_a['n']}"
+                dda_str = f"{dd_a['mean']:+.3f} [{dd_a['mean']-dd_a['ci95_half']:+.3f}, {dd_a['mean']+dd_a['ci95_half']:+.3f}] n={dd_a['n']}"
+            print(f"      vs Ablation: ΔIoU={dia_str}  ΔDice={dda_str}")
         if r["missing_seeds"]:
             print(f"      WARNING: {r['display']} missing seeds {r['missing_seeds']} "
                   f"(n={n}/{len(COMMON_SEEDS)})")

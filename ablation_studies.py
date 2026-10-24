@@ -10,9 +10,11 @@ For each framework × mode combination, the script:
   1. Initializes the reference quantum model to count its parameters.
   2. Builds a parameter-matched classical ablation that uses the same QVUNet
      architecture, swapping only the QuantumBlock at the bottleneck for a
-     lightweight ClassicalBottleneckBlock (1x1 conv). This isolates the effect
-     of the quantum circuit itself — matching params to within ~0.01% instead
-     of the ~18% gap the old binary-search-on-base_channels approach produced.
+     lightweight ClassicalBottleneckBlock (global spatial average pooling +
+     per-group 2-layer MLP / Linear(4,4) + spatial broadcast). This isolates
+     the effect of the quantum circuit itself — matching params to within
+     ~0.01% instead of the ~18% gap the old binary-search-on-base_channels
+     approach produced.
   3. Trains that ablation model under identical conditions.
 
 Usage:
