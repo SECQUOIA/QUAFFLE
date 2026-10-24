@@ -707,7 +707,6 @@ def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
         if js is not None:
             metrics, info = js
             source = "metrics.json"
-            n_json += 1
             variant = dir_variant or info.get("variant")
             q_backend = info["q_backend"]
             is_mini = is_mini or bool(info.get("is_mini_run"))
@@ -730,6 +729,8 @@ def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
         if is_mini and not include_mini:
             skipped_mini += 1
             continue
+        if source == "metrics.json":
+            n_json += 1
         if not quantumish:
             variant = None
         if not method.startswith("Quantum"):

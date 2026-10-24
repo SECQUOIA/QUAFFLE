@@ -296,9 +296,10 @@ def test_issue_30_preload_manifest_slicing_and_strict_full_manifest_validation(t
     )
     assert len(samples) == 3
     assert len(names) == 3
-    assert len(read_calls) == 3, (
-        f"Expected pre-load slicing to read only 3 TIFFs from disk, but read {len(read_calls)}: {read_calls}"
+    assert set(read_calls) == {f"{n}.tif" for n in names}, (
+        f"Expected pre-load slicing to touch only the 3 capped TIFFs, but read: {read_calls}"
     )
+    assert len(read_calls) <= 2 * len(names)
 
     # Full-manifest validation when max_samples=None must still raise if a manifest entry is missing
     os.remove(os.path.join(train_img_dir, "009.tif"))
@@ -432,12 +433,15 @@ def test_review_r1_max_samples_image_size_dataset_root_and_manifest_validation(t
         fit_only=True,
     )
     assert len(samples) == 4
-    assert len(read_calls) == 4, f"Expected exactly 4 TIFF reads for max_samples=4, got {len(read_calls)}"
     prov = flood_data.get_last_loaded_stats_provenance(train_img_dir)
     assert prov["fit_only"] is True
     assert prov["max_samples"] == 4
     assert prov["n_manifest_train_tiles"] == 4
     assert prov["n_fit_train_tiles"] < 4
+    assert set(read_calls) == {f"{n}.tif" for n in names}, (
+        f"Expected only the 4 capped TIFFs to be read, got {set(read_calls)}"
+    )
+    assert len(read_calls) == prov["n_fit_train_tiles"] + 4
 
     # Paired Testing load with dataset-level data_root reuses the exact capped training stats without reading training TIFFs
     read_calls.clear()
@@ -654,3 +658,110 @@ def test_review_r2_provenance_sar_combined_cap_mini_isolation_and_harness(tmp_pa
     ), patch("builtins.open", mock_open(read_data=json.dumps(nan_metrics))):
         with pytest.raises(AssertionError, match="Non-finite"):
             ns["_assert_metrics_json"]("/fake-run")
+
+    # 7. Committed flood_combined proportional modality allocation verified by pixel hashes
+    import gc
+    import weakref
+    from contextlib import ExitStack
+
+    ms_real = {
+        d: json.load(open(os.path.join(ROOT, "splits", f"flood_{d}.json")))
+        for d in ("optical", "SAR", "combined")
+    }
+    pix_by_mod = {
+        d: {r["image_pix"] for r in ms_real[d]["hashes"]["train"]}
+        for d in ("optical", "SAR")
+    }
+    comb_pix = {r["name"]: r["image_pix"] for r in ms_real["combined"]["hashes"]["train"]}
+    comb_names = ms_real["combined"]["train"]
+    for s_val in (42, 13, 17, 123):
+        for cap_val in (2, 10, 100):
+            chosen = [comb_names[i] for i in flood_data._slice_indices_preload(comb_names, cap_val, s_val)]
+            mod_counts = {
+                d: sum(comb_pix[n] in pix_by_mod[d] for n in chosen) for d in ("optical", "SAR")
+            }
+            assert mod_counts["optical"] >= 1 and mod_counts["SAR"] >= 1
+            if cap_val == 100:
+                assert 12 <= mod_counts["optical"] <= 18
+
+    # 8. Missing-modality fallback never borrows unvalidated stats and preserves truthful prior provenance
+    synth_names = [f"{i:03d}" for i in range(6)] + [f"{i:03d} copy" for i in range(6)]
+    synth_raw = {
+        n: np.full((6 if " copy" in n else 12, 32, 32), -10.0 if " copy" in n else 1000.0, dtype=np.float32)
+        for n in synth_names
+    }
+    synth_masks = {n: np.zeros((32, 32, 1), np.float32) for n in synth_names}
+    for n in synth_names:
+        synth_masks[n][:8, :, :] = 1.0
+    unvalidated_prior = flood_data.compute_modality_band_stats(
+        "/x",
+        None,
+        synth_names,
+        raw_by_name=synth_raw,
+        provenance={"fit_only": False, "seed": 99, "val_fraction": 0.0, "image_size": 128},
+    )
+    unvalidated_prior["sar"]["bands"]["VV"]["hi"] = 12345.0
+    unvalidated_prior["optical"]["bands"]["NIR"]["hi"] = 54321.0
+    for cap_val in (1, 2):
+        flood_data._FIT_STATS_CACHE.clear()
+        flood_data._LAST_TRAIN_STATS_BY_DIR.clear()
+        sel_sub = [synth_names[i] for i in flood_data._slice_indices_preload(synth_names, cap_val, sample_seed=13)]
+        with patch.object(
+            flood_data, "_resolve_training_dirs", return_value=("/virtual/flood_combined/Training/images", "/labels")
+        ), patch.object(flood_data.os.path, "isdir", return_value=True), patch.object(
+            flood_data.os.path, "exists", return_value=True
+        ), patch(
+            "builtins.open", mock_open(read_data=json.dumps({"flood_combined": unvalidated_prior}))
+        ):
+            st_cap = flood_data.load_stats(
+                "flood_combined",
+                "/stats.json",
+                images_dir="/virtual/flood_combined/Training/images",
+                seed=13,
+                val_fraction=0.15,
+                image_size=32,
+                max_samples=cap_val,
+                sample_seed=13,
+                fit_only=True,
+                preloaded_train_names=sel_sub,
+                preloaded_raw_by_name=synth_raw,
+                preloaded_masks_by_name=synth_masks,
+            )
+        assert st_cap["sar"]["bands"]["VV"]["hi"] != 12345.0
+        assert st_cap["optical"]["bands"]["NIR"]["hi"] != 54321.0
+        for mod_key in ("optical", "sar"):
+            if st_cap[mod_key].get("modality_fallback"):
+                assert st_cap[mod_key]["fit_only"] is False
+                assert st_cap[mod_key]["is_prior"] is True
+                assert st_cap[mod_key]["n_train_tiles"] == 0
+
+    # 9. Weakref memory bound: zero full-resolution raw arrays retained across reads
+    refs = []
+    pairs_64 = [(f"{i:03d}", f"{i:03d}.tif", f"{i:03d}.png") for i in range(64)]
+
+    def fake_read(path):
+        arr = np.ones((12, 128, 128), np.float32)
+        refs.append(weakref.ref(arr))
+        return arr
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(flood_data, "list_pairs", return_value=pairs_64))
+        stack.enter_context(patch.object(flood_data, "manifest_names", return_value=None))
+        stack.enter_context(patch.object(flood_data, "load_mask", return_value=np.zeros((32, 32, 1), np.float32)))
+        stack.enter_context(patch.object(flood_data, "read_raw", side_effect=fake_read))
+        stack.enter_context(
+            patch.object(
+                flood_data, "_resolve_training_dirs", return_value=("/virtual/flood_optical/Training/images", "/labels")
+            )
+        )
+        stack.enter_context(patch.object(flood_data.os.path, "isdir", return_value=True))
+        stack.enter_context(patch.object(flood_data.os.path, "exists", return_value=False))
+        flood_data._FIT_STATS_CACHE.clear()
+        flood_data._LAST_TRAIN_STATS_BY_DIR.clear()
+        loaded_64, _ = flood_data.load_samples(
+            "/virtual/flood_optical/Training/images", "/labels", 32, seed=42, fit_only=True
+        )
+        gc.collect()
+        live_refs = [r() for r in refs if r() is not None]
+        assert len(loaded_64) == 64
+        assert len(live_refs) == 0, f"Expected 0 retained raw arrays, found {len(live_refs)}"

@@ -107,7 +107,7 @@ def stats_provenance(stats_dict):
             n_tiles = int(stats_dict[mod]["n_train_tiles"])
             break
     fit_only = bool(prov.get("fit_only", False))
-    return {
+    out = {
         "mode": "fit_only_train_split" if fit_only else "full_train_split",
         "fit_only": fit_only,
         "seed": prov.get("seed"),
@@ -120,6 +120,9 @@ def stats_provenance(stats_dict):
         "fit_names_sha256": prov.get("fit_names_sha256"),
         "stats_sha256": _stats_band_digest(stats_dict),
     }
+    if prov.get("modality_fallbacks"):
+        out["modality_fallbacks"] = dict(prov["modality_fallbacks"])
+    return out
 
 
 def set_data_defaults(legacy=None, bands=None, data_root=None):
@@ -402,13 +405,94 @@ def load_mask(mask_path, image_size):
     return (mask_array > 0.001).astype(np.float32)[..., np.newaxis]
 
 
-def _slice_indices_preload(items, max_samples, sample_seed=42, name_fn=None):
+_COMBINED_MODALITY_CACHE = {}
+
+
+def _get_combined_modality_map(images_dir=None, data_root=None):
+    """Return a dict mapping tile name -> 'optical' | 'sar' for flood_combined
+    using split manifests and pixel hashes."""
+    sdir = _resolve_splits_dir(images_dir=images_dir, data_root=data_root)
+    cache_key = os.path.abspath(sdir)
+    if cache_key in _COMBINED_MODALITY_CACHE:
+        return _COMBINED_MODALITY_CACHE[cache_key]
+
+    mod_map = {}
+    search_dirs = [sdir]
+    if os.path.abspath(SPLITS_DIR) != cache_key:
+        search_dirs.append(SPLITS_DIR)
+
+    for d in search_dirs:
+        opt_path = os.path.join(d, "flood_optical.json")
+        sar_path = os.path.join(d, "flood_SAR.json")
+        comb_path = os.path.join(d, "flood_combined.json")
+        if not (os.path.exists(opt_path) and os.path.exists(sar_path)):
+            continue
+        try:
+            with open(opt_path) as f:
+                opt_m = json.load(f)
+            with open(sar_path) as f:
+                sar_m = json.load(f)
+            comb_m = None
+            if os.path.exists(comb_path):
+                with open(comb_path) as f:
+                    comb_m = json.load(f)
+        except Exception:
+            continue
+
+        opt_pix = set()
+        sar_pix = set()
+        for sp in ("train", "test"):
+            for r in (opt_m.get("hashes") or {}).get(sp, []):
+                if "image_pix" in r:
+                    opt_pix.add(r["image_pix"])
+            for r in (sar_m.get("hashes") or {}).get(sp, []):
+                if "image_pix" in r:
+                    sar_pix.add(r["image_pix"])
+
+        opt_names = set(opt_m.get("train", [])) | set(opt_m.get("test", []))
+        sar_names = set(sar_m.get("train", [])) | set(sar_m.get("test", []))
+
+        if comb_m is not None:
+            for sp in ("train", "test"):
+                for r in (comb_m.get("hashes") or {}).get(sp, []):
+                    nm = r.get("name")
+                    pix = r.get("image_pix")
+                    if not nm:
+                        continue
+                    if pix in opt_pix:
+                        mod_map.setdefault(nm, "optical")
+                    elif pix in sar_pix:
+                        mod_map.setdefault(nm, "sar")
+                for nm in comb_m.get(sp, []):
+                    if nm in mod_map:
+                        continue
+                    if " copy" in nm:
+                        mod_map[nm] = "sar"
+                    elif nm in opt_names:
+                        mod_map[nm] = "optical"
+                    elif nm in sar_names:
+                        mod_map[nm] = "sar"
+        for nm in opt_names:
+            mod_map.setdefault(nm, "optical")
+        for nm in sar_names:
+            if nm not in opt_names:
+                mod_map.setdefault(nm, "sar")
+            mod_map.setdefault(f"{nm} copy", "sar")
+
+    if mod_map:
+        _COMBINED_MODALITY_CACHE[cache_key] = mod_map
+    return mod_map
+
+
+def _slice_indices_preload(
+    items, max_samples, sample_seed=42, name_fn=None, images_dir=None, data_root=None
+):
     """Deterministically select `max_samples` indices in canonical order.
 
-    When `items` contains both non-' copy' and ' copy' stems (as in
-    `flood_combined` where optical and SAR tiles share stems via ' copy'),
-    samples proportionally from both groups when `max_samples >= 2` so capped
-    combined splits retain both modalities.
+    When `items` contains both optical and SAR tiles (identified via manifest
+    modality metadata / pixel hashes or collision stems), allocates
+    proportionally across available modalities with a minimum of one tile per
+    available modality whenever `max_samples >= 2`.
     """
     n = len(items)
     if max_samples is None or int(max_samples) <= 0 or int(max_samples) >= n:
@@ -416,20 +500,61 @@ def _slice_indices_preload(items, max_samples, sample_seed=42, name_fn=None):
     k = int(max_samples)
     eff_seed = 42 if sample_seed is None else int(sample_seed)
     get_name = name_fn or (lambda x: x)
-    canon_order = sorted(range(n), key=lambda i: os.path.basename(str(get_name(items[i]))))
+    stems = [os.path.basename(str(get_name(items[i]))) for i in range(n)]
+    canon_order = sorted(range(n), key=lambda i: stems[i])
     rng = np.random.default_rng(_derive_seed(eff_seed, 7))
-    primary_idx = [i for i in canon_order if " copy" not in os.path.basename(str(get_name(items[i])))]
-    copy_idx = [i for i in canon_order if " copy" in os.path.basename(str(get_name(items[i])))]
-    if primary_idx and copy_idx and k >= 2:
-        k_primary = min(len(primary_idx), max(1, (k + 1) // 2))
-        k_copy = min(len(copy_idx), max(1, k - k_primary))
-        perm_p = rng.permutation(primary_idx).tolist()
-        perm_c = rng.permutation(copy_idx).tolist()
-        chosen = perm_p[:k_primary] + perm_c[:k_copy]
-        if len(chosen) < k:
-            rem = perm_p[k_primary:] + perm_c[k_copy:]
-            chosen.extend(rem[: k - len(chosen)])
+
+    dataset = infer_dataset_split(images_dir)[0] if images_dir else None
+    if dataset in ("flood_optical", "flood_SAR"):
+        return sorted(rng.permutation(canon_order)[:k].tolist())
+
+    mod_map = _get_combined_modality_map(images_dir=images_dir, data_root=data_root)
+    has_copy_stem = any(" copy" in s for s in stems)
+    stem_set = set(stems)
+    mapped_mods = [mod_map.get(s) for s in stems]
+    use_mod_map = all(m in ("optical", "sar") for m in mapped_mods)
+
+    opt_idx = []
+    sar_idx = []
+    for i in canon_order:
+        s = stems[i]
+        mod = None
+        if use_mod_map:
+            mod = mod_map.get(s)
+        elif " copy" in s:
+            mod = "sar"
+        elif has_copy_stem and f"{s} copy" in stem_set:
+            mod = "optical"
+        elif s in mod_map:
+            mod = mod_map[s]
+        elif has_copy_stem:
+            mod = "optical"
+        if mod == "optical":
+            opt_idx.append(i)
+        elif mod == "sar":
+            sar_idx.append(i)
+
+    if opt_idx and sar_idx and len(opt_idx) + len(sar_idx) == n and k >= 2:
+        n_opt = len(opt_idx)
+        n_sar = len(sar_idx)
+        n_tot = n_opt + n_sar
+        k_opt = min(n_opt, max(1, int(round(k * n_opt / n_tot))))
+        k_sar = min(n_sar, max(1, k - k_opt))
+        if k_opt + k_sar > k:
+            if k_opt > 1 and k_opt >= k_sar:
+                k_opt = k - k_sar
+            elif k_sar > 1:
+                k_sar = k - k_opt
+        if k_opt + k_sar < k:
+            add_opt = min(n_opt - k_opt, k - (k_opt + k_sar))
+            k_opt += add_opt
+            add_sar = min(n_sar - k_sar, k - (k_opt + k_sar))
+            k_sar += add_sar
+        perm_o = rng.permutation(opt_idx).tolist()
+        perm_s = rng.permutation(sar_idx).tolist()
+        chosen = perm_o[:k_opt] + perm_s[:k_sar]
         return sorted(chosen)
+
     return sorted(rng.permutation(canon_order)[:k].tolist())
 
 
@@ -447,12 +572,19 @@ def compute_fit_only_names(
     max_samples=None,
     sample_seed=None,
     masks_by_name=None,
+    data_root=None,
 ):
     """Return the fit-only subset of `train_names` (excluding validation holdout tiles)."""
     ordered = sorted(list(train_names), key=natural_key)
     eff_image_size = 128 if image_size is None else int(image_size)
     if max_samples is not None and int(max_samples) > 0 and int(max_samples) < len(ordered):
-        keep_idx = _slice_indices_preload(ordered, max_samples, sample_seed=sample_seed)
+        keep_idx = _slice_indices_preload(
+            ordered,
+            max_samples,
+            sample_seed=sample_seed,
+            images_dir=images_dir,
+            data_root=data_root,
+        )
         ordered = [ordered[i] for i in keep_idx]
 
     if train_indices is not None:
@@ -500,8 +632,8 @@ def compute_fit_only_names(
 
 
 def _default_modality_band_stats(modality, provenance=None):
-    """Physical prior band bounds when a combined split's tiny capped fit subset
-    contains zero tiles of `modality` and no precomputed stats file exists."""
+    """Data-independent physical prior band bounds when a combined split's tiny
+    capped fit subset contains zero tiles of `modality`."""
     bands = {}
     for b in BAND_NAMES[modality]:
         if modality == "sar" and b in LOG_BANDS:
@@ -521,13 +653,18 @@ def _default_modality_band_stats(modality, provenance=None):
             bands[b] = {"lo": 0.0, "hi": 4000.0, "mean": 1000.0, "std": 600.0, "log1p": False}
     entry = {
         "n_train_tiles": 0,
+        "n_fit_train_tiles": 0,
         "pixel_stride": int(STRIDE[modality]),
         "n_pixels_per_band": 0,
         "bands": bands,
+        "fit_only": False,
+        "is_prior": True,
         "modality_fallback": "default_physical_prior_zero_fit_tiles",
     }
-    if provenance:
-        entry.update(provenance)
+    if isinstance(provenance, dict):
+        for k in ("seed", "val_fraction", "image_size", "max_samples"):
+            if k in provenance:
+                entry[k] = provenance[k]
     return entry
 
 
@@ -540,8 +677,8 @@ def compute_modality_band_stats(
     provenance=None,
     raw_by_name=None,
     sub_by_name=None,
+    masks_by_name=None,
     ensure_modalities=None,
-    fallback_stats=None,
 ):
     """Compute per-modality, per-band (lo, hi, mean, std, log1p) over `tile_names`."""
     smap = stride_map or STRIDE
@@ -557,12 +694,13 @@ def compute_modality_band_stats(
                 p = os.path.join(images_dir, name + ".tif")
                 if not os.path.exists(p):
                     p = os.path.join(images_dir, name + ".tiff")
-                if masks_dir is not None:
+                if masks_dir is not None and (masks_by_name is None or name not in masks_by_name):
                     assert find_mask(masks_dir, name) is not None, name
                 raw = read_raw(p)
             mod = MODALITY_BY_COUNT[raw.shape[0]]
             s = max(1, min(int(smap[mod]), raw.shape[1], raw.shape[2]))
-            sub = raw[:, ::s, ::s].reshape(raw.shape[0], -1)
+            sub = np.array(raw[:, ::s, ::s].reshape(raw.shape[0], -1), dtype=np.float32, copy=True)
+            del raw
         buf.setdefault(mod, []).append(sub)
         n_tiles[mod] = n_tiles.get(mod, 0) + 1
     out = {}
@@ -596,20 +734,17 @@ def compute_modality_band_stats(
         if provenance:
             entry.update(provenance)
         out[mod] = entry
+    fallback_mods = {}
     if ensure_modalities:
         for req_mod in ensure_modalities:
             if req_mod not in out:
-                if isinstance(fallback_stats, dict) and isinstance(fallback_stats.get(req_mod), dict):
-                    fb_entry = dict(fallback_stats[req_mod])
-                    if provenance:
-                        fb_entry.update(provenance)
-                    fb_entry["n_train_tiles"] = 0
-                    fb_entry["modality_fallback"] = "precomputed_norm_stats_zero_fit_tiles"
-                    out[req_mod] = fb_entry
-                else:
-                    out[req_mod] = _default_modality_band_stats(req_mod, provenance=provenance)
+                out[req_mod] = _default_modality_band_stats(req_mod, provenance=provenance)
+                fallback_mods[req_mod] = "default_physical_prior_zero_fit_tiles"
     if provenance:
-        out["_provenance"] = dict(provenance)
+        top_prov = dict(provenance)
+        if fallback_mods:
+            top_prov["modality_fallbacks"] = fallback_mods
+        out["_provenance"] = top_prov
     return out
 
 
@@ -755,7 +890,13 @@ def load_stats(
             else:
                 all_names = [p[0] for p in pairs]
             if max_samples is not None and int(max_samples) > 0 and int(max_samples) < len(all_names):
-                keep_idx = _slice_indices_preload(all_names, max_samples, sample_seed=eff_sseed)
+                keep_idx = _slice_indices_preload(
+                    all_names,
+                    max_samples,
+                    sample_seed=eff_sseed,
+                    images_dir=train_img_dir,
+                    data_root=inferred_root,
+                )
                 train_pool_names = [all_names[i] for i in keep_idx]
             else:
                 train_pool_names = all_names
@@ -770,6 +911,7 @@ def load_stats(
                 exclude_names=exclude_names,
                 image_size=eff_image_size,
                 masks_by_name=preloaded_masks_by_name,
+                data_root=data_root,
             )
             fit_digest = _fit_names_digest(fit_names)
 
@@ -854,8 +996,8 @@ def load_stats(
             provenance=prov,
             raw_by_name=preloaded_raw_by_name,
             sub_by_name=preloaded_sub_by_name,
+            masks_by_name=preloaded_masks_by_name,
             ensure_modalities=req_mods,
-            fallback_stats=ds_stats,
         )
         _FIT_STATS_CACHE[cache_key] = computed
         if split_kind == "train":
@@ -953,11 +1095,18 @@ def load_image_legacy(img_path, image_size):
     return img_array * 2.0 - 1.0
 
 
-def _slice_pairs_preload(pairs, max_samples, sample_seed=42):
+def _slice_pairs_preload(pairs, max_samples, sample_seed=42, images_dir=None, data_root=None):
     """Deterministically slice `pairs` to at most `max_samples` BEFORE reading TIFFs."""
     if max_samples is None or int(max_samples) <= 0 or int(max_samples) >= len(pairs):
         return pairs
-    keep_idx = _slice_indices_preload(pairs, max_samples, sample_seed=sample_seed, name_fn=lambda p: p[0])
+    keep_idx = _slice_indices_preload(
+        pairs,
+        max_samples,
+        sample_seed=sample_seed,
+        name_fn=lambda p: p[0],
+        images_dir=images_dir,
+        data_root=data_root,
+    )
     return [pairs[i] for i in keep_idx]
 
 
@@ -996,7 +1145,9 @@ def load_samples(
         pairs = list_pairs(images_dir, masks_dir, sort=False)
         if not pairs and not glob.glob(os.path.join(images_dir, "*.tif*")):
             raise ValueError(f"No TIFF images found in {images_dir}")
-        pairs = _slice_pairs_preload(pairs, max_samples, sample_seed=eff_sample_seed)
+        pairs = _slice_pairs_preload(
+            pairs, max_samples, sample_seed=eff_sample_seed, images_dir=images_dir, data_root=data_root
+        )
         for name, img_path, mask_path in wrap(pairs, desc="Loading data (legacy)"):
             try:
                 samples.append((load_image_legacy(img_path, image_size),
@@ -1021,7 +1172,9 @@ def load_samples(
         pairs = [p for p in pairs if p[0] in allowed]
         if not pairs:
             raise ValueError(f"No manifest-allowed image/mask pairs found in {images_dir}")
-    pairs = _slice_pairs_preload(pairs, max_samples, sample_seed=eff_sample_seed)
+    pairs = _slice_pairs_preload(
+        pairs, max_samples, sample_seed=eff_sample_seed, images_dir=images_dir, data_root=data_root
+    )
     dataset, split_kind = infer_dataset_split(images_dir)
     band_sel = resolve_bands(bands)
 
@@ -1062,63 +1215,10 @@ def load_samples(
         sample_seed=eff_sample_seed,
         preloaded_train_names=pair_names,
         preloaded_masks_by_name=masks_by_name,
-        _probe_only=True,
-    )
-    if stats is not None or len(pairs) > 64:
-        if stats is None:
-            stats = load_stats(
-                dataset,
-                stats_path,
-                seed=seed,
-                val_fraction=val_fraction,
-                fit_only=fit_only,
-                data_root=data_root,
-                images_dir=images_dir,
-                masks_dir=masks_dir,
-                image_size=image_size,
-                max_samples=max_samples,
-                sample_seed=eff_sample_seed,
-                preloaded_train_names=pair_names,
-                preloaded_masks_by_name=masks_by_name,
-            )
-        _LAST_LOADED_PROVENANCE_BY_DIR[os.path.abspath(images_dir)] = stats_provenance(stats)
-        for name, img_path, _ in wrap(pairs, desc="Loading data"):
-            samples.append((load_image_clean(img_path, image_size, band_sel, stats),
-                            masks_by_name[name]))
-            names.append(name)
-        return samples, names
-
-    # Single-pass path when stats are not precomputed and split is small/capped (<= 64 tiles):
-    # reads each capped TIFF once and passes strided pixel subsamples to load_stats.
-    raw_items = []
-    sub_by_name = {}
-    for name, img_path, _ in wrap(pairs, desc="Loading data"):
-        raw = read_raw(img_path)
-        mask = masks_by_name[name]
-        raw_items.append((name, img_path, raw, mask))
-        mod = MODALITY_BY_COUNT.get(raw.shape[0])
-        if mod is not None:
-            s = max(1, min(int(STRIDE[mod]), raw.shape[1], raw.shape[2]))
-            sub_by_name[name] = (mod, raw[:, ::s, ::s].reshape(raw.shape[0], -1))
-
-    stats = load_stats(
-        dataset,
-        stats_path,
-        seed=seed,
-        val_fraction=val_fraction,
-        fit_only=fit_only,
-        data_root=data_root,
-        images_dir=images_dir,
-        masks_dir=masks_dir,
-        image_size=image_size,
-        max_samples=max_samples,
-        sample_seed=eff_sample_seed,
-        preloaded_train_names=pair_names,
-        preloaded_sub_by_name=sub_by_name,
-        preloaded_masks_by_name=masks_by_name,
     )
     _LAST_LOADED_PROVENANCE_BY_DIR[os.path.abspath(images_dir)] = stats_provenance(stats)
-    for name, img_path, raw, mask in raw_items:
-        samples.append((_normalize_raw_clean(raw, image_size, band_sel, stats, img_path=img_path), mask))
+    for name, img_path, _ in wrap(pairs, desc="Loading data"):
+        samples.append((load_image_clean(img_path, image_size, band_sel, stats),
+                        masks_by_name[name]))
         names.append(name)
     return samples, names
