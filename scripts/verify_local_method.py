@@ -90,7 +90,15 @@ def _assert_metrics_json(
     with open(metrics_path) as f:
         m = json.load(f)
     assert m.get("schema") == "quaffle-metrics-v1", m.get("schema")
-    for split_key in ("val", "test"):
+    assert m.get("select_metric") in tc.SELECT_METRIC_CHOICES, m.get("select_metric")
+    for split_key in (
+        "val",
+        "test",
+        "best_val_metrics",
+        "final_val_metrics",
+        "best_val_test_metrics",
+        "final_test_metrics",
+    ):
         block = m.get(split_key)
         assert isinstance(block, dict), f"Missing {split_key} metrics in {metrics_path}"
         for metric_key in ("loss", "accuracy", "auc", "iou", "dice"):
@@ -158,8 +166,11 @@ def _assert_centralized_ckpt(run_dir, expected_step_key, expected_step_val, *, e
     assert ckpt.get(expected_step_key) == expected_step_val, (
         f"Expected {expected_step_key}={expected_step_val}, got {ckpt.get(expected_step_key)}"
     )
+    assert isinstance(ckpt.get("best_state_dict"), dict), f"Missing best_state_dict in {ckpt_path}"
+    assert ckpt.get("select_metric") in tc.SELECT_METRIC_CHOICES
     fp = ckpt.get("fingerprint")
     assert isinstance(fp, dict), "Missing centralized checkpoint fingerprint"
+    assert fp.get("select_metric") in tc.SELECT_METRIC_CHOICES
     if expected_target is not None:
         assert fp.get("epochs_or_steps") == expected_target, (
             f"Expected fingerprint epochs_or_steps={expected_target}, got {fp.get('epochs_or_steps')}"
@@ -180,8 +191,12 @@ def _assert_federated_ckpt(run_dir, expected_round, *, expected_total_rounds=Non
     assert ckpt.get("completed_round") == expected_round, (
         f"Expected completed_round={expected_round}, got {ckpt.get('completed_round')}"
     )
+    assert isinstance(ckpt.get("best_parameters"), list), f"Missing best_parameters in {ckpt_path}"
+    assert isinstance(ckpt.get("final_parameters"), list), f"Missing final_parameters in {ckpt_path}"
+    assert ckpt.get("select_metric") in tc.SELECT_METRIC_CHOICES
     fp = ckpt.get("fingerprint")
     assert isinstance(fp, dict), "Missing federated checkpoint fingerprint"
+    assert fp.get("select_metric") in tc.SELECT_METRIC_CHOICES
     if expected_total_rounds is not None:
         assert fp.get("fed_rounds") == expected_total_rounds, (
             f"Expected fingerprint fed_rounds={expected_total_rounds}, got {fp.get('fed_rounds')}"

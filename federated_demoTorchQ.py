@@ -297,6 +297,12 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
         self.output_dir = output_dir
         self.round_metrics = []
         self.best_performance = 0.0
+        self.select_metric = tc.select_metric_name(config)
+        self.best_val_score = tc.initial_best_val_score(self.select_metric)
+        self.best_round = None
+        self.best_parameters = None
+        self.best_val_metrics = None
+        self.final_parameters = None
         self.failed_rounds = []
         self._current_parameters = None
         self.fingerprint = None
@@ -329,17 +335,25 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
                     self.template_model = tc.build_model(QVUNetSegmentation, self.config)
                     self.template_model.to(self.device)
                 
-                # Create evaluation model and load parameters
-                eval_model = copy.deepcopy(self.template_model)
-                eval_model.to(self.device)
-                numpy_params = parameters_to_ndarrays(self._current_parameters)
+                # Reuse template_model directly without redundant deepcopy (#10)
+                eval_model = self.template_model
+                numpy_params = tc.parameters_to_ndarrays_safe(self._current_parameters)
                 numpy_to_torch_params(eval_model, numpy_params)
                 
                 # Evaluate global model
                 metrics = evaluate_model(eval_model, self.val_loader, self.device)
                 metrics['step'] = server_round
                 
-                # Track best performance
+                # Track best validation checkpoint (#6)
+                cand_score = tc.extract_val_score(metrics, self.select_metric)
+                if self.best_parameters is None or tc.is_better_val_score(
+                    cand_score, self.best_val_score, self.select_metric
+                ):
+                    self.best_val_score = cand_score
+                    self.best_round = int(server_round)
+                    self.best_val_metrics = dict(metrics)
+                    self.best_parameters = tc.clone_flower_parameters(self._current_parameters)
+
                 if metrics['auc'] > self.best_performance:
                     self.best_performance = metrics['auc']
                 
@@ -359,7 +373,9 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
                         'model_state_dict': eval_model.state_dict(),
                         'round': server_round,
                         'round_metrics': self.round_metrics,
-                        'best_performance': self.best_performance
+                        'best_performance': self.best_performance,
+                        'best_val_score': self.best_val_score,
+                        'best_round': self.best_round,
                     }, unique_checkpoint_path)
                     print(f"Unique checkpoint saved: checkpoint_round_{server_round}.pt")
 
@@ -379,8 +395,12 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
         # Store current parameters for evaluation
         if aggregated_result is not None:
             self._current_parameters = aggregated_result[0]
+            self.final_parameters = aggregated_result[0]
         
         return aggregated_result
+
+
+CustomFedAvg = QuantumFedAvg
 
 # Use the utility function for client dataset creation
 
@@ -566,12 +586,16 @@ def main():
         tc.fail_run(output_dir, "no server-side validation round completed")
     print(f"Best AUC achieved: {strategy.best_performance:.4f}")
     
-    # Get final global model for testing
-    if hasattr(strategy, '_current_parameters') and strategy._current_parameters is not None:
+    # Get best global model (falling back to final parameters if no validation rounds ran) for testing
+    selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
+    final_test_result = None
+    if selected_params is not None:
         final_model = tc.build_model(QVUNetSegmentation, config)
         final_model.to(torch.device(device_str))
-        final_params = parameters_to_ndarrays(strategy._current_parameters)
-        numpy_to_torch_params(final_model, final_params)
+        numpy_to_torch_params(final_model, selected_params)
+        if used_best:
+            print(f"Restored best federated validation parameters from round {strategy.best_round} "
+                  f"({strategy.select_metric}={strategy.best_val_score:.4f})")
         
         # Save final training curves
         if strategy.round_metrics:
@@ -589,7 +613,7 @@ def main():
         test_result = None
         knockout = None
         
-        # Test and visualize with final global model
+        # Test and visualize with restored best global model
         if os.path.exists(test_images_dir):
             print("Loading test data for evaluation and visualization...")
             test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
@@ -601,6 +625,14 @@ def main():
             test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
             print(f"Test Results - Loss: {test_result['loss']:.4f}, "
                   f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
+            final_round = strategy.round_metrics[-1].get('step') if strategy.round_metrics else None
+            if used_best and final_params is not None and strategy.best_round != final_round:
+                numpy_to_torch_params(final_model, final_params)
+                final_test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
+                numpy_to_torch_params(final_model, selected_params)
+            else:
+                final_test_result = dict(test_result)
 
             if config.get('quantum_knockout_eval'):
                 print("Quantum knockout evaluation on the test set...")
@@ -640,9 +672,11 @@ def main():
                 f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
                 f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
                 f.write(f"Quantum channels: {config['quantum_channels']}\n")
+                f.write(f"Skip modulation: {config.get('skip_modulation', tc.DEFAULT_SKIP_MODULATION)}\n")
                 f.write(f"Base channels: {config['base_channels']}\n")
                 f.write(f"Image size: {config['image_size']}\n")
                 f.write(f"Federated rounds: {config['fed_rounds']}\n")
+                f.write(f"Checkpoint selection metric: {strategy.select_metric} (best round: {strategy.best_round})\n")
                 f.write(f"Number of clients: {config['num_clients']}\n")
                 f.write(f"Clients per round: {config['clients_per_round']}\n")
                 f.write(f"Local epochs: {config['local_epochs']}\n")
@@ -653,7 +687,7 @@ def main():
                 f.write(f"Best AUC achieved: {strategy.best_performance:.4f}\n\n")
                 
                 if strategy.round_metrics:
-                    final_metrics = strategy.round_metrics[-1]
+                    final_metrics = strategy.best_val_metrics or strategy.round_metrics[-1]
                     f.write("Final Validation Results:\n")
                     f.write(f"  Loss: {final_metrics['loss']:.4f}\n")
                     f.write(f"  Accuracy: {final_metrics['accuracy']:.4f}\n")
@@ -679,11 +713,16 @@ def main():
     
     # Canonical per-run metrics (analysis reads this, not the Excel file).
     final_val = strategy.round_metrics[-1]
+    best_val = strategy.best_val_metrics or final_val
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated", model_type="quantum",
-        config=config, val_metrics=final_val, test_metrics=test_result,
+        config=config, val_metrics=best_val, best_val_metrics=best_val,
+        final_val_metrics=final_val, test_metrics=test_result,
+        best_val_test_metrics=test_result, final_test_metrics=final_test_result,
         history=strategy.round_metrics, total_params=total_params,
-        best_val_auc=strategy.best_performance, knockout=knockout if config.get('quantum_knockout_eval') else None,
+        best_val_auc=strategy.best_performance,
+        best_val_score=strategy.best_val_score, best_round=strategy.best_round,
+        knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance, q_simulator=q_simulator,
         extra={'resumed_from_round': strategy.resumed_from_round})
 
@@ -695,7 +734,7 @@ def main():
         framework="torch",
         training="federated",
         variant="quantum",
-        val_metrics=final_val,
+        val_metrics=best_val,
         test_metrics=test_result,
         config=excel_config,
         dataset=args.dataset,

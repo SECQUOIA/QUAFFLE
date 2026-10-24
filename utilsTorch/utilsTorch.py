@@ -126,6 +126,10 @@ class QVUNetSegmentation(torch.nn.Module):
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)
+                skip_modulation = self.config.get(
+                    'skip_modulation',
+                    self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION),
+                )
                 return unet.QVUNet(
                     dim=self.config['base_channels'],
                     quantum_block=quantum_block,
@@ -135,6 +139,7 @@ class QVUNetSegmentation(torch.nn.Module):
                     resnet_block_groups=self.config.get('resnet_block_groups', 8),
                     quantum_channels=quantum_channels,
                     quantum_block2=quantum_block2,
+                    skip_modulation=skip_modulation,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -238,6 +243,10 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     )
                 classical_bottleneck = make_block(0)
                 block2 = None if share else make_block(1)
+                skip_modulation = self.config.get(
+                    'skip_modulation',
+                    self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION),
+                )
                 return unet.QVUNet(
                     dim=self.config['base_channels'],
                     quantum_block=classical_bottleneck,
@@ -247,6 +256,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     resnet_block_groups=self.config.get('resnet_block_groups', 8),
                     quantum_channels=quantum_channels,
                     quantum_block2=block2,
+                    skip_modulation=skip_modulation,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -397,7 +407,7 @@ def train_one_epoch(model, dataloader, optimizer, device):
     accuracy = total_correct / total_pixels
     return avg_loss, accuracy
 
-def evaluate_model(model, dataloader, device):
+def evaluate_model(model, dataloader, device, single_class_auc=0.0):
     model.eval()
     total_loss = 0
     total_correct = 0
@@ -422,17 +432,29 @@ def evaluate_model(model, dataloader, device):
             total_pred_pos += (preds == 1).sum().item()
             total_true_pos += (masks_int == 1).sum().item()
             probs = torch.softmax(logits, dim=1)[:, 1, ...]
-            all_probs.extend(probs.cpu().numpy().flatten())
-            all_labels.extend(masks.cpu().numpy().flatten())
-    avg_loss = total_loss / len(dataloader.dataset)
-    accuracy = total_correct / total_pixels
+            all_probs.append(probs.cpu().numpy().ravel())
+            all_labels.append(masks.cpu().numpy().ravel())
+    n_samples = len(dataloader.dataset)
+    avg_loss = float(total_loss / n_samples) if n_samples > 0 else 0.0
+    accuracy = float(total_correct / total_pixels) if total_pixels > 0 else 0.0
     union = total_pred_pos + total_true_pos - total_intersection
-    iou = total_intersection / union if union > 0 else 0.0
-    dice = 2 * total_intersection / (total_pred_pos + total_true_pos) if (total_pred_pos + total_true_pos) > 0 else 0.0
+    iou = float(total_intersection / union) if union > 0 else 0.0
+    dice = (
+        float(2 * total_intersection / (total_pred_pos + total_true_pos))
+        if (total_pred_pos + total_true_pos) > 0
+        else 0.0
+    )
+    all_probs_arr = np.concatenate(all_probs) if all_probs else np.empty(0, dtype=np.float32)
+    all_labels_arr = np.concatenate(all_labels) if all_labels else np.empty(0, dtype=np.float32)
     try:
-        auc_score = roc_auc_score(all_labels, all_probs)
-    except:
-        auc_score = 0.0
+        if all_labels_arr.size == 0 or np.unique(all_labels_arr).size < 2:
+            auc_score = float(single_class_auc)
+        else:
+            auc_score = float(roc_auc_score(all_labels_arr, all_probs_arr))
+            if np.isnan(auc_score):
+                auc_score = float(single_class_auc)
+    except ValueError:
+        auc_score = float(single_class_auc)
     return {'loss': avg_loss, 'accuracy': accuracy, 'auc': auc_score, 'iou': iou, 'dice': dice}
 
 def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):

@@ -565,7 +565,7 @@ class QuantumBlock(nn.Module):
     with freshly drawn random parameters (fixed knockout seed). The trained
     parameters and state_dict are not modified.
     """
-    def __init__(self, backend='ptlayer', quantum_channels=8, ptlayer_config=None,
+    def __init__(self, backend='pennylane', quantum_channels=8, ptlayer_config=None,
                  seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
                  q_sim_device='cpu'):
         super().__init__()
@@ -929,21 +929,55 @@ class QuantumBlock(nn.Module):
         else:
             raise ValueError(f'Unknown quantum backend: {self.backend}')
 
+SKIP_MODULATION_CHOICES = ('affine', 'additive')
+DEFAULT_SKIP_MODULATION = 'affine'
+_SKIP_MODULATION_ALIASES = {
+    'affine': 'affine',
+    'multiplicative': 'affine',
+    'se_scale': 'affine',
+    'additive': 'additive',
+    'legacy': 'additive',
+}
+
+
+def normalize_skip_modulation(mode):
+    """Normalize skip_modulation mode ('affine' default, 'additive' legacy)."""
+    if mode is None:
+        return DEFAULT_SKIP_MODULATION
+    key = str(mode).strip().lower()
+    if key not in _SKIP_MODULATION_ALIASES:
+        raise ValueError(
+            f"Unknown skip_modulation {mode!r}, expected one of {SKIP_MODULATION_CHOICES}"
+        )
+    return _SKIP_MODULATION_ALIASES[key]
+
+
 class QResnetBlock(nn.Module):
     def __init__(
         self,
         in_dim: int,
         out_dim: int,
         time_emb_dim: int,
-        quantum_block: QuantumBlock,
+        quantum_block: Optional[QuantumBlock] = None,
         quantum_channels: int = 8,
         groups: int = 8,
+        skip_modulation: str = DEFAULT_SKIP_MODULATION,
+        q_residual_mode: Optional[str] = None,
+        q_block: Optional[QuantumBlock] = None,
     ):
         super().__init__()
+        if quantum_block is None:
+            quantum_block = q_block
+        if quantum_block is None:
+            raise ValueError("QResnetBlock requires quantum_block (or q_block)")
         self.quantum_channels = quantum_channels
         self.quantum_block = quantum_block
+        self.q_block = quantum_block
         self.in_dim = in_dim
         self.out_dim = out_dim
+        eff_mode = q_residual_mode if q_residual_mode is not None else skip_modulation
+        self.skip_modulation = normalize_skip_modulation(eff_mode)
+        self.q_residual_mode = self.skip_modulation
         
         # Calculate effective quantum channels (must be multiple of 4)
         self.effective_qc = (quantum_channels // 4) * 4
@@ -981,6 +1015,9 @@ class QResnetBlock(nn.Module):
     def forward(self, x, time_emb, params=None):
         B, C, H, W = x.shape
 
+        # Residual connection
+        x_skip = self.skip(x)
+
         # Split channels: quantum channels (multiples of 4) and classical channels
         # Only process the first quantum_channels if input has more channels
         if C > self.effective_qc:
@@ -992,6 +1029,7 @@ class QResnetBlock(nn.Module):
             x_c = None
 
         outputs = []
+        qc_actual = 0
 
         # Process quantum channels
         if x_q is not None and self.effective_qc > 0:
@@ -1001,7 +1039,12 @@ class QResnetBlock(nn.Module):
             if y_q.shape[2:] != (H, W):
                 y_q = F.interpolate(y_q, size=(H, W), mode='nearest')
 
-            outputs.append(y_q)
+            qc_actual = y_q.shape[1]
+            if self.skip_modulation == 'additive':
+                outputs.append(x_skip[:, :qc_actual] + y_q)
+            else:
+                # Multiplicative/affine spatial modulation: x_skip[:, :qc] * (1 + y_q)
+                outputs.append(x_skip[:, :qc_actual] * (1.0 + y_q))
 
         # Process classical channels
         if self.classical_channels > 0 and x_c is not None:
@@ -1028,17 +1071,27 @@ class QResnetBlock(nn.Module):
             h_c = self.norm1(h_c)
             h_c = F.silu(h_c)
             
-            outputs.append(h_c)
+            outputs.append(x_skip[:, qc_actual:qc_actual + h_c.shape[1]] + h_c)
 
         # Combine quantum and classical outputs
         if outputs:
-            h = torch.cat(outputs, dim=1)  # [B, out_dim, H, W]
-        else:
-            h = torch.zeros(B, self.out_dim, H, W, device=x.device, dtype=x.dtype)
+            out = torch.cat(outputs, dim=1)  # [B, out_dim, H, W]
+            if out.shape[1] < x_skip.shape[1]:
+                out = torch.cat([out, x_skip[:, out.shape[1]:]], dim=1)
+            return out
+        return x_skip
 
-        # Residual connection
-        x_skip = self.skip(x)
-        return x_skip + h
+
+class AblationResnetBlock(QResnetBlock):
+    """Bottleneck residual block used by the parameter-matched classical ablation.
+
+    Applies the same skip_modulation ('affine': x_skip[:, :qc] * (1 + y_q),
+    or 'additive': x_skip[:, :qc] + y_q) as QResnetBlock when paired with a
+    ClassicalBottleneckBlock.
+    """
+
+    def forward(self, x, time_emb, params=None):
+        return super().forward(x, time_emb, params)
 
 
 # --- U-Net Components ---
@@ -1194,8 +1247,15 @@ class ClassicalBottleneckBlock(nn.Module):
     Interface matches QuantumBlock: forward(x, params=None) with x shaped
     [B, quantum_channels, H, W], plus set_quantum_mode for the same knockout.
     """
-    def __init__(self, quantum_channels=8, kind='linear', hidden=None, seed=None):
+    def __init__(self, quantum_channels=8, kind='linear', hidden=None, seed=None,
+                 q_ansatz=None, q_layers=None):
         super().__init__()
+        if q_ansatz is not None:
+            if q_ansatz not in Q_ANSATZ_CHOICES:
+                raise ValueError(f"Unknown q_ansatz {q_ansatz!r}, expected one of {Q_ANSATZ_CHOICES}")
+            kind = 'mlp' if q_ansatz == 'reupload' else 'linear'
+            if kind == 'mlp' and hidden is None:
+                hidden = matched_mlp_hidden(16 * int(q_layers or 2))
         if kind not in ('linear', 'mlp'):
             raise ValueError(f"Unknown classical bottleneck kind {kind!r}")
         self.quantum_channels = quantum_channels
@@ -1257,11 +1317,13 @@ class ClassicalBottleneckBlock(nn.Module):
 
 class QVertex(nn.Module):
     def __init__(self, dim, quantum_block: QuantumBlock, quantum_channels=8,
-                 dim_mults=(1, 2, 4, 8), resnet_block_groups=8, quantum_block2=None):
+                 dim_mults=(1, 2, 4, 8), resnet_block_groups=8, quantum_block2=None,
+                 skip_modulation=DEFAULT_SKIP_MODULATION):
         super().__init__()
         self.dim = dim
         self.quantum_channels = quantum_channels
         self.resnet_block_groups = resnet_block_groups
+        self.skip_modulation = normalize_skip_modulation(skip_modulation)
         # quantum_block2=None: qresblock1 and qresblock2 share one block (same
         # circuit parameters, original behaviour). Pass a second block to give
         # qresblock2 its own parameters.
@@ -1270,9 +1332,17 @@ class QVertex(nn.Module):
         
         mid_dim = dim * dim_mults[-1]
         time_emb_dim = dim * 4  # Match the main model's time embedding dimension
-        self.qresblock1 = QResnetBlock(mid_dim, mid_dim, time_emb_dim, quantum_block, quantum_channels, resnet_block_groups)
+        block_cls1 = AblationResnetBlock if isinstance(quantum_block, ClassicalBottleneckBlock) else QResnetBlock
+        block_cls2 = AblationResnetBlock if isinstance(quantum_block2, ClassicalBottleneckBlock) else QResnetBlock
+        self.qresblock1 = block_cls1(
+            mid_dim, mid_dim, time_emb_dim, quantum_block, quantum_channels,
+            resnet_block_groups, skip_modulation=self.skip_modulation,
+        )
         self.attn = AttnBlock(mid_dim, use_linear_attention=False)
-        self.qresblock2 = QResnetBlock(mid_dim, mid_dim, time_emb_dim, quantum_block2, quantum_channels, resnet_block_groups)
+        self.qresblock2 = block_cls2(
+            mid_dim, mid_dim, time_emb_dim, quantum_block2, quantum_channels,
+            resnet_block_groups, skip_modulation=self.skip_modulation,
+        )
     
     def forward(self, h, time_emb, params=None):
         h = self.qresblock1(h, time_emb, params)
@@ -1283,7 +1353,7 @@ class QVertex(nn.Module):
 class QVUNet(nn.Module):
     def __init__(self, dim, quantum_block: QuantumBlock, init_dim=None, out_dim=None, 
                  dim_mults=(1, 2, 4, 8), resnet_block_groups=8, quantum_channels=8,
-                 quantum_block2=None):
+                 quantum_block2=None, skip_modulation=DEFAULT_SKIP_MODULATION):
         super().__init__()
         self.dim = dim
         self.init_dim = init_dim or dim
@@ -1291,10 +1361,11 @@ class QVUNet(nn.Module):
         self.dim_mults = dim_mults
         self.resnet_block_groups = resnet_block_groups
         self.quantum_channels = quantum_channels
+        self.skip_modulation = normalize_skip_modulation(skip_modulation)
         
         self.down = DownUnet(dim, init_dim, dim_mults, resnet_block_groups)
         self.vertex = QVertex(dim, quantum_block, quantum_channels, dim_mults, resnet_block_groups,
-                              quantum_block2=quantum_block2)
+                              quantum_block2=quantum_block2, skip_modulation=self.skip_modulation)
         self.up = UpUnet(dim, init_dim, out_dim, dim_mults, resnet_block_groups)
 
     def set_quantum_mode(self, mode='on', knockout_seed=0):
