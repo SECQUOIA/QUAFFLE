@@ -375,6 +375,7 @@ import json as _json_disk
 PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
 _DEFAULT_Q_LAYERS = 2
 
+_SCALE_TAG_RE = _re_disk.compile(r"(?:_(?:bc\d+|img\d+|max\d+|dr[0-9a-f]{6}))+$")
 _VTAG_RE = _re_disk.compile(r"_(legacy|reupload_L\d+)$")
 _BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
 _BTAG_TO_BACKEND = {"qtorch": "torch", "qpergroup": "pennylane_pergroup"}
@@ -419,7 +420,8 @@ def _with_backend(method, q_backend, label_backends):
 
 def _variant_label(variant):
     """Method-label suffix for a variant ('' for the primary variant)."""
-    if not variant or variant == PRIMARY_VARIANT:
+    primary = os.environ.get("QUAFFLE_PRIMARY_VARIANT", PRIMARY_VARIANT)
+    if not variant or variant == primary:
         return ""
     return f" [{variant.replace('_', ' ')}]"
 
@@ -448,6 +450,14 @@ def _infer_variant_from_summary(text):
                                 int(layers.group(1)) if layers else None)
 
 
+def _parse_run_dir_is_mini(dirname):
+    """True if dirname carries a non-default scale/data-root tag before _seed<N>."""
+    m = _re_disk.match(r"^(.+)_seed(\d+)$", dirname)
+    if not m:
+        return False
+    return bool(_SCALE_TAG_RE.search(m.group(1)))
+
+
 def _parse_run_dir(dirname):
     """Map a result directory name → (Method, Dataset, Seed, Quantum_Channels,
     Training, Partition) or None if it should be ignored (JAX, old ablation,
@@ -472,6 +482,10 @@ def _parse_run_dir_full(dirname):
 
     if "jax" in base:
         return None  # JAX runs are not analysed (legacy code)
+
+    sm = _SCALE_TAG_RE.search(base)
+    if sm:
+        base = base[:sm.start()]
 
     dir_backend = None
     bm = _BTAG_RE.search(base)
@@ -542,7 +556,11 @@ def _parse_run_dir_backend(dirname):
     m = _re_disk.match(r"^(.+)_seed(\d+)$", dirname)
     if not m:
         return None
-    bm = _BTAG_RE.search(m.group(1))
+    base = m.group(1)
+    sm = _SCALE_TAG_RE.search(base)
+    if sm:
+        base = base[:sm.start()]
+    bm = _BTAG_RE.search(base)
     return _BTAG_TO_BACKEND[bm.group(1)] if bm else None
 
 
@@ -584,11 +602,17 @@ def _parse_metrics_json(path):
             out[f"Val_{name}"] = float(v)
     if data.get("total_params") is not None:
         out["Total_Params"] = int(data["total_params"])
+    is_mini = bool(data.get("is_mini_run"))
+    if data.get("base_channels") not in (None, 32) or data.get("image_size") not in (None, 128):
+        is_mini = True
+    if data.get("max_samples") is not None:
+        is_mini = True
     info = {
         "variant": _variant_from_fields(data.get("q_ansatz"), data.get("q_layers")),
         # Key absent: written before q_backend was recorded (torch simulator).
         "q_backend": data.get("q_backend", LEGACY_Q_BACKEND),
         "q_backend_recorded": "q_backend" in data,
+        "is_mini_run": is_mini,
     }
     return out, info
 
@@ -638,7 +662,7 @@ def _parse_summary(path):
     return out
 
 
-def load_from_disk(label_backends=False):
+def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
     """Walk results/ and build the per-run DataFrame. Prefers each run's
     results/metrics.json (canonical, machine-readable) and falls back to
     summary.txt for older runs. Bypasses the Excel logging entirely.
@@ -653,15 +677,22 @@ def load_from_disk(label_backends=False):
     label_backends=True non-pennylane quantum runs also get " [qtorch]" /
     " [qpergroup]".
     """
+    if isinstance(label_backends, (str, os.PathLike)) and results_dir is None:
+        results_dir = str(label_backends)
+        label_backends = False
+    rdir = results_dir or os.environ.get("QUAFFLE_RESULTS_DIR", RESULTS_DIR)
+    if include_mini is None:
+        include_mini = os.environ.get("QUAFFLE_INCLUDE_MINI", "0").lower() in ("1", "true", "yes")
     rows = []
     skipped_no_summary = 0
+    skipped_mini = 0
     skipped_dirs = []
     n_json = 0
-    if not os.path.isdir(RESULTS_DIR):
+    if not os.path.isdir(rdir):
         return pd.DataFrame()
 
-    for d in sorted(os.listdir(RESULTS_DIR)):
-        full = os.path.join(RESULTS_DIR, d)
+    for d in sorted(os.listdir(rdir)):
+        full = os.path.join(rdir, d)
         if not os.path.isdir(full):
             continue
         parsed = _parse_run_dir_full(d)
@@ -670,14 +701,15 @@ def load_from_disk(label_backends=False):
         method, dataset, seed, qc, training, partition, dir_variant = parsed
         quantumish = method.startswith("Quantum") or method.startswith("Ablation")
         dir_backend = _parse_run_dir_backend(d)
+        is_mini = _parse_run_dir_is_mini(d)
 
         js = _parse_metrics_json(os.path.join(full, "results", "metrics.json"))
         if js is not None:
             metrics, info = js
             source = "metrics.json"
-            n_json += 1
             variant = dir_variant or info.get("variant")
             q_backend = info["q_backend"]
+            is_mini = is_mini or bool(info.get("is_mini_run"))
             if dir_backend and info["q_backend_recorded"] and dir_backend != q_backend:
                 print(f"  WARNING: {d}: directory tag says q_backend={dir_backend!r}, "
                       f"metrics.json says {q_backend!r}; using metrics.json")
@@ -694,6 +726,11 @@ def load_from_disk(label_backends=False):
             variant = dir_variant or inferred
             q_backend = dir_backend or metrics.pop("_q_backend_inferred", None)
             metrics.pop("_q_backend_inferred", None)
+        if is_mini and not include_mini:
+            skipped_mini += 1
+            continue
+        if source == "metrics.json":
+            n_json += 1
         if not quantumish:
             variant = None
         if not method.startswith("Quantum"):
@@ -709,6 +746,7 @@ def load_from_disk(label_backends=False):
             "Q_Backend": q_backend,
             "Run_Dir": d,
             "Source": source,
+            "Is_Mini": bool(is_mini),
             "Demo": method,                 # downstream filter compat
             "Variant": "quantum" if method.startswith("Quantum") else (
                        "ablation" if method.startswith("Ablation") else "classical"),
@@ -719,6 +757,9 @@ def load_from_disk(label_backends=False):
     if rows:
         print(f"  Parsed {len(rows)} runs ({n_json} from metrics.json, "
               f"{len(rows) - n_json} from summary.txt)")
+    if skipped_mini:
+        print(f"  Excluded {skipped_mini} mini/downscaled run dirs "
+              f"(pass --include-mini or QUAFFLE_INCLUDE_MINI=1 to include)")
     if skipped_no_summary:
         print(f"  Skipped {skipped_no_summary} run dirs without test metrics "
               f"(failed, in-progress or crashed):")
@@ -743,7 +784,7 @@ def filter_backends(df, include_backends=DEFAULT_INCLUDE_BACKENDS):
     return df[keep].reset_index(drop=True)
 
 
-def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS):
+def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS, include_mini=None, results_dir=None):
     """Load all per-run results from disk (summary.txt files) and apply
     seed/method/simulator filters. Disk reads are authoritative — the Excel
     logging has historical column-shift bugs for some seeds (notably 7, 42,
@@ -751,7 +792,11 @@ def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS):
     circuit simulators in include_backends (default: pennylane only)."""
     print("Loading from disk (results/*/results/summary.txt)...")
     include_backends = tuple(include_backends)
-    df = load_from_disk(label_backends=len(include_backends) > 1)
+    df = load_from_disk(
+        label_backends=len(include_backends) > 1,
+        include_mini=include_mini,
+        results_dir=results_dir,
+    )
     if df.empty:
         print("No data found.")
         return df
@@ -926,9 +971,10 @@ def make_pivot_numeric(seed_df, metric="Test_IoU", method_order=None):
 # Excel Output
 # ─────────────────────────────────────────────────────────────────────────────
 
-def save_analysis_excel(df, seed_df):
-    os.makedirs(ANALYSIS_OUT_DIR, exist_ok=True)
-    out_path = os.path.join(ANALYSIS_OUT_DIR, "analysis_summary.xlsx")
+def save_analysis_excel(df, seed_df, out_dir=None):
+    target_dir = out_dir or os.environ.get("QUAFFLE_ANALYSIS_OUT_DIR", os.environ.get("QUAFFLE_RESULTS_DIR", ANALYSIS_OUT_DIR))
+    os.makedirs(target_dir, exist_ok=True)
+    out_path = os.path.join(target_dir, "analysis_summary.xlsx")
 
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -1884,13 +1930,14 @@ def _save(fig, path, dpi=300):
     print(f"  Saved {path}")
 
 
-def save_all_plots(seed_df, raw_df=None):
+def save_all_plots(seed_df, raw_df=None, out_dir=None):
     """Output policy:
         results/plots/combinedcharts/                — legacy 3-in-1 figures (all metrics)
         results/plots/combinedcharts/supplementary/  — supp variants (Acc + AUC dot/seed lines)
         results/plots/<regime>_<dataset>/            — per-config bar plot (one PNG per metric)
     """
-    plots_dir = os.path.join(ANALYSIS_OUT_DIR, "plots")
+    target_dir = out_dir or os.environ.get("QUAFFLE_ANALYSIS_OUT_DIR", os.environ.get("QUAFFLE_RESULTS_DIR", ANALYSIS_OUT_DIR))
+    plots_dir = os.path.join(target_dir, "plots")
     combined_dir = os.path.join(plots_dir, "combinedcharts")
     supp_dir  = os.path.join(combined_dir, "supplementary")
     os.makedirs(plots_dir, exist_ok=True)
@@ -2035,16 +2082,29 @@ def parse_args(argv=None):
                          f"{', '.join(Q_BACKENDS)} or all (default: pennylane). "
                          "With more than one, non-pennylane methods get a "
                          "' [qtorch]' / ' [qpergroup]' label suffix.")
+    ap.add_argument("--include-mini", action="store_true",
+                    help="Include mini / downscaled verification runs in analysis")
+    ap.add_argument("--results-dir", default=None,
+                    help="Override input results directory (default: $QUAFFLE_RESULTS_DIR or results/)")
+    ap.add_argument("--out-dir", default=None,
+                    help="Override output directory for analysis_summary.xlsx and plots/")
+    ap.add_argument("--skip-plots", action="store_true",
+                    help="Skip generating PNG plots (write analysis_summary.xlsx only)")
     args = ap.parse_args(argv)
     if "all" in args.include_backend:
         args.include_backend = list(Q_BACKENDS)
     return args
 
 
-if __name__ == "__main__":
-    _args = parse_args()
+def main(argv=None):
+    _args = parse_args(argv)
     print("Loading data...")
-    df = load_all(include_backends=_args.include_backend)
+    inc_mini = True if _args.include_mini else None
+    df = load_all(
+        include_backends=_args.include_backend,
+        include_mini=inc_mini,
+        results_dir=_args.results_dir,
+    )
 
     if df.empty:
         print("No data found, make sure results/results_summary_*.xlsx exist.")
@@ -2061,10 +2121,19 @@ if __name__ == "__main__":
 
     print_summary(seed_df)
 
+    out_dir = _args.out_dir or _args.results_dir
     print("\nSaving Excel...")
-    save_analysis_excel(df, seed_df)
+    save_analysis_excel(df, seed_df, out_dir=out_dir)
 
-    print("\nGenerating plots...")
-    save_all_plots(seed_df, raw_df=df)
+    skip_plots = _args.skip_plots or (
+        os.environ.get("QUAFFLE_SKIP_ANALYSIS_PLOTS", "0").lower() in ("1", "true", "yes")
+    )
+    if not skip_plots:
+        print("\nGenerating plots...")
+        save_all_plots(seed_df, raw_df=df, out_dir=out_dir)
 
     print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()

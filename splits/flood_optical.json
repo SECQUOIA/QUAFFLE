@@ -2,19 +2,27 @@
  "dataset": "flood_optical",
  "generated_by": "tools/dedup_splits.py",
  "identity": "md5 of decoded image pixels (dtype, shape, bytes); metadata ignored",
+ "conflict_policy": "drop",
+ "conflict_groups": [],
+ "conflict_dropped": [],
  "counts": {
   "train_files": 235,
   "train_pairs": 235,
   "train_unique_images": 235,
   "train_kept": 235,
   "train_dropped_internal_duplicates": 0,
+  "train_dropped_nonconflicting_duplicates": 0,
   "train_duplicate_groups_with_conflicting_masks": 0,
+  "conflict_groups": 0,
+  "conflict_dropped": 0,
   "test_files": 71,
   "test_pairs": 71,
   "test_dropped_leaked_from_train": 0,
   "test_leaked_with_identical_mask": 0,
   "test_dropped_internal_duplicates": 0,
   "test_duplicate_groups_with_conflicting_masks": 0,
+  "test_conflict_groups": 0,
+  "test_conflict_dropped": 0,
   "test_kept": 71,
   "near_dup_test_vs_train_flip_or_rotation": 0,
   "near_dup_test_vs_train_ahash_corr_gt_0.99": 0
@@ -331,8 +339,12 @@
  ],
  "excluded": {
   "train_internal_duplicates": [],
+  "conflict_groups": [],
+  "conflict_dropped": [],
   "test_leaked_from_train": [],
-  "test_internal_duplicates": []
+  "test_internal_duplicates": [],
+  "test_conflict_groups": [],
+  "test_conflict_dropped": []
  },
  "near_duplicates_reported_not_excluded": {
   "flip_or_rotation_of_train": [],
