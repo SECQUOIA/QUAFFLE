@@ -4,12 +4,17 @@ import inspect
 import json
 import os
 import pathlib
+import sys
 import warnings
 
 import numpy as np
 import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from tools import training_common as tc
 from utilsTorch.unetTorch import (
@@ -715,20 +720,116 @@ def test_round1_federated_strategy_callbacks_and_unvalidated_final_round(tmp_pat
 
     # Round 3: fit ONLY (simulating unvalidated final round where round 2 was last validated round)
     strategy.aggregate_fit(3, [object()], [])
+    tc.fed_round_end(strategy, 3)
     assert strategy.best_round == 2
     assert strategy.final_round == 3
 
-    selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
+    # Verify final_round and best_round persist across fed_resume.pt
+    resumed_strategy = fed_cls.CustomFedAvg(
+        val_loader=dummy_val,
+        config=cfg,
+        device_str="cpu",
+        output_dir=str(tmp_path),
+    )
+    resumed_strategy.fingerprint = strategy.fingerprint
+    ckpt = tc.load_fed_checkpoint(str(tmp_path), strategy.fingerprint, resume=True)
+    tc.apply_fed_resume(resumed_strategy, ckpt)
+    assert resumed_strategy.best_round == 2
+    assert resumed_strategy.final_round == 3
+
+    selected_params, final_params, used_best = tc.select_federated_eval_parameters(resumed_strategy)
     assert used_best is True
-    assert strategy.best_round != strategy.final_round
+    assert resumed_strategy.best_round != resumed_strategy.final_round
     assert not tc.ndarrays_equal(selected_params, final_params)
     assert np.allclose(selected_params[0], 2.0)
     assert np.allclose(final_params[0], 3.0)
 
+    # Also exercise federated_demoTorchClassical.main() entrypoint for:
+    # (A) unvalidated final round (final_test_result uses final_params)
+    # (B) no validation rounds at all (round_metrics == [] falls back to final_params without aborting)
+    data_root = tmp_path / "fed_data"
+    for split in ("Training", "Testing"):
+        (data_root / "flood_optical" / split / "images").mkdir(parents=True, exist_ok=True)
+        (data_root / "flood_optical" / split / "masks").mkdir(parents=True, exist_ok=True)
+
+    dummy_full_ds = TensorDataset(
+        torch.zeros((4, 3, 16, 16), dtype=torch.float32),
+        torch.zeros((4, 1, 16, 16), dtype=torch.float32),
+    )
+    monkeypatch.setattr(tc, "load_dataset", lambda *a, **kw: dummy_full_ds)
+    monkeypatch.setattr(tc, "build_federated_split", lambda ds, c: ([[0, 1], [2, 3]], [0, 1], ["split"]))
+    monkeypatch.setattr(fed_cls, "get_config", lambda: dict(cfg))
+    monkeypatch.setattr(fed_cls, "save_training_curves", lambda *a, **kw: None)
+    monkeypatch.setattr(fed_cls, "visualize_results", lambda *a, **kw: None)
+    monkeypatch.setattr(fed_cls, "save_results_to_excel", lambda *a, **kw: None)
+
+    out_unval_final = tmp_path / "fed_main_unval_final"
+    monkeypatch.setattr(tc, "resolve_output_dir", lambda default_out, c, a=None: str(out_unval_final))
+    monkeypatch.setattr(
+        fed_cls,
+        "parse_args",
+        lambda: argparse.Namespace(
+            seed=42,
+            dataset="optical",
+            partition="random",
+            alpha=0.5,
+            data_root=str(data_root),
+            resume=False,
+            no_save_samples=True,
+            select_metric="iou",
+            skip_modulation="affine",
+        ),
+    )
+
+    def sim_unvalidated_final(*, strategy, **kwargs):
+        strategy.aggregate_fit(1, [object()], [])
+        strategy.aggregate_evaluate(1, [object()], [])
+        strategy.aggregate_fit(2, [object()], [])
+        strategy.aggregate_evaluate(2, [object()], [])
+        strategy.aggregate_fit(3, [object()], [])
+
+    monkeypatch.setattr(tc, "start_flower_simulation", sim_unvalidated_final)
+    fed_cls.main()
+
+    m_unval = json.loads((out_unval_final / "results" / "metrics.json").read_text(encoding="utf-8"))
+    assert m_unval["best_round"] == 2
+    assert m_unval["test"]["iou"] == pytest.approx(0.88)
+    assert m_unval["final_test_metrics"]["iou"] == pytest.approx(0.35)
+
+    out_no_val = tmp_path / "fed_main_no_val"
+    monkeypatch.setattr(tc, "resolve_output_dir", lambda default_out, c, a=None: str(out_no_val))
+    monkeypatch.setattr(
+        fed_cls,
+        "parse_args",
+        lambda: argparse.Namespace(
+            seed=42,
+            dataset="optical",
+            partition="random",
+            alpha=0.5,
+            data_root=str(data_root),
+            resume=False,
+            no_save_samples=True,
+            select_metric="iou",
+            skip_modulation="affine",
+        ),
+    )
+
+    def sim_no_validation(*, strategy, **kwargs):
+        strategy.aggregate_fit(3, [object()], [])
+
+    monkeypatch.setattr(tc, "start_flower_simulation", sim_no_validation)
+    fed_cls.main()
+
+    m_noval = json.loads((out_no_val / "results" / "metrics.json").read_text(encoding="utf-8"))
+    assert m_noval["best_round"] is None
+    assert m_noval["test"]["iou"] == pytest.approx(0.35)
+    assert m_noval["final_test_metrics"]["iou"] == pytest.approx(0.35)
+
 
 def test_round1_analyze_results_parses_best_and_final_validation_headers(tmp_path):
-    """Verify analyze_results._parse_summary prefers Best Validation over Final Validation."""
+    """Verify analyze_results._parse_summary prefers Best Validation over Final Validation and supports legacy format."""
     import analyze_results as ar
+    import ablation_studies as abl
 
     summary_file = tmp_path / "summary.txt"
     summary_file.write_text(
@@ -759,4 +860,47 @@ def test_round1_analyze_results_parses_best_and_final_validation_headers(tmp_pat
     assert parsed is not None
     assert parsed["Val_IoU"] == pytest.approx(0.83)
     assert parsed["Test_IoU"] == pytest.approx(0.81)
+
+    # Also verify ablation _write_summary_torch output and legacy Final-Validation-only summary
+    abl_dir = tmp_path / "abl_out"
+    abl._write_summary_torch(
+        str(abl_dir),
+        backend="pennylane",
+        q_params=1000,
+        base_channels=8,
+        total_params=1000,
+        val_metrics=[{"loss": 0.60, "accuracy": 0.75, "auc": 0.78, "iou": 0.55, "dice": 0.71}],
+        test_result={"loss": 0.30, "accuracy": 0.88, "auc": 0.91, "iou": 0.79, "dice": 0.88},
+        mode="centralized",
+        best_val_metrics={"loss": 0.22, "accuracy": 0.92, "auc": 0.95, "iou": 0.84, "dice": 0.91},
+        best_step=1,
+    )
+    parsed_abl = ar._parse_summary(str(abl_dir / "results" / "summary.txt"))
+    assert parsed_abl is not None
+    assert parsed_abl["Val_IoU"] == pytest.approx(0.84)
+    assert parsed_abl["Test_IoU"] == pytest.approx(0.79)
+
+    legacy_file = tmp_path / "legacy_summary.txt"
+    legacy_file.write_text(
+        "Quantum Flood Segmentation — Centralized Training Summary\n"
+        "============================================================\n\n"
+        "Total parameters: 12,345\n\n"
+        "Final Validation Results:\n"
+        "  Loss: 0.5500\n"
+        "  Accuracy: 0.7800\n"
+        "  AUC: 0.8100\n"
+        "  IoU: 0.6100\n"
+        "  Dice: 0.7578\n\n"
+        "Test Results:\n"
+        "  Loss: 0.2700\n"
+        "  Accuracy: 0.9000\n"
+        "  AUC: 0.9300\n"
+        "  IoU: 0.8100\n"
+        "  Dice: 0.8950\n",
+        encoding="utf-8",
+    )
+    parsed_legacy = ar._parse_summary(str(legacy_file))
+    assert parsed_legacy is not None
+    assert parsed_legacy["Val_IoU"] == pytest.approx(0.61)
+
 
