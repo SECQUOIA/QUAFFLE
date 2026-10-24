@@ -304,7 +304,11 @@ def main():
     train_indices, val_indices, _ = tc.holdout_validation(
         full_dataset, config['seed'], config['val_fraction'])
 
-    train_subset = torch.utils.data.Subset(full_dataset, train_indices)
+    train_subset = tc.maybe_wrap_augment(
+        torch.utils.data.Subset(full_dataset, train_indices),
+        config,
+        seed=config['seed'],
+    )
     val_subset = torch.utils.data.Subset(full_dataset, val_indices)
 
     train_loader = tc.make_loader(train_subset, config['batch_size'], True, config['seed'])

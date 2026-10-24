@@ -153,7 +153,7 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
             client_dataset, config['batch_size'], True,
             tc.client_round_seed(config['seed'], client_id, 0))
         self.eval_loader = tc.make_loader(
-            client_dataset, config['batch_size'], False, config['seed'])
+            tc.unwrap_dataset(client_dataset), config['batch_size'], False, config['seed'])
     
         print(f"Client {client_id} initialized with {len(client_dataset)} samples on {self.device}")
     
@@ -217,7 +217,9 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
                 
                 # Compute loss
                 masks_long = masks.squeeze(1).long()
-                loss = torch.nn.functional.cross_entropy(logits, masks_long)
+                loss = segmentation_loss(
+                    logits, masks_long, loss_mode=self.config.get('loss', 'ce')
+                )
                 
                 # Backward pass
                 loss.backward()
@@ -438,10 +440,11 @@ def main():
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
     tc.apply_common_args(config, args)
+    vtag = tc.classical_variant_tag(config)
     if args.partition == 'dirichlet':
-        default_out = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}_seed{config['seed']}"
+        default_out = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}{vtag}_seed{config['seed']}"
     else:
-        default_out = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}_seed{config['seed']}"
+        default_out = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}{vtag}_seed{config['seed']}"
     output_dir = tc.resolve_output_dir(default_out, config, args)
 
     # Seed python, numpy, torch and cuda once in the driver process. Ray
@@ -475,7 +478,10 @@ def main():
     # partitioning of the remaining pool with a min-samples-per-client guard.
     print(f"\nSplitting data among {config['num_clients']} clients ({config['partition']} partitioning)...")
     client_index_lists, val_indices, split_info = tc.build_federated_split(full_dataset, config)
-    client_datasets = [Subset(full_dataset, idxs) for idxs in client_index_lists]
+    client_datasets = [
+        tc.maybe_wrap_augment(Subset(full_dataset, idxs), config, seed=config['seed'] + cid)
+        for cid, idxs in enumerate(client_index_lists)
+    ]
     val_dataset = Subset(full_dataset, val_indices)
     val_loader = tc.make_loader(val_dataset, config['batch_size'], False, config['seed'])
     print(f"Validation set: {len(val_dataset)} samples")

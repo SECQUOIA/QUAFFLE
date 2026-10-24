@@ -6,6 +6,7 @@ Contains common training, testing, and visualization functions.
 
 import os
 import glob
+from typing import Optional
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -76,14 +77,51 @@ def _build_seeded(seed, build_fn):
 def quantum_model_options(config):
     """Bottleneck options read from a run config (defaults in parentheses):
       q_ansatz ('reupload'): 'legacy' reproduces the original circuit,
-          'reupload' is the data re-uploading circuit.
-      q_layers (2): re-uploading layers (ignored for 'legacy').
+          'reupload' is the data re-uploading circuit, 'hqunet' is the
+          2D spatial quanvolutional grid circuit.
+      q_layers (2): re-uploading / quanvolutional layers (ignored for 'legacy').
       q_share_blocks (True): qresblock1 and qresblock2 share one bottleneck
           block (original behaviour). False gives each its own parameters.
     """
     return (config.get('q_ansatz', 'reupload'),
             int(config.get('q_layers', 2)),
             bool(config.get('q_share_blocks', True)))
+
+
+LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
+DEFAULT_LOSS_MODE = 'ce'
+
+
+def normalize_loss_mode(loss_mode):
+    """Normalize segmentation loss mode ('ce', 'dice_ce', 'focal_dice')."""
+    if loss_mode is None:
+        return DEFAULT_LOSS_MODE
+    key = str(loss_mode).strip().lower()
+    if key not in LOSS_CHOICES:
+        raise ValueError(f"Unknown loss mode {loss_mode!r}, expected one of {LOSS_CHOICES}")
+    return key
+
+
+def soft_dice_loss(logits, masks, smooth: float = 1e-6):
+    """Differentiable foreground (class-1) soft Dice loss (#16)."""
+    masks_long = masks.squeeze(1).long() if masks.dim() == 4 else masks.long()
+    probs_fg = torch.softmax(logits, dim=1)[:, 1]
+    targets_fg = (masks_long == 1).to(probs_fg.dtype)
+    intersection = (probs_fg * targets_fg).sum()
+    denom = probs_fg.sum() + targets_fg.sum()
+    return 1.0 - (2.0 * intersection + float(smooth)) / (denom + float(smooth))
+
+
+def focal_loss(logits, masks, gamma: float = 2.0, alpha: Optional[float] = 0.75):
+    """Multi-class / binary focal loss on segmentation logits (#16)."""
+    masks_long = masks.squeeze(1).long() if masks.dim() == 4 else masks.long()
+    ce = torch.nn.functional.cross_entropy(logits, masks_long, reduction='none')
+    pt = torch.exp(-ce)
+    focal = ((1.0 - pt) ** float(gamma)) * ce
+    if alpha is not None:
+        alpha_t = torch.where(masks_long == 1, float(alpha), 1.0 - float(alpha))
+        focal = alpha_t.to(focal.dtype) * focal
+    return focal.mean()
 
 
 class QVUNetSegmentation(torch.nn.Module):
@@ -105,6 +143,12 @@ class QVUNetSegmentation(torch.nn.Module):
             
             quantum_channels = self.config['quantum_channels']
             q_ansatz, q_layers, share = quantum_model_options(self.config)
+            q_spatial_mode = unet.normalize_q_spatial_mode(self.config.get('q_spatial_mode'))
+            hqunet_grid = unet.normalize_hqunet_grid(self.config.get('hqunet_grid'))
+            use_time_emb = bool(self.config.get('use_time_emb', True))
+            backbone_conv_mode = unet.normalize_backbone_conv_mode(
+                self.config.get('backbone_conv_mode')
+            )
 
             def build():
                 def make_block(offset):
@@ -115,14 +159,10 @@ class QVUNetSegmentation(torch.nn.Module):
                         seed=None if self.seed is None else int(self.seed) + offset,
                         q_ansatz=q_ansatz,
                         q_layers=q_layers,
-                        # 'pennylane' (default): one broadcast default.qubit
-                        # QNode call per block forward. 'pennylane_pergroup'
-                        # (per-group QNodes) and 'torch' (exact torch
-                        # statevector simulator) are references. Same math.
                         q_backend=self.config.get('q_backend', 'pennylane'),
-                        # 'cpu' (default) or 'model': where the
-                        # q_backend='pennylane' circuit is simulated.
                         q_sim_device=self.config.get('q_sim_device', 'cpu'),
+                        q_spatial_mode=q_spatial_mode,
+                        hqunet_grid=hqunet_grid,
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)
@@ -140,6 +180,8 @@ class QVUNetSegmentation(torch.nn.Module):
                     quantum_channels=quantum_channels,
                     quantum_block2=quantum_block2,
                     skip_modulation=skip_modulation,
+                    use_time_emb=use_time_emb,
+                    backbone_conv_mode=backbone_conv_mode,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -209,13 +251,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
 
     Uses the same QVUNet architecture and the same QVertex bottleneck, but swaps
     the PQC-based QuantumBlock for a ClassicalBottleneckBlock with the same
-    pool, per-group transform, broadcast pattern. The per-group transform is
-    matched to the configured q_ansatz:
-      'legacy'   -> Linear(4, 4) per group (the original ablation)
-      'reupload' -> Linear(4, h)-Tanh-Linear(h, 4)-Tanh per group with h chosen
-                    so the per-group count is closest to the circuit's 16*q_layers
-    q_share_blocks is honoured the same way as in QVUNetSegmentation, so totals
-    match the quantum model to within a few hundred weights (see docs/MODEL.md).
+    spatial mode and parameter budget.
     """
     def __init__(self, config, seed=None):
         super().__init__()
@@ -228,10 +264,21 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             from . import unetTorch as unet
             quantum_channels = self.config['quantum_channels']
             q_ansatz, q_layers, share = quantum_model_options(self.config)
+            q_spatial_mode = unet.normalize_q_spatial_mode(self.config.get('q_spatial_mode'))
+            ablation_mode = unet.normalize_ablation_mode(self.config.get('ablation_mode'))
+            hqunet_grid = unet.normalize_hqunet_grid(self.config.get('hqunet_grid'))
+            use_time_emb = bool(self.config.get('use_time_emb', True))
+            backbone_conv_mode = unet.normalize_backbone_conv_mode(
+                self.config.get('backbone_conv_mode')
+            )
             if q_ansatz == 'legacy':
                 kind, hidden = 'linear', None
+            elif q_ansatz == 'hqunet':
+                kind, hidden = 'hqunet_spatial', unet.matched_mlp_hidden(16 * q_layers)
             else:
                 kind, hidden = 'mlp', unet.matched_mlp_hidden(16 * q_layers)
+            if ablation_mode != 'auto':
+                kind = ablation_mode
 
             def build():
                 def make_block(offset):
@@ -240,6 +287,11 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                         kind=kind,
                         hidden=hidden,
                         seed=None if self.seed is None else int(self.seed) + offset,
+                        q_ansatz=q_ansatz,
+                        q_layers=q_layers,
+                        spatial_mode=q_spatial_mode,
+                        ablation_mode=ablation_mode,
+                        hqunet_grid=hqunet_grid,
                     )
                 classical_bottleneck = make_block(0)
                 block2 = None if share else make_block(1)
@@ -257,6 +309,8 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     quantum_channels=quantum_channels,
                     quantum_block2=block2,
                     skip_modulation=skip_modulation,
+                    use_time_emb=use_time_emb,
+                    backbone_conv_mode=backbone_conv_mode,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -322,13 +376,19 @@ class UNetSegmentation(torch.nn.Module):
         if self._model is None:
             # Import locally to avoid global state issues
             from . import unetTorch as unet
+            use_time_emb = bool(self.config.get('use_time_emb', True))
+            backbone_conv_mode = unet.normalize_backbone_conv_mode(
+                self.config.get('backbone_conv_mode')
+            )
             
             self._model = _build_seeded(self.seed, lambda: unet.UNet(
                 dim=self.config['base_channels'],
                 init_dim=self.config.get('init_dim', self.config['base_channels']),
                 out_dim=self.config.get('out_dim', 2),  # Binary segmentation
                 dim_mults=self.config.get('dim_mults', (1, 2, 4, 8)),
-                resnet_block_groups=self.config.get('resnet_block_groups', 8)
+                resnet_block_groups=self.config.get('resnet_block_groups', 8),
+                use_time_emb=use_time_emb,
+                backbone_conv_mode=backbone_conv_mode,
             ))
     
     @property
@@ -381,13 +441,43 @@ class UNetSegmentation(torch.nn.Module):
         self._model = self._model.to(device)
         return super().to(device)
 
-def segmentation_loss(logits, masks):
-    # logits: [B, num_classes, H, W], masks: [B, 1, H, W] or [B, H, W]
-    masks = masks.squeeze(1).long()  # [B, H, W]
-    return torch.nn.functional.cross_entropy(logits, masks)
 
-def train_one_epoch(model, dataloader, optimizer, device):
+def _resolve_model_loss_mode(model, loss_mode=None):
+    if loss_mode is not None:
+        return normalize_loss_mode(loss_mode)
+    cfg = getattr(model, 'config', None)
+    if isinstance(cfg, dict) and cfg.get('loss') is not None:
+        return normalize_loss_mode(cfg.get('loss'))
+    return DEFAULT_LOSS_MODE
+
+
+def segmentation_loss(
+    logits,
+    masks,
+    loss_mode: Optional[str] = None,
+    smooth: float = 1e-6,
+    focal_gamma: float = 2.0,
+    focal_alpha: Optional[float] = 0.75,
+):
+    """Compute segmentation loss ('ce', 'dice_ce', or 'focal_dice'; #16)."""
+    mode = normalize_loss_mode(loss_mode)
+    masks_long = masks.squeeze(1).long() if masks.dim() == 4 else masks.long()
+    if mode == 'ce':
+        return torch.nn.functional.cross_entropy(logits, masks_long)
+    if mode == 'dice_ce':
+        ce = torch.nn.functional.cross_entropy(logits, masks_long)
+        dice = soft_dice_loss(logits, masks_long, smooth=smooth)
+        return ce + dice
+    if mode == 'focal_dice':
+        fl = focal_loss(logits, masks_long, gamma=focal_gamma, alpha=focal_alpha)
+        dice = soft_dice_loss(logits, masks_long, smooth=smooth)
+        return fl + dice
+    raise ValueError(f"Unknown loss mode {loss_mode!r}")
+
+
+def train_one_epoch(model, dataloader, optimizer, device, loss_mode: Optional[str] = None):
     model.train()
+    eff_loss_mode = _resolve_model_loss_mode(model, loss_mode)
     total_loss = 0
     total_correct = 0
     total_pixels = 0
@@ -395,7 +485,7 @@ def train_one_epoch(model, dataloader, optimizer, device):
         imgs, masks = imgs.to(device), masks.to(device)
         optimizer.zero_grad()
         logits = model(imgs)
-        loss = segmentation_loss(logits, masks)
+        loss = segmentation_loss(logits, masks, loss_mode=eff_loss_mode)
         loss.backward()
         optimizer.step()
         total_loss += loss.item() * imgs.size(0)
@@ -407,8 +497,10 @@ def train_one_epoch(model, dataloader, optimizer, device):
     accuracy = total_correct / total_pixels
     return avg_loss, accuracy
 
-def evaluate_model(model, dataloader, device, single_class_auc=0.0):
+
+def evaluate_model(model, dataloader, device, single_class_auc=0.0, loss_mode: Optional[str] = None):
     model.eval()
+    eff_loss_mode = _resolve_model_loss_mode(model, loss_mode)
     total_loss = 0
     total_correct = 0
     total_pixels = 0
@@ -421,7 +513,7 @@ def evaluate_model(model, dataloader, device, single_class_auc=0.0):
         for imgs, masks in tqdm(dataloader, desc='Evaluating'):
             imgs, masks = imgs.to(device), masks.to(device)
             logits = model(imgs)
-            loss = segmentation_loss(logits, masks)
+            loss = segmentation_loss(logits, masks, loss_mode=eff_loss_mode)
             total_loss += loss.item() * imgs.size(0)
             preds = torch.argmax(logits, dim=1)
             masks_int = masks.squeeze(1).long()
