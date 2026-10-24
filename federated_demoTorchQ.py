@@ -595,7 +595,7 @@ def main():
             test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
             test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
             test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
-            
+
             # Evaluate on test set
             print("Evaluating on test set...")
             test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
@@ -610,19 +610,19 @@ def main():
             # Log test results to evaluation log file
             with open(strategy.eval_log_path, 'a') as f:
                 f.write(f"Final Test Results: Loss={test_result['loss']:.4f}, Accuracy={test_result['accuracy']:.4f}, AUC={test_result['auc']:.4f}, IoU={test_result['iou']:.4f}, Dice={test_result['dice']:.4f}\n")
-            
+
             if config['save_samples']:
                 print("Saving test samples...")
-                visualize_results(final_model, test_loader, torch.device(device_str), output_dir, 
-                                 title_prefix="Flower Federated Test - ", 
-                                 filename_prefix="flower_fed_test_", 
+                visualize_results(final_model, test_loader, torch.device(device_str), output_dir,
+                                 title_prefix="Flower Federated Test - ",
+                                 filename_prefix="flower_fed_test_",
                                  num_samples=config['num_test_samples'])
         elif config['save_samples']:
             print("Test directory not found, using validation data for visualization...")
             print("Saving validation samples...")
             visualize_results(final_model, val_loader, torch.device(device_str), output_dir,
-                             title_prefix="Flower Federated Validation - ", 
-                             filename_prefix="flower_fed_val_", 
+                             title_prefix="Flower Federated Validation - ",
+                             filename_prefix="flower_fed_val_",
                              num_samples=config['num_val_samples'])
         
         if test_result is None:

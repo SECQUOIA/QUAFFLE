@@ -80,6 +80,7 @@ def _assert_metrics_json(
     expect_resumed_round=None,
     expect_resumed_epoch=None,
     expect_epochs_trained=None,
+    require_canonical_meta=False,
 ):
     summary_path = os.path.join(run_dir, "results", "summary.txt")
     metrics_path = os.path.join(run_dir, "results", "metrics.json")
@@ -94,12 +95,41 @@ def _assert_metrics_json(
         assert isinstance(block, dict), f"Missing {split_key} metrics in {metrics_path}"
         for metric_key in ("loss", "accuracy", "auc", "iou", "dice"):
             assert metric_key in block, f"Missing {split_key}.{metric_key} in {metrics_path}"
+            val = block[metric_key]
+            assert isinstance(val, (int, float)) and not isinstance(val, bool), (
+                f"Non-numeric {split_key}.{metric_key}={val!r} in {metrics_path}"
+            )
+            fval = float(val)
+            assert fval == fval and abs(fval) != float("inf"), (
+                f"Non-finite {split_key}.{metric_key}={val!r} in {metrics_path}"
+            )
+            if metric_key == "loss":
+                assert fval >= 0.0, f"Negative {split_key}.loss={fval} in {metrics_path}"
+            else:
+                assert 0.0 <= fval <= 1.0, (
+                    f"Out-of-range {split_key}.{metric_key}={fval} in {metrics_path}"
+                )
+    if require_canonical_meta:
+        for meta_key in ("base_channels", "image_size", "data_root", "norm_provenance"):
+            assert m.get(meta_key) is not None, (
+                f"Missing canonical metadata {meta_key!r} in {metrics_path}"
+            )
+        assert m.get("is_mini_run") is True, f"Expected is_mini_run=True in {metrics_path}"
+        assert m["norm_provenance"].get("fit_only") is True, (
+            f"Expected norm_provenance.fit_only=True in {metrics_path}"
+        )
     if expect_knockout:
         ko = m.get("knockout")
         assert isinstance(ko, dict), f"Expected knockout metrics in {metrics_path}"
         for mode in ("zero", "random"):
             assert isinstance(ko.get(mode), dict), f"Missing knockout[{mode!r}] in {metrics_path}"
             assert "iou" in ko[mode] and "auc" in ko[mode]
+            for k_metric in ("loss", "accuracy", "auc", "iou", "dice"):
+                if k_metric in ko[mode]:
+                    kv = float(ko[mode][k_metric])
+                    assert kv == kv and abs(kv) != float("inf"), (
+                        f"Non-finite knockout[{mode!r}].{k_metric}={kv} in {metrics_path}"
+                    )
         with open(summary_path) as f:
             stext = f.read()
         assert "Quantum Knockout (zero)" in stext
@@ -179,6 +209,10 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             "QUAFFLE_INPROCESS_FED",
             "QUAFFLE_SKIP_EXCEL_TRACKER",
             "QUAFFLE_SKIP_CURVE_PLOTS",
+            "QUAFFLE_RESULTS_DIR",
+            "QUAFFLE_ANALYSIS_OUT_DIR",
+            "QUAFFLE_INCLUDE_MINI",
+            "QUAFFLE_PRIMARY_VARIANT",
             "CUDA_VISIBLE_DEVICES",
             "OMP_NUM_THREADS",
             "MKL_NUM_THREADS",
@@ -222,9 +256,52 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             assert float(sar_raw[0].max()) < 0.0 and float(sar_raw[1].max()) < 0.0, (
                 "Expected synthetic SAR VV/VH bands in negative dB scale"
             )
+            assert float(sar_raw[0].std()) > 1.0 and float(sar_raw[1].std()) > 1.0, (
+                f"Expected positive SAR VV/VH backscatter variance, got std={sar_raw[0].std():.4f}, {sar_raw[1].std():.4f}"
+            )
             dt = time.perf_counter() - t0
             timings.append(("generate_and_validate_mini_dataset", dt))
             assert os.path.isfile(info["stats_path"])
+
+            mini_cfg = {
+                "seed": 42,
+                "base_channels": 4,
+                "image_size": 32,
+                "data_root": data_root,
+                "results_dir": results_dir,
+            }
+
+            def _rdir(rel_name):
+                return tc.resolve_output_dir(f"results/{rel_name}", mini_cfg)
+
+            # Evaluate untrained seed=42 random-initialization baseline on optical val/test splits
+            init_cfg = {
+                "seed": 42,
+                "dataset": "optical",
+                "base_channels": 4,
+                "init_dim": 4,
+                "resnet_block_groups": 4,
+                "image_size": 32,
+                "batch_size": 4,
+                "val_fraction": 0.15,
+                "max_samples": None,
+                "data_root": data_root,
+                "results_dir": results_dir,
+            }
+            tc.seed_everything(42)
+            _, tr_img_dir, tr_lbl_dir, te_img_dir, te_lbl_dir = tc.resolve_data_dirs("optical", data_root=data_root)
+            opt_pool = tc.load_dataset(tr_img_dir, tr_lbl_dir, init_cfg)
+            _, val_indices, _ = tc.holdout_validation(opt_pool, 42, 0.15)
+            opt_val_sub = torch.utils.data.Subset(opt_pool, val_indices)
+            val_loader_init = tc.make_loader(opt_val_sub, 4, False, 42)
+            opt_test = tc.load_dataset(te_img_dir, te_lbl_dir, init_cfg)
+            test_loader_init = tc.make_loader(opt_test, 4, False, 42)
+            init_Device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            init_model = tc.build_model(centralized_demoTorchClassical.UNetSegmentation, init_cfg).to(init_Device)
+            init_val_m = centralized_demoTorchClassical.evaluate_model(init_model, val_loader_init, init_Device)
+            init_test_m = centralized_demoTorchClassical.evaluate_model(init_model, test_loader_init, init_Device)
+            init_val_iou = float(init_val_m["iou"])
+            init_test_iou = float(init_test_m["iou"])
 
             common_central = [
                 "--data-root", data_root,
@@ -232,6 +309,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 "--base-channels", "4",
                 "--image-size", "32",
                 "--batch-size", "4",
+                "--learning-rate", "5e-3",
                 "--eval-every", "1",
                 "--seed", "42",
                 "--no-save-samples",
@@ -242,6 +320,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 "--base-channels", "4",
                 "--image-size", "32",
                 "--batch-size", "4",
+                "--learning-rate", "5e-3",
                 "--seed", "42",
                 "--num-clients", "2",
                 "--clients-per-round", "2",
@@ -265,7 +344,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("centralized_classical_interrupt_epoch1", dt))
-            c_cls_dir = os.path.join(results_dir, "flood_central_optical_pytorch_classical_seed42")
+            c_cls_dir = _rdir("flood_central_optical_pytorch_classical_seed42")
             ck1 = _assert_centralized_ckpt(c_cls_dir, "epoch", 1, expected_target=2)
             assert len(ck1["train_metrics"]) == 1
             ep1_loss = ck1["train_metrics"][0]["loss"]
@@ -284,11 +363,19 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             ck2 = _assert_centralized_ckpt(c_cls_dir, "epoch", 2, expected_target=2)
             assert len(ck2["train_metrics"]) == 2
             assert ck2["train_metrics"][0]["loss"] == ep1_loss
-            _assert_metrics_json(
+            assert ck2["train_metrics"][1]["loss"] < ep1_loss, (
+                f"Expected centralized classical training loss to decrease: {ep1_loss:.4f} -> {ck2['train_metrics'][1]['loss']:.4f}"
+            )
+            m_c_cls = _assert_metrics_json(
                 c_cls_dir,
                 expect_knockout=False,
                 expect_resumed_epoch=1,
                 expect_epochs_trained=1,
+                require_canonical_meta=True,
+            )
+            assert m_c_cls["val"]["iou"] > init_val_iou and m_c_cls["test"]["iou"] > init_test_iou, (
+                f"Expected centralized classical IoU to improve over initialization "
+                f"(val {init_val_iou:.4f}->{m_c_cls['val']['iou']:.4f}, test {init_test_iou:.4f}->{m_c_cls['test']['iou']:.4f})"
             )
 
             # 3. Centralized Ablation (legacy & reupload + interrupt/resume + knockout)
@@ -307,9 +394,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 ],
             )
             timings.append(("centralized_ablation_legacy_epoch1", dt))
-            c_abl_leg_dir = os.path.join(
-                results_dir,
-                "ablation_centralized_torch_bottleneck_matched_pennylane_legacy_seed42",
+            c_abl_leg_dir = _rdir(
+                "ablation_centralized_torch_bottleneck_matched_pennylane_legacy_seed42"
             )
             _assert_centralized_ckpt(c_abl_leg_dir, "epoch", 1, expected_target=1)
             _assert_metrics_json(
@@ -317,6 +403,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_knockout=True,
                 expect_resumed_epoch=0,
                 expect_epochs_trained=1,
+                require_canonical_meta=True,
             )
 
             dt = _run_entry(
@@ -337,9 +424,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("centralized_ablation_reupload_interrupt_epoch1", dt))
-            c_abl_dir = os.path.join(
-                results_dir,
-                "ablation_centralized_torch_bottleneck_matched_pennylane_reupload_L1_seed42",
+            c_abl_dir = _rdir(
+                "ablation_centralized_torch_bottleneck_matched_pennylane_reupload_L1_seed42"
             )
             ck_abl1 = _assert_centralized_ckpt(c_abl_dir, "epoch", 1, expected_target=2)
             assert len(ck_abl1["train_metrics"]) == 1
@@ -364,12 +450,17 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             ck_abl2 = _assert_centralized_ckpt(c_abl_dir, "epoch", 2, expected_target=2)
             assert len(ck_abl2["train_metrics"]) == 2
             assert ck_abl2["train_metrics"][0]["loss"] == abl_ep1_loss
-            _assert_metrics_json(
+            assert ck_abl2["train_metrics"][1]["loss"] < abl_ep1_loss, (
+                f"Expected centralized ablation training loss to decrease: {abl_ep1_loss:.4f} -> {ck_abl2['train_metrics'][1]['loss']:.4f}"
+            )
+            m_c_abl = _assert_metrics_json(
                 c_abl_dir,
                 expect_knockout=True,
                 expect_resumed_epoch=1,
                 expect_epochs_trained=1,
+                require_canonical_meta=True,
             )
+            assert m_c_abl["val"]["iou"] > init_val_iou and m_c_abl["test"]["iou"] > init_test_iou
 
             # 4. Centralized Quantum (legacy SAR & reupload optical + interrupt/resume + knockout)
             dt = _run_entry(
@@ -385,9 +476,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 ],
             )
             timings.append(("centralized_quantum_legacy_sar_step1", dt))
-            c_q_leg_dir = os.path.join(
-                results_dir,
-                "flood_central_optical_pytorch_pennylane_sar_legacy_seed42",
+            c_q_leg_dir = _rdir(
+                "flood_central_optical_pytorch_pennylane_sar_legacy_seed42"
             )
             _assert_centralized_ckpt(c_q_leg_dir, "step", 1, expected_target=1)
             _assert_metrics_json(
@@ -395,6 +485,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_knockout=True,
                 expect_resumed_epoch=0,
                 expect_epochs_trained=1,
+                require_canonical_meta=True,
             )
 
             dt = _run_entry(
@@ -413,9 +504,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("centralized_quantum_reupload_interrupt_step1", dt))
-            c_q_dir = os.path.join(
-                results_dir,
-                "flood_central_optical_pytorch_pennylane_reupload_L1_seed42",
+            c_q_dir = _rdir(
+                "flood_central_optical_pytorch_pennylane_reupload_L1_seed42"
             )
             ck_q1 = _assert_centralized_ckpt(c_q_dir, "step", 1, expected_target=2)
             assert len(ck_q1["train_metrics"]) == 1
@@ -438,12 +528,17 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             ck_q2 = _assert_centralized_ckpt(c_q_dir, "step", 2, expected_target=2)
             assert len(ck_q2["train_metrics"]) == 2
             assert ck_q2["train_metrics"][0]["loss"] == q_step1_loss
-            _assert_metrics_json(
+            assert ck_q2["train_metrics"][1]["loss"] < q_step1_loss, (
+                f"Expected centralized quantum training loss to decrease: {q_step1_loss:.4f} -> {ck_q2['train_metrics'][1]['loss']:.4f}"
+            )
+            m_c_q = _assert_metrics_json(
                 c_q_dir,
                 expect_knockout=True,
                 expect_resumed_epoch=1,
                 expect_epochs_trained=1,
+                require_canonical_meta=True,
             )
+            assert m_c_q["val"]["iou"] > init_val_iou and m_c_q["test"]["iou"] > init_test_iou
 
             # 5. Federated Classical (random + interrupt/resume, and dirichlet)
             dt = _run_entry(
@@ -460,9 +555,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("federated_classical_random_interrupt_round1", dt))
-            f_cls_rand_dir = os.path.join(
-                results_dir,
-                "flood_federated_optical_pytorch_classical_random_seed42",
+            f_cls_rand_dir = _rdir(
+                "flood_federated_optical_pytorch_classical_random_seed42"
             )
             f_ck1 = _assert_federated_ckpt(f_cls_rand_dir, 1, expected_total_rounds=2)
             assert len(f_ck1["round_metrics"]) == 1
@@ -483,7 +577,15 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             f_ck2 = _assert_federated_ckpt(f_cls_rand_dir, 2, expected_total_rounds=2)
             assert len(f_ck2["round_metrics"]) == 2
             assert f_ck2["round_metrics"][0]["loss"] == f_r1_loss
-            _assert_metrics_json(f_cls_rand_dir, expect_resumed_round=1)
+            assert f_ck2["round_metrics"][1]["loss"] < f_r1_loss, (
+                f"Expected federated classical round loss to decrease: {f_r1_loss:.4f} -> {f_ck2['round_metrics'][1]['loss']:.4f}"
+            )
+            m_f_cls = _assert_metrics_json(
+                f_cls_rand_dir,
+                expect_resumed_round=1,
+                require_canonical_meta=True,
+            )
+            assert m_f_cls["val"]["iou"] > init_val_iou and m_f_cls["test"]["iou"] > init_test_iou
 
             dt = _run_entry(
                 "federated_classical_dirichlet_round1",
@@ -498,12 +600,11 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 ],
             )
             timings.append(("federated_classical_dirichlet_round1", dt))
-            f_cls_dir_dir = os.path.join(
-                results_dir,
-                "flood_federated_optical_pytorch_classical_dirichlet0.5_sar_seed42",
+            f_cls_dir_dir = _rdir(
+                "flood_federated_optical_pytorch_classical_dirichlet0.5_sar_seed42"
             )
             _assert_federated_ckpt(f_cls_dir_dir, 1, expected_total_rounds=1)
-            _assert_metrics_json(f_cls_dir_dir, expect_resumed_round=0)
+            _assert_metrics_json(f_cls_dir_dir, expect_resumed_round=0, require_canonical_meta=True)
 
             # 6. Federated Ablation (random/legacy & dirichlet/reupload + interrupt/resume + knockout)
             dt = _run_entry(
@@ -522,12 +623,16 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 ],
             )
             timings.append(("federated_ablation_random_legacy_round1", dt))
-            f_abl_rand_dir = os.path.join(
-                results_dir,
-                "ablation_federated_torch_bottleneck_matched_pennylane_random_legacy_seed42",
+            f_abl_rand_dir = _rdir(
+                "ablation_federated_torch_bottleneck_matched_pennylane_random_legacy_seed42"
             )
             _assert_federated_ckpt(f_abl_rand_dir, 1, expected_total_rounds=1)
-            _assert_metrics_json(f_abl_rand_dir, expect_knockout=True, expect_resumed_round=0)
+            _assert_metrics_json(
+                f_abl_rand_dir,
+                expect_knockout=True,
+                expect_resumed_round=0,
+                require_canonical_meta=True,
+            )
 
             dt = _run_entry(
                 "federated_ablation_dirichlet_reupload_interrupt_round1",
@@ -549,9 +654,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("federated_ablation_dirichlet_reupload_interrupt_round1", dt))
-            f_abl_dir_dir = os.path.join(
-                results_dir,
-                "ablation_federated_torch_bottleneck_matched_pennylane_dirichlet0.5_reupload_L1_seed42",
+            f_abl_dir_dir = _rdir(
+                "ablation_federated_torch_bottleneck_matched_pennylane_dirichlet0.5_reupload_L1_seed42"
             )
             f_abl_ck1 = _assert_federated_ckpt(f_abl_dir_dir, 1, expected_total_rounds=2)
             assert len(f_abl_ck1["round_metrics"]) == 1
@@ -578,7 +682,16 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             f_abl_ck2 = _assert_federated_ckpt(f_abl_dir_dir, 2, expected_total_rounds=2)
             assert len(f_abl_ck2["round_metrics"]) == 2
             assert f_abl_ck2["round_metrics"][0]["loss"] == f_abl_r1_loss
-            _assert_metrics_json(f_abl_dir_dir, expect_knockout=True, expect_resumed_round=1)
+            assert f_abl_ck2["round_metrics"][1]["loss"] < f_abl_r1_loss, (
+                f"Expected federated ablation round loss to decrease: {f_abl_r1_loss:.4f} -> {f_abl_ck2['round_metrics'][1]['loss']:.4f}"
+            )
+            m_f_abl = _assert_metrics_json(
+                f_abl_dir_dir,
+                expect_knockout=True,
+                expect_resumed_round=1,
+                require_canonical_meta=True,
+            )
+            assert m_f_abl["val"]["iou"] > init_val_iou and m_f_abl["test"]["iou"] > init_test_iou
 
             # 7. Federated Quantum (random/legacy & dirichlet/reupload + interrupt/resume + knockout)
             dt = _run_entry(
@@ -595,12 +708,16 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 ],
             )
             timings.append(("federated_quantum_random_legacy_round1", dt))
-            f_q_rand_dir = os.path.join(
-                results_dir,
-                "flood_federated_optical_pytorch_pennylane_random_legacy_seed42",
+            f_q_rand_dir = _rdir(
+                "flood_federated_optical_pytorch_pennylane_random_legacy_seed42"
             )
             _assert_federated_ckpt(f_q_rand_dir, 1, expected_total_rounds=1)
-            _assert_metrics_json(f_q_rand_dir, expect_knockout=True, expect_resumed_round=0)
+            _assert_metrics_json(
+                f_q_rand_dir,
+                expect_knockout=True,
+                expect_resumed_round=0,
+                require_canonical_meta=True,
+            )
 
             dt = _run_entry(
                 "federated_quantum_dirichlet_reupload_interrupt_round1",
@@ -620,9 +737,8 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
                 expect_exit_code=75,
             )
             timings.append(("federated_quantum_dirichlet_reupload_interrupt_round1", dt))
-            f_q_dir_dir = os.path.join(
-                results_dir,
-                "flood_federated_optical_pytorch_pennylane_dirichlet0.5_reupload_L1_seed42",
+            f_q_dir_dir = _rdir(
+                "flood_federated_optical_pytorch_pennylane_dirichlet0.5_reupload_L1_seed42"
             )
             f_q_ck1 = _assert_federated_ckpt(f_q_dir_dir, 1, expected_total_rounds=2)
             assert len(f_q_ck1["round_metrics"]) == 1
@@ -647,7 +763,54 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             f_q_ck2 = _assert_federated_ckpt(f_q_dir_dir, 2, expected_total_rounds=2)
             assert len(f_q_ck2["round_metrics"]) == 2
             assert f_q_ck2["round_metrics"][0]["loss"] == f_q_r1_loss
-            _assert_metrics_json(f_q_dir_dir, expect_knockout=True, expect_resumed_round=1)
+            assert f_q_ck2["round_metrics"][1]["loss"] < f_q_r1_loss, (
+                f"Expected federated quantum round loss to decrease: {f_q_r1_loss:.4f} -> {f_q_ck2['round_metrics'][1]['loss']:.4f}"
+            )
+            m_f_q = _assert_metrics_json(
+                f_q_dir_dir,
+                expect_knockout=True,
+                expect_resumed_round=1,
+                require_canonical_meta=True,
+            )
+            assert m_f_q["val"]["iou"] > init_val_iou and m_f_q["test"]["iou"] > init_test_iou
+
+            # 8. Downstream analysis pipeline (analyze_results, build_table2_data, build_forest_plot)
+            t0 = time.perf_counter()
+            import analyze_results
+            from scripts import build_forest_plot, build_table2_data
+
+            os.environ["QUAFFLE_RESULTS_DIR"] = results_dir
+            os.environ["QUAFFLE_ANALYSIS_OUT_DIR"] = results_dir
+            os.environ["QUAFFLE_PRIMARY_VARIANT"] = "reupload_L1"
+
+            # Verify default paper analysis excludes mini runs unless --include-mini / QUAFFLE_INCLUDE_MINI=1
+            os.environ["QUAFFLE_INCLUDE_MINI"] = "0"
+            df_paper_only = analyze_results.load_from_disk(include_mini=False, results_dir=results_dir)
+            assert df_paper_only.empty, "Expected default paper analysis to exclude mini runs"
+
+            os.environ["QUAFFLE_INCLUDE_MINI"] = "1"
+            analyze_results.main(
+                [
+                    "--results-dir", results_dir,
+                    "--out-dir", results_dir,
+                    "--include-mini",
+                    "--skip-plots",
+                ]
+            )
+            xlsx_path = os.path.join(results_dir, "analysis_summary.xlsx")
+            assert os.path.isfile(xlsx_path) and os.path.getsize(xlsx_path) > 0
+
+            build_table2_data.main(["--out-dir", results_dir])
+            t2_path = os.path.join(results_dir, "headline_pooled_table2_data.json")
+            assert os.path.isfile(t2_path) and os.path.getsize(t2_path) > 0
+
+            forest_dir = os.path.join(results_dir, "forest")
+            build_forest_plot.main(["--out-dir", forest_dir])
+            assert os.path.isfile(os.path.join(forest_dir, "iou_delta_forest.png"))
+            assert os.path.isfile(os.path.join(forest_dir, "iou_delta_forest_data.json"))
+            dt = time.perf_counter() - t0
+            timings.append(("downstream_analysis_table2_and_forest_plot", dt))
+            print(f"[PASS] downstream_analysis_table2_and_forest_plot ({dt:.2f}s)")
 
     finally:
         os.chdir(old_cwd)

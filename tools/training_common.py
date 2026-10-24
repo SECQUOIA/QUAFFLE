@@ -18,10 +18,12 @@ Every function only depends on torch / numpy so it can be imported inside
 Ray workers.
 """
 import argparse
+import hashlib
 import inspect
 import json
 import os
 import random
+import re
 import socket
 import sys
 import time
@@ -72,8 +74,54 @@ def resolve_data_dirs(dataset, data_root=None):
     return base_dir, train_images_dir, train_masks_dir, test_images_dir, test_masks_dir
 
 
+DEFAULT_BASE_CHANNELS = 32
+DEFAULT_IMAGE_SIZE = 128
+_SEED_SUFFIX_RE = re.compile(r"(_seed\d+)$")
+
+
+def scale_tag(config):
+    """Directory suffix that separates downscaled / capped / custom-data-root
+    runs from canonical full-scale paper runs."""
+    if not isinstance(config, dict):
+        return ""
+    parts = []
+    bc = config.get('base_channels')
+    if bc is not None and int(bc) != DEFAULT_BASE_CHANNELS:
+        parts.append(f"bc{int(bc)}")
+    img_sz = config.get('image_size')
+    if img_sz is not None and int(img_sz) != DEFAULT_IMAGE_SIZE:
+        parts.append(f"img{int(img_sz)}")
+    max_s = config.get('max_samples')
+    if max_s is not None:
+        parts.append(f"max{int(max_s)}")
+    dr = config.get('data_root')
+    if dr is not None:
+        abs_dr = os.path.abspath(str(dr))
+        default_dr = os.path.abspath('data')
+        if abs_dr != default_dr:
+            digest = hashlib.sha256(abs_dr.encode('utf-8')).hexdigest()[:6]
+            parts.append(f"dr{digest}")
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
+def _apply_scale_tag_to_rel_path(rel_path, config):
+    stag = scale_tag(config)
+    if not stag or stag in rel_path:
+        return rel_path
+    parent, base = os.path.split(rel_path)
+    m = _SEED_SUFFIX_RE.search(base)
+    if m:
+        tagged_base = base[: m.start()] + stag + m.group(1)
+    else:
+        tagged_base = base + stag
+    return os.path.join(parent, tagged_base) if parent else tagged_base
+
+
 def resolve_output_dir(default_rel_path, config=None, args=None):
-    """Resolve run output directory, honoring --results-dir or QUAFFLE_RESULTS_DIR."""
+    """Resolve run output directory, honoring --results-dir or QUAFFLE_RESULTS_DIR
+    and tagging non-default scale / data-root overrides so mini runs never
+    collide with full-scale paper runs."""
+    tagged_rel_path = _apply_scale_tag_to_rel_path(default_rel_path, config)
     results_root = None
     if args is not None and getattr(args, 'results_dir', None):
         results_root = args.results_dir
@@ -82,8 +130,8 @@ def resolve_output_dir(default_rel_path, config=None, args=None):
     elif os.environ.get('QUAFFLE_RESULTS_DIR'):
         results_root = os.environ['QUAFFLE_RESULTS_DIR']
     if not results_root:
-        return default_rel_path
-    norm = os.path.normpath(default_rel_path)
+        return tagged_rel_path
+    norm = os.path.normpath(tagged_rel_path)
     parts = norm.split(os.sep)
     if parts and parts[0] == 'results':
         rel = os.sep.join(parts[1:]) if len(parts) > 1 else ''
@@ -112,6 +160,8 @@ def add_common_args(parser, quantum=True, federated=False):
                         help='Override input image spatial size (default: script config)')
     parser.add_argument('--batch-size', type=int, default=None,
                         help='Override training and evaluation batch size (default: script config)')
+    parser.add_argument('--learning-rate', type=float, default=None,
+                        help='Override optimizer learning rate (default: script config)')
     parser.add_argument('--eval-every', type=int, default=None,
                         help='Override validation and checkpoint interval (default: script config)')
     parser.add_argument('--no-save-samples', action='store_true',
@@ -209,6 +259,8 @@ def apply_common_args(config, args):
         config['image_size'] = int(args.image_size)
     if getattr(args, 'batch_size', None) is not None:
         config['batch_size'] = int(args.batch_size)
+    if getattr(args, 'learning_rate', None) is not None:
+        config['learning_rate'] = float(args.learning_rate)
     if getattr(args, 'no_save_samples', False):
         config['save_samples'] = False
     if hasattr(args, 'q_ansatz'):
@@ -719,46 +771,37 @@ def normalization_provenance(config):
         out['stats_path'] = stats_path
         return out
 
-    if config.get('data_root') is not None or stats_path is not None or fit_only_cfg is False:
-        try:
-            import flood_data
-            ds_folder = DATASET_FOLDERS.get(config.get('dataset', 'optical'), 'flood_optical')
-            st = flood_data.load_stats(
-                ds_folder,
-                stats_path=stats_path,
-                seed=eff_seed if fit_only_cfg is not False else None,
-                val_fraction=val_frac if fit_only_cfg is not False else None,
-                fit_only=fit_only_cfg,
-                data_root=config.get('data_root'),
-                image_size=img_sz,
-                max_samples=max_s,
-                sample_seed=eff_seed,
-            )
-            out = flood_data.stats_provenance(st)
-            out['stats_path'] = stats_path
-            return out
-        except Exception:
-            if fit_only_cfg is True and (config.get('data_root') is not None or stats_path is not None):
-                return {
-                    'mode': 'unresolved_fit_only',
-                    'fit_only': False,
-                    'seed': eff_seed,
-                    'val_fraction': val_frac,
-                    'image_size': img_sz,
-                    'max_samples': max_s,
-                    'stats_path': stats_path,
-                }
-
-    fit_only = True if fit_only_cfg is None else bool(fit_only_cfg)
-    return {
-        'mode': 'fit_only_train_split' if (fit_only and val_frac > 0.0) else 'full_train_split',
-        'fit_only': bool(fit_only and val_frac > 0.0),
-        'seed': eff_seed,
-        'val_fraction': val_frac,
-        'image_size': img_sz,
-        'max_samples': max_s,
-        'stats_path': stats_path,
-    }
+    try:
+        import flood_data
+        ds_folder = DATASET_FOLDER_NAMES.get(config.get('dataset', 'optical'), 'flood_optical')
+        st = flood_data.load_stats(
+            ds_folder,
+            stats_path=stats_path,
+            seed=eff_seed if fit_only_cfg is not False else None,
+            val_fraction=val_frac if fit_only_cfg is not False else None,
+            fit_only=fit_only_cfg,
+            data_root=config.get('data_root'),
+            image_size=img_sz,
+            max_samples=max_s,
+            sample_seed=eff_seed,
+        )
+        out = flood_data.stats_provenance(st)
+        out['stats_path'] = stats_path
+        return out
+    except (FileNotFoundError, KeyError, ValueError):
+        return {
+            'mode': (
+                'unresolved_fit_only'
+                if (fit_only_cfg is not False and val_frac > 0.0)
+                else 'unresolved_full_train'
+            ),
+            'fit_only': False,
+            'seed': eff_seed,
+            'val_fraction': val_frac,
+            'image_size': img_sz,
+            'max_samples': max_s,
+            'stats_path': stats_path,
+        }
 
 
 def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
@@ -1413,7 +1456,13 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'num_clients': config.get('num_clients') if training == 'federated' else None,
         'epochs_or_steps': (config.get('num_epochs') or config.get('num_train_steps'))
         if training != 'federated' else None,
+        'base_channels': int(config['base_channels']) if config.get('base_channels') is not None else None,
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
+        'batch_size': int(config['batch_size']) if config.get('batch_size') is not None else None,
+        'data_root': os.path.abspath(config['data_root']) if config.get('data_root') is not None else None,
         'max_samples': config.get('max_samples'),
+        'is_mini_run': bool(scale_tag(config)),
+        'norm_provenance': normalization_provenance(config),
         'val': _clean_metrics(val_metrics),
         'test': _clean_metrics(test_metrics),
         'best_val_auc': best_val_auc,

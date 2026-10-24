@@ -477,3 +477,180 @@ def test_review_r1_max_samples_image_size_dataset_root_and_manifest_validation(t
     tampered2["conflict_policy"] = "first"
     with pytest.raises(ValueError, match="conflict_policy"):
         dedup_splits.validate_manifest(tampered2, expected_policy="drop")
+
+
+def test_review_r2_provenance_sar_combined_cap_mini_isolation_and_harness(tmp_path):
+    """Regression test for Round 2 review findings:
+      1. Incomplete fit-only provenance (missing image_size or fit_names_sha256) is rejected.
+      2. normalization_provenance() calls flood_data.load_stats() using DATASET_FOLDER_NAMES.
+      3. All synthetic SAR tiles across Training/Testing preserve non-zero dB variance and contrast.
+      4. Capped flood_combined (max_samples=4 and max_samples=1) populates both optical and sar stats.
+      5. resolve_output_dir, write_metrics_json, and analyze_results isolate mini runs from paper runs.
+      6. _assert_metrics_json rejects NaN/inf metrics even when extracted standalone via AST.
+    """
+    import ast
+    from unittest.mock import mock_open, patch
+    from PIL import Image
+    import analyze_results
+
+    # 1. Incomplete provenance missing image_size / fit_names_sha256 must be rejected
+    names = [f"{i:03d}" for i in range(12)]
+    ms128, ms32 = {}, {}
+    for i, n in enumerate(names):
+        a = np.zeros((128, 128), dtype=np.uint8)
+        if i % 2 == 0:
+            a[1::4, 1::4] = 255
+        ms128[n] = (a > 0).astype(np.float32)[..., None]
+        ms32[n] = (
+            np.asarray(Image.fromarray(a).resize((32, 32), Image.Resampling.NEAREST)) > 0
+        ).astype(np.float32)[..., None]
+    fit128 = flood_data.compute_fit_only_names(
+        "/x", None, names, seed=42, val_fraction=0.15, image_size=128, masks_by_name=ms128
+    )
+    fit32 = flood_data.compute_fit_only_names(
+        "/x", None, names, seed=42, val_fraction=0.15, image_size=32, masks_by_name=ms32
+    )
+    leak = set(fit128) - set(fit32)
+    assert leak
+    raw = {n: np.full((12, 32, 32), 10000.0 if n in leak else 1.0, np.float32) for n in names}
+    old_incomplete = flood_data.compute_modality_band_stats(
+        "/x",
+        None,
+        fit128,
+        raw_by_name=raw,
+        provenance={
+            "fit_only": True,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "n_manifest_train_tiles": 12,
+            "n_fit_train_tiles": len(fit128),
+            "n_excluded_val_tiles": 12 - len(fit128),
+        },
+    )
+    with patch.object(
+        flood_data, "_resolve_training_dirs", return_value=("/virtual/flood_optical/Training/images", "/labels")
+    ), patch.object(flood_data.os.path, "isdir", return_value=True), patch.object(
+        flood_data.os.path, "exists", return_value=True
+    ), patch(
+        "builtins.open", mock_open(read_data=json.dumps({"flood_optical": old_incomplete}))
+    ):
+        got = flood_data.load_stats(
+            "flood_optical",
+            stats_path="/stats.json",
+            images_dir="/virtual/flood_optical/Training/images",
+            seed=42,
+            val_fraction=0.15,
+            image_size=32,
+            fit_only=True,
+            preloaded_train_names=names,
+            preloaded_raw_by_name=raw,
+            preloaded_masks_by_name=ms32,
+        )
+    assert got["optical"]["bands"]["NIR"]["hi"] == 1.0
+
+    # 2 & 3 & 4. Generate mini dataset and check SAR dB variance across all tiles + combined capped loading
+    data_root = str(tmp_path / "r2_mini")
+    make_mini_flood_dataset.generate_mini_flood_dataset(
+        data_root, n_train=12, n_test=4, image_size=32, seed=42, val_fraction=0.15, seeds=(42, 13)
+    )
+    for ds_folder in ("flood_SAR", "flood_combined"):
+        for split_sub in ("Training", "Testing"):
+            img_dir = os.path.join(data_root, ds_folder, split_sub, "images")
+            for fname in sorted(os.listdir(img_dir)):
+                if not fname.endswith(".tif"):
+                    continue
+                arr = flood_data.read_raw(os.path.join(img_dir, fname))
+                if arr.shape[0] == 6:
+                    vv_valid = arr[0][arr[0] != flood_data.NODATA]
+                    vh_valid = arr[1][arr[1] != flood_data.NODATA]
+                    assert float(np.std(vv_valid)) > 1.0, f"Low VV std in {ds_folder}/{split_sub}/{fname}"
+                    assert float(np.std(vh_valid)) > 1.0, f"Low VH std in {ds_folder}/{split_sub}/{fname}"
+
+    # Combined capped training (max_samples=4 and max_samples=1) + testing
+    comb_train_img = os.path.join(data_root, "flood_combined", "Training", "images")
+    comb_train_lbl = os.path.join(data_root, "flood_combined", "Training", "labels")
+    comb_test_img = os.path.join(data_root, "flood_combined", "Testing", "images")
+    comb_test_lbl = os.path.join(data_root, "flood_combined", "Testing", "labels")
+    for cap in (4, 1):
+        flood_data._FIT_STATS_CACHE.clear()
+        flood_data._LAST_TRAIN_STATS_BY_DIR.clear()
+        tr_s, tr_n = flood_data.load_samples(
+            comb_train_img,
+            comb_train_lbl,
+            32,
+            data_root=data_root,
+            max_samples=cap,
+            seed=13,
+            sample_seed=13,
+            fit_only=True,
+            val_fraction=0.15,
+        )
+        assert len(tr_s) == cap
+        if cap >= 2:
+            assert any(n.endswith(" copy") for n in tr_n) and any(not n.endswith(" copy") for n in tr_n)
+        te_s, _ = flood_data.load_samples(
+            comb_test_img,
+            comb_test_lbl,
+            32,
+            data_root=data_root,
+            max_samples=4,
+            seed=13,
+            sample_seed=13,
+            fit_only=True,
+            val_fraction=0.15,
+        )
+        assert len(te_s) == 4
+
+    # normalization_provenance calls load_stats even when _LAST_TRAIN_STATS_BY_DIR is empty
+    flood_data._LAST_TRAIN_STATS_BY_DIR.clear()
+    np_prov = tc.normalization_provenance(
+        {"dataset": "sar", "seed": 42, "val_fraction": 0.15, "image_size": 32, "data_root": data_root}
+    )
+    assert np_prov["fit_only"] is True
+    assert np_prov["stats_sha256"]
+
+    # 5. Mini run isolation in resolve_output_dir, write_metrics_json, and analyze_results
+    results_dir = str(tmp_path / "r2_results")
+    full_cfg = {"seed": 42, "dataset": "optical", "image_size": 128, "base_channels": 32, "results_dir": results_dir}
+    mini_cfg = {
+        "seed": 42,
+        "dataset": "optical",
+        "image_size": 32,
+        "base_channels": 4,
+        "batch_size": 4,
+        "data_root": data_root,
+        "results_dir": results_dir,
+    }
+    full_out = tc.resolve_output_dir("results/flood_central_optical_pytorch_classical_seed42", full_cfg)
+    mini_out = tc.resolve_output_dir("results/flood_central_optical_pytorch_classical_seed42", mini_cfg)
+    assert full_out != mini_out
+    tc.write_metrics_json(
+        mini_out,
+        script="centralized_demoTorchClassical.py",
+        training="centralized",
+        model_type="classical",
+        config=mini_cfg,
+        val_metrics={"loss": 0.2, "accuracy": 0.9, "auc": 0.9, "iou": 0.8, "dice": 0.88},
+        test_metrics={"loss": 0.2, "accuracy": 0.9, "auc": 0.9, "iou": 0.8, "dice": 0.88},
+    )
+    df_default = analyze_results.load_from_disk(results_dir, include_mini=False)
+    df_mini = analyze_results.load_from_disk(results_dir, include_mini=True)
+    assert len(df_default) == 0
+    assert len(df_mini) == 1
+    assert bool(df_mini.iloc[0]["Is_Mini"]) is True
+
+    # 6. _assert_metrics_json rejects NaN via standalone AST execution
+    parsed = ast.parse(open(os.path.join(ROOT, "scripts", "verify_local_method.py"), "rb").read())
+    node = next(n for n in parsed.body if isinstance(n, ast.FunctionDef) and n.name == "_assert_metrics_json")
+    ns = {"os": os, "json": json}
+    exec(compile(ast.Module(body=[node], type_ignores=[]), "<metrics_validator>", "exec"), ns)
+    nan_metrics = {
+        "schema": "quaffle-metrics-v1",
+        "val": {k: float("nan") for k in ("loss", "accuracy", "auc", "iou", "dice")},
+        "test": {k: float("nan") for k in ("loss", "accuracy", "auc", "iou", "dice")},
+    }
+    with patch.object(os.path, "isfile", return_value=True), patch.object(
+        os.path, "getsize", return_value=10
+    ), patch("builtins.open", mock_open(read_data=json.dumps(nan_metrics))):
+        with pytest.raises(AssertionError, match="Non-finite"):
+            ns["_assert_metrics_json"]("/fake-run")

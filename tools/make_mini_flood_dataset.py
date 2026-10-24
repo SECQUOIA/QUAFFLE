@@ -126,7 +126,8 @@ def _synthesize_optical_tile(rng, image_size, mask, dem, tile_idx):
         (2100.0, 150.0),  # SWIR1
         (1450.0, 110.0),  # SWIR2
     ]
-    tile_offset = float(tile_idx) * 3.5
+    local_idx = (int(tile_idx) % 11) - 5
+    tile_offset = float(local_idx) * 8.0
     for dry_mean, water_mean in spec_profiles:
         signal = dry * dry_mean + water * water_mean + tile_offset
         noise = rng.normal(0.0, 25.0, size=(h, w)).astype(np.float32)
@@ -173,7 +174,8 @@ def _synthesize_sar_tile(rng, image_size, mask, dem, tile_idx):
     h = w = image_size
     water = mask.astype(np.float32)
     dry = 1.0 - water
-    tile_offset_db = float(int(tile_idx) - 6) * 0.25
+    local_idx = (int(tile_idx) % 11) - 5
+    tile_offset_db = float(local_idx) * 0.25
 
     vv = np.clip(
         dry * (-9.5 + tile_offset_db)
@@ -189,6 +191,16 @@ def _synthesize_sar_tile(rng, image_size, mask, dem, tile_idx):
         -30.0,
         -6.0,
     ).astype(np.float32)
+    assert float(vv.std()) > 0.5 and float(vh.std()) > 0.5, (
+        f"SAR backscatter unexpectedly degenerate: std(VV)={vv.std():.4f}, std(VH)={vh.std():.4f}"
+    )
+    if np.any(water > 0.5) and np.any(dry > 0.5):
+        assert float(vv[water > 0.5].mean()) < float(vv[dry > 0.5].mean()) - 6.0, (
+            "Expected SAR VV water backscatter significantly lower than dry terrain"
+        )
+        assert float(vh[water > 0.5].mean()) < float(vh[dry > 0.5].mean()) - 6.0, (
+            "Expected SAR VH water backscatter significantly lower than dry terrain"
+        )
 
     merit_dem = dem.copy()
     cop_dem = (dem + rng.normal(0.0, 0.4, size=(h, w)).astype(np.float32)).astype(np.float32)
@@ -280,17 +292,20 @@ def generate_mini_flood_dataset(
                 target_name = f"{stem} copy{ext}" if os.path.exists(os.path.join(opt_src, fname)) else fname
                 shutil.copy2(os.path.join(sar_src, fname), os.path.join(dst, target_name))
 
-    # Build and validate splits/<dataset>.json manifests
+    # Build and validate splits/<dataset>.json and <dataset>/manifest.json manifests
     splits_dir = os.path.join(out_dir, "splits")
     os.makedirs(splits_dir, exist_ok=True)
     manifests = {}
     for ds_name in ("flood_optical", "flood_SAR", "flood_combined"):
         man = dedup_splits.build(out_dir, ds_name, conflict_policy="drop")
         dedup_splits.validate_manifest(man, expected_policy="drop")
-        man_path = os.path.join(splits_dir, f"{ds_name}.json")
-        with open(man_path, "w") as f:
-            json.dump(man, f, indent=1)
-            f.write("\n")
+        for man_path in (
+            os.path.join(splits_dir, f"{ds_name}.json"),
+            os.path.join(out_dir, ds_name, "manifest.json"),
+        ):
+            with open(man_path, "w") as f:
+                json.dump(man, f, indent=1)
+                f.write("\n")
         manifests[ds_name] = man
 
     # Build fit-only splits/norm_stats.json (excluding validation holdout per seed)
@@ -304,9 +319,10 @@ def generate_mini_flood_dataset(
         image_size=image_size,
     )
     stats_path = os.path.join(splits_dir, "norm_stats.json")
-    with open(stats_path, "w") as f:
-        json.dump(stats, f, indent=1)
-        f.write("\n")
+    for sp in (stats_path, os.path.join(out_dir, "norm_stats.json")):
+        with open(sp, "w") as f:
+            json.dump(stats, f, indent=1)
+            f.write("\n")
 
     return {
         "data_root": out_dir,
