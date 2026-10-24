@@ -203,8 +203,8 @@ def add_common_args(parser, quantum=True, federated=False):
     parser.add_argument('--backbone-conv-mode', choices=list(BACKBONE_CONV_CHOICES),
                         default=DEFAULT_BACKBONE_CONV_MODE,
                         help="Backbone 3x3 convolution type in ResnetBlock / QResnetBlock "
-                             f"(default: {DEFAULT_BACKBONE_CONV_MODE}; 'standard' is an alias "
-                             "for 'ws_conv'; 'depthwise_sep' uses 3x3 depthwise + 1x1 WSConv)")
+                             f"(default: {DEFAULT_BACKBONE_CONV_MODE}; 'standard' uses standard "
+                             "nn.Conv2d; 'depthwise_sep' uses 3x3 depthwise + 1x1 WSConv)")
     parser.add_argument('--loss', choices=list(LOSS_CHOICES),
                         default=DEFAULT_LOSS_MODE,
                         help="Segmentation training/evaluation loss mode "
@@ -436,6 +436,14 @@ def _seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2 ** 32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
+    info = torch.utils.data.get_worker_info()
+    if info is not None and hasattr(info, 'dataset'):
+        ds = info.dataset
+        while ds is not None:
+            if isinstance(ds, DihedralAugmentDataset):
+                ds.reseed(derive_seed(worker_seed, int(worker_id) + 1))
+                break
+            ds = getattr(ds, 'dataset', None)
 
 
 def apply_dihedral_transform(image, mask, k: int = 0, flip=None):
@@ -1075,11 +1083,48 @@ def effective_ablation_mode(config):
 
 
 def effective_backbone_conv_mode(config):
-    """Resolve and normalize `backbone_conv_mode` ('ws_conv' default / 'standard' alias, or 'depthwise_sep')."""
+    """Resolve and normalize `backbone_conv_mode` ('ws_conv' default, 'standard', or 'depthwise_sep')."""
     from utilsTorch.unetTorch import normalize_backbone_conv_mode
     if not isinstance(config, dict):
         return normalize_backbone_conv_mode(config)
     return normalize_backbone_conv_mode(config.get('backbone_conv_mode', DEFAULT_BACKBONE_CONV_MODE))
+
+
+def _uses_hqunet_grid(config, model_type=None):
+    """Return True when `hqunet_grid` affects the model architecture for `(config, model_type)`."""
+    ansatz, _ = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if quantum and ansatz == 'hqunet':
+        return True
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return True
+    return False
+
+
+def _normalize_saved_fingerprint(saved, model_type=None):
+    """Fill in historical Wave 2 default values for keys absent from pre-Wave-2
+    checkpoint fingerprints so default-config runs can resume older checkpoints."""
+    if not isinstance(saved, dict):
+        return saved
+    out = dict(saved)
+    eff_model_type = model_type or out.get('model_type')
+    quantum = eff_model_type in ('quantum', 'ablation')
+    ansatz = out.get('q_ansatz') or ('reupload' if quantum else None)
+    abl_mode = out.get('ablation_mode', DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None)
+    uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
+    defaults = {
+        'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
+        'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
+        'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
+        'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
+        'loss': DEFAULT_LOSS_MODE,
+        'use_time_emb': True,
+        'augment': False,
+    }
+    for k, default_val in defaults.items():
+        if k not in out:
+            out[k] = default_val
+    return out
 
 
 def effective_loss_mode(config):
@@ -1181,7 +1226,7 @@ def centralized_fingerprint(config, model_type):
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
-        'hqunet_grid': effective_hqunet_grid(config) if (quantum and ansatz == 'hqunet') else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
@@ -1239,6 +1284,7 @@ def checkpoint_matches_centralized(ckpt, config, model_type, path=None):
         if path and os.path.exists(path):
             move_aside(path, 'incompatible')
         return False
+    saved = _normalize_saved_fingerprint(saved, model_type)
     diff = {k: (saved.get(k), v) for k, v in want.items() if saved.get(k) != v}
     if diff:
         print("Rejecting centralized checkpoint, config differs (saved, current): "
@@ -1338,7 +1384,10 @@ def variant_tag(config):
             tag += f'_{q_sp}'
         abl = effective_ablation_mode(config)
         if abl != DEFAULT_ABLATION_MODE:
-            tag += f'_abl-{abl}'
+            if abl == 'hqunet_spatial' and ansatz != 'hqunet':
+                tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
+            else:
+                tag += f'_abl-{abl}'
         tag += classical_variant_tag(config)
     return tag
 
@@ -1594,7 +1643,7 @@ def run_fingerprint(config, model_type):
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
-        'hqunet_grid': effective_hqunet_grid(config) if (quantum and ansatz == 'hqunet') else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
@@ -1725,7 +1774,7 @@ def load_fed_checkpoint(output_dir, fingerprint, resume=True):
     if not checkpoint_compatible(ckpt):
         move_aside(path, 'incompatible')
         return None
-    saved = ckpt.get('fingerprint') or {}
+    saved = _normalize_saved_fingerprint(ckpt.get('fingerprint') or {}, fingerprint.get('model_type'))
     diff = {k: (saved.get(k), v) for k, v in fingerprint.items() if saved.get(k) != v}
     if diff:
         print("Rejecting federated checkpoint, config differs (saved, current): "
@@ -1908,7 +1957,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
-        'hqunet_grid': effective_hqunet_grid(config) if (quantum and ansatz == 'hqunet') else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'backbone_conv_mode': effective_backbone_conv_mode(config),

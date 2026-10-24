@@ -270,7 +270,23 @@ PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
 _DEFAULT_Q_LAYERS = 2
 
 _SCALE_TAG_RE = _re_disk.compile(r"(?:_(?:bc\d+|img\d+|max\d+|dr[0-9a-f]{6}))+$")
-_VTAG_RE = _re_disk.compile(r"_(legacy|reupload_L\d+)$")
+_CLASSICAL_MOD_PART = r"(?:_(?:standard|depthwise_sep))?(?:_(?:dice_ce|focal_dice))?(?:_notime)?(?:_aug)?"
+_VTAG_RE = _re_disk.compile(
+    r"_((?:legacy|reupload_L\d+|hqunet_G\d+_L\d+)"
+    r"(?:_(?:pixel|patch2x2|patch4x4|se_gate))?"
+    r"(?:_abl-(?:linear|mlp|conv1x1|depthwise3x3|lowrank|hqunet_spatial(?:_G\d+)?))?"
+    r"(?:_additive)?"
+    + _CLASSICAL_MOD_PART
+    + r")$"
+)
+_CLASSICAL_VTAG_RE = _re_disk.compile(
+    r"_(("
+    r"(?:standard|depthwise_sep)(?:_(?:dice_ce|focal_dice))?(?:_notime)?(?:_aug)?"
+    r"|(?:dice_ce|focal_dice)(?:_notime)?(?:_aug)?"
+    r"|notime(?:_aug)?"
+    r"|aug"
+    r"))$"
+)
 _BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
 _BTAG_TO_BACKEND = {"qtorch": "torch", "qpergroup": "pennylane_pergroup"}
 Q_BACKENDS = ("pennylane", "pennylane_pergroup", "torch")
@@ -320,15 +336,47 @@ def _variant_label(variant):
     return f" [{variant.replace('_', ' ')}]"
 
 
-def _variant_from_fields(q_ansatz, q_layers):
-    if not q_ansatz:
-        return None
-    if q_ansatz == "legacy":
-        return "legacy"
-    return f"{q_ansatz}_L{int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS}"
+def _variant_from_fields(q_ansatz, q_layers, data=None):
+    parts = []
+    if q_ansatz:
+        if q_ansatz == "legacy":
+            parts.append("legacy")
+        elif q_ansatz == "hqunet":
+            grid = int(data.get("hqunet_grid") or 2) if isinstance(data, dict) else 2
+            layers = int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS
+            parts.append(f"hqunet_G{grid}_L{layers}")
+        else:
+            layers = int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS
+            parts.append(f"{q_ansatz}_L{layers}")
+        if isinstance(data, dict):
+            q_sp = data.get("q_spatial_mode")
+            if q_ansatz != "hqunet" and q_sp and q_sp != "global":
+                parts.append(str(q_sp))
+            abl = data.get("ablation_mode")
+            if abl and abl != "auto":
+                if abl == "hqunet_spatial" and q_ansatz != "hqunet":
+                    grid = int(data.get("hqunet_grid") or 2)
+                    parts.append(f"abl-{abl}_G{grid}")
+                else:
+                    parts.append(f"abl-{abl}")
+            skip_mod = data.get("skip_modulation")
+            if skip_mod and skip_mod != "affine":
+                parts.append(str(skip_mod))
+    if isinstance(data, dict):
+        bb = data.get("backbone_conv_mode")
+        if bb and bb != "ws_conv":
+            parts.append(str(bb))
+        loss_m = data.get("loss")
+        if loss_m and loss_m != "ce":
+            parts.append(str(loss_m))
+        if data.get("use_time_emb") is False:
+            parts.append("notime")
+        if data.get("augment") is True:
+            parts.append("aug")
+    return "_".join(parts) if parts else None
 
 
-def _infer_variant_from_summary(text):
+def _infer_variant_from_summary(text, quantumish=True):
     """Variant of an untagged (older) run directory.
 
     With a Provenance block the CLI flags decide (--q-ansatz default was
@@ -336,12 +384,34 @@ def _infer_variant_from_summary(text):
     revision and used the original (legacy) circuit."""
     m = _re_disk.search(r"cli_args:\s*(.*)", text or "")
     if not m:
-        return "legacy"
+        return "legacy" if quantumish else None
     cli = m.group(1)
     a = _re_disk.search(r"--q[-_]ansatz[ =](\w+)", cli)
     layers = _re_disk.search(r"--q[-_]layers[ =](\d+)", cli)
-    return _variant_from_fields(a.group(1) if a else "reupload",
-                                int(layers.group(1)) if layers else None)
+    grid = _re_disk.search(r"--hqunet[-_]grid[ =](\d+)", cli)
+    q_sp = _re_disk.search(r"--q[-_]spatial[-_]mode[ =](\w+)", cli)
+    abl = _re_disk.search(r"--ablation[-_]mode[ =](\w+)", cli)
+    skip_m = _re_disk.search(r"--skip[-_]modulation[ =](\w+)", cli)
+    bb = _re_disk.search(r"--backbone[-_]conv[-_]mode[ =](\w+)", cli)
+    loss_m = _re_disk.search(r"--loss[ =](\w+)", cli)
+    no_time = bool(_re_disk.search(r"--no[-_]time[-_]emb\b", cli))
+    aug = bool(_re_disk.search(r"--augment\b", cli))
+    data = {
+        "hqunet_grid": int(grid.group(1)) if grid else None,
+        "q_spatial_mode": q_sp.group(1) if q_sp else None,
+        "ablation_mode": abl.group(1) if abl else None,
+        "skip_modulation": skip_m.group(1) if skip_m else None,
+        "backbone_conv_mode": bb.group(1) if bb else None,
+        "loss": loss_m.group(1) if loss_m else None,
+        "use_time_emb": False if no_time else True,
+        "augment": True if aug else False,
+    }
+    q_ansatz = (a.group(1) if a else "reupload") if quantumish else None
+    return _variant_from_fields(
+        q_ansatz,
+        int(layers.group(1)) if layers else None,
+        data=data,
+    )
 
 
 def _parse_run_dir_is_mini(dirname):
@@ -392,6 +462,11 @@ def _parse_run_dir_full(dirname):
     if vm:
         variant = vm.group(1)
         base = base[:vm.start()]
+    elif "classical" in base:
+        cvm = _CLASSICAL_VTAG_RE.search(base)
+        if cvm:
+            variant = cvm.group(1)
+            base = base[:cvm.start()]
 
     dataset = "combined" if "_combined" in base else ("sar" if "_sar" in base else "optical")
 
@@ -430,7 +505,7 @@ def _parse_run_dir_full(dirname):
     if "pennylane" in base:
         kind = "Quantum"
     elif "classical" in base:
-        kind, qc, qc_suffix, variant = "Classical", None, "", None
+        kind, qc, qc_suffix = "Classical", None, ""
     else:
         return None
 
@@ -502,7 +577,7 @@ def _parse_metrics_json(path):
     if data.get("max_samples") is not None:
         is_mini = True
     info = {
-        "variant": _variant_from_fields(data.get("q_ansatz"), data.get("q_layers")),
+        "variant": _variant_from_fields(data.get("q_ansatz"), data.get("q_layers"), data=data),
         # Key absent: written before q_backend was recorded (torch simulator).
         "q_backend": data.get("q_backend", LEGACY_Q_BACKEND),
         "q_backend_recorded": "q_backend" in data,
@@ -559,7 +634,8 @@ def _parse_summary(path):
 
     if "Test_IoU" not in out:
         return None
-    out["_variant_inferred"] = _infer_variant_from_summary(text)
+    out["_variant_inferred"] = _infer_variant_from_summary(text, quantumish=True)
+    out["_variant_inferred_classical"] = _infer_variant_from_summary(text, quantumish=False)
     out["_q_backend_inferred"] = _backend_from_summary(text)
     return out
 
@@ -609,7 +685,7 @@ def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
         if js is not None:
             metrics, info = js
             source = "metrics.json"
-            variant = dir_variant or info.get("variant")
+            variant = info.get("variant") or dir_variant
             q_backend = info["q_backend"]
             is_mini = is_mini or bool(info.get("is_mini_run"))
             if dir_backend and info["q_backend_recorded"] and dir_backend != q_backend:
@@ -625,7 +701,8 @@ def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
                 continue
             source = "summary.txt"
             inferred = metrics.pop("_variant_inferred", None)
-            variant = dir_variant or inferred
+            inferred_cl = metrics.pop("_variant_inferred_classical", None)
+            variant = dir_variant or (inferred if quantumish else inferred_cl)
             q_backend = dir_backend or metrics.pop("_q_backend_inferred", None)
             metrics.pop("_q_backend_inferred", None)
         if is_mini and not include_mini:
@@ -633,8 +710,6 @@ def load_from_disk(label_backends=False, include_mini=None, results_dir=None):
             continue
         if source == "metrics.json":
             n_json += 1
-        if not quantumish:
-            variant = None
         if not method.startswith("Quantum"):
             q_backend = None  # classical and ablation runs have no circuit
         rows.append({

@@ -44,8 +44,9 @@ BACKBONE_CONV_CHOICES = ('ws_conv', 'standard', 'depthwise_sep')
 DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
 _BACKBONE_CONV_ALIASES = {
     'ws_conv': 'ws_conv',
-    'standard': 'ws_conv',
     'default': 'ws_conv',
+    'standard': 'standard',
+    'conv2d': 'standard',
     'depthwise_sep': 'depthwise_sep',
     'depthwise': 'depthwise_sep',
     'dw_sep': 'depthwise_sep',
@@ -53,7 +54,7 @@ _BACKBONE_CONV_ALIASES = {
 
 
 def normalize_backbone_conv_mode(mode):
-    """Normalize backbone_conv_mode ('ws_conv' default / 'standard' alias, or 'depthwise_sep')."""
+    """Normalize backbone_conv_mode ('ws_conv' default, 'standard', or 'depthwise_sep')."""
     if mode is None:
         return DEFAULT_BACKBONE_CONV_MODE
     key = str(mode).strip().lower()
@@ -106,6 +107,8 @@ def _make_backbone_conv(in_channels, out_channels, backbone_conv_mode=DEFAULT_BA
     mode = normalize_backbone_conv_mode(backbone_conv_mode)
     if mode == 'depthwise_sep':
         return DepthwiseSeparableConv(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
+    if mode == 'standard':
+        return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
     return WeightStandardizedConv(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
 
 
@@ -684,7 +687,9 @@ def torch_hqunet_expvals(angles, weights, grid_size=DEFAULT_HQUNET_GRID):
 
     Args:
         angles: [B, N_q, 3] tensor of 3-axis (RX, RY, RZ) encoding angles per qubit.
-        weights: [L, 2 * G * (G - 1), 4] tensor of 2-qubit row/col filter weights.
+        weights: [L, 2, 4] tensor of shared horizontal filter F_R (weights[l, 0]) and
+            shared vertical filter F_C (weights[l, 1]) per layer (also accepts untied
+            [L, 2 * G * (G - 1), 4]).
         grid_size: G in {2, 4} where N_q = G * G.
 
     Returns:
@@ -696,12 +701,28 @@ def torch_hqunet_expvals(angles, weights, grid_size=DEFAULT_HQUNET_GRID):
     L = weights.shape[0]
     row_edges, col_edges = hqunet_grid_edges(G)
     all_edges = row_edges + col_edges
+    shared_filters = weights.shape[1] == 2
 
     angles64 = angles.to(torch.float64)
     weights64 = weights.to(torch.float64)
 
     state = torch.zeros((B, 1 << n_qubits), dtype=torch.complex128, device=angles.device)
     state[:, 0] = 1.0 + 0.0j
+
+    def _apply_two_qubit_gate(st, q1, q2, uf_c):
+        a_len = 1 << q1
+        m_len = 1 << (q2 - q1 - 1)
+        c_len = 1 << (n_qubits - 1 - q2)
+        s_pair = st.reshape(B, a_len, 2, m_len, 2, c_len)
+        s00 = s_pair[:, :, 0, :, 0, :]
+        s01 = s_pair[:, :, 0, :, 1, :]
+        s10 = s_pair[:, :, 1, :, 0, :]
+        s11 = s_pair[:, :, 1, :, 1, :]
+        vec = torch.stack([s00, s01, s10, s11], dim=-1)  # [B, A, M, C, 4]
+        vec_out = torch.matmul(vec, uf_c.t())
+        row0 = torch.stack([vec_out[..., 0], vec_out[..., 1]], dim=3)  # [B, A, M, 2, C]
+        row1 = torch.stack([vec_out[..., 2], vec_out[..., 3]], dim=3)
+        return torch.stack([row0, row1], dim=2).reshape(B, 1 << n_qubits)
 
     for l in range(L):
         # 1. 3-axis (RX, RY, RZ) encoding on every qubit q = 0..N_q-1
@@ -723,25 +744,25 @@ def torch_hqunet_expvals(angles, weights, grid_size=DEFAULT_HQUNET_GRID):
             out1 = g10 * s0 + g11 * s1
             state = torch.stack([out0, out1], dim=2).reshape(B, 1 << n_qubits)
 
-        # 2. 2D row and column quanvolutional filters F_R and F_C
-        for e, (q1, q2) in enumerate(all_edges):
-            w_e = weights64[l, e]
-            uf = _hqunet_filter_matrix(w_e[0], w_e[1], w_e[2], w_e[3])  # [4, 4] real
-            uf_c = torch.complex(uf, torch.zeros_like(uf))
-            # q1 < q2 holds for all horizontal and vertical grid edges
-            a_len = 1 << q1
-            m_len = 1 << (q2 - q1 - 1)
-            c_len = 1 << (n_qubits - 1 - q2)
-            s_pair = state.reshape(B, a_len, 2, m_len, 2, c_len)
-            s00 = s_pair[:, :, 0, :, 0, :]
-            s01 = s_pair[:, :, 0, :, 1, :]
-            s10 = s_pair[:, :, 1, :, 0, :]
-            s11 = s_pair[:, :, 1, :, 1, :]
-            vec = torch.stack([s00, s01, s10, s11], dim=-1)  # [B, A, M, C, 4]
-            vec_out = torch.matmul(vec, uf_c.t())
-            row0 = torch.stack([vec_out[..., 0], vec_out[..., 1]], dim=3)  # [B, A, M, 2, C]
-            row1 = torch.stack([vec_out[..., 2], vec_out[..., 3]], dim=3)
-            state = torch.stack([row0, row1], dim=2).reshape(B, 1 << n_qubits)
+        # 2. 2D row and column quanvolutional filters F_R (shared across row_edges)
+        #    and F_C (shared across col_edges)
+        if shared_filters:
+            w_r = weights64[l, 0]
+            uf_r = _hqunet_filter_matrix(w_r[0], w_r[1], w_r[2], w_r[3])
+            uf_r_c = torch.complex(uf_r, torch.zeros_like(uf_r))
+            for q1, q2 in row_edges:
+                state = _apply_two_qubit_gate(state, q1, q2, uf_r_c)
+            w_c = weights64[l, 1]
+            uf_c = _hqunet_filter_matrix(w_c[0], w_c[1], w_c[2], w_c[3])
+            uf_c_c = torch.complex(uf_c, torch.zeros_like(uf_c))
+            for q1, q2 in col_edges:
+                state = _apply_two_qubit_gate(state, q1, q2, uf_c_c)
+        else:
+            for e, (q1, q2) in enumerate(all_edges):
+                w_e = weights64[l, e]
+                uf = _hqunet_filter_matrix(w_e[0], w_e[1], w_e[2], w_e[3])
+                uf_c = torch.complex(uf, torch.zeros_like(uf))
+                state = _apply_two_qubit_gate(state, q1, q2, uf_c)
 
     return _dual_basis_expvals_from_state(state, n_qubits)
 
@@ -764,18 +785,33 @@ def pennylane_hqunet_state_qnode(n_layers=2, grid_size=DEFAULT_HQUNET_GRID):
 
     @qml.qnode(dev, interface="torch", diff_method="backprop")
     def circuit(angles, weights):
-        # angles: [B, N_q, 3], weights: [L, n_edges, 4]
+        # angles: [B, N_q, 3], weights: [L, 2, 4] (shared F_R, F_C) or [L, n_edges, 4]
+        shared = weights.shape[1] == 2
         for l in range(int(n_layers)):
             for q in range(n_qubits):
                 qml.RX(angles[:, q, 0], wires=q)
                 qml.RY(angles[:, q, 1], wires=q)
                 qml.RZ(angles[:, q, 2], wires=q)
-            for e, (q1, q2) in enumerate(all_edges):
-                qml.RY(weights[l, e, 0], wires=q1)
-                qml.RY(weights[l, e, 1], wires=q2)
-                qml.CNOT(wires=[q1, q2])
-                qml.RY(weights[l, e, 2], wires=q1)
-                qml.RY(weights[l, e, 3], wires=q2)
+            if shared:
+                for q1, q2 in row_edges:
+                    qml.RY(weights[l, 0, 0], wires=q1)
+                    qml.RY(weights[l, 0, 1], wires=q2)
+                    qml.CNOT(wires=[q1, q2])
+                    qml.RY(weights[l, 0, 2], wires=q1)
+                    qml.RY(weights[l, 0, 3], wires=q2)
+                for q1, q2 in col_edges:
+                    qml.RY(weights[l, 1, 0], wires=q1)
+                    qml.RY(weights[l, 1, 1], wires=q2)
+                    qml.CNOT(wires=[q1, q2])
+                    qml.RY(weights[l, 1, 2], wires=q1)
+                    qml.RY(weights[l, 1, 3], wires=q2)
+            else:
+                for e, (q1, q2) in enumerate(all_edges):
+                    qml.RY(weights[l, e, 0], wires=q1)
+                    qml.RY(weights[l, e, 1], wires=q2)
+                    qml.CNOT(wires=[q1, q2])
+                    qml.RY(weights[l, e, 2], wires=q1)
+                    qml.RY(weights[l, e, 3], wires=q2)
         return qml.state()
 
     _HQUNET_STATE_QNODES[key] = circuit
@@ -902,15 +938,16 @@ class QuantumBlock(nn.Module):
             if q_ansatz == 'hqunet':
                 G = self.hqunet_grid
                 n_q = G * G
-                n_edges = 2 * G * (G - 1)
                 if self.effective_qc > 0:
                     with torch.random.fork_rng(devices=[], enabled=seed is not None):
                         if seed is not None:
                             torch.default_generator.manual_seed(int(seed) + QUANTUM_INIT_SEED_OFFSET)
                         self.pre_q_conv = nn.Conv2d(self.effective_qc, 3, kernel_size=1)
                         self.post_q_proj = nn.Linear(2 * n_q, self.effective_qc * n_q)
+                    # Shared horizontal filter F_R (index 0) and vertical filter F_C (index 1)
+                    # per layer: 2 filters x 4 RY angles = 8 parameters per layer (arXiv:2604.27206)
                     self.hqunet_weights = nn.Parameter(
-                        _uniform((self.q_layers, n_edges, 4), -math.pi, math.pi, generator)
+                        _uniform((self.q_layers, 2, 4), -math.pi, math.pi, generator)
                     )
             else:
                 for group_idx in range(self.num_groups):
@@ -934,8 +971,7 @@ class QuantumBlock(nn.Module):
         if self.q_ansatz == 'legacy':
             return N_QUBITS
         if self.q_ansatz == 'hqunet':
-            G = self.hqunet_grid
-            return 8 * self.q_layers * G * (G - 1)
+            return 8 * self.q_layers
         return self.q_layers * N_QUBITS * 4  # 3 rotation angles + 1 input scale per qubit per layer
 
     def _build_pennylane_circuits(self):
@@ -1010,10 +1046,8 @@ class QuantumBlock(nn.Module):
             g = torch.Generator()
             g.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
             if self.q_ansatz == 'hqunet':
-                G = self.hqunet_grid
-                n_edges = 2 * G * (G - 1)
                 self._random_hqunet_weights = _uniform(
-                    (self.q_layers, n_edges, 4), -math.pi, math.pi, g
+                    (self.q_layers, 2, 4), -math.pi, math.pi, g
                 )
             else:
                 rand = []
@@ -1175,11 +1209,12 @@ class QuantumBlock(nn.Module):
             if self.quantum_mode == 'random'
             else self.hqunet_weights
         )
-        # Use PennyLane QNode when q_backend in ('pennylane', 'pennylane_pergroup') and G == 2;
-        # for G == 4 (16 qubits) or q_backend == 'torch', use the exact batched axis statevector
-        # simulator (which is mathematically identical and 50x faster for 16 qubits).
-        if self.q_backend in _PENNYLANE_Q_BACKENDS and G == 2:
-            sim = torch.device('cpu') if (self.q_backend == 'pennylane' and self.q_sim_device == 'cpu') else angles.device
+        if self.q_backend in _PENNYLANE_Q_BACKENDS:
+            sim = (
+                torch.device('cpu')
+                if (self.q_backend == 'pennylane' and self.q_sim_device == 'cpu')
+                else angles.device
+            )
             circuit = pennylane_hqunet_state_qnode(self.q_layers, G)
             state = circuit(angles.to(sim), w.to(sim))
             if state.dim() == 1:
@@ -1697,7 +1732,6 @@ class ClassicalBottleneckBlock(nn.Module):
             if self.kind == 'hqunet_spatial':
                 G = self.hqunet_grid
                 n_q = G * G
-                n_edges = 2 * G * (G - 1)
                 if self.effective_qc > 0:
                     self.pre_q_conv = nn.Conv2d(self.effective_qc, 3, kernel_size=1)
                     self.post_q_proj = nn.Linear(2 * n_q, self.effective_qc * n_q)
@@ -1705,8 +1739,9 @@ class ClassicalBottleneckBlock(nn.Module):
                     if seed is not None:
                         gen = torch.Generator()
                         gen.manual_seed(int(seed) + QUANTUM_INIT_SEED_OFFSET)
+                    # Match shared horizontal/vertical filter count: (q_layers, 2, 4) = 8 * L params
                     self.hqunet_classical_weights = nn.Parameter(
-                        _uniform((self.q_layers, n_edges, 4), -1.0, 1.0, gen)
+                        _uniform((self.q_layers, 2, 4), -1.0, 1.0, gen)
                     )
             elif self.kind == 'lowrank':
                 if self.effective_qc > 0:
@@ -1761,28 +1796,29 @@ class ClassicalBottleneckBlock(nn.Module):
             with torch.random.fork_rng(devices=[]):
                 torch.default_generator.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
                 if self.kind == 'hqunet_spatial':
-                    G = self.hqunet_grid
-                    n_edges = 2 * G * (G - 1)
                     g = torch.Generator()
                     g.manual_seed(int(knockout_seed) + KNOCKOUT_SEED_OFFSET)
                     self._random_hqunet_weights = _uniform(
-                        (self.q_layers, n_edges, 4), -1.0, 1.0, g
+                        (self.q_layers, 2, 4), -1.0, 1.0, g
                     )
                 elif self.kind == 'lowrank':
                     if self.effective_qc > 0:
-                        self._random_lowrank = self._make_lowrank()
+                        # Wrap in a plain list so nn.Module.__setattr__ does not register
+                        # a temporary submodule during random knockout evaluation.
+                        self._random_lowrank = [self._make_lowrank()]
                 else:
                     self._random_groups = [self._make_group() for _ in range(self.num_groups)]
         return self
 
     def _eval_hqunet_classical(self, angles, weights):
-        """Classical 2D spatial grid mixing counterpart to HQ-UNet's F_R / F_C circuit (#18).
-        Maps [B, N_q, 3] -> [B, 2 * N_q] using the exact same parameter count (8 * L * G * (G - 1)).
+        """Classical 2D spatial grid mixing counterpart to HQ-UNet's shared F_R / F_C circuit (#18).
+        Maps [B, N_q, 3] -> [B, 2 * N_q] using the exact same parameter count (8 * L).
         """
         B, n_q, _ = angles.shape
         G = self.hqunet_grid
         row_edges, col_edges = hqunet_grid_edges(G)
         all_edges = row_edges + col_edges
+        shared = weights.shape[1] == 2
         h0 = torch.zeros((B, n_q), dtype=angles.dtype, device=angles.device)
         h1 = torch.zeros((B, n_q), dtype=angles.dtype, device=angles.device)
         f1, f2, f3 = angles[:, :, 0], angles[:, :, 1], angles[:, :, 2]
@@ -1792,12 +1828,26 @@ class ClassicalBottleneckBlock(nn.Module):
             h1 = torch.tanh(h1 + torch.sin(f2) - 0.5 * torch.sin(f3))
             cols0 = list(torch.unbind(h0, dim=1))
             cols1 = list(torch.unbind(h1, dim=1))
-            for e, (q1, q2) in enumerate(all_edges):
-                w = weights[l, e]
-                u1 = torch.tanh(w[0] * cols0[q1] + w[1] * cols0[q2])
-                u2 = torch.tanh(w[2] * cols1[q1] + w[3] * cols1[q2])
-                cols0[q1] = u1
-                cols1[q2] = u2
+            if shared:
+                w_r = weights[l, 0]
+                for q1, q2 in row_edges:
+                    u1 = torch.tanh(w_r[0] * cols0[q1] + w_r[1] * cols0[q2])
+                    u2 = torch.tanh(w_r[2] * cols1[q1] + w_r[3] * cols1[q2])
+                    cols0[q1] = u1
+                    cols1[q2] = u2
+                w_c = weights[l, 1]
+                for q1, q2 in col_edges:
+                    u1 = torch.tanh(w_c[0] * cols0[q1] + w_c[1] * cols0[q2])
+                    u2 = torch.tanh(w_c[2] * cols1[q1] + w_c[3] * cols1[q2])
+                    cols0[q1] = u1
+                    cols1[q2] = u2
+            else:
+                for e, (q1, q2) in enumerate(all_edges):
+                    w = weights[l, e]
+                    u1 = torch.tanh(w[0] * cols0[q1] + w[1] * cols0[q2])
+                    u2 = torch.tanh(w[2] * cols1[q1] + w[3] * cols1[q2])
+                    cols0[q1] = u1
+                    cols1[q2] = u2
             h0 = torch.stack(cols0, dim=1)
             h1 = torch.stack(cols1, dim=1)
         return torch.cat([h0, h1], dim=1)
@@ -1839,7 +1889,7 @@ class ClassicalBottleneckBlock(nn.Module):
             return torch.zeros(B, self.effective_qc, H, W, dtype=x.dtype, device=x.device)
 
         if self.kind == 'lowrank':
-            net = self._random_lowrank.to(x.device) if self.quantum_mode == 'random' else self.lowrank_net
+            net = self._random_lowrank[0].to(x.device) if self.quantum_mode == 'random' else self.lowrank_net
             return net(x_eff)
 
         groups = self.per_group

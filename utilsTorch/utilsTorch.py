@@ -445,6 +445,9 @@ class UNetSegmentation(torch.nn.Module):
 def _resolve_model_loss_mode(model, loss_mode=None):
     if loss_mode is not None:
         return normalize_loss_mode(loss_mode)
+    attr_mode = getattr(model, 'loss_mode', None)
+    if attr_mode is not None:
+        return normalize_loss_mode(attr_mode)
     cfg = getattr(model, 'config', None)
     if isinstance(cfg, dict) and cfg.get('loss') is not None:
         return normalize_loss_mode(cfg.get('loss'))

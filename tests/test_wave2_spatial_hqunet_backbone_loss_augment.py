@@ -553,3 +553,261 @@ def test_wave2_variant_tags_fingerprints_and_metrics_json(tmp_path):
     with open(mpath_abl) as f:
         rec_abl = json.load(f)
     assert rec_abl["ablation_mode"] == "hqunet_spatial"
+
+
+def test_wave2_review_fixes_shared_hqunet_filters_and_grid4_pennylane():
+    # Finding 1: Shared 4-param horizontal F_R and 4-param vertical F_C per layer (8*L params for both G=2 and G=4)
+    for grid in (2, 4):
+        qb = QuantumBlock(
+            quantum_channels=8,
+            backend="pennylane",
+            q_ansatz="hqunet",
+            q_layers=2,
+            hqunet_grid=grid,
+            q_backend="pennylane",
+            q_sim_device="cpu",
+            seed=88,
+        )
+        cb = ClassicalBottleneckBlock(
+            quantum_channels=8,
+            q_ansatz="hqunet",
+            q_layers=2,
+            hqunet_grid=grid,
+            seed=88,
+        )
+        assert qb.hqunet_weights.shape == (2, 2, 4)
+        assert qb.hqunet_weights.numel() == 16
+        assert cb.hqunet_classical_weights.shape == (2, 2, 4)
+        assert cb.hqunet_classical_weights.numel() == 16
+
+        # Finding 3: Both G=2 and G=4 use PennyLane default.qubit when q_backend='pennylane'
+        sim_info = qb.simulator_info()
+        assert sim_info["q_backend"] == "pennylane"
+        assert sim_info["device"] == "default.qubit"
+        assert sim_info["sim_device"] == "cpu"
+
+        qb_torch = QuantumBlock(
+            quantum_channels=8,
+            backend="pennylane",
+            q_ansatz="hqunet",
+            q_layers=2,
+            hqunet_grid=grid,
+            q_backend="torch",
+            seed=88,
+        )
+        x = torch.randn(2, 8, 4, 4)
+        with torch.no_grad():
+            y_pl = qb(x)
+            y_th = qb_torch(x)
+        assert torch.allclose(y_pl, y_th, atol=1e-5)
+
+
+def test_wave2_review_fixes_standard_vs_ws_conv_and_lowrank_knockout():
+    from utilsTorch.unetTorch import WeightStandardizedConv
+
+    base_cfg = {
+        "image_size": 32,
+        "base_channels": 8,
+        "init_dim": 8,
+        "out_dim": 2,
+        "dim_mults": (1, 2),
+        "resnet_block_groups": 4,
+        "seed": 42,
+    }
+    u_ws = tc.build_model(UNetSegmentation, {**base_cfg, "backbone_conv_mode": "ws_conv"})
+    u_std = tc.build_model(UNetSegmentation, {**base_cfg, "backbone_conv_mode": "standard"})
+
+    assert any(isinstance(m, WeightStandardizedConv) for m in u_ws.model.down.modules())
+    assert not any(isinstance(m, WeightStandardizedConv) for m in u_std.model.down.modules())
+    assert tc.classical_variant_tag({"backbone_conv_mode": "standard"}) == "_standard"
+
+    x = torch.randn(2, 3, 32, 32)
+    with torch.no_grad():
+        out_ws = u_ws(x)
+        out_std = u_std(x)
+    assert not torch.allclose(out_ws, out_std)
+
+    # Finding 6: lowrank random knockout must not register a submodule or alter parameter count / state_dict
+    cb = ClassicalBottleneckBlock(
+        quantum_channels=8,
+        q_ansatz="reupload",
+        q_layers=2,
+        ablation_mode="lowrank",
+        seed=42,
+    )
+    orig_param_count = sum(p.numel() for p in cb.parameters())
+    orig_sd_keys = set(cb.state_dict().keys())
+    cb.set_quantum_mode("random", seed=99)
+    assert sum(p.numel() for p in cb.parameters()) == orig_param_count
+    assert set(cb.state_dict().keys()) == orig_sd_keys
+    y_rand = cb(torch.randn(2, 8, 4, 4))
+    assert y_rand.shape == (2, 8, 4, 4)
+    cb.set_quantum_mode("on")
+    assert sum(p.numel() for p in cb.parameters()) == orig_param_count
+    assert set(cb.state_dict().keys()) == orig_sd_keys
+
+
+def test_wave2_review_fixes_ablation_hqunet_grid_and_legacy_checkpoint_resume(tmp_path):
+    # Finding 4: --ablation-mode hqunet_spatial with q_ansatz='reupload' must distinguish hqunet_grid=2 vs 4
+    cfg_g2 = {
+        "seed": 42,
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "ablation_mode": "hqunet_spatial",
+        "hqunet_grid": 2,
+        "fed_rounds": 4,
+        "local_epochs": 1,
+        "num_clients": 2,
+        "batch_size": 2,
+        "learning_rate": 1e-4,
+    }
+    cfg_g4 = {**cfg_g2, "hqunet_grid": 4}
+    assert tc.variant_tag(cfg_g2) != tc.variant_tag(cfg_g4)
+    assert "_abl-hqunet_spatial_G2" in tc.variant_tag(cfg_g2)
+    assert "_abl-hqunet_spatial_G4" in tc.variant_tag(cfg_g4)
+    assert tc.centralized_fingerprint(cfg_g2, "ablation")["hqunet_grid"] == 2
+    assert tc.centralized_fingerprint(cfg_g4, "ablation")["hqunet_grid"] == 4
+    assert tc.run_fingerprint(cfg_g2, "ablation")["hqunet_grid"] == 2
+    assert tc.run_fingerprint(cfg_g4, "ablation")["hqunet_grid"] == 4
+
+    # Finding 7: Pre-Wave-2 checkpoint fingerprint migration
+    default_q_cfg = {
+        "seed": 42,
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "q_backend": "pennylane",
+        "num_epochs": 5,
+        "fed_rounds": 4,
+        "local_epochs": 1,
+        "num_clients": 2,
+        "batch_size": 2,
+        "learning_rate": 1e-4,
+    }
+    full_c_fp = tc.centralized_fingerprint(default_q_cfg, "quantum")
+    pre_wave2_c_fp = {
+        k: v
+        for k, v in full_c_fp.items()
+        if k
+        not in (
+            "q_spatial_mode",
+            "hqunet_grid",
+            "ablation_mode",
+            "backbone_conv_mode",
+            "loss",
+            "use_time_emb",
+            "augment",
+        )
+    }
+    ckpt = {
+        "run_format": tc.RUN_FORMAT,
+        "q_backend": "pennylane",
+        "fingerprint": pre_wave2_c_fp,
+    }
+    assert tc.checkpoint_matches_centralized(ckpt, default_q_cfg, "quantum")
+    assert not tc.checkpoint_matches_centralized(
+        ckpt, {**default_q_cfg, "loss": "dice_ce"}, "quantum"
+    )
+
+    # Finding 8: Worker seeding for DihedralAugmentDataset
+    ds = _SyntheticFloodDataset(n_samples=6, size=16)
+    aug_ds = tc.DihedralAugmentDataset(ds, seed=42)
+    loader_mp = tc.make_loader(aug_ds, batch_size=2, shuffle=True, seed=42, num_workers=2)
+    batches = list(loader_mp)
+    assert len(batches) == 3
+
+    # Finding 9: model.loss_mode attribute takes precedence over model.config['loss']
+    u_model = tc.build_model(
+        UNetSegmentation,
+        {
+            "image_size": 16,
+            "base_channels": 8,
+            "init_dim": 8,
+            "out_dim": 2,
+            "dim_mults": (1, 2),
+            "resnet_block_groups": 4,
+            "loss": "ce",
+            "seed": 42,
+        },
+    )
+    u_model.loss_mode = "focal_dice"
+    from utilsTorch.utilsTorch import _resolve_model_loss_mode
+    assert _resolve_model_loss_mode(u_model) == "focal_dice"
+
+
+def test_wave2_review_fixes_analyze_results_variant_separation(tmp_path):
+    import analyze_results as ar
+
+    base_cfg = {
+        "seed": 42,
+        "base_channels": 32,
+        "image_size": 128,
+        "batch_size": 4,
+        "learning_rate": 1e-4,
+        "num_epochs": 5,
+    }
+    val_m = {"loss": 0.4, "accuracy": 0.85, "auc": 0.9, "iou": 0.7, "dice": 0.82}
+
+    # 1. Quantum default (reupload_L2, global) vs spatial pixel vs hqunet G2 vs hqunet G4
+    configs = [
+        (
+            "flood_central_optical_pytorch_pennylane_reupload_L2_seed42",
+            "quantum",
+            {**base_cfg, "q_ansatz": "reupload", "q_layers": 2, "q_spatial_mode": "global"},
+            0.70,
+        ),
+        (
+            "flood_central_optical_pytorch_pennylane_reupload_L2_pixel_seed42",
+            "quantum",
+            {**base_cfg, "q_ansatz": "reupload", "q_layers": 2, "q_spatial_mode": "pixel"},
+            0.75,
+        ),
+        (
+            "flood_central_optical_pytorch_pennylane_hqunet_G2_L2_seed42",
+            "quantum",
+            {**base_cfg, "q_ansatz": "hqunet", "q_layers": 2, "hqunet_grid": 2},
+            0.78,
+        ),
+        (
+            "flood_central_optical_pytorch_pennylane_hqunet_G4_L2_seed42",
+            "quantum",
+            {**base_cfg, "q_ansatz": "hqunet", "q_layers": 2, "hqunet_grid": 4},
+            0.81,
+        ),
+        (
+            "flood_central_optical_pytorch_classical_seed42",
+            "classical",
+            {**base_cfg},
+            0.68,
+        ),
+        (
+            "flood_central_optical_pytorch_classical_depthwise_sep_dice_ce_notime_aug_seed42",
+            "classical",
+            {
+                **base_cfg,
+                "backbone_conv_mode": "depthwise_sep",
+                "loss": "dice_ce",
+                "use_time_emb": False,
+                "augment": True,
+            },
+            0.74,
+        ),
+    ]
+    for dirname, mtype, cfg, test_iou in configs:
+        tc.write_metrics_json(
+            str(tmp_path / dirname),
+            script="centralized_demoTorchQ.py" if mtype == "quantum" else "centralized_demoTorchClassical.py",
+            training="centralized",
+            model_type=mtype,
+            config=cfg,
+            val_metrics=val_m,
+            test_metrics={**val_m, "iou": test_iou},
+            history=[],
+            total_params=1000,
+        )
+
+    df = ar.load_from_disk(results_dir=str(tmp_path))
+    assert len(df) == 6
+    assert len(df["Method"].unique()) == 6
+    dedup = ar.per_seed_summary(df)
+    assert len(dedup) == 6
+    assert set(np.round(dedup["Test_IoU"].values, 2)) == {0.68, 0.70, 0.74, 0.75, 0.78, 0.81}
