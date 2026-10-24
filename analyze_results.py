@@ -48,9 +48,9 @@ DATASETS = ['optical', 'sar', 'combined']
 # included and missing seeds.
 MAIN_METHOD_SEEDS = set(SEEDS)
 MAIN_METHOD_SEED_LABELS = {
-    "Classical Central", "Quantum Central",
-    "Classical Fed (Random)", "Quantum Fed (Random)",
-    "Classical Fed (Dirichlet)", "Quantum Fed (Dirichlet)",
+    "Classical Central", "Quantum Central", "Ablation Central",
+    "Classical Fed (Random)", "Quantum Fed (Random)", "Ablation Fed (Random)",
+    "Classical Fed (Dirichlet)", "Quantum Fed (Dirichlet)", "Ablation Fed (Dirichlet)",
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -140,26 +140,6 @@ CATEGORY_COLOR = {
 
 DATASET_LABELS = {"optical": "Optical", "sar": "SAR", "combined": "Combined"}
 
-# Column names without Dataset (old schema, used for original optical runs)
-_OLD_COLS = [
-    "Timestamp", "Demo", "Framework", "Training", "Variant",
-    "Val_Loss", "Val_Accuracy", "Val_AUC", "Val_IoU", "Val_Dice",
-    "Test_Loss", "Test_Accuracy", "Test_AUC", "Test_IoU", "Test_Dice",
-    "Partition", "Dirichlet_Alpha", "Epochs_Steps_Rounds", "Num_Clients",
-    "Local_Epochs", "Base_Channels", "Quantum_Channels", "Batch_Size",
-    "Learning_Rate", "Total_Params",
-]
-
-# Column names with Dataset (new schema)
-_NEW_COLS = [
-    "Timestamp", "Demo", "Framework", "Training", "Variant", "Dataset",
-    "Val_Loss", "Val_Accuracy", "Val_AUC", "Val_IoU", "Val_Dice",
-    "Test_Loss", "Test_Accuracy", "Test_AUC", "Test_IoU", "Test_Dice",
-    "Partition", "Dirichlet_Alpha", "Epochs_Steps_Rounds", "Num_Clients",
-    "Local_Epochs", "Base_Channels", "Quantum_Channels", "Batch_Size",
-    "Learning_Rate", "Total_Params",
-]
-
 # Ordered list of methods for consistent display (full — includes QC variants)
 METHOD_ORDER = [
     "Classical Central",
@@ -210,92 +190,6 @@ DATASET_COLORS = {"optical": "#4C72B0", "sar": "#DD8452", "combined": "#55A868"}
 # ─────────────────────────────────────────────────────────────────────────────
 # Data Loading
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _fix_shifted_rows(df, dataset):
-    """
-    Some optical rows were written with the new schema (Dataset column inserted)
-    into an old-schema file.  Those rows have a string like "optical" in the
-    Val_Loss column and all subsequent values are shifted one position right.
-    This function detects and corrects them.
-    """
-    valid_datasets = {'optical', 'sar', 'combined'}
-    mask = df['Val_Loss'].astype(str).str.lower().isin(valid_datasets)
-    if not mask.any():
-        df['Dataset'] = dataset
-        return df
-
-    normal = df[~mask].copy()
-    shifted = df[mask].copy()
-
-    # Remap: under old column names, position N holds new-schema value N+1
-    # old col 5 (Val_Loss)         ← new col 5 (Dataset)      → discard, we know dataset
-    # old col 6 (Val_Accuracy)     ← new col 6 (Val_Loss)
-    # old col 7 (Val_AUC)          ← new col 7 (Val_Accuracy)
-    # ... and so on
-    rename_map = {
-        "Val_Loss":           "Dataset_drop",   # this was the Dataset string
-        "Val_Accuracy":       "Val_Loss",
-        "Val_AUC":            "Val_Accuracy",
-        "Val_IoU":            "Val_AUC",
-        "Val_Dice":           "Val_IoU",
-        "Test_Loss":          "Val_Dice",
-        "Test_Accuracy":      "Test_Loss",
-        "Test_AUC":           "Test_Accuracy",
-        "Test_IoU":           "Test_AUC",
-        "Test_Dice":          "Test_IoU",
-        "Partition":          "Test_Dice",
-        "Dirichlet_Alpha":    "Partition",
-        "Epochs_Steps_Rounds":"Dirichlet_Alpha",
-        "Num_Clients":        "Epochs_Steps_Rounds",
-        "Local_Epochs":       "Num_Clients",
-        "Base_Channels":      "Local_Epochs",
-        "Quantum_Channels":   "Base_Channels",
-        "Batch_Size":         "Quantum_Channels",
-        "Learning_Rate":      "Batch_Size",
-        "Total_Params":       "Learning_Rate",
-    }
-    shifted = shifted.rename(columns=rename_map)
-    shifted["Total_Params"] = None
-    shifted.drop(columns=["Dataset_drop"], errors="ignore", inplace=True)
-
-    normal["Dataset"] = dataset
-    shifted["Dataset"] = dataset
-
-    return pd.concat([normal, shifted], ignore_index=True)
-
-
-def load_dataset_excel(dataset):
-    """Load all seed sheets from results_summary_{dataset}.xlsx into one DataFrame."""
-    path = os.path.join(RESULTS_DIR, f"results_summary_{dataset}.xlsx")
-    if not os.path.exists(path):
-        print(f"  [warn] {path} not found, skipping")
-        return pd.DataFrame()
-
-    sheets = pd.read_excel(path, sheet_name=None, engine="openpyxl")
-    all_dfs = []
-    for sheet_name, df in sheets.items():
-        if df.empty:
-            continue
-        # Extract seed from sheet name "Seed_42" → 42
-        try:
-            seed = int(sheet_name.split("_")[1])
-        except (IndexError, ValueError):
-            seed = None
-        df["Seed"] = seed
-
-        # Detect schema (old = no Dataset column)
-        if "Dataset" not in df.columns:
-            df = _fix_shifted_rows(df, dataset)
-        else:
-            # Ensure Dataset is correctly set (some SAR/combined rows may have None)
-            df["Dataset"] = df["Dataset"].fillna(dataset)
-
-        all_dfs.append(df)
-
-    if not all_dfs:
-        return pd.DataFrame()
-    return pd.concat(all_dfs, ignore_index=True)
-
 
 def assign_method(row):
     """Return a clean method label from Training / Variant / Partition / Demo.
@@ -793,12 +687,12 @@ def filter_backends(df, include_backends=DEFAULT_INCLUDE_BACKENDS):
 
 
 def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS, include_mini=None, results_dir=None):
-    """Load all per-run results from disk (summary.txt files) and apply
+    """Load all per-run results from disk (metrics.json and summary.txt files) and apply
     seed/method/simulator filters. Disk reads are authoritative — the Excel
     logging has historical column-shift bugs for some seeds (notably 7, 42,
     123, 256 in the optical sheet). Quantum runs are restricted to the
     circuit simulators in include_backends (default: pennylane only)."""
-    print("Loading from disk (results/*/results/summary.txt)...")
+    print("Loading from disk (results/*/results/metrics.json and summary.txt)...")
     include_backends = tuple(include_backends)
     df = load_from_disk(
         label_backends=len(include_backends) > 1,
@@ -830,8 +724,7 @@ def report_seed_coverage(df, methods=None):
     """Print, loudly, every (method, dataset) cell missing seeds from the
     pre-declared list. Returns {(method, dataset): sorted missing seeds}."""
     if methods is None:
-        methods = sorted(MAIN_METHOD_SEED_LABELS) + [
-            "Ablation Central", "Ablation Fed (Random)", "Ablation Fed (Dirichlet)"]
+        methods = sorted(MAIN_METHOD_SEED_LABELS)
     missing = {}
     for m in methods:
         for ds in DATASETS:
@@ -852,12 +745,28 @@ def report_seed_coverage(df, methods=None):
 
 def paired_stats(deltas):
     """Mean, std, n, 95% t CI, paired t-test and Wilcoxon signed-rank p-values
-    for a list of per-seed paired differences."""
+    for a list of per-seed paired differences (numeric values or (seed, delta)
+    2-tuples)."""
     from scipy import stats as _st
-    d = np.asarray(deltas, dtype=float)
+    vals = [
+        item[1] if isinstance(item, (tuple, list)) and len(item) == 2 else item
+        for item in deltas
+    ]
+    d = np.asarray(vals, dtype=float)
     n = int(d.size)
-    out = {"n": n, "mean": None, "std": None, "ci95_half": None, "tcrit": None,
-           "t_stat": None, "t_p": None, "wilcoxon_stat": None, "wilcoxon_p": None}
+    out = {
+        "n": n,
+        "mean": None,
+        "std": None,
+        "ci95_half": None,
+        "ci_low": None,
+        "ci_high": None,
+        "tcrit": None,
+        "t_stat": None,
+        "t_p": None,
+        "wilcoxon_stat": None,
+        "wilcoxon_p": None,
+    }
     if n == 0:
         return out
     out["mean"] = float(d.mean())
@@ -865,7 +774,9 @@ def paired_stats(deltas):
     if n > 1:
         tc = float(_st.t.ppf(0.975, df=n - 1))
         out["tcrit"] = tc
-        out["ci95_half"] = tc * out["std"] / np.sqrt(n)
+        out["ci95_half"] = float(tc * out["std"] / np.sqrt(n))
+        out["ci_low"] = float(out["mean"] - out["ci95_half"])
+        out["ci_high"] = float(out["mean"] + out["ci95_half"])
         t = _st.ttest_1samp(d, 0.0)
         out["t_stat"], out["t_p"] = float(t.statistic), float(t.pvalue)
         if np.any(d != 0):
@@ -874,8 +785,6 @@ def paired_stats(deltas):
                 out["wilcoxon_stat"], out["wilcoxon_p"] = float(w.statistic), float(w.pvalue)
             except ValueError as e:
                 print(f"  Wilcoxon not computed: {e}")
-    else:
-        out["ci95_half"] = 0.0
     return out
 
 
@@ -2105,6 +2014,7 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
+    # Parse CLI arguments (including --results-dir, --out-dir, --include-mini, --skip-plots)
     _args = parse_args(argv)
     print("Loading data...")
     inc_mini = True if _args.include_mini else None
@@ -2115,7 +2025,7 @@ def main(argv=None):
     )
 
     if df.empty:
-        print("No data found, make sure results/results_summary_*.xlsx exist.")
+        print("No data found, make sure results/*/results/metrics.json or summary.txt exist.")
         sys.exit(1)
 
     print(f"\nTotal rows: {len(df)}")

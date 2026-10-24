@@ -468,7 +468,8 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     if os.environ.get("QUAFFLE_SKIP_CURVE_PLOTS", "0").lower() in ("1", "true", "yes"):
         return
     
-    # Extract metrics - handle different key formats
+    # Extract metrics - handle different key formats without shifting the x-axis origin
+    is_federated = ('round' in metrics[0]) or ('fed' in f"{prefix} {title_prefix}".lower())
     if 'round' in metrics[0]:
         # Federated metrics
         x_values = [m['round'] for m in metrics]
@@ -476,15 +477,11 @@ def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     elif 'epoch' in metrics[0]:
         # Centralized metrics using epochs
         x_values = [m['epoch'] for m in metrics]
-        x_label = 'Training Epoch'
+        x_label = 'Federated Round' if is_federated else 'Training Epoch'
     else:
-        # Centralized metrics using steps
+        # Centralized/federated metrics using steps (preserve actual 1-indexed step/round values)
         x_values = [m['step'] for m in metrics]
-        x_label = 'Training Step'
-        # Normalize steps to start from 0
-        if x_values:
-            first_step = x_values[0]
-            x_values = [x - first_step for x in x_values]
+        x_label = 'Federated Round' if is_federated else 'Training Step'
     
     losses = [m['loss'] for m in metrics]
     accuracies = [m['accuracy'] for m in metrics]

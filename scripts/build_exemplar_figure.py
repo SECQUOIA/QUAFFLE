@@ -21,6 +21,7 @@ test tiles from <repo>/data. Run from anywhere:
 """
 import argparse
 import os
+import re
 import sys
 import json
 import numpy as np
@@ -38,15 +39,61 @@ DATA_ROOT = os.path.join(REPO_ROOT, "data")
 # Pooled Opt.+SAR ("combined") row is not included: the QUAFFLE prediction
 # from the combined checkpoint did not align with the ground-truth flood mask cleanly enough
 # to serve as a representative exemplar. The single-modality optical and SAR rows remain.
-# Result dirs now carry a quantum variant tag (e.g. _reupload_L2, _legacy)
-# before _seed<N>. QUAFFLE_EXEMPLAR_VARIANT picks the tag; the untagged
-# (older) directory name is used as a fallback.
+# Result dirs now carry an optional _qc<N> tag (when QC != 32) and a quantum
+# variant tag (e.g. _reupload_L2, _legacy) before _seed<N>.
+# QUAFFLE_EXEMPLAR_QC and QUAFFLE_EXEMPLAR_VARIANT configure both the checkpoint
+# path lookup and the QVUNetSegmentation architecture in CONFIG.
+EXEMPLAR_QC = int(os.environ.get("QUAFFLE_EXEMPLAR_QC", "32"))
 EXEMPLAR_VARIANT = os.environ.get("QUAFFLE_EXEMPLAR_VARIANT", "reupload_L2")
 
 
-def _fed_ckpt(ds_suffix, seed=999):
-    base = os.path.join(RESULTS_DIR, f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}")
-    candidates = [f"{base}_{EXEMPLAR_VARIANT}_seed{seed}", f"{base}_seed{seed}"]
+def _parse_exemplar_variant(variant_str: str):
+    v = (variant_str or "reupload_L2").strip()
+    if v == "legacy":
+        return "legacy", 1
+    m = re.match(r"^([A-Za-z0-9]+)_L(\d+)$", v)
+    if m:
+        return m.group(1), int(m.group(2))
+    if v == "reupload":
+        return "reupload", 2
+    return v, 2
+
+
+_EXEMPLAR_ANSATZ, _EXEMPLAR_LAYERS = _parse_exemplar_variant(EXEMPLAR_VARIANT)
+
+
+def _normalize_ds_suffix(dataset_or_suffix: str) -> str:
+    s = (dataset_or_suffix or "").strip().lower()
+    if s in ("", "optical"):
+        return ""
+    if s in ("sar", "_sar"):
+        return "_sar"
+    if s in ("combined", "_combined"):
+        return "_combined"
+    return s if s.startswith("_") else f"_{s}"
+
+
+def _fed_ckpt(*args, seed=999):
+    if len(args) == 1:
+        ds_suffix = _normalize_ds_suffix(args[0])
+    elif len(args) == 2:
+        if isinstance(args[1], int):
+            ds_suffix = _normalize_ds_suffix(args[0])
+            seed = int(args[1])
+        else:
+            ds_suffix = _normalize_ds_suffix(args[1])
+    elif len(args) >= 3:
+        ds_suffix = _normalize_ds_suffix(args[1])
+        seed = int(args[2])
+    else:
+        ds_suffix = ""
+    qc_suffix = "" if EXEMPLAR_QC == 32 else f"_qc{EXEMPLAR_QC}"
+    vtag = "" if not EXEMPLAR_VARIANT else f"_{EXEMPLAR_VARIANT}"
+    base = os.path.join(
+        RESULTS_DIR,
+        f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}",
+    )
+    candidates = [f"{base}{vtag}_seed{seed}", f"{base}_seed{seed}"]
     for d in candidates:
         for name in ("checkpoint_round_25.pt", "fed_resume.pt"):
             p = os.path.join(d, name)
@@ -73,8 +120,10 @@ CONFIG = {
     "out_dim": 2,
     "dim_mults": (1, 2, 4, 8),
     "resnet_block_groups": 4,
-    "quantum_channels": 32,
+    "quantum_channels": EXEMPLAR_QC,
     "quantum_backend": "pennylane",
+    "q_ansatz": _EXEMPLAR_ANSATZ,
+    "q_layers": _EXEMPLAR_LAYERS,
 }
 
 sys.path.insert(0, REPO_ROOT)
@@ -171,13 +220,14 @@ def main(argv=None):
         _ = sum(p.numel() for p in model.parameters())
         ckpt = torch.load(ckpt_path, map_location=device)
         # Common patterns
-        if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
-            state = ckpt["model_state_dict"]
-        elif isinstance(ckpt, dict) and "parameters" in ckpt:
+        if isinstance(ckpt, dict) and ("best_state_dict" in ckpt or "model_state_dict" in ckpt):
+            state = ckpt.get("best_state_dict") or ckpt.get("model_state_dict")
+        elif isinstance(ckpt, dict) and ("best_parameters" in ckpt or "parameters" in ckpt):
             # fed_resume.pt stores the global parameters as a list of arrays
-            # in model.parameters() order.
+            # in model.parameters() order (prefer best_parameters when available).
+            params_list = ckpt.get("best_parameters") or ckpt.get("parameters")
             with torch.no_grad():
-                for p, arr in zip(model.parameters(), ckpt["parameters"]):
+                for p, arr in zip(model.parameters(), params_list):
                     p.copy_(torch.from_numpy(arr).to(p.device))
             state = None
         elif isinstance(ckpt, dict) and "state_dict" in ckpt:
