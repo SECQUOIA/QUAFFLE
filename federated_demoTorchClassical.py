@@ -179,9 +179,8 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
             self.template_model = tc.build_model(UNetSegmentation, self.config)
             self.template_model.to(self.device)
         
-        # Create local model copy and load parameters
-        self.local_model = copy.deepcopy(self.template_model)
-        self.local_model.to(self.device)
+        # Reuse template_model directly without redundant deepcopy (#10)
+        self.local_model = self.template_model
         
         # Update parameters if provided
         if parameters:
@@ -261,15 +260,12 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
             self.template_model = tc.build_model(UNetSegmentation, self.config)
             self.template_model.to(self.device)
         
-        # Create evaluation model and load parameters
-        eval_model = copy.deepcopy(self.template_model)
-        eval_model.to(self.device)
-        
+        # Reuse template_model directly without redundant deepcopy (#10)
         if parameters:
-            numpy_to_torch_params(eval_model, parameters)
+            numpy_to_torch_params(self.template_model, parameters)
         
         # Evaluate on local data
-        metrics = evaluate_model(eval_model, self.eval_loader, self.device)
+        metrics = evaluate_model(self.template_model, self.eval_loader, self.device)
         
         loss = float(metrics['loss'])
         num_examples = len(self.client_dataset)
@@ -293,6 +289,13 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
         self.output_dir = output_dir
         self.round_metrics = []
         self.best_performance = 0.0
+        self.select_metric = tc.select_metric_name(config)
+        self.best_val_score = tc.initial_best_val_score(self.select_metric)
+        self.best_round = None
+        self.best_parameters = None
+        self.best_val_metrics = None
+        self.final_parameters = None
+        self.final_round = None
         self.failed_rounds = []
         self._current_parameters = None
         self.fingerprint = None
@@ -325,17 +328,25 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
                     self.template_model = tc.build_model(UNetSegmentation, self.config)
                     self.template_model.to(self.device)
                 
-                # Create evaluation model and load parameters
-                eval_model = copy.deepcopy(self.template_model)
-                eval_model.to(self.device)
-                numpy_params = parameters_to_ndarrays(self._current_parameters)
+                # Reuse template_model directly without redundant deepcopy (#10)
+                eval_model = self.template_model
+                numpy_params = tc.parameters_to_ndarrays_safe(self._current_parameters)
                 numpy_to_torch_params(eval_model, numpy_params)
                 
                 # Evaluate global model
                 metrics = evaluate_model(eval_model, self.val_loader, self.device)
                 metrics['step'] = server_round
                 
-                # Track best performance
+                # Track best validation checkpoint (#6)
+                cand_score = tc.extract_val_score(metrics, self.select_metric)
+                if self.best_parameters is None or tc.is_better_val_score(
+                    cand_score, self.best_val_score, self.select_metric
+                ):
+                    self.best_val_score = cand_score
+                    self.best_round = int(server_round)
+                    self.best_val_metrics = dict(metrics)
+                    self.best_parameters = tc.clone_flower_parameters(self._current_parameters)
+
                 if metrics['auc'] > self.best_performance:
                     self.best_performance = metrics['auc']
                 
@@ -355,7 +366,9 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
                         'model_state_dict': eval_model.state_dict(),
                         'round': server_round,
                         'round_metrics': self.round_metrics,
-                        'best_performance': self.best_performance
+                        'best_performance': self.best_performance,
+                        'best_val_score': self.best_val_score,
+                        'best_round': self.best_round,
                     }, unique_checkpoint_path)
                     print(f"Unique checkpoint saved: checkpoint_round_{server_round}.pt")
 
@@ -375,8 +388,13 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
         # Store current parameters for evaluation
         if aggregated_result is not None:
             self._current_parameters = aggregated_result[0]
+            self.final_parameters = aggregated_result[0]
+            self.final_round = int(server_round)
         
         return aggregated_result
+
+
+CustomFedAvg = ClassicalFedAvg
 
 # Use the utility function for client dataset creation
 
@@ -531,25 +549,29 @@ def main():
             num_clients=config['num_clients'],
             config=fl.server.ServerConfig(num_rounds=remaining_rounds),
             strategy=strategy,
-            client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0}
+            client_resources={"num_cpus": 1.0, "num_gpus": 0.2 if device_str == 'cuda' else 0.0}
         )
     
     print(f"\nFederated training completed!")
     if strategy.failed_rounds:
         tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
                                 f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
-    if strategy._current_parameters is None:
+    if strategy._current_parameters is None and strategy.final_parameters is None:
         tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
     if len(strategy.round_metrics) == 0:
-        tc.fail_run(output_dir, "no server-side validation round completed")
+        print("Warning: no server-side validation round completed; falling back to final_parameters for test evaluation")
     print(f"Best AUC achieved: {strategy.best_performance:.4f}")
     
-    # Get final global model for testing
-    if hasattr(strategy, '_current_parameters') and strategy._current_parameters is not None:
+    # Get best global model (falling back to final parameters if no validation rounds ran) for testing
+    selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
+    final_test_result = None
+    if selected_params is not None:
         final_model = tc.build_model(UNetSegmentation, config)
         final_model.to(torch.device(device_str))
-        final_params = parameters_to_ndarrays(strategy._current_parameters)
-        numpy_to_torch_params(final_model, final_params)
+        numpy_to_torch_params(final_model, selected_params)
+        if used_best:
+            print(f"Restored best federated validation parameters from round {strategy.best_round} "
+                  f"({strategy.select_metric}={strategy.best_val_score:.4f})")
         
         # Save final training curves
         if strategy.round_metrics:
@@ -564,7 +586,7 @@ def main():
         
         test_result = None
         
-        # Test and visualize with final global model
+        # Test and visualize with restored best global model
         if os.path.exists(test_images_dir):
             print("Loading test data for evaluation and visualization...")
             test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
@@ -576,6 +598,20 @@ def main():
             test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
             print(f"Test Results - Loss: {test_result['loss']:.4f}, "
                   f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
+            final_round = getattr(strategy, 'final_round', None)
+            if final_round is None and strategy.round_metrics:
+                final_round = strategy.round_metrics[-1].get('step')
+            if (
+                used_best
+                and final_params is not None
+                and (strategy.best_round != final_round or not tc.ndarrays_equal(selected_params, final_params))
+            ):
+                numpy_to_torch_params(final_model, final_params)
+                final_test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
+                numpy_to_torch_params(final_model, selected_params)
+            else:
+                final_test_result = dict(test_result)
 
             # Log test results to evaluation log file
             with open(strategy.eval_log_path, 'a') as f:
@@ -612,6 +648,7 @@ def main():
                 f.write(f"Base channels: {config['base_channels']}\n")
                 f.write(f"Image size: {config['image_size']}\n")
                 f.write(f"Federated rounds: {config['fed_rounds']}\n")
+                f.write(f"Checkpoint selection metric: {strategy.select_metric} (best round: {strategy.best_round})\n")
                 f.write(f"Number of clients: {config['num_clients']}\n")
                 f.write(f"Clients per round: {config['clients_per_round']}\n")
                 f.write(f"Local epochs: {config['local_epochs']}\n")
@@ -622,7 +659,14 @@ def main():
                 f.write(f"Best AUC achieved: {strategy.best_performance:.4f}\n\n")
                 
                 if strategy.round_metrics:
+                    best_metrics = strategy.best_val_metrics or strategy.round_metrics[-1]
                     final_metrics = strategy.round_metrics[-1]
+                    f.write(f"Best Validation Results (round {strategy.best_round}):\n")
+                    f.write(f"  Loss: {best_metrics['loss']:.4f}\n")
+                    f.write(f"  Accuracy: {best_metrics['accuracy']:.4f}\n")
+                    f.write(f"  AUC: {best_metrics['auc']:.4f}\n")
+                    f.write(f"  IoU: {best_metrics['iou']:.4f}\n")
+                    f.write(f"  Dice: {best_metrics['dice']:.4f}\n\n")
                     f.write("Final Validation Results:\n")
                     f.write(f"  Loss: {final_metrics['loss']:.4f}\n")
                     f.write(f"  Accuracy: {final_metrics['accuracy']:.4f}\n")
@@ -644,12 +688,17 @@ def main():
             print(f"Results summary saved to: {summary_path}")
     
     # Canonical per-run metrics (analysis reads this, not the Excel file).
-    final_val = strategy.round_metrics[-1]
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    best_val = strategy.best_val_metrics or final_val
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated", model_type="classical",
-        config=config, val_metrics=final_val, test_metrics=test_result,
+        config=config, val_metrics=best_val, best_val_metrics=best_val,
+        final_val_metrics=final_val, test_metrics=test_result,
+        best_val_test_metrics=test_result, final_test_metrics=final_test_result,
         history=strategy.round_metrics, total_params=total_params,
-        best_val_auc=strategy.best_performance, knockout=None,
+        best_val_auc=strategy.best_performance,
+        best_val_score=strategy.best_val_score, best_round=strategy.best_round,
+        knockout=None,
         provenance=provenance,
         extra={'resumed_from_round': strategy.resumed_from_round})
 
@@ -661,7 +710,7 @@ def main():
         framework="torch",
         training="federated",
         variant="classical",
-        val_metrics=final_val,
+        val_metrics=best_val,
         test_metrics=test_result,
         config=excel_config,
         dataset=args.dataset,

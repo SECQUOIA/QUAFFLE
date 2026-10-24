@@ -263,6 +263,11 @@ def run_centralized_torch(args):
 
     start_epoch = 0
     train_metrics, val_metrics = [], []
+    select_metric = tc.select_metric_name(config)
+    best_val_score = tc.initial_best_val_score(select_metric)
+    best_state_dict = None
+    best_epoch = None
+    best_val_metrics = None
     ckpt = tc.safe_torch_load(ckpt_path, map_location=device)
     if ckpt is not None and not tc.checkpoint_matches_centralized(
         ckpt, config, 'ablation', ckpt_path
@@ -274,6 +279,12 @@ def run_centralized_torch(args):
         start_epoch = ckpt.get('epoch', 0)
         train_metrics = ckpt.get('train_metrics', [])
         val_metrics   = ckpt.get('val_metrics', [])
+        best_state_dict = tc.clone_state_dict_cpu(ckpt.get('best_state_dict'))
+        best_val_score = ckpt.get(
+            'best_val_score', tc.initial_best_val_score(select_metric)
+        )
+        best_epoch = ckpt.get('best_epoch', ckpt.get('best_step'))
+        best_val_metrics = ckpt.get('best_val_metrics')
         tc.restore_rng_state(ckpt.get('rng_state'), train_loader)
         print(f"Checkpoint loaded, resuming from epoch {start_epoch}")
     else:
@@ -283,6 +294,12 @@ def run_centralized_torch(args):
         r = evaluate_model(model, val_loader, device)
         r['epoch'] = start_epoch
         val_metrics.append(r)
+        cand_score = tc.extract_val_score(r, select_metric)
+        if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+            best_val_score = cand_score
+            best_epoch = start_epoch
+            best_val_metrics = dict(r)
+            best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
         print(f"Initial Val: Loss={r['loss']:.4f} Acc={r['accuracy']:.4f} "
               f"AUC={r['auc']:.4f} IoU={r['iou']:.4f} Dice={r['dice']:.4f}")
         with open(eval_log, 'a') as f:
@@ -305,6 +322,12 @@ def run_centralized_torch(args):
             r = evaluate_model(model, val_loader, device)
             r['epoch'] = epoch
             val_metrics.append(r)
+            cand_score = tc.extract_val_score(r, select_metric)
+            if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+                best_val_score = cand_score
+                best_epoch = epoch
+                best_val_metrics = dict(r)
+                best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
             print(f"Val Epoch {epoch}: Loss={r['loss']:.4f} Acc={r['accuracy']:.4f} "
                   f"AUC={r['auc']:.4f} IoU={r['iou']:.4f} Dice={r['dice']:.4f}")
             with open(eval_log, 'a') as f:
@@ -312,6 +335,12 @@ def run_centralized_torch(args):
                         f"Accuracy={r['accuracy']:.4f} AUC={r['auc']:.4f} "
                         f"IoU={r['iou']:.4f} Dice={r['dice']:.4f}\n")
             tc.atomic_torch_save({'model_state_dict': model.state_dict(),
+                                  'best_state_dict': best_state_dict,
+                                  'best_val_score': best_val_score,
+                                  'best_epoch': best_epoch,
+                                  'best_step': best_epoch,
+                                  'best_val_metrics': best_val_metrics,
+                                  'select_metric': select_metric,
                                   'run_format': tc.RUN_FORMAT,
                                   'fingerprint': tc.centralized_fingerprint(config, 'ablation'),
                                   'optimizer_state_dict': optimizer.state_dict(),
@@ -321,6 +350,12 @@ def run_centralized_torch(args):
             tc.maybe_stop_after_centralized_step(config, epoch, config['num_epochs'], label='epoch')
             if epoch % 100 == 0:
                 torch.save({'model_state_dict': model.state_dict(),
+                            'best_state_dict': best_state_dict,
+                            'best_val_score': best_val_score,
+                            'best_epoch': best_epoch,
+                            'best_step': best_epoch,
+                            'best_val_metrics': best_val_metrics,
+                            'select_metric': select_metric,
                             'run_format': tc.RUN_FORMAT,
                             'fingerprint': tc.centralized_fingerprint(config, 'ablation'),
                             'epoch': epoch},
@@ -329,11 +364,22 @@ def run_centralized_torch(args):
             save_training_curves(val_metrics, output_dir,
                                  title_prefix="Ablation Centralized Torch Classical ")
 
+    final_state_dict = tc.clone_state_dict_cpu(model.state_dict())
+    if best_state_dict is None:
+        best_state_dict = final_state_dict
+        best_epoch = epoch
+        best_val_metrics = None
+        best_val_score = float('nan')
+    model.load_state_dict(best_state_dict)
+    print(f"Restored best validation checkpoint from epoch {best_epoch} "
+          f"({select_metric}={best_val_score:.4f})")
+
     if val_metrics:
         save_training_curves(val_metrics, output_dir,
                              title_prefix="Ablation Centralized Torch Classical ")
 
     test_result = None
+    final_test_result = None
     knockout = None
     if os.path.exists(test_images_dir):
         test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
@@ -343,6 +389,12 @@ def run_centralized_torch(args):
         print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
               f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
               f"Dice={test_result['dice']:.4f}")
+        if best_epoch != epoch and final_state_dict is not None:
+            model.load_state_dict(final_state_dict)
+            final_test_result = evaluate_model(model, test_loader, device)
+            model.load_state_dict(best_state_dict)
+        else:
+            final_test_result = dict(test_result)
         if config.get('quantum_knockout_eval'):
             print("Quantum knockout evaluation on the test set...")
             knockout = tc.knockout_eval(model, test_loader, device, evaluate_model,
@@ -354,16 +406,24 @@ def run_centralized_torch(args):
 
     if test_result is None:
         tc.fail_run(output_dir, f"no test set at {test_images_dir}, refusing to write a summary or tracker row")
+    final_val = val_metrics[-1] if val_metrics else None
+    best_val = best_val_metrics or final_val
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, val_metrics, test_result, mode='centralized',
                          extra_lines=[f"Validation: global held-out {len(va_idx)} samples "
-                                      f"({config['val_fraction']} of the training pool, stratified)"],
-                         provenance=provenance, knockout=knockout)
+                                      f"({config['val_fraction']} of the training pool, stratified)",
+                                      f"Checkpoint selection metric: {select_metric} (best epoch: {best_epoch})"],
+                         provenance=provenance, knockout=knockout,
+                         best_val_metrics=best_val, best_step=best_epoch,
+                         final_test_result=final_test_result)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="centralized",
         model_type="ablation", config=config,
-        val_metrics=val_metrics[-1] if val_metrics else None, test_metrics=test_result,
+        val_metrics=best_val, best_val_metrics=best_val, final_val_metrics=final_val,
+        test_metrics=test_result, best_val_test_metrics=test_result,
+        final_test_metrics=final_test_result,
         history=val_metrics, total_params=total_params,
+        best_val_score=best_val_score, best_epoch=best_epoch, best_step=best_epoch,
         knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance,
         extra={
@@ -376,7 +436,7 @@ def run_centralized_torch(args):
         demo_name=f"Ablation Centralized Torch Bottleneck (vs {backend})",
         framework="torch", training="centralized",
         variant=f"classical_matched_{config['base_channels']}ch",
-        val_metrics=val_metrics[-1] if val_metrics else None,
+        val_metrics=best_val,
         test_metrics=test_result, config={**config, 'total_params': total_params},
         dataset=args.dataset, provenance=provenance,
     )
@@ -436,7 +496,7 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
         torch.backends.cudnn.benchmark = False
         if self.template_model is None:
             self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
-        self.local_model = copy.deepcopy(self.template_model).to(self.device)
+        self.local_model = self.template_model
         if parameters:
             _numpy_to_torch_params(self.local_model, parameters)
         opt = torch.optim.Adam(self.local_model.parameters(), lr=self.config['learning_rate'])
@@ -467,13 +527,16 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
         from utilsTorch import ClassicalAblationUNetSegmentation, evaluate_model
         if self.template_model is None:
             self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
-        m = copy.deepcopy(self.template_model).to(self.device)
+        m = self.template_model
         if parameters:
             _numpy_to_torch_params(m, parameters)
         metrics = evaluate_model(m, self.eval_loader, self.device)
         return (float(metrics['loss']), len(self.loader.dataset),
                 {"accuracy": float(metrics['accuracy']), "auc": float(metrics['auc']),
                  "iou": float(metrics['iou']), "dice": float(metrics['dice'])})
+
+
+AblationFlowerClient = _TorchClassicalFlowerClient
 
 
 class _TorchAblationFedAvg:
@@ -491,6 +554,13 @@ class _TorchAblationFedAvg:
         self.output_dir = output_dir
         self.round_metrics = []
         self.best_performance = 0.0
+        self.select_metric = tc.select_metric_name(config)
+        self.best_val_score = tc.initial_best_val_score(self.select_metric)
+        self.best_round = None
+        self.best_parameters = None
+        self.best_val_metrics = None
+        self.final_parameters = None
+        self.final_round = None
         self._current_parameters = None
         self.failed_rounds = []
         # Resume support: Flower counts rounds from 1 in every process, a
@@ -532,6 +602,8 @@ class _TorchAblationFedAvg:
         agg = self._base.aggregate_fit(server_round, results, failures)
         if agg is not None:
             self._current_parameters = agg[0]
+            self.final_parameters = agg[0]
+            self.final_round = int(server_round)
         return agg
 
     def aggregate_evaluate(self, server_round, results, failures):
@@ -545,12 +617,19 @@ class _TorchAblationFedAvg:
                 self.device = torch.device(self.device_str if torch.cuda.is_available() else 'cpu')
             if self.template_model is None:
                 self.template_model = tc.build_model(ClassicalAblationUNetSegmentation, self.config).to(self.device)
-            m = copy.deepcopy(self.template_model).to(self.device)
+            m = self.template_model
             _numpy_to_torch_params(m, parameters_to_ndarrays(self._current_parameters))
             metrics = evaluate_model(m, self.val_loader, self.device)
             metrics['step'] = server_round
             if metrics['auc'] > self.best_performance:
                 self.best_performance = metrics['auc']
+            cand_score = tc.extract_val_score(metrics, self.select_metric)
+            if (self.best_parameters is None or
+                    tc.is_better_val_score(cand_score, self.best_val_score, self.select_metric)):
+                self.best_val_score = cand_score
+                self.best_round = server_round
+                self.best_val_metrics = dict(metrics)
+                self.best_parameters = tc.clone_flower_parameters(self._current_parameters)
             self.round_metrics.append(metrics)
             print(f"Global Round {server_round}: Loss={metrics['loss']:.4f} "
                   f"Acc={metrics['accuracy']:.4f} AUC={metrics['auc']:.4f} "
@@ -569,6 +648,9 @@ class _TorchAblationFedAvg:
     def evaluate(self, server_round, parameters):
         r = server_round + self.round_offset if server_round > 0 else server_round
         return self._base.evaluate(r, parameters)
+
+
+CustomFedAvg = _TorchAblationFedAvg
 
 
 def run_federated_torch(args):
@@ -693,7 +775,7 @@ def run_federated_torch(args):
             num_clients=config['num_clients'],
             config=fl.server.ServerConfig(num_rounds=remaining_rounds),
             strategy=strategy,
-            client_resources={"num_cpus": 1.0, "num_gpus": 0.1 if device_str == 'cuda' else 0.0},
+            client_resources={"num_cpus": 1.0, "num_gpus": 0.2 if device_str == 'cuda' else 0.0},
         )
     else:
         print(f"\nAll {config['fed_rounds']} rounds already completed in the checkpoint, "
@@ -702,18 +784,28 @@ def run_federated_torch(args):
     if strategy.failed_rounds:
         tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
                                 f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
-    if strategy._current_parameters is None:
+    if strategy._current_parameters is None and strategy.final_parameters is None:
         tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
     if not strategy.round_metrics:
-        tc.fail_run(output_dir, "no server-side validation round completed")
-    print(f"\nFederated training complete. Best AUC: {strategy.best_performance:.4f}")
+        print("Warning: no server-side validation round completed; falling back to final aggregated parameters")
+    selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
+    best_round = strategy.best_round
+    best_val_score = strategy.best_val_score
+    best_val_metrics = strategy.best_val_metrics
+    score_str = f"{best_val_score:.4f}" if best_round is not None else "n/a"
+    print(f"\nFederated training complete. Best {strategy.select_metric}: {score_str} "
+          f"(round {best_round}), Best AUC: {strategy.best_performance:.4f}")
 
     test_result = None
+    final_test_result = None
     knockout = None
-    if strategy._current_parameters is not None:
+    if selected_params is not None:
         final_model = tc.build_model(ClassicalAblationUNetSegmentation, config)
         final_model.to(torch.device(device_str))
-        _numpy_to_torch_params(final_model, parameters_to_ndarrays(strategy._current_parameters))
+        _numpy_to_torch_params(final_model, selected_params)
+        if used_best:
+            print(f"Restored best validation global parameters from round {best_round} "
+                  f"({strategy.select_metric}={best_val_score:.4f})")
 
         if strategy.round_metrics:
             save_training_curves(strategy.round_metrics, output_dir,
@@ -728,6 +820,16 @@ def run_federated_torch(args):
             print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
                   f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
                   f"Dice={test_result['dice']:.4f}")
+            final_round = getattr(strategy, 'final_round', None)
+            if final_round is None and strategy.round_metrics:
+                final_round = strategy.round_metrics[-1].get('step')
+            if (used_best and final_params is not None and
+                    (best_round != final_round or not tc.ndarrays_equal(selected_params, final_params))):
+                _numpy_to_torch_params(final_model, final_params)
+                final_test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
+                _numpy_to_torch_params(final_model, selected_params)
+            else:
+                final_test_result = dict(test_result)
             if config.get('quantum_knockout_eval'):
                 print("Quantum knockout evaluation on the test set...")
                 knockout = tc.knockout_eval(final_model, test_loader, torch.device(device_str), evaluate_model,
@@ -744,20 +846,28 @@ def run_federated_torch(args):
 
     if test_result is None:
         tc.fail_run(output_dir, f"no test evaluation (test set missing at {test_images_dir})")
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
+    best_val = best_val_metrics or final_val
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, strategy.round_metrics, test_result,
                          mode='federated',
                          extra_lines=split_info + [
                              f"Clients: {config['num_clients']}, Rounds: {config['fed_rounds']}, "
                              f"Local epochs: {config['local_epochs']}",
+                             f"Checkpoint selection metric: {strategy.select_metric} (best round: {best_round})",
                          ],
-                         provenance=provenance, knockout=knockout)
+                         provenance=provenance, knockout=knockout,
+                         best_val_metrics=best_val, best_step=best_round,
+                         final_test_result=final_test_result)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated",
         model_type="ablation", config=config,
-        val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
-        test_metrics=test_result, history=strategy.round_metrics,
+        val_metrics=best_val, best_val_metrics=best_val, final_val_metrics=final_val,
+        test_metrics=test_result, best_val_test_metrics=test_result,
+        final_test_metrics=final_test_result,
+        history=strategy.round_metrics,
         total_params=total_params, best_val_auc=strategy.best_performance,
+        best_val_score=best_val_score, best_round=best_round, best_step=best_round,
         knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance,
         extra={'reference_quantum_params': q_params,
@@ -767,7 +877,7 @@ def run_federated_torch(args):
         demo_name=f"Ablation Federated Torch Bottleneck (vs {backend})",
         framework="torch", training="federated",
         variant=f"classical_matched_{config['base_channels']}ch",
-        val_metrics=strategy.round_metrics[-1] if strategy.round_metrics else None,
+        val_metrics=best_val,
         test_metrics=test_result,
         config={**config, 'total_params': total_params},
         dataset=args.dataset, provenance=provenance,
@@ -779,7 +889,8 @@ def run_federated_torch(args):
 def _write_summary_torch(output_dir, backend, q_params, base_channels,
                          total_params, val_metrics, test_result,
                          mode='centralized', extra_lines=None, provenance=None,
-                         knockout=None):
+                         knockout=None, best_val_metrics=None, best_step=None,
+                         final_test_result=None):
     summary_path = os.path.join(output_dir, "results", "summary.txt")
     os.makedirs(os.path.dirname(summary_path), exist_ok=True)
     with open(summary_path, 'w') as f:
@@ -793,15 +904,25 @@ def _write_summary_torch(output_dir, backend, q_params, base_channels,
         f.write(f"Classical base_channels: {base_channels}\n")
         f.write(f"Classical model params:  {total_params:,}\n\n")
         if val_metrics:
-            v = val_metrics[-1]
+            bv = best_val_metrics or val_metrics[-1]
+            step_lbl = "epoch" if mode == 'centralized' else "round"
+            f.write(f"Best Validation ({step_lbl} {best_step}):\n")
+            f.write(f"  Loss: {bv['loss']:.4f}\n  Accuracy: {bv['accuracy']:.4f}\n")
+            f.write(f"  AUC: {bv['auc']:.4f}\n  IoU: {bv['iou']:.4f}\n  Dice: {bv['dice']:.4f}\n\n")
+            fv = val_metrics[-1]
             f.write("Final Validation:\n")
-            f.write(f"  Loss: {v['loss']:.4f}\n  Accuracy: {v['accuracy']:.4f}\n")
-            f.write(f"  AUC: {v['auc']:.4f}\n  IoU: {v['iou']:.4f}\n  Dice: {v['dice']:.4f}\n\n")
+            f.write(f"  Loss: {fv['loss']:.4f}\n  Accuracy: {fv['accuracy']:.4f}\n")
+            f.write(f"  AUC: {fv['auc']:.4f}\n  IoU: {fv['iou']:.4f}\n  Dice: {fv['dice']:.4f}\n\n")
         if test_result:
             f.write("Test Results:\n")
             f.write(f"  Loss: {test_result['loss']:.4f}\n  Accuracy: {test_result['accuracy']:.4f}\n")
             f.write(f"  AUC: {test_result['auc']:.4f}\n  IoU: {test_result['iou']:.4f}\n")
             f.write(f"  Dice: {test_result['dice']:.4f}\n")
+        if final_test_result:
+            f.write("\nFinal-Step Test Results:\n")
+            f.write(f"  Loss: {final_test_result['loss']:.4f}\n  Accuracy: {final_test_result['accuracy']:.4f}\n")
+            f.write(f"  AUC: {final_test_result['auc']:.4f}\n  IoU: {final_test_result['iou']:.4f}\n")
+            f.write(f"  Dice: {final_test_result['dice']:.4f}\n")
         if knockout:
             f.write("\n" + tc.format_knockout(knockout))
         if provenance:

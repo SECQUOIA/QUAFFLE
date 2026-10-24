@@ -6,13 +6,28 @@ of every model variant.
 
 ## Bottleneck layout
 
-The QVUNet bottleneck (`QVertex`) has two `QResnetBlock`s with attention in
+The QVUNet bottleneck (`QVertex`) has two `QResnetBlock`s (`AblationResnetBlock`
+is an alias used by the parameter-matched ablation) with attention in
 between. Each block splits the 256 bottleneck channels into 32 quantum channels
 and 224 classical channels. The 32 quantum channels form 8 groups of 4. Each
 group is spatially average pooled to 4 numbers, mapped by a 4 qubit circuit to
-4 `<Z>` values, and broadcast back over (H, W). The quantum output is therefore
-spatially constant within a group. The classical ablation keeps this exact
-pool, transform, broadcast pattern and only swaps the per-group transform.
+4 `<Z>` values, and broadcast back over (H, W). The quantum output `y_q` is
+therefore spatially constant within a group. The classical ablation keeps this
+exact pool, transform, broadcast pattern and only swaps the per-group transform.
+
+### Skip modulation (`skip_modulation`)
+
+Because `y_q` has shape `(B, qc, 1, 1)` broadcast over `(H, W)`, adding `y_q`
+directly (`x_skip[:, :qc] + y_q`) shifts each quantum skip channel by a pure
+spatial DC offset that is removed by spatial centering or downstream spatial
+`GroupNorm`. `QResnetBlock` (and `AblationResnetBlock`) therefore defaults to
+multiplicative/affine channel modulation (`skip_modulation='affine'`):
+
+* `'affine'` (default): `x_skip[:, :qc] * (1.0 + y_q)`, scaling spatial AC
+  variation in each quantum skip channel while collapsing cleanly to the identity
+  skip (`1.0 + 0 = 1.0`) when `quantum_mode='zero'`.
+* `'additive'`: `x_skip[:, :qc] + y_q`, retained for backward-compatible
+  evaluation or reproduction of legacy additive checkpoints (`--skip-modulation additive`).
 
 ## Circuit options (`q_ansatz`)
 
@@ -264,11 +279,14 @@ Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
 | `q_ansatz` | `'reupload'` | `'legacy'`, `'reupload'` |
 | `q_layers` | `2` | int >= 1 (reupload only) |
 | `q_share_blocks` | `True` | bool |
+| `skip_modulation` | `'affine'` | `'affine'`, `'additive'` (`QResnetBlock` / `AblationResnetBlock` skip modulation) |
+| `select_metric` | `'iou'` | `'iou'`, `'dice'`, `'auc'`, `'loss'` (validation metric for best-checkpoint restoration) |
 
 The training scripts set these keys from `--q-ansatz`, `--q-layers`,
-`--q-backend` and `--q-sim-device` (`tools/training_common.py`,
-`apply_common_args`) and build the model with `build_model`. The model
-reads the `q_*` keys from the config and `build_model` passes `seed`:
+`--q-backend`, `--q-sim-device`, `--skip-modulation`, and `--select-metric`
+(`tools/training_common.py`, `apply_common_args`) and build the model with
+`build_model`. The model reads the `q_*` and `skip_modulation` keys from the
+config and `build_model` passes `seed`:
 
 ```python
 config = tc.apply_common_args(config, args)

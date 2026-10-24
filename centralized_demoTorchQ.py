@@ -58,6 +58,11 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     start_step = 0
     train_metrics = []
     val_metrics = []
+    select_metric = tc.select_metric_name(config)
+    best_val_score = tc.initial_best_val_score(select_metric)
+    best_state_dict = None
+    best_step = None
+    best_val_metrics = None
     # Try to load checkpoint
     checkpoint = None
     if os.path.exists(checkpoint_path):
@@ -86,6 +91,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             start_step = checkpoint.get('step', 0)
             train_metrics = checkpoint.get('train_metrics', [])
             val_metrics = checkpoint.get('val_metrics', [])
+            best_state_dict = tc.clone_state_dict_cpu(checkpoint.get('best_state_dict'))
+            best_val_score = checkpoint.get(
+                'best_val_score', tc.initial_best_val_score(select_metric)
+            )
+            best_step = checkpoint.get('best_step', checkpoint.get('best_epoch'))
+            best_val_metrics = checkpoint.get('best_val_metrics')
             tc.restore_rng_state(checkpoint.get('rng_state'), train_loader)
             print(f"Checkpoint loaded successfully! Resuming from step {start_step}")
         else:
@@ -94,6 +105,25 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         print("No checkpoint found, starting from scratch")
     if start_step >= config['num_train_steps']:
         print(f"Training already completed at step {start_step}/{config['num_train_steps']}")
+        final_state_dict = tc.clone_state_dict_cpu(model.state_dict())
+        if best_state_dict is None:
+            best_state_dict = final_state_dict
+            best_step = start_step
+            best_val_metrics = dict(val_metrics[-1]) if val_metrics else None
+            best_val_score = (
+                tc.extract_val_score(best_val_metrics, select_metric)
+                if best_val_metrics else float('nan')
+            )
+        model.load_state_dict(best_state_dict)
+        model._best_state_dict = best_state_dict
+        model._final_state_dict = final_state_dict
+        model._best_val_score = best_val_score
+        model._best_step = best_step
+        model._best_epoch = best_step
+        model._best_val_metrics = best_val_metrics
+        model._final_step = start_step
+        model._final_epoch = start_step
+        model._select_metric = select_metric
         model._resumed_from_step = start_step
         model._steps_trained_this_run = 0
         return model, train_metrics, val_metrics
@@ -106,6 +136,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         val_result = evaluate_model(model, val_loader, device)
         val_result['step'] = step
         val_metrics.append(val_result)
+        cand_score = tc.extract_val_score(val_result, select_metric)
+        if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+            best_val_score = cand_score
+            best_step = step
+            best_val_metrics = dict(val_result)
+            best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
         print(f"Initial Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}, IoU = {val_result['iou']:.4f}, Dice = {val_result['dice']:.4f}")
 
         # Log initial evaluation scores to text file
@@ -125,6 +161,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             val_result = evaluate_model(model, val_loader, device)
             val_result['step'] = step
             val_metrics.append(val_result)
+            cand_score = tc.extract_val_score(val_result, select_metric)
+            if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+                best_val_score = cand_score
+                best_step = step
+                best_val_metrics = dict(val_result)
+                best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
             print(f"Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}, IoU = {val_result['iou']:.4f}, Dice = {val_result['dice']:.4f}")
 
             # Log evaluation scores to text file
@@ -135,6 +177,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
             # resumed run continues the same shuffle sequence)
             tc.atomic_torch_save({
                 'model_state_dict': model.state_dict(),
+                'best_state_dict': best_state_dict,
+                'best_val_score': best_val_score,
+                'best_step': best_step,
+                'best_epoch': best_step,
+                'best_val_metrics': best_val_metrics,
+                'select_metric': select_metric,
                 'run_format': tc.RUN_FORMAT,
                 'q_backend': config.get('q_backend', tc.DEFAULT_Q_BACKEND),
                 'fingerprint': tc.centralized_fingerprint(config, 'quantum'),
@@ -152,6 +200,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 unique_checkpoint_path = os.path.join(output_dir, f'checkpoint_step_{step}.pt')
                 torch.save({
                     'model_state_dict': model.state_dict(),
+                    'best_state_dict': best_state_dict,
+                    'best_val_score': best_val_score,
+                    'best_step': best_step,
+                    'best_epoch': best_step,
+                    'best_val_metrics': best_val_metrics,
+                    'select_metric': select_metric,
                     'run_format': tc.RUN_FORMAT,
                     'q_backend': config.get('q_backend', tc.DEFAULT_Q_BACKEND),
                     'fingerprint': tc.centralized_fingerprint(config, 'quantum'),
@@ -164,6 +218,24 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         if step % 50 == 0 and val_metrics:
             print(f"Saving training curves at step {step}...")
             save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
+    final_state_dict = tc.clone_state_dict_cpu(model.state_dict())
+    if best_state_dict is None:
+        best_state_dict = final_state_dict
+        best_step = step
+        best_val_metrics = None
+        best_val_score = float('nan')
+    model.load_state_dict(best_state_dict)
+    print(f"Restored best validation checkpoint from step {best_step} "
+          f"({select_metric}={best_val_score:.4f})")
+    model._best_state_dict = best_state_dict
+    model._final_state_dict = final_state_dict
+    model._best_val_score = best_val_score
+    model._best_step = best_step
+    model._best_epoch = best_step
+    model._best_val_metrics = best_val_metrics
+    model._final_step = step
+    model._final_epoch = step
+    model._select_metric = select_metric
     model._resumed_from_step = start_step
     model._steps_trained_this_run = step - start_step
     return model, train_metrics, val_metrics
@@ -289,16 +361,29 @@ def main():
                          num_samples=config['num_val_samples'])
     
     # Test and save test results
+    final_test_result = None
     if os.path.exists(test_images_dir):
         print("Loading test data for evaluation and visualization...")
         test_dataset = tc.load_dataset(test_images_dir, test_masks_dir, config)
         test_dataset = tc.cap_samples(test_dataset, config.get('max_samples'), config['seed'])
         test_loader = tc.make_loader(test_dataset, config['batch_size'], False, config['seed'])
         
-        # Evaluate on test set
+        if getattr(model, '_best_state_dict', None) is not None:
+            model.load_state_dict(model._best_state_dict)
+        # Evaluate on test set using restored best validation checkpoint
         print("Evaluating on test set...")
         test_result = evaluate_model(model, test_loader, device)
         print(f"Test Results - Loss: {test_result['loss']:.4f}, Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
+
+        if (
+            getattr(model, '_final_state_dict', None) is not None
+            and getattr(model, '_best_step', None) != getattr(model, '_final_step', None)
+        ):
+            model.load_state_dict(model._final_state_dict)
+            final_test_result = evaluate_model(model, test_loader, device)
+            model.load_state_dict(model._best_state_dict)
+        else:
+            final_test_result = dict(test_result)
 
         knockout = None
         if config.get('quantum_knockout_eval'):
@@ -337,9 +422,12 @@ def main():
             f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
             f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
             f.write(f"Quantum channels: {config['quantum_channels']}\n")
+            f.write(f"Skip modulation: {config.get('skip_modulation', tc.DEFAULT_SKIP_MODULATION)}\n")
             f.write(f"Base channels: {config['base_channels']}\n")
             f.write(f"Image size: {config['image_size']}\n")
             f.write(f"Training steps: {config['num_train_steps']}\n")
+            f.write(f"Checkpoint selection metric: {getattr(model, '_select_metric', tc.select_metric_name(config))} "
+                    f"(best step: {getattr(model, '_best_step', None)})\n")
             f.write(f"Total parameters: {total_params:,}\n")
             f.write(f"Trainable parameters: {trainable_params:,}\n")
             f.write(f"Validation: global held-out {len(val_subset)} samples "
@@ -347,7 +435,14 @@ def main():
             f.write(f"Training samples: {len(train_subset)}\n\n")
             
             if val_metrics:
+                best_val = getattr(model, '_best_val_metrics', None) or val_metrics[-1]
                 final_val = val_metrics[-1]
+                f.write(f"Best Validation Results (step {getattr(model, '_best_step', None)}):\n")
+                f.write(f"  Loss: {best_val['loss']:.4f}\n")
+                f.write(f"  Accuracy: {best_val['accuracy']:.4f}\n")
+                f.write(f"  AUC: {best_val['auc']:.4f}\n")
+                f.write(f"  IoU: {best_val['iou']:.4f}\n")
+                f.write(f"  Dice: {best_val['dice']:.4f}\n\n")
                 f.write("Final Validation Results:\n")
                 f.write(f"  Loss: {final_val['loss']:.4f}\n")
                 f.write(f"  Accuracy: {final_val['accuracy']:.4f}\n")
@@ -380,11 +475,18 @@ def main():
     excel_config = {k: v for k, v in config.items() if k != 'provenance'}
     excel_config['total_params'] = total_params
     final_val = val_metrics[-1] if val_metrics else None
+    best_val = getattr(model, '_best_val_metrics', None) or final_val
     # Canonical per-run metrics (analysis reads this, not the Excel file).
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="centralized",
-        model_type="quantum", config=excel_config, val_metrics=final_val,
-        test_metrics=test_result, history=val_metrics, total_params=total_params,
+        model_type="quantum", config=excel_config, val_metrics=best_val,
+        best_val_metrics=best_val, final_val_metrics=final_val,
+        test_metrics=test_result, best_val_test_metrics=test_result,
+        final_test_metrics=final_test_result, history=val_metrics,
+        total_params=total_params,
+        best_val_score=getattr(model, '_best_val_score', None),
+        best_epoch=getattr(model, '_best_step', None),
+        best_step=getattr(model, '_best_step', None),
         knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance, q_simulator=q_simulator,
         extra={
@@ -399,7 +501,7 @@ def main():
         framework="torch",
         training="centralized",
         variant="quantum",
-        val_metrics=final_val,
+        val_metrics=best_val,
         test_metrics=test_result,
         config=excel_config,
         dataset=args.dataset,

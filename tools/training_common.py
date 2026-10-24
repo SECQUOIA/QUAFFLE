@@ -18,6 +18,7 @@ Every function only depends on torch / numpy so it can be imported inside
 Ray workers.
 """
 import argparse
+import copy
 import hashlib
 import inspect
 import json
@@ -36,6 +37,14 @@ FLOOD_LABEL_THRESHOLD = 0.05
 DEFAULT_MIN_CLIENT_SAMPLES = 16
 DEFAULT_CKPT_EVERY = 5
 FED_CKPT_NAME = 'fed_resume.pt'
+
+# Validation metric used to select the best checkpoint for test evaluation (#6).
+SELECT_METRIC_CHOICES = ('iou', 'dice', 'auc', 'loss')
+DEFAULT_SELECT_METRIC = 'iou'
+
+# Skip-connection modulation mode in QResnetBlock / AblationResnetBlock (#27).
+SKIP_MODULATION_CHOICES = ('affine', 'additive')
+DEFAULT_SKIP_MODULATION = 'affine'
 
 # Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
 Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
@@ -173,12 +182,23 @@ def add_common_args(parser, quantum=True, federated=False):
     parser.add_argument('--val-fraction', type=float, default=VAL_FRACTION,
                         help='Fraction of the training pool held out as the global, '
                              'stratified validation set (default: 0.15)')
+    parser.add_argument('--select-metric', choices=list(SELECT_METRIC_CHOICES),
+                        default=DEFAULT_SELECT_METRIC,
+                        help="Validation metric used to select the best checkpoint for test "
+                             f"evaluation (default: {DEFAULT_SELECT_METRIC}; 'loss' minimizes, "
+                             "others maximize)")
     if quantum:
         parser.add_argument('--q-ansatz', choices=['reupload', 'legacy'], default='reupload',
                             help='Quantum bottleneck ansatz (default: reupload)')
         parser.add_argument('--q-layers', type=int, default=None,
                             help='Number of variational layers in the quantum bottleneck '
                                  '(default: model default)')
+        parser.add_argument('--skip-modulation', choices=list(SKIP_MODULATION_CHOICES),
+                            default=DEFAULT_SKIP_MODULATION,
+                            help="How QResnetBlock / AblationResnetBlock combines the spatially "
+                                 "broadcast bottleneck output y_q with the skip path x_skip[:, :qc]: "
+                                 "'affine' (default, x_skip * (1 + y_q) so downstream GroupNorm "
+                                 "does not cancel y_q) or 'additive' (legacy x_skip + y_q)")
         parser.add_argument('--quantum-knockout-eval', action='store_true',
                             help="Also evaluate the test set with the quantum block in "
                                  "mode 'zero' and 'random' and write both to summary.txt")
@@ -263,6 +283,14 @@ def apply_common_args(config, args):
         config['learning_rate'] = float(args.learning_rate)
     if getattr(args, 'no_save_samples', False):
         config['save_samples'] = False
+    if getattr(args, 'select_metric', None) is not None:
+        config['select_metric'] = str(args.select_metric).strip().lower()
+    else:
+        config.setdefault('select_metric', DEFAULT_SELECT_METRIC)
+    if getattr(args, 'skip_modulation', None) is not None:
+        config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
+        config['skip_modulation'] = effective_skip_modulation(config)
     if hasattr(args, 'q_ansatz'):
         config['q_ansatz'] = args.q_ansatz
     if getattr(args, 'q_layers', None) is not None:
@@ -804,6 +832,135 @@ def normalization_provenance(config):
         }
 
 
+def select_metric_name(config=None):
+    """Return validated validation selection metric name (default 'iou')."""
+    metric = DEFAULT_SELECT_METRIC
+    if isinstance(config, dict) and config.get('select_metric') is not None:
+        metric = str(config['select_metric']).strip().lower()
+    elif isinstance(config, str) and config.strip():
+        metric = config.strip().lower()
+    if metric not in SELECT_METRIC_CHOICES:
+        raise ValueError(
+            f"Unknown select_metric={metric!r}; expected one of {SELECT_METRIC_CHOICES}"
+        )
+    return metric
+
+
+def initial_best_val_score(select_metric=DEFAULT_SELECT_METRIC):
+    """Initial sentinel best validation score (+inf for 'loss', -inf otherwise)."""
+    metric = select_metric_name(select_metric)
+    return float('inf') if metric == 'loss' else float('-inf')
+
+
+def extract_val_score(metrics, select_metric=DEFAULT_SELECT_METRIC):
+    """Extract float score for `select_metric` from a validation metrics dict."""
+    metric = select_metric_name(select_metric)
+    if not isinstance(metrics, dict) or metric not in metrics or metrics[metric] is None:
+        return float('nan')
+    try:
+        return float(metrics[metric])
+    except (TypeError, ValueError):
+        return float('nan')
+
+
+def is_better_val_score(candidate_score, best_score, select_metric=DEFAULT_SELECT_METRIC):
+    """Return True if `candidate_score` strictly improves on `best_score`
+    (or if `best_score` is still at its initial sentinel / NaN)."""
+    metric = select_metric_name(select_metric)
+    try:
+        cand = float(candidate_score)
+    except (TypeError, ValueError):
+        return False
+    if cand != cand:  # NaN candidate never wins
+        return False
+    if best_score is None:
+        return True
+    try:
+        best = float(best_score)
+    except (TypeError, ValueError):
+        return True
+    if best != best:  # NaN best
+        return True
+    if metric == 'loss':
+        return cand < best
+    return cand > best
+
+
+def clone_state_dict_cpu(state_dict):
+    """Deep-clone a PyTorch state_dict onto CPU so later optimizer steps
+    never mutate the snapshot in-place."""
+    if state_dict is None:
+        return None
+    return {
+        k: (v.detach().cpu().clone() if hasattr(v, 'detach') else copy.deepcopy(v))
+        for k, v in state_dict.items()
+    }
+
+
+def effective_skip_modulation(config):
+    """Resolve and normalize the effective skip modulation ('affine' or 'additive'),
+    consulting `skip_modulation` first and falling back to `q_residual_mode`."""
+    from utilsTorch.unetTorch import normalize_skip_modulation
+    if not isinstance(config, dict):
+        return normalize_skip_modulation(config)
+    raw = config.get('skip_modulation')
+    if raw is None:
+        raw = config.get('q_residual_mode', DEFAULT_SKIP_MODULATION)
+    return normalize_skip_modulation(raw)
+
+
+def ndarrays_equal(a, b):
+    """Return True if two sequences of numpy arrays have identical shapes and values."""
+    if a is None or b is None or len(a) != len(b):
+        return False
+    return all(
+        a_arr.shape == b_arr.shape and np.array_equal(a_arr, b_arr)
+        for a_arr, b_arr in zip(a, b)
+    )
+
+
+def clone_ndarrays(ndarrays):
+    """Deep-copy a sequence of numpy parameter arrays."""
+    if ndarrays is None:
+        return None
+    return [np.array(arr, copy=True) for arr in ndarrays]
+
+
+def parameters_to_ndarrays_safe(params):
+    """Convert Flower `Parameters` or a sequence of numpy arrays into a list of numpy arrays."""
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return [np.array(arr, copy=True) for arr in params]
+    from flwr.common import parameters_to_ndarrays
+    return clone_ndarrays(parameters_to_ndarrays(params))
+
+
+def clone_flower_parameters(params):
+    """Deep-copy Flower `Parameters` (or a sequence of numpy arrays)."""
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return clone_ndarrays(params)
+    return copy.deepcopy(params)
+
+
+def select_federated_eval_parameters(strategy):
+    """Return (selected_ndarrays, final_ndarrays, used_best) from a federated strategy,
+    preferring `strategy.best_parameters` and falling back to `strategy.final_parameters`
+    (or `strategy._current_parameters`) when no validation round ran."""
+    best_p = getattr(strategy, 'best_parameters', None)
+    final_p = getattr(strategy, 'final_parameters', None)
+    if final_p is None:
+        final_p = getattr(strategy, '_current_parameters', None)
+    if best_p is not None:
+        return parameters_to_ndarrays_safe(best_p), parameters_to_ndarrays_safe(final_p), True
+    if final_p is not None:
+        nd = parameters_to_ndarrays_safe(final_p)
+        return nd, nd, False
+    return None, None, False
+
+
 def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
     """Simulate an interrupted centralized job right after saving checkpoint `current`."""
     stop = config.get('debug_stop_after_epoch')
@@ -825,6 +982,7 @@ def centralized_fingerprint(config, model_type):
     dim_mults = [int(m) for m in config.get('dim_mults', (1, 2, 4, 8))]
     resnet_block_groups = int(config.get('resnet_block_groups', 8))
     data_root = config.get('data_root')
+    skip_mod = effective_skip_modulation(config) if quantum else None
     return {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
@@ -832,6 +990,7 @@ def centralized_fingerprint(config, model_type):
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
+        'skip_modulation': skip_mod,
         'quantum_channels': (int(config['quantum_channels'])
                              if quantum and config.get('quantum_channels') is not None else None),
         'quantum_backend': (config.get('quantum_backend', 'pennylane')
@@ -843,6 +1002,7 @@ def centralized_fingerprint(config, model_type):
         'q_sim_device': (config.get('q_sim_device', DEFAULT_Q_SIM_DEVICE)
                          if model_type == 'quantum' else None),
         'q_share_blocks': bool(config.get('q_share_blocks', True)) if quantum else None,
+        'select_metric': select_metric_name(config),
         'epochs_or_steps': int(epochs_or_steps) if epochs_or_steps is not None else None,
         'batch_size': int(config['batch_size']),
         'learning_rate': float(config['learning_rate']),
@@ -1185,6 +1345,7 @@ def run_fingerprint(config, model_type):
     ansatz, layers = effective_q_variant(config)
     quantum = model_type in ('quantum', 'ablation')
     data_root = config.get('data_root')
+    skip_mod = effective_skip_modulation(config) if quantum else None
     fp = {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
@@ -1195,12 +1356,14 @@ def run_fingerprint(config, model_type):
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
+        'skip_modulation': skip_mod,
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         'quantum_backend': config.get('quantum_backend') if quantum else None,
         # Circuit simulator: a checkpoint written with another simulator (or
         # before q_backend was recorded) is never resumed.
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
                       if model_type == 'quantum' else None),
+        'select_metric': select_metric_name(config),
         'fed_rounds': int(config['fed_rounds']),
         'local_epochs': int(config['local_epochs']),
         'num_clients': int(config['num_clients']),
@@ -1336,17 +1499,42 @@ def apply_fed_resume(strategy, ckpt):
     Returns (initial_parameters or None, remaining_rounds)."""
     from flwr.common import ndarrays_to_parameters
     total = int(strategy.config['fed_rounds'])
+    select_metric = select_metric_name(strategy.config)
+    strategy.select_metric = select_metric
     if ckpt is None:
         strategy.round_offset = 0
         strategy.resumed_from_round = 0
+        if not hasattr(strategy, 'best_val_score') or strategy.best_val_score is None:
+            strategy.best_val_score = initial_best_val_score(select_metric)
         return None, total
     done = int(ckpt['completed_round'])
     strategy.round_offset = done
     strategy.resumed_from_round = done
     strategy.round_metrics = list(ckpt.get('round_metrics', []))
     strategy.best_performance = float(ckpt.get('best_performance', 0.0))
+    strategy.select_metric = select_metric_name(ckpt.get('select_metric', select_metric))
+    raw_best_score = ckpt.get('best_val_score')
+    strategy.best_val_score = (
+        float(raw_best_score)
+        if raw_best_score is not None
+        else initial_best_val_score(strategy.select_metric)
+    )
+    strategy.best_round = ckpt.get('best_round')
+    strategy.best_val_metrics = ckpt.get('best_val_metrics')
+    raw_final_round = ckpt.get('final_round')
+    strategy.final_round = int(raw_final_round) if raw_final_round is not None else done
     params = ndarrays_to_parameters(ckpt['parameters'])
     strategy._current_parameters = params
+    final_nd = ckpt.get('final_parameters') or ckpt['parameters']
+    strategy.final_parameters = ndarrays_to_parameters(final_nd)
+    best_nd = ckpt.get('best_parameters')
+    if best_nd is not None:
+        strategy.best_parameters = ndarrays_to_parameters(best_nd)
+    elif getattr(strategy, 'round_metrics', None):
+        # Fallback for checkpoints written without explicit best_parameters
+        strategy.best_parameters = ndarrays_to_parameters(ckpt['parameters'])
+    else:
+        strategy.best_parameters = None
     log = getattr(strategy, 'eval_log_path', None) or getattr(strategy, 'eval_log', None)
     if log:
         with open(log, 'a') as f:
@@ -1364,17 +1552,29 @@ def fed_round_end(strategy, server_round):
     cfg = strategy.config
     every = int(cfg.get('ckpt_every', DEFAULT_CKPT_EVERY))
     total = int(cfg['fed_rounds'])
-    if strategy._current_parameters is None:
+    curr_p = getattr(strategy, '_current_parameters', None) or getattr(strategy, 'final_parameters', None)
+    if curr_p is None:
         return
     if strategy.failed_rounds:
         print(f"Round {server_round}: not writing a resumable checkpoint after a failed round")
     elif server_round % every == 0 or server_round == total:
-        from flwr.common import parameters_to_ndarrays
+        curr_nd = parameters_to_ndarrays_safe(curr_p)
+        final_p = getattr(strategy, 'final_parameters', None) or curr_p
+        final_nd = parameters_to_ndarrays_safe(final_p)
+        best_p = getattr(strategy, 'best_parameters', None)
+        best_nd = parameters_to_ndarrays_safe(best_p) if best_p is not None else None
         atomic_torch_save({
             'run_format': RUN_FORMAT,
             'fingerprint': strategy.fingerprint,
             'completed_round': int(server_round),
-            'parameters': parameters_to_ndarrays(strategy._current_parameters),
+            'final_round': int(getattr(strategy, 'final_round', None) or server_round),
+            'parameters': curr_nd,
+            'final_parameters': final_nd,
+            'best_parameters': best_nd,
+            'select_metric': getattr(strategy, 'select_metric', select_metric_name(cfg)),
+            'best_val_score': getattr(strategy, 'best_val_score', None),
+            'best_round': getattr(strategy, 'best_round', None),
+            'best_val_metrics': getattr(strategy, 'best_val_metrics', None),
             'round_metrics': strategy.round_metrics,
             'best_performance': strategy.best_performance,
             'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -1424,13 +1624,31 @@ def _clean_metrics(m):
 def write_metrics_json(output_dir, *, script, training, model_type, config, val_metrics,
                        test_metrics, history=None, total_params=None, best_val_auc=None,
                        knockout=None, provenance=None, extra=None,
-                       q_simulator=None):
+                       q_simulator=None, best_val_metrics=None, final_val_metrics=None,
+                       best_val_test_metrics=None, final_test_metrics=None,
+                       best_val_score=None, best_epoch=None, best_step=None,
+                       best_round=None):
     """Canonical machine-readable result: <output_dir>/results/metrics.json.
 
     Written right after summary.txt and before the Excel tracker so analysis
     never depends on the shared workbook."""
     ansatz, layers = effective_q_variant(config)
     quantum = model_type in ('quantum', 'ablation')
+    sel_metric = select_metric_name(config)
+    eff_best_val = best_val_metrics if best_val_metrics is not None else val_metrics
+    eff_final_val = final_val_metrics if final_val_metrics is not None else val_metrics
+    eff_best_test = best_val_test_metrics if best_val_test_metrics is not None else test_metrics
+    eff_final_test = final_test_metrics if final_test_metrics is not None else test_metrics
+    if best_val_score is None and isinstance(eff_best_val, dict):
+        s_val = extract_val_score(eff_best_val, sel_metric)
+        if s_val == s_val and abs(s_val) != float('inf'):
+            best_val_score = s_val
+    elif best_val_score is not None:
+        try:
+            f_best = float(best_val_score)
+            best_val_score = f_best if (f_best == f_best and abs(f_best) != float('inf')) else None
+        except (TypeError, ValueError):
+            best_val_score = None
     payload = {
         'schema': 'quaffle-metrics-v1',
         'run_dir': os.path.basename(os.path.normpath(output_dir)),
@@ -1445,11 +1663,17 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
+        'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         # Circuit simulator (quantum runs only). The ablation has no circuit.
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
                       if model_type == 'quantum' else None),
         'q_simulator': q_simulator if model_type == 'quantum' else None,
+        'select_metric': sel_metric,
+        'best_val_score': best_val_score,
+        'best_epoch': best_epoch,
+        'best_step': best_step if best_step is not None else best_epoch,
+        'best_round': best_round,
         'total_params': total_params,
         'fed_rounds': config.get('fed_rounds') if training == 'federated' else None,
         'local_epochs': config.get('local_epochs') if training == 'federated' else None,
@@ -1463,8 +1687,12 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'max_samples': config.get('max_samples'),
         'is_mini_run': bool(scale_tag(config)),
         'norm_provenance': normalization_provenance(config),
-        'val': _clean_metrics(val_metrics),
-        'test': _clean_metrics(test_metrics),
+        'val': _clean_metrics(eff_best_val),
+        'best_val_metrics': _clean_metrics(eff_best_val),
+        'final_val_metrics': _clean_metrics(eff_final_val),
+        'test': _clean_metrics(eff_best_test),
+        'best_val_test_metrics': _clean_metrics(eff_best_test),
+        'final_test_metrics': _clean_metrics(eff_final_test),
         'best_val_auc': best_val_auc,
         'knockout': {k: _clean_metrics(v) for k, v in knockout.items()} if knockout else None,
         'history': [_clean_metrics(h) for h in (history or [])],
