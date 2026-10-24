@@ -94,6 +94,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         print("No checkpoint found, starting from scratch")
     if start_step >= config['num_train_steps']:
         print(f"Training already completed at step {start_step}/{config['num_train_steps']}")
+        model._resumed_from_step = start_step
+        model._steps_trained_this_run = 0
         return model, train_metrics, val_metrics
     print(f"Training {config['num_train_steps'] - start_step} remaining steps (from {start_step} to {config['num_train_steps']})")
     step = start_step
@@ -143,6 +145,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 'rng_state': tc.rng_state(train_loader),
             }, checkpoint_path)
             print(f"Checkpoint saved at step {step}")
+            tc.maybe_stop_after_centralized_step(config, step, config['num_train_steps'], label='step')
             
             # Save unique checkpoint every 100 steps
             if step % 100 == 0:
@@ -161,17 +164,21 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         if step % 50 == 0 and val_metrics:
             print(f"Saving training curves at step {step}...")
             save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
+    model._resumed_from_step = start_step
+    model._steps_trained_this_run = step - start_step
     return model, train_metrics, val_metrics
 
 DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
 
 def main():
     args = parse_args()
-    base_dir = DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir = os.path.join(base_dir, "Training", "labels")
-    test_images_dir = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
     print("=" * 60)
     print("Quantum Flood Segmentation Demo")
     print("=" * 60)
@@ -189,8 +196,12 @@ def main():
     config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
     # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
     # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
-    output_dir = (f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
-                  f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}")
+    output_dir = tc.resolve_output_dir(
+        f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
+        f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}",
+        config,
+        args,
+    )
     print(f"Output directory: {output_dir}")
 
     # Seed python, numpy, torch and cuda once, before any data or model work.
@@ -375,7 +386,12 @@ def main():
         model_type="quantum", config=excel_config, val_metrics=final_val,
         test_metrics=test_result, history=val_metrics, total_params=total_params,
         knockout=knockout if config.get('quantum_knockout_eval') else None,
-        provenance=provenance, q_simulator=q_simulator)
+        provenance=provenance, q_simulator=q_simulator,
+        extra={
+            'resumed_from_epoch': getattr(model, '_resumed_from_step', 0),
+            'resumed_from_step': getattr(model, '_resumed_from_step', 0),
+            'epochs_trained_this_run': getattr(model, '_steps_trained_this_run', 0),
+        })
     # Shared Excel summary: best effort, a tracker failure never fails the run.
     tc.safe_tracker_call(
         save_results_to_excel,

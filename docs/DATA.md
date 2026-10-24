@@ -17,8 +17,17 @@ modified. All fixes live in committed files that the loaders read.
 Regenerate with:
 
 ```
-python tools/dedup_splits.py
+python tools/dedup_splits.py --conflict-policy drop
 python tools/compute_norm_stats.py
+```
+
+When the raw `data/` folders are not present locally, `tools/dedup_splits.py`
+can deterministically rebuild or validate the split manifests from the
+committed per-pair `hashes` table:
+
+```
+python tools/dedup_splits.py --from-manifests --conflict-policy drop
+python tools/dedup_splits.py --validate --conflict-policy drop
 ```
 
 Both tools are deterministic. The manifests store file md5s and decoded
@@ -70,24 +79,26 @@ done
 
 * Identity of a tile is the md5 of its decoded pixel array (dtype, shape and
   raw bytes), so GeoTIFF metadata does not matter. File md5s are recorded too.
-* Training: duplicate tiles are collapsed to one copy. The first name in
-  natural sort order is kept.
+* Training: duplicate tiles are collapsed according to `--conflict-policy {drop,majority,first}` (default: `drop`):
+  * `drop` (default): non-conflicting duplicate groups keep the first name in natural sort order; any duplicate group whose ground-truth masks disagree (`len(set(mask_pix)) > 1`) is excluded entirely from the kept split so no tile with an ambiguous label is trained on.
+  * `majority`: duplicate groups whose masks disagree keep the first tile (in natural sort order) of the majority mask hash, breaking ties deterministically by natural sort order of tile names.
+  * `first`: legacy behavior — keeps the first name in natural sort order regardless of mask agreement.
 * Testing: every test tile whose pixel hash appears anywhere in Training is
-  dropped. Remaining duplicates inside Testing are collapsed to one copy.
-* Masks are hashed as well. Mask agreement is recorded per exclusion but the
-  decision uses the image hash only (an identical input in train and test is
-  leakage regardless of its label).
+  dropped. Remaining duplicates inside Testing are collapsed with the same conflict policy.
+* Masks are hashed as well. Mask agreement is recorded per exclusion and conflict resolution metadata (`conflict_policy`, `conflict_groups`, and `conflict_dropped`) is stored in each manifest (`counts`, `excluded`, and top-level).
 
-### Counts (image/mask pairs)
+### Counts (image/mask pairs, default `--conflict-policy drop`)
 
 | Dataset | Split | Before | Dropped | Reason | After |
 |---|---|---|---|---|---|
 | flood_optical | Training | 235 | 0 | none | 235 |
 | flood_optical | Testing | 71 | 0 | none | 71 |
-| flood_SAR | Training | 1467 | 151 | duplicate of another training tile | 1316 |
+| flood_SAR | Training | 1467 | 133 | non-conflicting duplicate copy of another training tile | |
+| flood_SAR | Training | | 36 | 18 duplicate groups (2 tiles each) with conflicting masks (`--conflict-policy drop`) | 1298 |
 | flood_SAR | Testing | 164 | 29 | pixel-identical to a training tile | |
 | flood_SAR | Testing | | 1 | duplicate inside Testing (128 == 98) | 134 |
-| flood_combined | Training | 1702 | 151 | duplicate of another training tile | 1551 |
+| flood_combined | Training | 1702 | 133 | non-conflicting duplicate copy of another training tile | |
+| flood_combined | Training | | 36 | 18 duplicate groups (2 tiles each) with conflicting masks (`--conflict-policy drop`) | 1533 |
 | flood_combined | Testing | 235 | 29 | pixel-identical to a training tile | |
 | flood_combined | Testing | | 1 | duplicate inside Testing (128 == 98) | 205 |
 
@@ -96,8 +107,13 @@ Details:
 * Of the 29 leaked SAR test tiles, 28 also have a byte-identical mask. The
   remaining one (Testing 41 vs Training 300) has the same image with a
   different mask.
-* Among the 151 duplicate training tiles there are 18 duplicate groups whose
-  masks disagree. One copy is kept, chosen by name order.
+* Among the 151 duplicate SAR training groups (`1316` unique training images),
+  133 groups have identical masks and 18 groups (36 tiles total) have
+  conflicting masks. Under the default `--conflict-policy drop`, all 18
+  conflicting groups are excluded (`1298` SAR and `1533` combined training
+  tiles kept). Under `--conflict-policy first` or `majority` (all 18 groups are
+  2-tile ties broken by natural sort order), one copy per conflicting group is
+  retained (`1316` SAR and `1551` combined training tiles kept).
 * `flood_combined` is optical plus SAR (name clashes resolved with a ` copy`
   suffix on the SAR file, see "Building flood_combined"), so it inherits exactly the SAR leakage and duplicates. The
   optical part of combined is clean.
@@ -183,8 +199,12 @@ Changing the number of bands requires a matching `in_channels`.
 
 ### Normalization
 
-* Statistics come only from the deduplicated training split of each dataset
-  (`splits/norm_stats.json`, built by `tools/compute_norm_stats.py`).
+* Statistics come from the deduplicated training split of each dataset
+  (`splits/norm_stats.json`, built by `tools/compute_norm_stats.py`), and
+  support fit-only calculation (`train_idx` excluding the global stratified
+  validation holdout `val_idx` for a given `seed` and `val_fraction`, or
+  explicit `train_indices` / `exclude_names`) so validation tile distributions
+  do not leak into normalization percentiles.
   A regular pixel grid is sampled (every 8th row and column for SAR, every
   2nd for optical).
 * VV and VH are transformed with log1p first (they are heavy tailed and

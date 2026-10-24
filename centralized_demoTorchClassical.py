@@ -75,6 +75,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         print("No checkpoint found, starting from scratch")
     if start_epoch >= config['num_epochs']:
         print(f"Training already completed at epoch {start_epoch}/{config['num_epochs']}")
+        model._resumed_from_epoch = start_epoch
+        model._epochs_trained_this_run = 0
         return model, train_metrics, val_metrics
     print(f"Training {config['num_epochs'] - start_epoch} remaining epochs (from {start_epoch} to {config['num_epochs']})")
     epoch = start_epoch
@@ -123,6 +125,7 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
                 'rng_state': tc.rng_state(train_loader),
             }, checkpoint_path)
             print(f"Checkpoint saved at epoch {epoch}")
+            tc.maybe_stop_after_centralized_step(config, epoch, config['num_epochs'], label='epoch')
             
             # Save unique checkpoint every 100 epochs
             if epoch % 100 == 0:
@@ -141,17 +144,21 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         if epoch % 50 == 0 and val_metrics:
             print(f"Saving training curves at epoch {epoch}...")
             save_training_curves(val_metrics, output_dir, title_prefix="Training and Validation ")
+    model._resumed_from_epoch = start_epoch
+    model._epochs_trained_this_run = epoch - start_epoch
     return model, train_metrics, val_metrics
 
 DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
 
 def main():
     args = parse_args()
-    base_dir = DATA_DIRS[args.dataset]
-    train_images_dir = os.path.join(base_dir, "Training", "images")
-    train_masks_dir = os.path.join(base_dir, "Training", "labels")
-    test_images_dir = os.path.join(base_dir, "Testing", "images")
-    test_masks_dir = os.path.join(base_dir, "Testing", "labels")
+    (
+        base_dir,
+        train_images_dir,
+        train_masks_dir,
+        test_images_dir,
+        test_masks_dir,
+    ) = tc.resolve_data_dirs(args.dataset, getattr(args, 'data_root', None))
     print("=" * 60)
     print("Classical Flood Segmentation Demo")
     print("Using Classical U-Net with PyTorch")
@@ -164,9 +171,12 @@ def main():
     config['seed'] = args.seed
     config['dataset'] = args.dataset
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    output_dir = f"results/flood_central_optical_pytorch_classical{ds_suffix}_seed{config['seed']}"
-
     tc.apply_common_args(config, args)
+    output_dir = tc.resolve_output_dir(
+        f"results/flood_central_optical_pytorch_classical{ds_suffix}_seed{config['seed']}",
+        config,
+        args,
+    )
 
     # Seed python, numpy, torch and cuda once, before any data or model work.
     tc.seed_everything(config['seed'])
@@ -332,7 +342,11 @@ def main():
         output_dir, script=os.path.basename(__file__), training="centralized",
         model_type="classical", config=excel_config, val_metrics=final_val,
         test_metrics=test_result, history=val_metrics, total_params=total_params,
-        provenance=provenance)
+        provenance=provenance,
+        extra={
+            'resumed_from_epoch': getattr(model, '_resumed_from_epoch', 0),
+            'epochs_trained_this_run': getattr(model, '_epochs_trained_this_run', 0),
+        })
     # Shared Excel summary: best effort, a tracker failure never fails the run.
     tc.safe_tracker_call(
         save_results_to_excel,

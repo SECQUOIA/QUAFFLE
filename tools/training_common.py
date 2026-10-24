@@ -45,6 +45,52 @@ DEFAULT_Q_SIM_DEVICE = 'cpu'
 LEGACY_Q_BACKEND = 'torch'
 
 
+DATASET_FOLDER_NAMES = {
+    'optical': 'flood_optical',
+    'sar': 'flood_SAR',
+    'combined': 'flood_combined',
+    'flood_optical': 'flood_optical',
+    'flood_SAR': 'flood_SAR',
+    'flood_combined': 'flood_combined',
+}
+
+
+def resolve_data_dirs(dataset, data_root=None):
+    """Return (base_dir, train_images_dir, train_masks_dir, test_images_dir, test_masks_dir)
+    under `data_root` (default: 'data')."""
+    folder = DATASET_FOLDER_NAMES.get(dataset, dataset)
+    root = data_root if data_root is not None else os.environ.get('QUAFFLE_DATA_ROOT', 'data')
+    cand = os.path.join(root, folder)
+    if not os.path.exists(cand) and os.path.exists(os.path.join(root, 'Training', 'images')):
+        base_dir = root
+    else:
+        base_dir = cand
+    train_images_dir = os.path.join(base_dir, 'Training', 'images')
+    train_masks_dir = os.path.join(base_dir, 'Training', 'labels')
+    test_images_dir = os.path.join(base_dir, 'Testing', 'images')
+    test_masks_dir = os.path.join(base_dir, 'Testing', 'labels')
+    return base_dir, train_images_dir, train_masks_dir, test_images_dir, test_masks_dir
+
+
+def resolve_output_dir(default_rel_path, config=None, args=None):
+    """Resolve run output directory, honoring --results-dir or QUAFFLE_RESULTS_DIR."""
+    results_root = None
+    if args is not None and getattr(args, 'results_dir', None):
+        results_root = args.results_dir
+    elif config is not None and config.get('results_dir'):
+        results_root = config['results_dir']
+    elif os.environ.get('QUAFFLE_RESULTS_DIR'):
+        results_root = os.environ['QUAFFLE_RESULTS_DIR']
+    if not results_root:
+        return default_rel_path
+    norm = os.path.normpath(default_rel_path)
+    parts = norm.split(os.sep)
+    if parts and parts[0] == 'results':
+        rel = os.sep.join(parts[1:]) if len(parts) > 1 else ''
+        return os.path.join(results_root, rel) if rel else results_root
+    return os.path.join(results_root, os.path.basename(norm))
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -55,6 +101,21 @@ def add_common_args(parser, quantum=True, federated=False):
     Defaults select the current behaviour. Every flag is passed on to the
     data and model code only when that code accepts it (signature checks).
     """
+    parser.add_argument('--data-root', type=str, default=None,
+                        help='Root directory containing flood_<dataset>/ folders and optional splits/ '
+                             '(default: data)')
+    parser.add_argument('--results-dir', type=str, default=None,
+                        help='Root directory for run output folders (default: results)')
+    parser.add_argument('--base-channels', type=int, default=None,
+                        help='Override model base_channels / init_dim (default: script config)')
+    parser.add_argument('--image-size', type=int, default=None,
+                        help='Override input image spatial size (default: script config)')
+    parser.add_argument('--batch-size', type=int, default=None,
+                        help='Override training and evaluation batch size (default: script config)')
+    parser.add_argument('--eval-every', type=int, default=None,
+                        help='Override validation and checkpoint interval (default: script config)')
+    parser.add_argument('--no-save-samples', action='store_true',
+                        help='Skip saving sample prediction visualizations at the end of the run')
     parser.add_argument('--legacy-data', action='store_true',
                         help='Use the pre-fix data loader behaviour (if the loader supports it)')
     parser.add_argument('--max-samples', type=int, default=None,
@@ -85,6 +146,10 @@ def add_common_args(parser, quantum=True, federated=False):
                             help='Override the number of federated rounds (debug)')
         parser.add_argument('--local-epochs', type=int, default=None,
                             help='Override local epochs per round (debug)')
+        parser.add_argument('--num-clients', type=int, default=None,
+                            help='Override the number of federated clients (debug)')
+        parser.add_argument('--clients-per-round', type=int, default=None,
+                            help='Override the number of clients sampled per federated round (debug)')
     else:
         parser.add_argument('--epochs', type=int, default=None,
                             help='Override the number of training epochs/steps (debug)')
@@ -102,7 +167,18 @@ def add_common_args(parser, quantum=True, federated=False):
         # been written. Also settable via QUAFFLE_DEBUG_STOP_AFTER_ROUND.
         parser.add_argument('--debug-stop-after-round', type=int, default=None,
                             help=argparse.SUPPRESS)
+    # Debug: simulate an interrupted centralized job right after the
+    # checkpoint of epoch/step K has been written.
+    parser.add_argument('--debug-stop-after-epoch', type=int, default=None,
+                        help=argparse.SUPPRESS)
     return parser
+
+
+def _compatible_group_count(base_channels, current_groups):
+    g = max(1, min(int(current_groups), int(base_channels)))
+    while g > 1 and int(base_channels) % g != 0:
+        g -= 1
+    return g
 
 
 def apply_common_args(config, args):
@@ -110,6 +186,31 @@ def apply_common_args(config, args):
     config['legacy_data'] = bool(getattr(args, 'legacy_data', False))
     config['max_samples'] = getattr(args, 'max_samples', None)
     config['val_fraction'] = float(getattr(args, 'val_fraction', VAL_FRACTION))
+    if getattr(args, 'data_root', None) is not None:
+        config['data_root'] = args.data_root
+    elif os.environ.get('QUAFFLE_DATA_ROOT') and not config.get('data_root'):
+        config['data_root'] = os.environ['QUAFFLE_DATA_ROOT']
+    else:
+        config.setdefault('data_root', None)
+    if getattr(args, 'results_dir', None) is not None:
+        config['results_dir'] = args.results_dir
+    if getattr(args, 'base_channels', None) is not None:
+        bc = int(args.base_channels)
+        config['base_channels'] = bc
+        config['init_dim'] = bc
+        if 'resnet_block_groups' in config:
+            config['resnet_block_groups'] = _compatible_group_count(bc, config['resnet_block_groups'])
+        if 'quantum_channels' in config and getattr(args, 'quantum_channels', None) is None:
+            mults = config.get('dim_mults', (1, 2, 4, 8))
+            mid_dim = bc * int(mults[-1]) if mults else bc * 8
+            if int(config['quantum_channels']) > mid_dim:
+                config['quantum_channels'] = max(4, (mid_dim // 4) * 4)
+    if getattr(args, 'image_size', None) is not None:
+        config['image_size'] = int(args.image_size)
+    if getattr(args, 'batch_size', None) is not None:
+        config['batch_size'] = int(args.batch_size)
+    if getattr(args, 'no_save_samples', False):
+        config['save_samples'] = False
     if hasattr(args, 'q_ansatz'):
         config['q_ansatz'] = args.q_ansatz
     if getattr(args, 'q_layers', None) is not None:
@@ -122,13 +223,27 @@ def apply_common_args(config, args):
     if hasattr(args, 'min_client_samples'):
         config['min_client_samples'] = int(args.min_client_samples)
     if getattr(args, 'epochs', None) is not None:
+        ep = int(args.epochs)
         for key in ('num_epochs', 'num_train_steps'):
             if key in config:
-                config[key] = int(args.epochs)
+                config[key] = ep
+        if getattr(args, 'eval_every', None) is None and 'eval_every' in config and ep > 0:
+            config['eval_every'] = min(int(config['eval_every']), ep)
+        if 'log_every' in config and ep > 0:
+            config['log_every'] = min(int(config['log_every']), ep)
+    if getattr(args, 'eval_every', None) is not None:
+        config['eval_every'] = max(1, int(args.eval_every))
     if getattr(args, 'rounds', None) is not None:
         config['fed_rounds'] = int(args.rounds)
     if getattr(args, 'local_epochs', None) is not None:
         config['local_epochs'] = int(args.local_epochs)
+    if getattr(args, 'num_clients', None) is not None:
+        nc = int(args.num_clients)
+        config['num_clients'] = nc
+        if getattr(args, 'clients_per_round', None) is None and 'clients_per_round' in config:
+            config['clients_per_round'] = min(int(config['clients_per_round']), nc)
+    if getattr(args, 'clients_per_round', None) is not None:
+        config['clients_per_round'] = int(args.clients_per_round)
     if hasattr(args, 'ckpt_every'):
         config['ckpt_every'] = max(1, int(args.ckpt_every))
         config['resume'] = not bool(getattr(args, 'no_resume', False))
@@ -136,6 +251,11 @@ def apply_common_args(config, args):
         if stop is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_ROUND'):
             stop = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_ROUND'])
         config['debug_stop_after_round'] = stop
+    if hasattr(args, 'debug_stop_after_epoch'):
+        stop_ep = getattr(args, 'debug_stop_after_epoch', None)
+        if stop_ep is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_EPOCH'):
+            stop_ep = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_EPOCH'])
+        config['debug_stop_after_epoch'] = stop_ep
     return config
 
 
@@ -219,17 +339,35 @@ def _supported_kwargs(fn, config):
         if name in params:
             kwargs[name] = legacy
             break
+    if 'max_samples' in params and config.get('max_samples') is not None:
+        kwargs['max_samples'] = int(config['max_samples'])
+    if 'sample_seed' in params and config.get('seed') is not None:
+        kwargs['sample_seed'] = int(config['seed'])
+    if 'data_root' in params and config.get('data_root') is not None:
+        kwargs['data_root'] = config['data_root']
+    if 'stats_path' in params and config.get('stats_path') is not None:
+        kwargs['stats_path'] = config['stats_path']
+    if 'seed' in params and config.get('seed') is not None:
+        kwargs['seed'] = int(config['seed'])
+    if 'val_fraction' in params and config.get('val_fraction') is not None:
+        kwargs['val_fraction'] = float(config['val_fraction'])
+    if 'fit_only' in params and config.get('fit_only_norm') is not None:
+        kwargs['fit_only'] = bool(config['fit_only_norm'])
     return kwargs
 
 
 def load_dataset(images_dir, masks_dir, config):
-    """FloodSegmentationDataset with --legacy-data forwarded if supported."""
+    """FloodSegmentationDataset with --legacy-data, --max-samples, --data-root,
+    and fit-only normalization parameters forwarded if supported."""
     from utilsTorch import FloodSegmentationDataset
     kwargs = _supported_kwargs(FloodSegmentationDataset.__init__, config)
-    if config.get('legacy_data') and not kwargs:
+    if config.get('legacy_data') and not any(k in kwargs for k in ('legacy', 'legacy_data')):
         print("WARNING: --legacy-data requested but this FloodSegmentationDataset "
               "has no legacy switch, the current loader is used as is.")
-    return FloodSegmentationDataset(images_dir, masks_dir, config['image_size'], **kwargs)
+    ds = FloodSegmentationDataset(images_dir, masks_dir, config['image_size'], **kwargs)
+    if getattr(ds, 'norm_provenance', None) is not None:
+        config['_resolved_norm_provenance'] = dict(ds.norm_provenance)
+    return ds
 
 
 def canonical_order(dataset):
@@ -263,6 +401,51 @@ def flood_labels(dataset, threshold=FLOOD_LABEL_THRESHOLD):
     return np.array(labels, dtype=np.int64)
 
 
+def split_train_val(n_or_dataset, val_fraction=VAL_FRACTION, seed=42, labels=None):
+    """Deterministic stratified train/val index split.
+
+    Accepts either an integer sample count `n` or a Dataset/sequence `dataset`.
+    Returns `(train_indices, val_indices)`.
+    """
+    if isinstance(n_or_dataset, (int, np.integer)):
+        n = int(n_or_dataset)
+        order = np.arange(n, dtype=np.int64)
+        if labels is None:
+            labels = np.zeros(n, dtype=np.int64)
+        else:
+            labels = np.asarray(labels, dtype=np.int64)
+    else:
+        n = len(n_or_dataset)
+        order = np.array(canonical_order(n_or_dataset), dtype=np.int64)
+        if labels is None:
+            if (
+                hasattr(n_or_dataset, '__getitem__')
+                and n > 0
+                and isinstance(n_or_dataset[0], tuple)
+                and len(n_or_dataset[0]) == 2
+            ):
+                labels = flood_labels(n_or_dataset)
+            else:
+                labels = np.zeros(n, dtype=np.int64)
+        else:
+            labels = np.asarray(labels, dtype=np.int64)
+
+    if n <= 1 or val_fraction is None or float(val_fraction) <= 0.0:
+        return sorted(order.tolist()), []
+
+    rng = np.random.default_rng(derive_seed(seed, 1))
+    train_idx, val_idx = [], []
+    for c in np.unique(labels):
+        idx = order[labels[order] == c]
+        idx = rng.permutation(idx)
+        n_val = int(round(float(val_fraction) * len(idx)))
+        if len(idx) > 1:
+            n_val = min(max(n_val, 1), len(idx) - 1)
+        val_idx.extend(idx[:n_val].tolist())
+        train_idx.extend(idx[n_val:].tolist())
+    return sorted(train_idx), sorted(val_idx)
+
+
 def holdout_validation(dataset, seed, val_fraction=VAL_FRACTION, labels=None):
     """Global held-out validation split carved from the training pool BEFORE
     any client partitioning.
@@ -276,19 +459,9 @@ def holdout_validation(dataset, seed, val_fraction=VAL_FRACTION, labels=None):
     """
     if labels is None:
         labels = flood_labels(dataset)
-    order = np.array(canonical_order(dataset), dtype=np.int64)
-    rng = np.random.default_rng(derive_seed(seed, 1))
-    train_idx, val_idx = [], []
-    for c in np.unique(labels):
-        idx = order[labels[order] == c]
-        idx = rng.permutation(idx)
-        n_val = int(round(val_fraction * len(idx)))
-        if len(idx) > 1:
-            n_val = min(max(n_val, 1), len(idx) - 1)
-        val_idx.extend(idx[:n_val].tolist())
-        train_idx.extend(idx[n_val:].tolist())
-    train_idx = sorted(train_idx)
-    val_idx = sorted(val_idx)
+    train_idx, val_idx = split_train_val(
+        dataset, val_fraction=val_fraction, seed=seed, labels=labels
+    )
     pos = sum(labels[i] for i in val_idx)
     print(f"Global held-out validation: {len(val_idx)} samples "
           f"({pos} flood-dominant, {len(val_idx) - pos} other), "
@@ -512,6 +685,92 @@ def checkpoint_compatible(ckpt):
     return True
 
 
+def normalization_provenance(config):
+    """Structured normalization provenance recorded in checkpoint fingerprints."""
+    legacy = bool(config.get('legacy_data', False))
+    if legacy:
+        return {
+            'mode': 'legacy_per_image_p2_p98',
+            'fit_only': False,
+            'seed': None,
+            'val_fraction': None,
+            'stats_path': None,
+        }
+    fit_only_cfg = config.get('fit_only_norm')
+    eff_seed = int(config['seed'])
+    val_frac = float(config.get('val_fraction', VAL_FRACTION))
+    img_sz = int(config['image_size']) if config.get('image_size') is not None else 128
+    max_s = int(config['max_samples']) if config.get('max_samples') is not None else None
+    stats_path = (
+        os.path.abspath(config['stats_path'])
+        if config.get('stats_path') is not None
+        else None
+    )
+
+    resolved = config.get('_resolved_norm_provenance')
+    if (
+        isinstance(resolved, dict)
+        and resolved.get('seed') == eff_seed
+        and (resolved.get('val_fraction') is None or abs(float(resolved['val_fraction']) - val_frac) < 1e-6)
+        and (resolved.get('image_size') in (None, img_sz))
+        and resolved.get('max_samples') == max_s
+    ):
+        out = dict(resolved)
+        out['stats_path'] = stats_path
+        return out
+
+    if config.get('data_root') is not None or stats_path is not None or fit_only_cfg is False:
+        try:
+            import flood_data
+            ds_folder = DATASET_FOLDERS.get(config.get('dataset', 'optical'), 'flood_optical')
+            st = flood_data.load_stats(
+                ds_folder,
+                stats_path=stats_path,
+                seed=eff_seed if fit_only_cfg is not False else None,
+                val_fraction=val_frac if fit_only_cfg is not False else None,
+                fit_only=fit_only_cfg,
+                data_root=config.get('data_root'),
+                image_size=img_sz,
+                max_samples=max_s,
+                sample_seed=eff_seed,
+            )
+            out = flood_data.stats_provenance(st)
+            out['stats_path'] = stats_path
+            return out
+        except Exception:
+            if fit_only_cfg is True and (config.get('data_root') is not None or stats_path is not None):
+                return {
+                    'mode': 'unresolved_fit_only',
+                    'fit_only': False,
+                    'seed': eff_seed,
+                    'val_fraction': val_frac,
+                    'image_size': img_sz,
+                    'max_samples': max_s,
+                    'stats_path': stats_path,
+                }
+
+    fit_only = True if fit_only_cfg is None else bool(fit_only_cfg)
+    return {
+        'mode': 'fit_only_train_split' if (fit_only and val_frac > 0.0) else 'full_train_split',
+        'fit_only': bool(fit_only and val_frac > 0.0),
+        'seed': eff_seed,
+        'val_fraction': val_frac,
+        'image_size': img_sz,
+        'max_samples': max_s,
+        'stats_path': stats_path,
+    }
+
+
+def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
+    """Simulate an interrupted centralized job right after saving checkpoint `current`."""
+    stop = config.get('debug_stop_after_epoch')
+    if stop is not None and int(current) == int(stop) and int(current) < int(total):
+        print(f"DEBUG: stopping after {label} {current} (--debug-stop-after-epoch / "
+              f"QUAFFLE_DEBUG_STOP_AFTER_EPOCH), simulating an interrupted job")
+        sys.stdout.flush()
+        raise SystemExit(75)
+
+
 def centralized_fingerprint(config, model_type):
     """Settings that must match for a centralized checkpoint to be resumed."""
     ansatz, layers = effective_q_variant(config)
@@ -522,9 +781,11 @@ def centralized_fingerprint(config, model_type):
     out_dim = config.get('out_dim', 2)
     dim_mults = [int(m) for m in config.get('dim_mults', (1, 2, 4, 8))]
     resnet_block_groups = int(config.get('resnet_block_groups', 8))
+    data_root = config.get('data_root')
     return {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
+        'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
@@ -551,6 +812,7 @@ def centralized_fingerprint(config, model_type):
         'max_samples': config.get('max_samples'),
         'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
         'legacy_data': bool(config.get('legacy_data', False)),
+        'norm_provenance': normalization_provenance(config),
     }
 
 
@@ -879,9 +1141,11 @@ def run_fingerprint(config, model_type):
     """Settings that must match for a federated checkpoint to be resumed."""
     ansatz, layers = effective_q_variant(config)
     quantum = model_type in ('quantum', 'ablation')
+    data_root = config.get('data_root')
     fp = {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
+        'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'partition': config.get('partition', 'random'),
         'dirichlet_alpha': (float(config['dirichlet_alpha'])
                             if config.get('partition') == 'dirichlet' else None),
@@ -901,12 +1165,91 @@ def run_fingerprint(config, model_type):
         'batch_size': int(config['batch_size']),
         'learning_rate': float(config['learning_rate']),
         'base_channels': config.get('base_channels'),
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
         'max_samples': config.get('max_samples'),
         'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
         'min_client_samples': config.get('min_client_samples'),
         'legacy_data': bool(config.get('legacy_data', False)),
+        'norm_provenance': normalization_provenance(config),
     }
     return fp
+
+
+def _run_inprocess_flower_simulation(*, client_fn, num_clients, config, strategy, **kwargs):
+    """Run Flower's Server + SimpleClientManager in-process without spawning Ray actors.
+
+    Exercises the exact same Flower Server.fit(), Strategy (configure_fit,
+    aggregate_fit, configure_evaluate, aggregate_evaluate, evaluate),
+    RoundOffsetMixin, client_fn(cid).to_client(), and checkpointing logic.
+    """
+    from flwr.common import DisconnectRes
+    from flwr.server.client_manager import SimpleClientManager
+    from flwr.server.client_proxy import ClientProxy
+    from flwr.server.server import Server
+
+    class _InProcessClientProxy(ClientProxy):
+        def __init__(self, cid):
+            super().__init__(str(cid))
+            self._cid = str(cid)
+
+        def _client(self):
+            c = client_fn(self._cid)
+            return c.to_client() if hasattr(c, 'to_client') else c
+
+        def get_properties(self, ins, timeout, group_id):
+            return self._client().get_properties(ins)
+
+        def get_parameters(self, ins, timeout, group_id):
+            return self._client().get_parameters(ins)
+
+        def fit(self, ins, timeout, group_id):
+            return self._client().fit(ins)
+
+        def evaluate(self, ins, timeout, group_id):
+            return self._client().evaluate(ins)
+
+        def reconnect(self, ins, timeout, group_id):
+            return DisconnectRes(reason='UNKNOWN')
+
+    cm = SimpleClientManager()
+    for cid in range(int(num_clients)):
+        cm.register(_InProcessClientProxy(str(cid)))
+    server = Server(client_manager=cm, strategy=strategy)
+    if hasattr(server, 'set_max_workers'):
+        server.set_max_workers(1)
+    num_rounds = int(getattr(config, 'num_rounds', 1))
+    round_timeout = getattr(config, 'round_timeout', None)
+    res = server.fit(num_rounds=num_rounds, timeout=round_timeout)
+    return res[0] if isinstance(res, tuple) else res
+
+
+def start_flower_simulation(**kwargs):
+    """Run flwr.simulation.start_simulation, optionally using an in-process
+    Flower Server (QUAFFLE_INPROCESS_FED=1) or keeping a single-worker Ray
+    runtime initialized across calls (QUAFFLE_KEEP_RAY=1)."""
+    if os.environ.get('QUAFFLE_INPROCESS_FED', '0').lower() in ('1', 'true', 'yes'):
+        return _run_inprocess_flower_simulation(**kwargs)
+    import flwr as fl
+    os.environ.setdefault('RAY_memory_monitor_refresh_ms', '0')
+    if os.environ.get('QUAFFLE_KEEP_RAY', '0').lower() in ('1', 'true', 'yes'):
+        try:
+            params = inspect.signature(fl.simulation.start_simulation).parameters
+            if 'keep_initialised' in params:
+                kwargs.setdefault('keep_initialised', True)
+            if 'ray_init_args' in params:
+                num_gpus = 1 if kwargs.get('client_resources', {}).get('num_gpus', 0) > 0 else 0
+                kwargs.setdefault(
+                    'ray_init_args',
+                    {
+                        'num_cpus': 1,
+                        'num_gpus': num_gpus,
+                        'include_dashboard': False,
+                        'ignore_reinit_error': True,
+                    },
+                )
+        except (TypeError, ValueError):
+            pass
+    return fl.simulation.start_simulation(**kwargs)
 
 
 def fed_checkpoint_path(output_dir):
@@ -1091,6 +1434,8 @@ def safe_tracker_call(fn, *args, **kwargs):
     """Run the shared Excel tracker. Any failure is logged as a warning and
     never propagates: the run's summary.txt and metrics.json are already on
     disk, so the process must still exit 0."""
+    if os.environ.get('QUAFFLE_SKIP_EXCEL_TRACKER', '0').lower() in ('1', 'true', 'yes'):
+        return True
     try:
         fn(*args, **kwargs)
         return True
