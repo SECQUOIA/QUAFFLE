@@ -1101,6 +1101,21 @@ def _uses_hqunet_grid(config, model_type=None):
     return False
 
 
+def effective_ablation_q_layers(config):
+    """Effective layer count when `ablation_mode == 'hqunet_spatial'` (even if `q_ansatz == 'legacy'`)."""
+    layers = config.get('q_layers') if isinstance(config, dict) else None
+    return int(layers) if layers is not None else default_q_layers()
+
+
+def _effective_fingerprint_q_layers(config, model_type):
+    """Effective `q_layers` recorded in fingerprints and `metrics.json`."""
+    _, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return effective_ablation_q_layers(config)
+    return layers if quantum else None
+
+
 def _normalize_saved_fingerprint(saved, model_type=None):
     """Fill in historical Wave 2 default values for keys absent from pre-Wave-2
     checkpoint fingerprints so default-config runs can resume older checkpoints."""
@@ -1224,7 +1239,7 @@ def centralized_fingerprint(config, model_type):
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
@@ -1380,12 +1395,15 @@ def variant_tag(config):
         tag = f'_{ansatz}_L{layers}'
     if isinstance(config, dict):
         q_sp = effective_q_spatial_mode(config)
-        if ansatz != 'hqunet' and q_sp != DEFAULT_Q_SPATIAL_MODE:
-            tag += f'_{q_sp}'
         abl = effective_ablation_mode(config)
+        if q_sp != DEFAULT_Q_SPATIAL_MODE and (ansatz != 'hqunet' or abl in ('linear', 'mlp')):
+            tag += f'_{q_sp}'
         if abl != DEFAULT_ABLATION_MODE:
             if abl == 'hqunet_spatial' and ansatz != 'hqunet':
-                tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
+                if ansatz == 'legacy':
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}_L{effective_ablation_q_layers(config)}'
+                else:
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
             else:
                 tag += f'_abl-{abl}'
         tag += classical_variant_tag(config)
@@ -1641,7 +1659,7 @@ def run_fingerprint(config, model_type):
                             if config.get('partition') == 'dirichlet' else None),
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
@@ -1955,7 +1973,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         else None,
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,

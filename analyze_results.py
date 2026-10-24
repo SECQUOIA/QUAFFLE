@@ -274,7 +274,7 @@ _CLASSICAL_MOD_PART = r"(?:_(?:standard|depthwise_sep))?(?:_(?:dice_ce|focal_dic
 _VTAG_RE = _re_disk.compile(
     r"_((?:legacy|reupload_L\d+|hqunet_G\d+_L\d+)"
     r"(?:_(?:pixel|patch2x2|patch4x4|se_gate))?"
-    r"(?:_abl-(?:linear|mlp|conv1x1|depthwise3x3|lowrank|hqunet_spatial(?:_G\d+)?))?"
+    r"(?:_abl-(?:linear|mlp|conv1x1|depthwise3x3|lowrank|hqunet_spatial(?:_G\d+)?(?:_L\d+)?))?"
     r"(?:_additive)?"
     + _CLASSICAL_MOD_PART
     + r")$"
@@ -350,13 +350,17 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             parts.append(f"{q_ansatz}_L{layers}")
         if isinstance(data, dict):
             q_sp = data.get("q_spatial_mode")
-            if q_ansatz != "hqunet" and q_sp and q_sp != "global":
-                parts.append(str(q_sp))
             abl = data.get("ablation_mode")
+            if q_sp and q_sp != "global" and (q_ansatz != "hqunet" or abl in ("linear", "mlp")):
+                parts.append(str(q_sp))
             if abl and abl != "auto":
                 if abl == "hqunet_spatial" and q_ansatz != "hqunet":
                     grid = int(data.get("hqunet_grid") or 2)
-                    parts.append(f"abl-{abl}_G{grid}")
+                    if q_ansatz == "legacy":
+                        layers_abl = int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS
+                        parts.append(f"abl-{abl}_G{grid}_L{layers_abl}")
+                    else:
+                        parts.append(f"abl-{abl}_G{grid}")
                 else:
                     parts.append(f"abl-{abl}")
             skip_mod = data.get("skip_modulation")

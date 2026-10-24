@@ -811,3 +811,111 @@ def test_wave2_review_fixes_analyze_results_variant_separation(tmp_path):
     dedup = ar.per_seed_summary(df)
     assert len(dedup) == 6
     assert set(np.round(dedup["Test_IoU"].values, 2)) == {0.68, 0.70, 0.74, 0.75, 0.78, 0.81}
+
+
+def test_wave2_review_r2_hqunet_ablation_spatial_and_legacy_hqunet_layers(tmp_path):
+    import analyze_results as ar
+
+    base_cfg = {
+        "seed": 42,
+        "base_channels": 32,
+        "image_size": 128,
+        "batch_size": 4,
+        "learning_rate": 1e-4,
+        "num_epochs": 5,
+        "fed_rounds": 4,
+        "local_epochs": 1,
+        "num_clients": 2,
+    }
+    val_m = {"loss": 0.4, "accuracy": 0.85, "auc": 0.9, "iou": 0.7, "dice": 0.82}
+
+    # 1. Finding 5 edge case: q_ansatz='hqunet' + ablation_mode='mlp' with q_spatial_mode='global' vs 'pixel'
+    cfg_hq_mlp_global = {
+        **base_cfg,
+        "q_ansatz": "hqunet",
+        "q_layers": 2,
+        "hqunet_grid": 2,
+        "ablation_mode": "mlp",
+        "q_spatial_mode": "global",
+    }
+    cfg_hq_mlp_pixel = {**cfg_hq_mlp_global, "q_spatial_mode": "pixel"}
+    vtag_global = tc.variant_tag(cfg_hq_mlp_global)
+    vtag_pixel = tc.variant_tag(cfg_hq_mlp_pixel)
+    assert vtag_global != vtag_pixel
+    assert "_pixel_" in vtag_pixel
+
+    # 2. Finding N1: q_ansatz='legacy' + ablation_mode='hqunet_spatial' with q_layers=1 vs 2
+    cfg_leg_hq_l1 = {
+        **base_cfg,
+        "q_ansatz": "legacy",
+        "q_layers": 1,
+        "hqunet_grid": 2,
+        "ablation_mode": "hqunet_spatial",
+    }
+    cfg_leg_hq_l2 = {**cfg_leg_hq_l1, "q_layers": 2}
+    assert tc.variant_tag(cfg_leg_hq_l1) != tc.variant_tag(cfg_leg_hq_l2)
+    assert "_abl-hqunet_spatial_G2_L1" in tc.variant_tag(cfg_leg_hq_l1)
+    assert "_abl-hqunet_spatial_G2_L2" in tc.variant_tag(cfg_leg_hq_l2)
+
+    fp_c_l1 = tc.centralized_fingerprint(cfg_leg_hq_l1, "ablation")
+    fp_c_l2 = tc.centralized_fingerprint(cfg_leg_hq_l2, "ablation")
+    assert fp_c_l1["q_layers"] == 1
+    assert fp_c_l2["q_layers"] == 2
+    ckpt_l1 = {"run_format": tc.RUN_FORMAT, "fingerprint": fp_c_l1}
+    assert tc.checkpoint_matches_centralized(ckpt_l1, cfg_leg_hq_l1, "ablation")
+    assert not tc.checkpoint_matches_centralized(ckpt_l1, cfg_leg_hq_l2, "ablation")
+
+    fp_f_l1 = tc.run_fingerprint(cfg_leg_hq_l1, "ablation")
+    fp_f_l2 = tc.run_fingerprint(cfg_leg_hq_l2, "ablation")
+    assert fp_f_l1["q_layers"] == 1
+    assert fp_f_l2["q_layers"] == 2
+    fed_dir = tmp_path / "fed_leg_hq"
+    tc.atomic_torch_save(
+        {"run_format": tc.RUN_FORMAT, "fingerprint": fp_f_l1, "completed_round": 2},
+        tc.fed_checkpoint_path(str(fed_dir)),
+    )
+    assert tc.load_fed_checkpoint(str(fed_dir), fp_f_l1, resume=True) is not None
+    assert tc.load_fed_checkpoint(str(fed_dir), fp_f_l2, resume=True) is None
+
+    # 3. Verify analyze_results.py separates all 4 ablation runs cleanly
+    ablation_runs = [
+        (
+            f"ablation_centralized_torch_bottleneck_matched_pennylane{vtag_global}_seed42",
+            cfg_hq_mlp_global,
+            0.70,
+        ),
+        (
+            f"ablation_centralized_torch_bottleneck_matched_pennylane{vtag_pixel}_seed42",
+            cfg_hq_mlp_pixel,
+            0.90,
+        ),
+        (
+            f"ablation_centralized_torch_bottleneck_matched_pennylane{tc.variant_tag(cfg_leg_hq_l1)}_seed42",
+            cfg_leg_hq_l1,
+            0.65,
+        ),
+        (
+            f"ablation_centralized_torch_bottleneck_matched_pennylane{tc.variant_tag(cfg_leg_hq_l2)}_seed42",
+            cfg_leg_hq_l2,
+            0.85,
+        ),
+    ]
+    res_dir = tmp_path / "results_r2"
+    for dirname, cfg, test_iou in ablation_runs:
+        tc.write_metrics_json(
+            str(res_dir / dirname),
+            script="ablation_studies.py",
+            training="centralized",
+            model_type="ablation",
+            config=cfg,
+            val_metrics=val_m,
+            test_metrics={**val_m, "iou": test_iou},
+            history=[],
+            total_params=1000,
+        )
+
+    df = ar.load_from_disk(results_dir=str(res_dir))
+    assert len(df) == 4
+    dedup = ar.per_seed_summary(df)
+    assert len(dedup) == 4
+    assert set(np.round(dedup["Test_IoU"].values, 2)) == {0.65, 0.70, 0.85, 0.90}
