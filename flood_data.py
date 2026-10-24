@@ -408,80 +408,99 @@ def load_mask(mask_path, image_size):
 _COMBINED_MODALITY_CACHE = {}
 
 
-def _get_combined_modality_map(images_dir=None, data_root=None):
+def _get_combined_modality_map(images_dir=None, data_root=None, split_kind=None, stems=None):
     """Return a dict mapping tile name -> 'optical' | 'sar' for flood_combined
-    using split manifests and pixel hashes."""
+    using split-aware manifests and pixel hashes."""
     sdir = _resolve_splits_dir(images_dir=images_dir, data_root=data_root)
     cache_key = os.path.abspath(sdir)
-    if cache_key in _COMBINED_MODALITY_CACHE:
-        return _COMBINED_MODALITY_CACHE[cache_key]
+    if cache_key not in _COMBINED_MODALITY_CACHE:
+        by_split = {"train": {}, "test": {}}
+        search_dirs = [sdir]
+        if os.path.abspath(SPLITS_DIR) != cache_key:
+            search_dirs.append(SPLITS_DIR)
 
-    mod_map = {}
-    search_dirs = [sdir]
-    if os.path.abspath(SPLITS_DIR) != cache_key:
-        search_dirs.append(SPLITS_DIR)
+        for d in search_dirs:
+            opt_path = os.path.join(d, "flood_optical.json")
+            sar_path = os.path.join(d, "flood_SAR.json")
+            comb_path = os.path.join(d, "flood_combined.json")
+            if not (os.path.exists(opt_path) and os.path.exists(sar_path)):
+                continue
+            try:
+                with open(opt_path) as f:
+                    opt_m = json.load(f)
+                with open(sar_path) as f:
+                    sar_m = json.load(f)
+                comb_m = None
+                if os.path.exists(comb_path):
+                    with open(comb_path) as f:
+                        comb_m = json.load(f)
+            except Exception:
+                continue
 
-    for d in search_dirs:
-        opt_path = os.path.join(d, "flood_optical.json")
-        sar_path = os.path.join(d, "flood_SAR.json")
-        comb_path = os.path.join(d, "flood_combined.json")
-        if not (os.path.exists(opt_path) and os.path.exists(sar_path)):
-            continue
-        try:
-            with open(opt_path) as f:
-                opt_m = json.load(f)
-            with open(sar_path) as f:
-                sar_m = json.load(f)
-            comb_m = None
-            if os.path.exists(comb_path):
-                with open(comb_path) as f:
-                    comb_m = json.load(f)
-        except Exception:
-            continue
-
-        opt_pix = set()
-        sar_pix = set()
-        for sp in ("train", "test"):
-            for r in (opt_m.get("hashes") or {}).get(sp, []):
-                if "image_pix" in r:
-                    opt_pix.add(r["image_pix"])
-            for r in (sar_m.get("hashes") or {}).get(sp, []):
-                if "image_pix" in r:
-                    sar_pix.add(r["image_pix"])
-
-        opt_names = set(opt_m.get("train", [])) | set(opt_m.get("test", []))
-        sar_names = set(sar_m.get("train", [])) | set(sar_m.get("test", []))
-
-        if comb_m is not None:
             for sp in ("train", "test"):
-                for r in (comb_m.get("hashes") or {}).get(sp, []):
-                    nm = r.get("name")
-                    pix = r.get("image_pix")
-                    if not nm:
-                        continue
-                    if pix in opt_pix:
-                        mod_map.setdefault(nm, "optical")
-                    elif pix in sar_pix:
-                        mod_map.setdefault(nm, "sar")
-                for nm in comb_m.get(sp, []):
-                    if nm in mod_map:
-                        continue
-                    if " copy" in nm:
-                        mod_map[nm] = "sar"
-                    elif nm in opt_names:
-                        mod_map[nm] = "optical"
-                    elif nm in sar_names:
-                        mod_map[nm] = "sar"
-        for nm in opt_names:
-            mod_map.setdefault(nm, "optical")
-        for nm in sar_names:
-            if nm not in opt_names:
-                mod_map.setdefault(nm, "sar")
-            mod_map.setdefault(f"{nm} copy", "sar")
+                sp_map = by_split[sp]
+                opt_pix = {
+                    r["image_pix"]
+                    for r in (opt_m.get("hashes") or {}).get(sp, [])
+                    if "image_pix" in r
+                }
+                sar_pix = {
+                    r["image_pix"]
+                    for r in (sar_m.get("hashes") or {}).get(sp, [])
+                    if "image_pix" in r
+                }
+                opt_names = set(opt_m.get(sp, []))
+                sar_names = set(sar_m.get(sp, []))
 
-    if mod_map:
-        _COMBINED_MODALITY_CACHE[cache_key] = mod_map
-    return mod_map
+                if comb_m is not None:
+                    for r in (comb_m.get("hashes") or {}).get(sp, []):
+                        nm = r.get("name")
+                        pix = r.get("image_pix")
+                        if not nm:
+                            continue
+                        if pix in opt_pix:
+                            sp_map.setdefault(nm, "optical")
+                        elif pix in sar_pix:
+                            sp_map.setdefault(nm, "sar")
+                    for nm in comb_m.get(sp, []):
+                        if nm in sp_map:
+                            continue
+                        if " copy" in nm:
+                            sp_map[nm] = "sar"
+                        elif nm in opt_names:
+                            sp_map[nm] = "optical"
+                        elif nm in sar_names:
+                            sp_map[nm] = "sar"
+                for nm in opt_names:
+                    sp_map.setdefault(nm, "optical")
+                for nm in sar_names:
+                    if nm not in opt_names:
+                        sp_map.setdefault(nm, "sar")
+                    sp_map.setdefault(f"{nm} copy", "sar")
+
+        if by_split["train"] or by_split["test"]:
+            _COMBINED_MODALITY_CACHE[cache_key] = by_split
+    else:
+        by_split = _COMBINED_MODALITY_CACHE[cache_key]
+
+    eff_split = split_kind
+    if eff_split not in ("train", "test") and images_dir:
+        eff_split = infer_dataset_split(images_dir)[1]
+    if eff_split in ("train", "test"):
+        return by_split.get(eff_split, {})
+    if stems:
+        stem_list = list(stems)
+        tr_map = by_split.get("train", {})
+        te_map = by_split.get("test", {})
+        in_tr = sum(1 for s in stem_list if s in tr_map)
+        in_te = sum(1 for s in stem_list if s in te_map)
+        if in_te > in_tr or (
+            in_te == len(stem_list)
+            and te_map
+            and (in_tr < len(stem_list) or len(te_map) < len(tr_map))
+        ):
+            return te_map
+    return by_split.get("train", {})
 
 
 def _slice_indices_preload(
@@ -508,7 +527,7 @@ def _slice_indices_preload(
     if dataset in ("flood_optical", "flood_SAR"):
         return sorted(rng.permutation(canon_order)[:k].tolist())
 
-    mod_map = _get_combined_modality_map(images_dir=images_dir, data_root=data_root)
+    mod_map = _get_combined_modality_map(images_dir=images_dir, data_root=data_root, stems=stems)
     has_copy_stem = any(" copy" in s for s in stems)
     stem_set = set(stems)
     mapped_mods = [mod_map.get(s) for s in stems]

@@ -668,21 +668,40 @@ def test_review_r2_provenance_sar_combined_cap_mini_isolation_and_harness(tmp_pa
         d: json.load(open(os.path.join(ROOT, "splits", f"flood_{d}.json")))
         for d in ("optical", "SAR", "combined")
     }
-    pix_by_mod = {
-        d: {r["image_pix"] for r in ms_real[d]["hashes"]["train"]}
-        for d in ("optical", "SAR")
-    }
-    comb_pix = {r["name"]: r["image_pix"] for r in ms_real["combined"]["hashes"]["train"]}
-    comb_names = ms_real["combined"]["train"]
-    for s_val in (42, 13, 17, 123):
-        for cap_val in (2, 10, 100):
-            chosen = [comb_names[i] for i in flood_data._slice_indices_preload(comb_names, cap_val, s_val)]
-            mod_counts = {
-                d: sum(comb_pix[n] in pix_by_mod[d] for n in chosen) for d in ("optical", "SAR")
-            }
-            assert mod_counts["optical"] >= 1 and mod_counts["SAR"] >= 1
-            if cap_val == 100:
-                assert 12 <= mod_counts["optical"] <= 18
+    for sp_key, v_img_dir in (
+        ("train", "/virtual/flood_combined/Training/images"),
+        ("test", "/virtual/flood_combined/Testing/images"),
+    ):
+        pix_by_mod = {
+            d: {r["image_pix"] for r in ms_real[d]["hashes"][sp_key]}
+            for d in ("optical", "SAR")
+        }
+        comb_pix = {r["name"]: r["image_pix"] for r in ms_real["combined"]["hashes"][sp_key]}
+        comb_names = ms_real["combined"][sp_key]
+        m_dir = flood_data._get_combined_modality_map(images_dir=v_img_dir)
+        m_stems = flood_data._get_combined_modality_map(stems=comb_names)
+        for n_tile in comb_names:
+            truth_mod = "optical" if comb_pix[n_tile] in pix_by_mod["optical"] else "sar"
+            assert m_dir.get(n_tile) == truth_mod
+            assert m_stems.get(n_tile) == truth_mod
+        for s_val in (42, 13, 17, 123):
+            for cap_val in (2, 10, 100):
+                for kw_arg in ({"images_dir": v_img_dir}, {}):
+                    chosen = [
+                        comb_names[i]
+                        for i in flood_data._slice_indices_preload(
+                            comb_names, cap_val, s_val, **kw_arg
+                        )
+                    ]
+                    mod_counts = {
+                        d: sum(comb_pix[n] in pix_by_mod[d] for n in chosen)
+                        for d in ("optical", "SAR")
+                    }
+                    assert mod_counts["optical"] >= 1 and mod_counts["SAR"] >= 1
+                    if sp_key == "train" and cap_val == 100:
+                        assert 12 <= mod_counts["optical"] <= 18
+                    if sp_key == "test" and cap_val == 100:
+                        assert 31 <= mod_counts["optical"] <= 38
 
     # 8. Missing-modality fallback never borrows unvalidated stats and preserves truthful prior provenance
     synth_names = [f"{i:03d}" for i in range(6)] + [f"{i:03d} copy" for i in range(6)]
