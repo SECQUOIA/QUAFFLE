@@ -220,6 +220,79 @@ def test_issue8_exemplar_figure_respects_variant_and_qc(monkeypatch):
     assert "_qc" not in ckpt_default_qc
     assert "_reupload_L3_seed42" in ckpt_default_qc
 
+    # Verify shorthand QUAFFLE_EXEMPLAR_VARIANT="reupload" canonicalizes to _reupload_L2
+    monkeypatch.setenv("QUAFFLE_EXEMPLAR_VARIANT", "reupload")
+    monkeypatch.setenv("QUAFFLE_EXEMPLAR_QC", "32")
+    importlib.reload(bef)
+    assert bef.CONFIG["q_ansatz"] == "reupload"
+    assert bef.CONFIG["q_layers"] == 2
+    ckpt_shorthand = bef._fed_ckpt("", seed=42)
+    assert "_reupload_L2_seed42" in ckpt_shorthand
+
+
+def test_issue8_exemplar_checkpoint_loader_branches():
+    """Verify _load_checkpoint_into_model prefers best_state_dict over model_state_dict
+    and best_parameters over parameters (falling back when best_* is None)."""
+    import copy
+    import torch
+    import scripts.build_exemplar_figure as bef
+    from utilsTorch import utilsTorch as ut
+
+    small_cfg = {
+        "image_size": 16,
+        "base_channels": 8,
+        "init_dim": 8,
+        "out_dim": 2,
+        "dim_mults": (1, 2),
+        "resnet_block_groups": 4,
+        "quantum_channels": 8,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+    }
+    model = ut.QVUNetSegmentation(small_cfg, seed=0)
+    _ = sum(p.numel() for p in model.parameters())
+
+    base_sd = copy.deepcopy(model.state_dict())
+    best_sd = {k: (v + 1.25 if v.is_floating_point() else v.clone()) for k, v in base_sd.items()}
+    final_sd = {k: (v - 0.75 if v.is_floating_point() else v.clone()) for k, v in base_sd.items()}
+
+    # 1. best_state_dict preferred over model_state_dict
+    bef._load_checkpoint_into_model(
+        model,
+        {"best_state_dict": best_sd, "model_state_dict": final_sd},
+    )
+    for k, v in model.state_dict().items():
+        if v.is_floating_point():
+            assert torch.allclose(v, best_sd[k])
+
+    # 2. best_state_dict=None falls back to model_state_dict
+    bef._load_checkpoint_into_model(
+        model,
+        {"best_state_dict": None, "model_state_dict": final_sd},
+    )
+    for k, v in model.state_dict().items():
+        if v.is_floating_point():
+            assert torch.allclose(v, final_sd[k])
+
+    # 3. fed_resume.pt with populated best_parameters preferred over parameters
+    best_params = [p.detach().cpu().numpy() + 2.0 for p in model.parameters()]
+    final_params = [p.detach().cpu().numpy() - 3.0 for p in model.parameters()]
+    bef._load_checkpoint_into_model(
+        model,
+        {"best_parameters": best_params, "parameters": final_params},
+    )
+    for p, expected in zip(model.parameters(), best_params):
+        assert np.allclose(p.detach().cpu().numpy(), expected)
+
+    # 4. fed_resume.pt with best_parameters=None falls back to parameters
+    bef._load_checkpoint_into_model(
+        model,
+        {"best_parameters": None, "parameters": final_params},
+    )
+    for p, expected in zip(model.parameters(), final_params):
+        assert np.allclose(p.detach().cpu().numpy(), expected)
+
 
 # ---------------------------------------------------------------------------
 # Issue #9: save_training_curves preserves step/round coordinates and labels

@@ -73,6 +73,14 @@ def _normalize_ds_suffix(dataset_or_suffix: str) -> str:
     return s if s.startswith("_") else f"_{s}"
 
 
+def _canonical_vtag() -> str:
+    if not EXEMPLAR_VARIANT:
+        return ""
+    if _EXEMPLAR_ANSATZ == "legacy":
+        return "_legacy"
+    return f"_{_EXEMPLAR_ANSATZ}_L{_EXEMPLAR_LAYERS}"
+
+
 def _fed_ckpt(*args, seed=999):
     if len(args) == 1:
         ds_suffix = _normalize_ds_suffix(args[0])
@@ -88,12 +96,16 @@ def _fed_ckpt(*args, seed=999):
     else:
         ds_suffix = ""
     qc_suffix = "" if EXEMPLAR_QC == 32 else f"_qc{EXEMPLAR_QC}"
-    vtag = "" if not EXEMPLAR_VARIANT else f"_{EXEMPLAR_VARIANT}"
+    vtag = _canonical_vtag()
+    raw_vtag = "" if not EXEMPLAR_VARIANT else f"_{EXEMPLAR_VARIANT}"
     base = os.path.join(
         RESULTS_DIR,
         f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}",
     )
-    candidates = [f"{base}{vtag}_seed{seed}", f"{base}_seed{seed}"]
+    candidates = [f"{base}{vtag}_seed{seed}"]
+    if raw_vtag and raw_vtag != vtag:
+        candidates.append(f"{base}{raw_vtag}_seed{seed}")
+    candidates.append(f"{base}_seed{seed}")
     for d in candidates:
         for name in ("checkpoint_round_25.pt", "fed_resume.pt"):
             p = os.path.join(d, name)
@@ -194,6 +206,40 @@ def select_best_sample(model, loader, device, min_flood_frac=0.05, max_samples=2
     return best
 
 
+def _load_checkpoint_into_model(model, ckpt):
+    """Load a centralized or federated checkpoint dict/state_dict into `model`.
+    Prefers `best_state_dict` over `model_state_dict` and `best_parameters` over
+    `parameters` when present and non-None."""
+    # Ensure lazy QVUNetSegmentation wrapper is initialized before parameter copy
+    _ = sum(p.numel() for p in model.parameters())
+    if isinstance(ckpt, dict) and ("best_state_dict" in ckpt or "model_state_dict" in ckpt):
+        state = (
+            ckpt["best_state_dict"]
+            if ckpt.get("best_state_dict") is not None
+            else ckpt.get("model_state_dict")
+        )
+    elif isinstance(ckpt, dict) and ("best_parameters" in ckpt or "parameters" in ckpt):
+        # fed_resume.pt stores the global parameters as a list of arrays
+        # in model.parameters() order (prefer best_parameters when available).
+        params_list = (
+            ckpt["best_parameters"]
+            if ckpt.get("best_parameters") is not None
+            else ckpt.get("parameters")
+        )
+        with torch.no_grad():
+            for p, arr in zip(model.parameters(), params_list):
+                t_arr = torch.as_tensor(arr, dtype=p.dtype, device=p.device)
+                p.copy_(t_arr)
+        state = None
+    elif isinstance(ckpt, dict) and "state_dict" in ckpt:
+        state = ckpt["state_dict"]
+    else:
+        state = ckpt
+    if state is not None:
+        model.load_state_dict(state)
+    return model
+
+
 def main(argv=None):
     global OUT_DIR
     ap = argparse.ArgumentParser(description="Build the exemplar figure.")
@@ -216,26 +262,8 @@ def main(argv=None):
         loader = DataLoader(ds, batch_size=8, shuffle=False, num_workers=0)
 
         model = QVUNetSegmentation(CONFIG).to(device)
-        # Force initialization
-        _ = sum(p.numel() for p in model.parameters())
         ckpt = torch.load(ckpt_path, map_location=device)
-        # Common patterns
-        if isinstance(ckpt, dict) and ("best_state_dict" in ckpt or "model_state_dict" in ckpt):
-            state = ckpt.get("best_state_dict") or ckpt.get("model_state_dict")
-        elif isinstance(ckpt, dict) and ("best_parameters" in ckpt or "parameters" in ckpt):
-            # fed_resume.pt stores the global parameters as a list of arrays
-            # in model.parameters() order (prefer best_parameters when available).
-            params_list = ckpt.get("best_parameters") or ckpt.get("parameters")
-            with torch.no_grad():
-                for p, arr in zip(model.parameters(), params_list):
-                    p.copy_(torch.from_numpy(arr).to(p.device))
-            state = None
-        elif isinstance(ckpt, dict) and "state_dict" in ckpt:
-            state = ckpt["state_dict"]
-        else:
-            state = ckpt
-        if state is not None:
-            model.load_state_dict(state)
+        _load_checkpoint_into_model(model, ckpt)
         print(f"  Loaded checkpoint ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
 
         idx, img, mask, pred, iou_score, flood_frac = select_best_sample(model, loader, device)
