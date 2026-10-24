@@ -440,6 +440,11 @@ def validate_manifest(manifest, expected_policy=None):
     policy = _normalize_conflict_policy(
         expected_policy if expected_policy is not None else manifest.get("conflict_policy", DEFAULT_CONFLICT_POLICY)
     )
+    recorded_policy = manifest.get("conflict_policy")
+    if recorded_policy != policy:
+        raise ValueError(
+            f"{manifest.get('dataset')}: manifest conflict_policy={recorded_policy!r} does not match expected {policy!r}"
+        )
     rebuilt = build_from_manifest(manifest, conflict_policy=policy)
     if manifest.get("train") != rebuilt["train"]:
         raise ValueError(
@@ -449,6 +454,11 @@ def validate_manifest(manifest, expected_policy=None):
         raise ValueError(
             f"{manifest.get('dataset')}: kept test list does not match rebuilt list under policy={policy!r}"
         )
+    for meta_key in ("conflict_groups", "conflict_dropped", "counts", "excluded"):
+        if manifest.get(meta_key) != rebuilt.get(meta_key):
+            raise ValueError(
+                f"{manifest.get('dataset')}: manifest {meta_key!r} does not match rebuilt metadata under policy={policy!r}"
+            )
     if policy == "drop":
         groups = defaultdict(set)
         name_to_pix = {}

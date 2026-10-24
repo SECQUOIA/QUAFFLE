@@ -318,6 +318,7 @@ def run_centralized_torch(args):
                                   'epoch': epoch, 'train_metrics': train_metrics,
                                   'val_metrics': val_metrics,
                                   'rng_state': tc.rng_state(train_loader)}, ckpt_path)
+            tc.maybe_stop_after_centralized_step(config, epoch, config['num_epochs'], label='epoch')
             if epoch % 100 == 0:
                 torch.save({'model_state_dict': model.state_dict(),
                             'run_format': tc.RUN_FORMAT,
@@ -365,7 +366,11 @@ def run_centralized_torch(args):
         history=val_metrics, total_params=total_params,
         knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance,
-        extra={'reference_quantum_params': q_params})
+        extra={
+            'reference_quantum_params': q_params,
+            'resumed_from_epoch': start_epoch,
+            'epochs_trained_this_run': epoch - start_epoch,
+        })
     tc.safe_tracker_call(
         save_results_to_excel,
         demo_name=f"Ablation Centralized Torch Bottleneck (vs {backend})",

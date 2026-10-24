@@ -163,27 +163,32 @@ def _synthesize_optical_tile(rng, image_size, mask, dem, tile_idx):
 
 
 def _synthesize_sar_tile(rng, image_size, mask, dem, tile_idx):
-    """6-band float32 SAR tile matching BAND_NAMES['sar'] (VV, VH, MERIT_DEM, COP_DEM, WORLDCOVER, WATER_OCC)."""
+    """6-band float32 SAR tile matching BAND_NAMES['sar'] (VV, VH, MERIT_DEM, COP_DEM, WORLDCOVER, WATER_OCC).
+
+    VV and VH are synthesized in realistic Sentinel-1 dB backscatter units
+    (float32 negative dB in [-28, -4] dB), where specular flood water has
+    significantly lower backscatter (~ -21 dB VV, ~ -26 dB VH) than rough dry
+    terrain (~ -9.5 dB VV, ~ -15.5 dB VH).
+    """
     h = w = image_size
     water = mask.astype(np.float32)
     dry = 1.0 - water
-    tile_offset = float(tile_idx) * 5.0
+    tile_offset_db = float(int(tile_idx) - 6) * 0.25
 
-    # VV and VH: specular flood water has low backscatter, rough dry terrain has higher return.
-    # Include both positive backscatter intensity values and negative dB-like values near edges
-    # so log1p(clip(v, 0, None)) and percentile scaling are both exercised.
-    vv = (
-        dry * (1800.0 + tile_offset)
-        + water * 45.0
-        + rng.normal(0.0, 35.0, size=(h, w)).astype(np.float32)
-    )
-    vh = (
-        dry * (650.0 + 0.5 * tile_offset)
-        + water * 12.0
-        + rng.normal(0.0, 18.0, size=(h, w)).astype(np.float32)
-    )
-    vv[-1, -2:] = -18.5  # dB-range negative sample values clipped by log1p(clip(x, 0, None))
-    vh[-1, -2:] = -24.0
+    vv = np.clip(
+        dry * (-9.5 + tile_offset_db)
+        + water * (-21.0 + 0.5 * tile_offset_db)
+        + rng.normal(0.0, 1.1, size=(h, w)).astype(np.float32),
+        -29.0,
+        -2.5,
+    ).astype(np.float32)
+    vh = np.clip(
+        dry * (-15.5 + tile_offset_db)
+        + water * (-26.0 + 0.5 * tile_offset_db)
+        + rng.normal(0.0, 1.1, size=(h, w)).astype(np.float32),
+        -30.0,
+        -6.0,
+    ).astype(np.float32)
 
     merit_dem = dem.copy()
     cop_dem = (dem + rng.normal(0.0, 0.4, size=(h, w)).astype(np.float32)).astype(np.float32)

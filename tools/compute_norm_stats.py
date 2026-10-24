@@ -34,6 +34,8 @@ from flood_data import (  # noqa: E402
     NODATA,
     STAT_PERCENTILES,
     STRIDE,
+    _fit_names_digest,
+    _resolve_training_dirs,
     compute_fit_only_names,
     compute_modality_band_stats,
     find_mask,
@@ -73,8 +75,9 @@ def compute(
     else:
         man = load_manifest(dataset, data_root=data_root)
 
-    images_dir = os.path.join(data_root, dataset, "Training", "images")
-    masks_dir = os.path.join(data_root, dataset, "Training", "labels")
+    train_img_dir, train_lbl_dir = _resolve_training_dirs(dataset=dataset, data_root=data_root)
+    images_dir = train_img_dir or os.path.join(data_root, dataset, "Training", "images")
+    masks_dir = train_lbl_dir or os.path.join(data_root, dataset, "Training", "labels")
     all_train_names = list(man["train"])
 
     if not fit_only and train_indices is None and exclude_names is None and include_names is None:
@@ -132,9 +135,12 @@ def compute(
         "fit_only": bool(len(selected_names) < len(all_train_names) or fit_only),
         "seed": eff_seed,
         "val_fraction": float(eff_vf),
+        "image_size": int(image_size),
+        "max_samples": None,
         "n_manifest_train_tiles": len(all_train_names),
         "n_fit_train_tiles": len(selected_names),
         "n_excluded_val_tiles": len(all_train_names) - len(selected_names),
+        "fit_names_sha256": _fit_names_digest(selected_names),
     }
     return compute_modality_band_stats(
         images_dir,

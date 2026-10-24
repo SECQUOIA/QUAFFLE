@@ -5,25 +5,28 @@ Generates a temporary synthetic 12-band Optical + 6-band SAR mini-flood dataset
 in scratch/tmp and verifies:
   1. Mini-dataset generation, split manifests (conflict_policy='drop'), and
      fit-only norm_stats.json (excluding validation holdout).
-  2. Centralized training, checkpoint resume, and --quantum-knockout-eval
-     across classical, ablation (legacy & reupload), and quantum (legacy & reupload).
-  3. Federated training (random & dirichlet), checkpoint resume, and
-     --quantum-knockout-eval across classical, ablation (legacy & reupload),
+  2. Centralized training, interrupted checkpoint resume (--debug-stop-after-epoch),
+     and --quantum-knockout-eval across classical, ablation (legacy & reupload),
      and quantum (legacy & reupload).
+  3. Federated training (random & dirichlet), interrupted checkpoint resume
+     (--debug-stop-after-round), and --quantum-knockout-eval across classical,
+     ablation (legacy & reupload), and quantum (legacy & reupload).
 
-Completes in < 60 s on a single workstation CPU/GPU.
+Completes in < 60 s on a single workstation CPU/GPU (including module imports).
 """
 
-import argparse
-from contextlib import contextmanager
-import json
-import os
-import subprocess
-import sys
-import tempfile
 import time
 
-import torch
+_PROCESS_START = time.perf_counter()
+
+import argparse  # noqa: E402
+from contextlib import contextmanager  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+import tempfile  # noqa: E402
+
+import torch  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
@@ -34,8 +37,11 @@ import centralized_demoTorchClassical  # noqa: E402
 import centralized_demoTorchQ  # noqa: E402
 import federated_demoTorchClassical  # noqa: E402
 import federated_demoTorchQ  # noqa: E402
-from tools import training_common as tc  # noqa: E402
+import flood_data  # noqa: E402
+from tools import dedup_splits, training_common as tc  # noqa: E402
 from tools.make_mini_flood_dataset import generate_mini_flood_dataset  # noqa: E402
+
+_IMPORT_ELAPSED = time.perf_counter() - _PROCESS_START
 
 
 @contextmanager
@@ -48,16 +54,33 @@ def _patched_argv(argv):
         sys.argv = old_argv
 
 
-def _run_entry(name, fn, argv):
+def _run_entry(name, fn, argv, *, expect_exit_code=None):
     t0 = time.perf_counter()
+    caught_code = None
     with _patched_argv(argv):
-        fn()
+        try:
+            fn()
+        except SystemExit as exc:
+            caught_code = exc.code
+            if expect_exit_code is None or caught_code != expect_exit_code:
+                raise
+    if expect_exit_code is not None:
+        assert caught_code == expect_exit_code, (
+            f"{name}: expected SystemExit({expect_exit_code}), got {caught_code!r}"
+        )
     dt = time.perf_counter() - t0
     print(f"[PASS] {name} ({dt:.2f}s)")
     return dt
 
 
-def _assert_metrics_json(run_dir, *, expect_knockout=False, expect_resumed_round=None):
+def _assert_metrics_json(
+    run_dir,
+    *,
+    expect_knockout=False,
+    expect_resumed_round=None,
+    expect_resumed_epoch=None,
+    expect_epochs_trained=None,
+):
     summary_path = os.path.join(run_dir, "results", "summary.txt")
     metrics_path = os.path.join(run_dir, "results", "metrics.json")
     assert os.path.isfile(summary_path), f"Missing summary.txt in {run_dir}"
@@ -85,43 +108,65 @@ def _assert_metrics_json(run_dir, *, expect_knockout=False, expect_resumed_round
         assert m.get("resumed_from_round") == expect_resumed_round, (
             f"Expected resumed_from_round={expect_resumed_round}, got {m.get('resumed_from_round')}"
         )
+    if expect_resumed_epoch is not None:
+        assert m.get("resumed_from_epoch") == expect_resumed_epoch, (
+            f"Expected resumed_from_epoch={expect_resumed_epoch}, got {m.get('resumed_from_epoch')}"
+        )
+    if expect_epochs_trained is not None:
+        assert m.get("epochs_trained_this_run") == expect_epochs_trained, (
+            f"Expected epochs_trained_this_run={expect_epochs_trained}, got {m.get('epochs_trained_this_run')}"
+        )
     return m
 
 
-def _assert_centralized_ckpt(run_dir, expected_step_key, expected_step_val):
+def _assert_centralized_ckpt(run_dir, expected_step_key, expected_step_val, *, expected_target=None):
     ckpt_path = os.path.join(run_dir, "checkpoint.pt")
     assert os.path.isfile(ckpt_path), f"Missing centralized checkpoint {ckpt_path}"
-    ckpt = torch.load(ckpt_path, map_location="cpu")
+    ckpt = tc.safe_torch_load(ckpt_path, map_location="cpu")
+    assert isinstance(ckpt, dict), f"Unreadable checkpoint {ckpt_path}"
     assert ckpt.get("run_format") == tc.RUN_FORMAT
     assert ckpt.get(expected_step_key) == expected_step_val, (
         f"Expected {expected_step_key}={expected_step_val}, got {ckpt.get(expected_step_key)}"
     )
     fp = ckpt.get("fingerprint")
     assert isinstance(fp, dict), "Missing centralized checkpoint fingerprint"
+    if expected_target is not None:
+        assert fp.get("epochs_or_steps") == expected_target, (
+            f"Expected fingerprint epochs_or_steps={expected_target}, got {fp.get('epochs_or_steps')}"
+        )
     assert fp.get("data_root") is not None
     assert isinstance(fp.get("norm_provenance"), dict)
     assert fp["norm_provenance"].get("fit_only") is True
+    assert fp["norm_provenance"].get("fit_names_sha256") is not None
     return ckpt
 
 
-def _assert_federated_ckpt(run_dir, expected_round):
+def _assert_federated_ckpt(run_dir, expected_round, *, expected_total_rounds=None):
     ckpt_path = os.path.join(run_dir, tc.FED_CKPT_NAME)
     assert os.path.isfile(ckpt_path), f"Missing federated checkpoint {ckpt_path}"
-    ckpt = torch.load(ckpt_path, map_location="cpu")
+    ckpt = tc.safe_torch_load(ckpt_path, map_location="cpu")
+    assert isinstance(ckpt, dict), f"Unreadable federated checkpoint {ckpt_path}"
     assert ckpt.get("run_format") == tc.RUN_FORMAT
     assert ckpt.get("completed_round") == expected_round, (
         f"Expected completed_round={expected_round}, got {ckpt.get('completed_round')}"
     )
     fp = ckpt.get("fingerprint")
     assert isinstance(fp, dict), "Missing federated checkpoint fingerprint"
+    if expected_total_rounds is not None:
+        assert fp.get("fed_rounds") == expected_total_rounds, (
+            f"Expected fingerprint fed_rounds={expected_total_rounds}, got {fp.get('fed_rounds')}"
+        )
     assert fp.get("data_root") is not None
     assert isinstance(fp.get("norm_provenance"), dict)
+    assert fp["norm_provenance"].get("fit_only") is True
     return ckpt
 
 
-def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
-    t_start = time.perf_counter()
+def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_process_start=False):
+    t_start = _PROCESS_START if include_process_start else time.perf_counter()
     timings = []
+    if include_process_start:
+        timings.append(("module_imports", _IMPORT_ELAPSED))
 
     ctx = (
         tempfile.TemporaryDirectory(prefix="quaffle_verify_")
@@ -156,7 +201,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
             results_dir = os.path.join(tmp_root, "results")
             os.makedirs(results_dir, exist_ok=True)
 
-            # 1. Generate synthetic mini dataset (12-band Optical + 6-band SAR + DEM -9999 nodata)
+            # 1. Generate synthetic mini dataset (12-band Optical + 6-band dB SAR + DEM -9999 nodata)
             t0 = time.perf_counter()
             info = generate_mini_flood_dataset(
                 data_root,
@@ -167,11 +212,19 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 val_fraction=0.15,
                 seeds=(42,),
             )
-            dt = time.perf_counter() - t0
-            timings.append(("generate_mini_flood_dataset", dt))
-            assert os.path.isfile(info["stats_path"])
             for ds_name in ("flood_optical", "flood_SAR", "flood_combined"):
-                assert info["manifests"][ds_name]["conflict_policy"] == "drop"
+                man = info["manifests"][ds_name]
+                assert man["conflict_policy"] == "drop"
+                dedup_splits.validate_manifest(man, expected_policy="drop")
+            sar_raw = flood_data.read_raw(
+                os.path.join(data_root, "flood_SAR", "Training", "images", "000.tif")
+            )
+            assert float(sar_raw[0].max()) < 0.0 and float(sar_raw[1].max()) < 0.0, (
+                "Expected synthetic SAR VV/VH bands in negative dB scale"
+            )
+            dt = time.perf_counter() - t0
+            timings.append(("generate_and_validate_mini_dataset", dt))
+            assert os.path.isfile(info["stats_path"])
 
             common_central = [
                 "--data-root", data_root,
@@ -179,6 +232,7 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 "--base-channels", "4",
                 "--image-size", "32",
                 "--batch-size", "4",
+                "--eval-every", "1",
                 "--seed", "42",
                 "--no-save-samples",
             ]
@@ -197,69 +251,100 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 "--no-save-samples",
             ]
 
-            # 2. Centralized Classical: train 1 epoch (via CLI subprocess) + resume to epoch 2
-            t0 = time.perf_counter()
-            subprocess.run(
+            # 2. Centralized Classical: interrupt after epoch 1 of 2, then resume to epoch 2
+            dt = _run_entry(
+                "centralized_classical_interrupt_epoch1",
+                centralized_demoTorchClassical.main,
                 [
-                    sys.executable,
-                    os.path.join(REPO_ROOT, "centralized_demoTorchClassical.py"),
+                    "centralized_demoTorchClassical.py",
                     "--dataset", "optical",
-                    "--epochs", "1",
+                    "--epochs", "2",
+                    "--debug-stop-after-epoch", "1",
                     *common_central,
                 ],
-                check=True,
-                cwd=tmp_root,
+                expect_exit_code=75,
             )
-            dt = time.perf_counter() - t0
-            timings.append(("centralized_classical_epoch1_cli", dt))
+            timings.append(("centralized_classical_interrupt_epoch1", dt))
             c_cls_dir = os.path.join(results_dir, "flood_central_optical_pytorch_classical_seed42")
-            _assert_centralized_ckpt(c_cls_dir, "epoch", 1)
+            ck1 = _assert_centralized_ckpt(c_cls_dir, "epoch", 1, expected_target=2)
+            assert len(ck1["train_metrics"]) == 1
+            ep1_loss = ck1["train_metrics"][0]["loss"]
 
-            # Mutate checkpoint fingerprint epochs_or_steps to 2 so epoch 1->2 resumes seamlessly
-            ckpt_p = os.path.join(c_cls_dir, "checkpoint.pt")
-            ck = torch.load(ckpt_p, map_location="cpu")
-            ck["fingerprint"]["epochs_or_steps"] = 2
-            torch.save(ck, ckpt_p)
             dt = _run_entry(
                 "centralized_classical_resume_epoch2",
                 centralized_demoTorchClassical.main,
-                ["centralized_demoTorchClassical.py", "--dataset", "optical", "--epochs", "2", *common_central],
+                [
+                    "centralized_demoTorchClassical.py",
+                    "--dataset", "optical",
+                    "--epochs", "2",
+                    *common_central,
+                ],
             )
             timings.append(("centralized_classical_resume_epoch2", dt))
-            _assert_centralized_ckpt(c_cls_dir, "epoch", 2)
-            _assert_metrics_json(c_cls_dir, expect_knockout=False)
+            ck2 = _assert_centralized_ckpt(c_cls_dir, "epoch", 2, expected_target=2)
+            assert len(ck2["train_metrics"]) == 2
+            assert ck2["train_metrics"][0]["loss"] == ep1_loss
+            _assert_metrics_json(
+                c_cls_dir,
+                expect_knockout=False,
+                expect_resumed_epoch=1,
+                expect_epochs_trained=1,
+            )
 
-            # 3. Centralized Ablation (legacy & reupload) + resume + knockout
-            for ansatz in ("legacy", "reupload"):
-                extra_q = ["--q-ansatz", ansatz] + (["--q-layers", "1"] if ansatz == "reupload" else [])
-                dt = _run_entry(
-                    f"centralized_ablation_{ansatz}_epoch1",
-                    ablation_studies.main,
-                    [
-                        "ablation_studies.py",
-                        "--framework", "torch",
-                        "--mode", "centralized",
-                        "--dataset", "optical",
-                        "--epochs", "1",
-                        "--quantum-knockout-eval",
-                        *extra_q,
-                        *common_central,
-                    ],
-                )
-                timings.append((f"centralized_ablation_{ansatz}_epoch1", dt))
-                vtag = "_legacy" if ansatz == "legacy" else "_reupload_L1"
-                c_abl_dir = os.path.join(
-                    results_dir,
-                    f"ablation_centralized_torch_bottleneck_matched_pennylane{vtag}_seed42",
-                )
-                _assert_centralized_ckpt(c_abl_dir, "epoch", 1)
-                _assert_metrics_json(c_abl_dir, expect_knockout=True)
+            # 3. Centralized Ablation (legacy & reupload + interrupt/resume + knockout)
+            dt = _run_entry(
+                "centralized_ablation_legacy_epoch1",
+                ablation_studies.main,
+                [
+                    "ablation_studies.py",
+                    "--framework", "torch",
+                    "--mode", "centralized",
+                    "--dataset", "optical",
+                    "--epochs", "1",
+                    "--q-ansatz", "legacy",
+                    "--quantum-knockout-eval",
+                    *common_central,
+                ],
+            )
+            timings.append(("centralized_ablation_legacy_epoch1", dt))
+            c_abl_leg_dir = os.path.join(
+                results_dir,
+                "ablation_centralized_torch_bottleneck_matched_pennylane_legacy_seed42",
+            )
+            _assert_centralized_ckpt(c_abl_leg_dir, "epoch", 1, expected_target=1)
+            _assert_metrics_json(
+                c_abl_leg_dir,
+                expect_knockout=True,
+                expect_resumed_epoch=0,
+                expect_epochs_trained=1,
+            )
 
-            # Resume centralized ablation (reupload) from epoch 1 to epoch 2
-            ck_abl_p = os.path.join(c_abl_dir, "checkpoint.pt")
-            ck_abl = torch.load(ck_abl_p, map_location="cpu")
-            ck_abl["fingerprint"]["epochs_or_steps"] = 2
-            torch.save(ck_abl, ck_abl_p)
+            dt = _run_entry(
+                "centralized_ablation_reupload_interrupt_epoch1",
+                ablation_studies.main,
+                [
+                    "ablation_studies.py",
+                    "--framework", "torch",
+                    "--mode", "centralized",
+                    "--dataset", "optical",
+                    "--epochs", "2",
+                    "--q-ansatz", "reupload",
+                    "--q-layers", "1",
+                    "--quantum-knockout-eval",
+                    "--debug-stop-after-epoch", "1",
+                    *common_central,
+                ],
+                expect_exit_code=75,
+            )
+            timings.append(("centralized_ablation_reupload_interrupt_epoch1", dt))
+            c_abl_dir = os.path.join(
+                results_dir,
+                "ablation_centralized_torch_bottleneck_matched_pennylane_reupload_L1_seed42",
+            )
+            ck_abl1 = _assert_centralized_ckpt(c_abl_dir, "epoch", 1, expected_target=2)
+            assert len(ck_abl1["train_metrics"]) == 1
+            abl_ep1_loss = ck_abl1["train_metrics"][0]["loss"]
+
             dt = _run_entry(
                 "centralized_ablation_reupload_resume_epoch2",
                 ablation_studies.main,
@@ -276,38 +361,66 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 ],
             )
             timings.append(("centralized_ablation_reupload_resume_epoch2", dt))
-            _assert_centralized_ckpt(c_abl_dir, "epoch", 2)
+            ck_abl2 = _assert_centralized_ckpt(c_abl_dir, "epoch", 2, expected_target=2)
+            assert len(ck_abl2["train_metrics"]) == 2
+            assert ck_abl2["train_metrics"][0]["loss"] == abl_ep1_loss
+            _assert_metrics_json(
+                c_abl_dir,
+                expect_knockout=True,
+                expect_resumed_epoch=1,
+                expect_epochs_trained=1,
+            )
 
-            # 4. Centralized Quantum (legacy & reupload, SAR & optical) + resume + knockout
-            for ansatz, ds in (("legacy", "sar"), ("reupload", "optical")):
-                extra_q = ["--q-ansatz", ansatz] + (["--q-layers", "1"] if ansatz == "reupload" else [])
-                dt = _run_entry(
-                    f"centralized_quantum_{ansatz}_{ds}_step1",
-                    centralized_demoTorchQ.main,
-                    [
-                        "centralized_demoTorchQ.py",
-                        "--dataset", ds,
-                        "--epochs", "1",
-                        "--quantum-knockout-eval",
-                        *extra_q,
-                        *common_central,
-                    ],
-                )
-                timings.append((f"centralized_quantum_{ansatz}_{ds}_step1", dt))
-                ds_sfx = "" if ds == "optical" else f"_{ds}"
-                vtag = "_legacy" if ansatz == "legacy" else "_reupload_L1"
-                c_q_dir = os.path.join(
-                    results_dir,
-                    f"flood_central_optical_pytorch_pennylane{ds_sfx}{vtag}_seed42",
-                )
-                _assert_centralized_ckpt(c_q_dir, "step", 1)
-                _assert_metrics_json(c_q_dir, expect_knockout=True)
+            # 4. Centralized Quantum (legacy SAR & reupload optical + interrupt/resume + knockout)
+            dt = _run_entry(
+                "centralized_quantum_legacy_sar_step1",
+                centralized_demoTorchQ.main,
+                [
+                    "centralized_demoTorchQ.py",
+                    "--dataset", "sar",
+                    "--epochs", "1",
+                    "--q-ansatz", "legacy",
+                    "--quantum-knockout-eval",
+                    *common_central,
+                ],
+            )
+            timings.append(("centralized_quantum_legacy_sar_step1", dt))
+            c_q_leg_dir = os.path.join(
+                results_dir,
+                "flood_central_optical_pytorch_pennylane_sar_legacy_seed42",
+            )
+            _assert_centralized_ckpt(c_q_leg_dir, "step", 1, expected_target=1)
+            _assert_metrics_json(
+                c_q_leg_dir,
+                expect_knockout=True,
+                expect_resumed_epoch=0,
+                expect_epochs_trained=1,
+            )
 
-            # Resume centralized quantum (reupload) from step 1 to step 2
-            ck_q_p = os.path.join(c_q_dir, "checkpoint.pt")
-            ck_q = torch.load(ck_q_p, map_location="cpu")
-            ck_q["fingerprint"]["epochs_or_steps"] = 2
-            torch.save(ck_q, ck_q_p)
+            dt = _run_entry(
+                "centralized_quantum_reupload_interrupt_step1",
+                centralized_demoTorchQ.main,
+                [
+                    "centralized_demoTorchQ.py",
+                    "--dataset", "optical",
+                    "--epochs", "2",
+                    "--q-ansatz", "reupload",
+                    "--q-layers", "1",
+                    "--quantum-knockout-eval",
+                    "--debug-stop-after-epoch", "1",
+                    *common_central,
+                ],
+                expect_exit_code=75,
+            )
+            timings.append(("centralized_quantum_reupload_interrupt_step1", dt))
+            c_q_dir = os.path.join(
+                results_dir,
+                "flood_central_optical_pytorch_pennylane_reupload_L1_seed42",
+            )
+            ck_q1 = _assert_centralized_ckpt(c_q_dir, "step", 1, expected_target=2)
+            assert len(ck_q1["train_metrics"]) == 1
+            q_step1_loss = ck_q1["train_metrics"][0]["loss"]
+
             dt = _run_entry(
                 "centralized_quantum_reupload_resume_step2",
                 centralized_demoTorchQ.main,
@@ -322,30 +435,38 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 ],
             )
             timings.append(("centralized_quantum_reupload_resume_step2", dt))
-            _assert_centralized_ckpt(c_q_dir, "step", 2)
+            ck_q2 = _assert_centralized_ckpt(c_q_dir, "step", 2, expected_target=2)
+            assert len(ck_q2["train_metrics"]) == 2
+            assert ck_q2["train_metrics"][0]["loss"] == q_step1_loss
+            _assert_metrics_json(
+                c_q_dir,
+                expect_knockout=True,
+                expect_resumed_epoch=1,
+                expect_epochs_trained=1,
+            )
 
-            # 5. Federated Classical (random + resume, and dirichlet)
+            # 5. Federated Classical (random + interrupt/resume, and dirichlet)
             dt = _run_entry(
-                "federated_classical_random_round1",
+                "federated_classical_random_interrupt_round1",
                 federated_demoTorchClassical.main,
                 [
                     "federated_demoTorchClassical.py",
                     "--partition", "random",
                     "--dataset", "optical",
-                    "--rounds", "1",
+                    "--rounds", "2",
+                    "--debug-stop-after-round", "1",
                     *common_fed,
                 ],
+                expect_exit_code=75,
             )
-            timings.append(("federated_classical_random_round1", dt))
+            timings.append(("federated_classical_random_interrupt_round1", dt))
             f_cls_rand_dir = os.path.join(
                 results_dir,
                 "flood_federated_optical_pytorch_classical_random_seed42",
             )
-            _assert_federated_ckpt(f_cls_rand_dir, 1)
-            f_ckpt_p = os.path.join(f_cls_rand_dir, tc.FED_CKPT_NAME)
-            f_ck = torch.load(f_ckpt_p, map_location="cpu")
-            f_ck["fingerprint"]["fed_rounds"] = 2
-            torch.save(f_ck, f_ckpt_p)
+            f_ck1 = _assert_federated_ckpt(f_cls_rand_dir, 1, expected_total_rounds=2)
+            assert len(f_ck1["round_metrics"]) == 1
+            f_r1_loss = f_ck1["round_metrics"][0]["loss"]
 
             dt = _run_entry(
                 "federated_classical_random_resume_round2",
@@ -359,7 +480,9 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 ],
             )
             timings.append(("federated_classical_random_resume_round2", dt))
-            _assert_federated_ckpt(f_cls_rand_dir, 2)
+            f_ck2 = _assert_federated_ckpt(f_cls_rand_dir, 2, expected_total_rounds=2)
+            assert len(f_ck2["round_metrics"]) == 2
+            assert f_ck2["round_metrics"][0]["loss"] == f_r1_loss
             _assert_metrics_json(f_cls_rand_dir, expect_resumed_round=1)
 
             dt = _run_entry(
@@ -379,10 +502,10 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 results_dir,
                 "flood_federated_optical_pytorch_classical_dirichlet0.5_sar_seed42",
             )
-            _assert_federated_ckpt(f_cls_dir_dir, 1)
-            _assert_metrics_json(f_cls_dir_dir)
+            _assert_federated_ckpt(f_cls_dir_dir, 1, expected_total_rounds=1)
+            _assert_metrics_json(f_cls_dir_dir, expect_resumed_round=0)
 
-            # 6. Federated Ablation (random/legacy & dirichlet/reupload + resume + knockout)
+            # 6. Federated Ablation (random/legacy & dirichlet/reupload + interrupt/resume + knockout)
             dt = _run_entry(
                 "federated_ablation_random_legacy_round1",
                 ablation_studies.main,
@@ -403,11 +526,11 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 results_dir,
                 "ablation_federated_torch_bottleneck_matched_pennylane_random_legacy_seed42",
             )
-            _assert_federated_ckpt(f_abl_rand_dir, 1)
-            _assert_metrics_json(f_abl_rand_dir, expect_knockout=True)
+            _assert_federated_ckpt(f_abl_rand_dir, 1, expected_total_rounds=1)
+            _assert_metrics_json(f_abl_rand_dir, expect_knockout=True, expect_resumed_round=0)
 
             dt = _run_entry(
-                "federated_ablation_dirichlet_reupload_round1",
+                "federated_ablation_dirichlet_reupload_interrupt_round1",
                 ablation_studies.main,
                 [
                     "ablation_studies.py",
@@ -418,21 +541,21 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                     "--dataset", "optical",
                     "--q-ansatz", "reupload",
                     "--q-layers", "1",
-                    "--rounds", "1",
+                    "--rounds", "2",
                     "--quantum-knockout-eval",
+                    "--debug-stop-after-round", "1",
                     *common_fed,
                 ],
+                expect_exit_code=75,
             )
-            timings.append(("federated_ablation_dirichlet_reupload_round1", dt))
+            timings.append(("federated_ablation_dirichlet_reupload_interrupt_round1", dt))
             f_abl_dir_dir = os.path.join(
                 results_dir,
                 "ablation_federated_torch_bottleneck_matched_pennylane_dirichlet0.5_reupload_L1_seed42",
             )
-            _assert_federated_ckpt(f_abl_dir_dir, 1)
-            f_abl_ck_p = os.path.join(f_abl_dir_dir, tc.FED_CKPT_NAME)
-            f_abl_ck = torch.load(f_abl_ck_p, map_location="cpu")
-            f_abl_ck["fingerprint"]["fed_rounds"] = 2
-            torch.save(f_abl_ck, f_abl_ck_p)
+            f_abl_ck1 = _assert_federated_ckpt(f_abl_dir_dir, 1, expected_total_rounds=2)
+            assert len(f_abl_ck1["round_metrics"]) == 1
+            f_abl_r1_loss = f_abl_ck1["round_metrics"][0]["loss"]
 
             dt = _run_entry(
                 "federated_ablation_dirichlet_reupload_resume_round2",
@@ -452,10 +575,12 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 ],
             )
             timings.append(("federated_ablation_dirichlet_reupload_resume_round2", dt))
-            _assert_federated_ckpt(f_abl_dir_dir, 2)
+            f_abl_ck2 = _assert_federated_ckpt(f_abl_dir_dir, 2, expected_total_rounds=2)
+            assert len(f_abl_ck2["round_metrics"]) == 2
+            assert f_abl_ck2["round_metrics"][0]["loss"] == f_abl_r1_loss
             _assert_metrics_json(f_abl_dir_dir, expect_knockout=True, expect_resumed_round=1)
 
-            # 7. Federated Quantum (random/legacy & dirichlet/reupload + resume + knockout)
+            # 7. Federated Quantum (random/legacy & dirichlet/reupload + interrupt/resume + knockout)
             dt = _run_entry(
                 "federated_quantum_random_legacy_round1",
                 federated_demoTorchQ.main,
@@ -474,11 +599,11 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 results_dir,
                 "flood_federated_optical_pytorch_pennylane_random_legacy_seed42",
             )
-            _assert_federated_ckpt(f_q_rand_dir, 1)
-            _assert_metrics_json(f_q_rand_dir, expect_knockout=True)
+            _assert_federated_ckpt(f_q_rand_dir, 1, expected_total_rounds=1)
+            _assert_metrics_json(f_q_rand_dir, expect_knockout=True, expect_resumed_round=0)
 
             dt = _run_entry(
-                "federated_quantum_dirichlet_reupload_round1",
+                "federated_quantum_dirichlet_reupload_interrupt_round1",
                 federated_demoTorchQ.main,
                 [
                     "federated_demoTorchQ.py",
@@ -487,21 +612,21 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                     "--dataset", "optical",
                     "--q-ansatz", "reupload",
                     "--q-layers", "1",
-                    "--rounds", "1",
+                    "--rounds", "2",
                     "--quantum-knockout-eval",
+                    "--debug-stop-after-round", "1",
                     *common_fed,
                 ],
+                expect_exit_code=75,
             )
-            timings.append(("federated_quantum_dirichlet_reupload_round1", dt))
+            timings.append(("federated_quantum_dirichlet_reupload_interrupt_round1", dt))
             f_q_dir_dir = os.path.join(
                 results_dir,
                 "flood_federated_optical_pytorch_pennylane_dirichlet0.5_reupload_L1_seed42",
             )
-            _assert_federated_ckpt(f_q_dir_dir, 1)
-            f_q_ck_p = os.path.join(f_q_dir_dir, tc.FED_CKPT_NAME)
-            f_q_ck = torch.load(f_q_ck_p, map_location="cpu")
-            f_q_ck["fingerprint"]["fed_rounds"] = 2
-            torch.save(f_q_ck, f_q_ck_p)
+            f_q_ck1 = _assert_federated_ckpt(f_q_dir_dir, 1, expected_total_rounds=2)
+            assert len(f_q_ck1["round_metrics"]) == 1
+            f_q_r1_loss = f_q_ck1["round_metrics"][0]["loss"]
 
             dt = _run_entry(
                 "federated_quantum_dirichlet_reupload_resume_round2",
@@ -519,7 +644,9 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu"):
                 ],
             )
             timings.append(("federated_quantum_dirichlet_reupload_resume_round2", dt))
-            _assert_federated_ckpt(f_q_dir_dir, 2)
+            f_q_ck2 = _assert_federated_ckpt(f_q_dir_dir, 2, expected_total_rounds=2)
+            assert len(f_q_ck2["round_metrics"]) == 2
+            assert f_q_ck2["round_metrics"][0]["loss"] == f_q_r1_loss
             _assert_metrics_json(f_q_dir_dir, expect_knockout=True, expect_resumed_round=1)
 
     finally:
@@ -564,7 +691,12 @@ def main():
     ap.add_argument("--max-seconds", type=float, default=60.0, help="Maximum allowed runtime in seconds (default: 60)")
     ap.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="Device for mini verification (default: cpu)")
     args = ap.parse_args()
-    run_verification(work_dir=args.work_dir, max_seconds=args.max_seconds, device=args.device)
+    run_verification(
+        work_dir=args.work_dir,
+        max_seconds=args.max_seconds,
+        device=args.device,
+        include_process_start=True,
+    )
 
 
 if __name__ == "__main__":

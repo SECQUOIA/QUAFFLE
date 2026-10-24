@@ -167,6 +167,10 @@ def add_common_args(parser, quantum=True, federated=False):
         # been written. Also settable via QUAFFLE_DEBUG_STOP_AFTER_ROUND.
         parser.add_argument('--debug-stop-after-round', type=int, default=None,
                             help=argparse.SUPPRESS)
+    # Debug: simulate an interrupted centralized job right after the
+    # checkpoint of epoch/step K has been written.
+    parser.add_argument('--debug-stop-after-epoch', type=int, default=None,
+                        help=argparse.SUPPRESS)
     return parser
 
 
@@ -247,6 +251,11 @@ def apply_common_args(config, args):
         if stop is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_ROUND'):
             stop = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_ROUND'])
         config['debug_stop_after_round'] = stop
+    if hasattr(args, 'debug_stop_after_epoch'):
+        stop_ep = getattr(args, 'debug_stop_after_epoch', None)
+        if stop_ep is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_EPOCH'):
+            stop_ep = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_EPOCH'])
+        config['debug_stop_after_epoch'] = stop_ep
     return config
 
 
@@ -355,7 +364,10 @@ def load_dataset(images_dir, masks_dir, config):
     if config.get('legacy_data') and not any(k in kwargs for k in ('legacy', 'legacy_data')):
         print("WARNING: --legacy-data requested but this FloodSegmentationDataset "
               "has no legacy switch, the current loader is used as is.")
-    return FloodSegmentationDataset(images_dir, masks_dir, config['image_size'], **kwargs)
+    ds = FloodSegmentationDataset(images_dir, masks_dir, config['image_size'], **kwargs)
+    if getattr(ds, 'norm_provenance', None) is not None:
+        config['_resolved_norm_provenance'] = dict(ds.norm_provenance)
+    return ds
 
 
 def canonical_order(dataset):
@@ -684,19 +696,79 @@ def normalization_provenance(config):
             'val_fraction': None,
             'stats_path': None,
         }
-    fit_only = bool(config.get('fit_only_norm', True))
+    fit_only_cfg = config.get('fit_only_norm')
+    eff_seed = int(config['seed'])
     val_frac = float(config.get('val_fraction', VAL_FRACTION))
+    img_sz = int(config['image_size']) if config.get('image_size') is not None else 128
+    max_s = int(config['max_samples']) if config.get('max_samples') is not None else None
+    stats_path = (
+        os.path.abspath(config['stats_path'])
+        if config.get('stats_path') is not None
+        else None
+    )
+
+    resolved = config.get('_resolved_norm_provenance')
+    if (
+        isinstance(resolved, dict)
+        and resolved.get('seed') == eff_seed
+        and (resolved.get('val_fraction') is None or abs(float(resolved['val_fraction']) - val_frac) < 1e-6)
+        and (resolved.get('image_size') in (None, img_sz))
+        and resolved.get('max_samples') == max_s
+    ):
+        out = dict(resolved)
+        out['stats_path'] = stats_path
+        return out
+
+    if config.get('data_root') is not None or stats_path is not None or fit_only_cfg is False:
+        try:
+            import flood_data
+            ds_folder = DATASET_FOLDERS.get(config.get('dataset', 'optical'), 'flood_optical')
+            st = flood_data.load_stats(
+                ds_folder,
+                stats_path=stats_path,
+                seed=eff_seed if fit_only_cfg is not False else None,
+                val_fraction=val_frac if fit_only_cfg is not False else None,
+                fit_only=fit_only_cfg,
+                data_root=config.get('data_root'),
+                image_size=img_sz,
+                max_samples=max_s,
+                sample_seed=eff_seed,
+            )
+            out = flood_data.stats_provenance(st)
+            out['stats_path'] = stats_path
+            return out
+        except Exception:
+            if fit_only_cfg is True and (config.get('data_root') is not None or stats_path is not None):
+                return {
+                    'mode': 'unresolved_fit_only',
+                    'fit_only': False,
+                    'seed': eff_seed,
+                    'val_fraction': val_frac,
+                    'image_size': img_sz,
+                    'max_samples': max_s,
+                    'stats_path': stats_path,
+                }
+
+    fit_only = True if fit_only_cfg is None else bool(fit_only_cfg)
     return {
         'mode': 'fit_only_train_split' if (fit_only and val_frac > 0.0) else 'full_train_split',
         'fit_only': bool(fit_only and val_frac > 0.0),
-        'seed': int(config['seed']),
+        'seed': eff_seed,
         'val_fraction': val_frac,
-        'stats_path': (
-            os.path.abspath(config['stats_path'])
-            if config.get('stats_path') is not None
-            else None
-        ),
+        'image_size': img_sz,
+        'max_samples': max_s,
+        'stats_path': stats_path,
     }
+
+
+def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
+    """Simulate an interrupted centralized job right after saving checkpoint `current`."""
+    stop = config.get('debug_stop_after_epoch')
+    if stop is not None and int(current) == int(stop) and int(current) < int(total):
+        print(f"DEBUG: stopping after {label} {current} (--debug-stop-after-epoch / "
+              f"QUAFFLE_DEBUG_STOP_AFTER_EPOCH), simulating an interrupted job")
+        sys.stdout.flush()
+        raise SystemExit(75)
 
 
 def centralized_fingerprint(config, model_type):
@@ -1143,6 +1215,8 @@ def _run_inprocess_flower_simulation(*, client_fn, num_clients, config, strategy
     for cid in range(int(num_clients)):
         cm.register(_InProcessClientProxy(str(cid)))
     server = Server(client_manager=cm, strategy=strategy)
+    if hasattr(server, 'set_max_workers'):
+        server.set_max_workers(1)
     num_rounds = int(getattr(config, 'num_rounds', 1))
     round_timeout = getattr(config, 'round_timeout', None)
     res = server.fit(num_rounds=num_rounds, timeout=round_timeout)

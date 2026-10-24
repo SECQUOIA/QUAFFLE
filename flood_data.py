@@ -22,6 +22,7 @@ QUAFFLE_LEGACY_DATA=1.
 
 from collections import defaultdict
 import glob
+import hashlib
 import json
 import os
 import re
@@ -64,6 +65,61 @@ FLOOD_LABEL_THRESHOLD = 0.05
 
 _DEFAULTS = {"legacy": None, "bands": None, "data_root": None}
 _FIT_STATS_CACHE = {}
+_LAST_TRAIN_STATS_BY_DIR = {}
+_LAST_LOADED_PROVENANCE_BY_DIR = {}
+
+
+def get_last_loaded_stats_provenance(images_dir):
+    if images_dir is None:
+        return None
+    return _LAST_LOADED_PROVENANCE_BY_DIR.get(os.path.abspath(images_dir))
+
+
+def _fit_names_digest(names):
+    ordered = sorted((str(n) for n in names), key=natural_key)
+    return hashlib.sha256("\n".join(ordered).encode("utf-8")).hexdigest()[:16]
+
+
+def _stats_band_digest(stats_dict):
+    if not isinstance(stats_dict, dict):
+        return None
+    parts = []
+    for mod in sorted(k for k in stats_dict.keys() if not k.startswith("_") and k != "by_seed"):
+        mval = stats_dict.get(mod)
+        if not isinstance(mval, dict) or "bands" not in mval:
+            continue
+        for bname in sorted(mval["bands"].keys()):
+            b = mval["bands"][bname]
+            parts.append(f"{mod}:{bname}:{b.get('lo')}:{b.get('hi')}:{b.get('log1p')}")
+    if not parts:
+        return None
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def stats_provenance(stats_dict):
+    """Extract a canonical provenance dict from a loaded normalization stats dict."""
+    if not isinstance(stats_dict, dict):
+        return {"fit_only": False, "source": "none"}
+    prov = dict(stats_dict.get("_provenance") or {})
+    n_tiles = None
+    for mod in ("optical", "sar"):
+        if isinstance(stats_dict.get(mod), dict) and "n_train_tiles" in stats_dict[mod]:
+            n_tiles = int(stats_dict[mod]["n_train_tiles"])
+            break
+    fit_only = bool(prov.get("fit_only", False))
+    return {
+        "mode": "fit_only_train_split" if fit_only else "full_train_split",
+        "fit_only": fit_only,
+        "seed": prov.get("seed"),
+        "val_fraction": prov.get("val_fraction"),
+        "image_size": prov.get("image_size"),
+        "max_samples": prov.get("max_samples"),
+        "n_manifest_train_tiles": prov.get("n_manifest_train_tiles", n_tiles),
+        "n_fit_train_tiles": prov.get("n_fit_train_tiles", n_tiles),
+        "n_excluded_val_tiles": prov.get("n_excluded_val_tiles", 0),
+        "fit_names_sha256": prov.get("fit_names_sha256"),
+        "stats_sha256": _stats_band_digest(stats_dict),
+    }
 
 
 def set_data_defaults(legacy=None, bands=None, data_root=None):
@@ -208,6 +264,51 @@ def _infer_data_root_from_images_dir(images_dir, data_root=None):
     return None
 
 
+def _resolve_training_dirs(images_dir=None, masks_dir=None, dataset=None, data_root=None):
+    """Resolve `(train_images_dir, train_masks_dir)` across parent-level data_root,
+    dataset-level data_root, Training/images, or sibling Testing/images."""
+    if images_dir is not None:
+        ds_from_img, split_kind = infer_dataset_split(images_dir)
+        if dataset is None:
+            dataset = ds_from_img
+        abs_img = os.path.abspath(images_dir)
+        if split_kind == "train" and os.path.isdir(abs_img):
+            lbl = (
+                os.path.abspath(masks_dir)
+                if masks_dir is not None
+                else os.path.join(os.path.dirname(abs_img), "labels")
+            )
+            return abs_img, lbl
+        if split_kind == "test":
+            ds_dir = os.path.dirname(os.path.dirname(abs_img))
+            cand_img = os.path.join(ds_dir, "Training", "images")
+            cand_lbl = os.path.join(ds_dir, "Training", "labels")
+            if os.path.isdir(cand_img) and os.path.isdir(cand_lbl):
+                return cand_img, cand_lbl
+
+    eff_root = _infer_data_root_from_images_dir(images_dir, data_root=data_root)
+    if eff_root is not None:
+        abs_root = os.path.abspath(eff_root)
+        candidates = []
+        if dataset:
+            candidates.append(
+                (
+                    os.path.join(abs_root, dataset, "Training", "images"),
+                    os.path.join(abs_root, dataset, "Training", "labels"),
+                )
+            )
+        candidates.append(
+            (
+                os.path.join(abs_root, "Training", "images"),
+                os.path.join(abs_root, "Training", "labels"),
+            )
+        )
+        for cand_img, cand_lbl in candidates:
+            if os.path.isdir(cand_img) and os.path.isdir(cand_lbl):
+                return cand_img, cand_lbl
+    return None, None
+
+
 def load_manifest(dataset, splits_dir=None, data_root=None, images_dir=None):
     sdir = splits_dir or _resolve_splits_dir(images_dir=images_dir, data_root=data_root)
     path = os.path.join(sdir, f"{dataset}.json")
@@ -288,9 +389,20 @@ def compute_fit_only_names(
     include_names=None,
     exclude_names=None,
     image_size=128,
+    max_samples=None,
+    sample_seed=None,
+    masks_by_name=None,
 ):
     """Return the fit-only subset of `train_names` (excluding validation holdout tiles)."""
     ordered = sorted(list(train_names), key=natural_key)
+    eff_image_size = 128 if image_size is None else int(image_size)
+    if max_samples is not None and int(max_samples) > 0 and int(max_samples) < len(ordered):
+        eff_sseed = 42 if sample_seed is None else int(sample_seed)
+        canon_idx = sorted(range(len(ordered)), key=lambda i: os.path.basename(str(ordered[i])))
+        rng_s = np.random.default_rng(_derive_seed(eff_sseed, 7))
+        keep_idx = sorted(rng_s.permutation(canon_idx)[: int(max_samples)].tolist())
+        ordered = [ordered[i] for i in keep_idx]
+
     if train_indices is not None:
         idx_set = {int(i) for i in train_indices}
         selected = [n for i, n in enumerate(ordered) if i in idx_set]
@@ -300,12 +412,16 @@ def compute_fit_only_names(
         if eff_vf > 0.0 and len(ordered) > 1:
             labels = []
             for n in ordered:
-                mp = find_mask(masks_dir, n) if masks_dir else None
-                if mp is not None:
-                    m = load_mask(mp, image_size)
+                if masks_by_name is not None and n in masks_by_name:
+                    m = masks_by_name[n]
                     labels.append(1 if float(m.mean()) > FLOOD_LABEL_THRESHOLD else 0)
                 else:
-                    labels.append(0)
+                    mp = find_mask(masks_dir, n) if masks_dir else None
+                    if mp is not None:
+                        m = load_mask(mp, eff_image_size)
+                        labels.append(1 if float(m.mean()) > FLOOD_LABEL_THRESHOLD else 0)
+                    else:
+                        labels.append(0)
             # Match training_common.canonical_order sorting (lexicographic on str(name))
             canon_order = sorted(range(len(ordered)), key=lambda i: os.path.basename(str(ordered[i])))
             tr_idx, _ = split_train_val_indices(
@@ -338,18 +454,22 @@ def compute_modality_band_stats(
     *,
     stride_map=None,
     provenance=None,
+    raw_by_name=None,
 ):
     """Compute per-modality, per-band (lo, hi, mean, std, log1p) over `tile_names`."""
     smap = stride_map or STRIDE
     buf = {}
     n_tiles = {}
     for name in tile_names:
-        p = os.path.join(images_dir, name + ".tif")
-        if not os.path.exists(p):
-            p = os.path.join(images_dir, name + ".tiff")
-        if masks_dir is not None:
-            assert find_mask(masks_dir, name) is not None, name
-        raw = read_raw(p)
+        if raw_by_name is not None and name in raw_by_name:
+            raw = raw_by_name[name]
+        else:
+            p = os.path.join(images_dir, name + ".tif")
+            if not os.path.exists(p):
+                p = os.path.join(images_dir, name + ".tiff")
+            if masks_dir is not None:
+                assert find_mask(masks_dir, name) is not None, name
+            raw = read_raw(p)
         mod = MODALITY_BY_COUNT[raw.shape[0]]
         s = max(1, min(int(smap[mod]), raw.shape[1], raw.shape[2]))
         sub = raw[:, ::s, ::s].reshape(raw.shape[0], -1)
@@ -364,7 +484,10 @@ def compute_modality_band_stats(
             v = v[v != NODATA]
             if v.size == 0:
                 v = np.zeros(1, dtype=np.float64)
-            if b in LOG_BANDS:
+            # Apply log1p to positive linear-amplitude SAR backscatter, but preserve
+            # negative dB-scale SAR backscatter directly without clipping to 0.
+            use_log1p = (b in LOG_BANDS) and not (v.size > 0 and float(np.median(v)) < 0.0)
+            if use_log1p:
                 v = np.log1p(np.clip(v, 0, None))
             lo, hi = np.percentile(v, STAT_PERCENTILES)
             bands[b] = {
@@ -372,7 +495,7 @@ def compute_modality_band_stats(
                 "hi": round(float(hi), 6),
                 "mean": round(float(v.mean()), 6),
                 "std": round(float(v.std()), 6),
-                "log1p": b in LOG_BANDS,
+                "log1p": bool(use_log1p),
             }
         entry = {
             "n_train_tiles": n_tiles[mod],
@@ -388,6 +511,41 @@ def compute_modality_band_stats(
     return out
 
 
+def _entry_matches_fit_request(
+    entry,
+    *,
+    eff_seed,
+    eff_vf,
+    eff_image_size,
+    max_samples,
+    expected_fit_digest=None,
+    expected_pool_size=None,
+):
+    if not isinstance(entry, dict):
+        return False
+    prov = entry.get("_provenance")
+    if not isinstance(prov, dict) or prov.get("fit_only") is not True:
+        return False
+    if prov.get("seed") != eff_seed:
+        return False
+    if prov.get("val_fraction") is not None and abs(float(prov["val_fraction"]) - eff_vf) >= 1e-6:
+        return False
+    if max_samples is not None:
+        if prov.get("max_samples") != int(max_samples):
+            return False
+    elif prov.get("max_samples") is not None:
+        return False
+    if prov.get("image_size") is not None and int(prov["image_size"]) != eff_image_size:
+        return False
+    if expected_pool_size is not None and prov.get("n_manifest_train_tiles") is not None:
+        if int(prov["n_manifest_train_tiles"]) != int(expected_pool_size):
+            return False
+    if expected_fit_digest is not None and prov.get("fit_names_sha256") is not None:
+        if prov["fit_names_sha256"] != expected_fit_digest:
+            return False
+    return True
+
+
 def load_stats(
     dataset,
     stats_path=None,
@@ -400,6 +558,12 @@ def load_stats(
     masks_dir=None,
     train_indices=None,
     exclude_names=None,
+    image_size=None,
+    max_samples=None,
+    sample_seed=None,
+    preloaded_train_names=None,
+    preloaded_raw_by_name=None,
+    preloaded_masks_by_name=None,
 ):
     sdir = _resolve_splits_dir(images_dir=images_dir, data_root=data_root)
     path = stats_path
@@ -412,13 +576,17 @@ def load_stats(
         with open(path) as f:
             stats = json.load(f)
 
+    eff_seed = 42 if seed is None else int(seed)
     eff_vf = DEFAULT_VAL_FRACTION if val_fraction is None else float(val_fraction)
+    eff_image_size = 128 if image_size is None else int(image_size)
+    eff_sseed = eff_seed if sample_seed is None else int(sample_seed)
     want_fit_only = bool(
         fit_only
         or seed is not None
         or val_fraction is not None
         or train_indices is not None
         or exclude_names is not None
+        or max_samples is not None
     )
 
     ds_stats = None
@@ -427,97 +595,153 @@ def load_stats(
         if key is not None:
             ds_stats = stats[key]
 
-    # 1. Check precomputed per-seed fit-only entry in norm_stats.json
+    train_img_dir, train_lbl_dir = _resolve_training_dirs(
+        images_dir=images_dir, masks_dir=masks_dir, dataset=dataset, data_root=data_root
+    )
+    _, split_kind = infer_dataset_split(images_dir) if images_dir else (None, None)
+
+    # If loading Testing split after Training in the same process and max_samples was not
+    # explicitly passed to the test loader, reuse the paired Training split's active stats
+    # if its (seed, val_fraction, image_size) match.
     if (
-        ds_stats is not None
-        and want_fit_only
+        split_kind == "test"
+        and train_img_dir is not None
+        and max_samples is None
         and train_indices is None
         and exclude_names is None
-        and seed is not None
     ):
-        by_seed = ds_stats.get("by_seed") or {}
-        seed_keys = [
-            f"seed_{int(seed)}_val_{eff_vf:.4f}",
-            f"seed_{int(seed)}",
-            str(int(seed)),
-        ]
-        for sk in seed_keys:
-            if sk in by_seed:
-                cand_entry = by_seed[sk]
-                prov = cand_entry.get("_provenance") or {}
-                if prov.get("val_fraction") is None or abs(float(prov["val_fraction"]) - eff_vf) < 1e-6:
-                    return cand_entry
-        top_prov = ds_stats.get("_provenance") or {}
-        if (
-            top_prov.get("fit_only") is True
-            and top_prov.get("seed") == int(seed)
-            and abs(float(top_prov.get("val_fraction", eff_vf)) - eff_vf) < 1e-6
-        ):
-            return ds_stats
+        paired = _LAST_TRAIN_STATS_BY_DIR.get((os.path.abspath(train_img_dir), dataset))
+        if paired is not None:
+            p_prov = paired.get("_provenance") or {}
+            if (
+                p_prov.get("fit_only") is True
+                and p_prov.get("seed") == eff_seed
+                and abs(float(p_prov.get("val_fraction", eff_vf)) - eff_vf) < 1e-6
+                and int(p_prov.get("image_size", eff_image_size)) == eff_image_size
+            ):
+                return paired
 
-    # 2. If fit-only stats are requested and local Training tiles exist on disk,
-    #    compute fit-only stats excluding val_idx on the fly (cached).
-    if want_fit_only and fit_only is not False:
-        inferred_root = _infer_data_root_from_images_dir(images_dir, data_root=data_root)
-        train_img_dir = None
-        train_lbl_dir = None
-        if inferred_root and dataset:
-            cand_img = os.path.join(inferred_root, dataset, "Training", "images")
-            cand_lbl = os.path.join(inferred_root, dataset, "Training", "labels")
-            if os.path.isdir(cand_img) and os.path.isdir(cand_lbl):
-                train_img_dir, train_lbl_dir = cand_img, cand_lbl
-        if train_img_dir is None and images_dir is not None:
-            _, split_kind = infer_dataset_split(images_dir)
-            if split_kind == "train" and os.path.isdir(images_dir):
-                train_img_dir = images_dir
-                train_lbl_dir = masks_dir
-        if train_img_dir is not None and os.path.isdir(train_img_dir):
-            cache_key = (
-                os.path.abspath(train_img_dir),
-                dataset,
-                None if seed is None else int(seed),
-                eff_vf,
-                None if train_indices is None else tuple(int(i) for i in train_indices),
-                None if exclude_names is None else tuple(sorted(exclude_names)),
-            )
-            if cache_key in _FIT_STATS_CACHE:
-                return _FIT_STATS_CACHE[cache_key]
+    # Determine the actual training pool and fit-only names if local training tiles exist
+    train_pool_names = None
+    fit_names = None
+    fit_digest = None
+    if want_fit_only and fit_only is not False and train_img_dir is not None and os.path.isdir(train_img_dir):
+        if preloaded_train_names is not None:
+            train_pool_names = sorted(list(preloaded_train_names), key=natural_key)
+        else:
+            inferred_root = _infer_data_root_from_images_dir(train_img_dir, data_root=data_root)
             try:
                 allowed = manifest_names(train_img_dir, data_root=inferred_root)
             except Exception:
                 allowed = None
             pairs = list_pairs(train_img_dir, train_lbl_dir, sort=True)
             if allowed is not None:
-                train_names = [p[0] for p in pairs if p[0] in allowed]
+                all_names = [p[0] for p in pairs if p[0] in allowed]
             else:
-                train_names = [p[0] for p in pairs]
-            if train_names:
-                fit_names = compute_fit_only_names(
-                    train_img_dir,
-                    train_lbl_dir,
-                    train_names,
-                    seed=42 if seed is None else int(seed),
-                    val_fraction=eff_vf,
-                    train_indices=train_indices,
-                    exclude_names=exclude_names,
-                )
-                if fit_names:
-                    prov = {
-                        "fit_only": True,
-                        "seed": 42 if seed is None else int(seed),
-                        "val_fraction": eff_vf,
-                        "n_manifest_train_tiles": len(train_names),
-                        "n_fit_train_tiles": len(fit_names),
-                        "n_excluded_val_tiles": len(train_names) - len(fit_names),
-                    }
-                    computed = compute_modality_band_stats(
-                        train_img_dir,
-                        train_lbl_dir,
-                        fit_names,
-                        provenance=prov,
-                    )
-                    _FIT_STATS_CACHE[cache_key] = computed
-                    return computed
+                all_names = [p[0] for p in pairs]
+            if max_samples is not None and int(max_samples) > 0 and int(max_samples) < len(all_names):
+                canon_idx = sorted(range(len(all_names)), key=lambda i: os.path.basename(str(all_names[i])))
+                rng_s = np.random.default_rng(_derive_seed(eff_sseed, 7))
+                keep_idx = sorted(rng_s.permutation(canon_idx)[: int(max_samples)].tolist())
+                train_pool_names = [all_names[i] for i in keep_idx]
+            else:
+                train_pool_names = all_names
+        if train_pool_names:
+            fit_names = compute_fit_only_names(
+                train_img_dir,
+                train_lbl_dir,
+                train_pool_names,
+                seed=eff_seed,
+                val_fraction=eff_vf,
+                train_indices=train_indices,
+                exclude_names=exclude_names,
+                image_size=eff_image_size,
+                masks_by_name=preloaded_masks_by_name,
+            )
+            fit_digest = _fit_names_digest(fit_names)
+
+    # 1. Check precomputed per-seed fit-only entry in norm_stats.json
+    if (
+        ds_stats is not None
+        and want_fit_only
+        and fit_only is not False
+        and train_indices is None
+        and exclude_names is None
+    ):
+        by_seed = ds_stats.get("by_seed") or {}
+        seed_keys = [
+            f"seed_{eff_seed}_val_{eff_vf:.4f}",
+            f"seed_{eff_seed}",
+            str(eff_seed),
+        ]
+        for sk in seed_keys:
+            if sk in by_seed:
+                cand_entry = by_seed[sk]
+                if _entry_matches_fit_request(
+                    cand_entry,
+                    eff_seed=eff_seed,
+                    eff_vf=eff_vf,
+                    eff_image_size=eff_image_size,
+                    max_samples=max_samples,
+                    expected_fit_digest=fit_digest,
+                    expected_pool_size=len(train_pool_names) if train_pool_names is not None else None,
+                ):
+                    if split_kind == "train" and train_img_dir is not None:
+                        _LAST_TRAIN_STATS_BY_DIR[(os.path.abspath(train_img_dir), dataset)] = cand_entry
+                    return cand_entry
+        if _entry_matches_fit_request(
+            ds_stats,
+            eff_seed=eff_seed,
+            eff_vf=eff_vf,
+            eff_image_size=eff_image_size,
+            max_samples=max_samples,
+            expected_fit_digest=fit_digest,
+            expected_pool_size=len(train_pool_names) if train_pool_names is not None else None,
+        ):
+            if split_kind == "train" and train_img_dir is not None:
+                _LAST_TRAIN_STATS_BY_DIR[(os.path.abspath(train_img_dir), dataset)] = ds_stats
+            return ds_stats
+
+    # 2. If fit-only stats are requested and local Training tiles exist on disk,
+    #    compute fit-only stats excluding val_idx on the fly (cached).
+    if want_fit_only and fit_only is not False and train_img_dir is not None and fit_names:
+        cache_key = (
+            os.path.abspath(train_img_dir),
+            dataset,
+            eff_seed,
+            eff_vf,
+            eff_image_size,
+            None if max_samples is None else int(max_samples),
+            eff_sseed if max_samples is not None else None,
+            fit_digest,
+        )
+        if cache_key in _FIT_STATS_CACHE:
+            cached = _FIT_STATS_CACHE[cache_key]
+            if split_kind == "train":
+                _LAST_TRAIN_STATS_BY_DIR[(os.path.abspath(train_img_dir), dataset)] = cached
+            return cached
+        prov = {
+            "fit_only": True,
+            "seed": eff_seed,
+            "val_fraction": eff_vf,
+            "image_size": eff_image_size,
+            "max_samples": int(max_samples) if max_samples is not None else None,
+            "n_manifest_train_tiles": len(train_pool_names),
+            "n_fit_train_tiles": len(fit_names),
+            "n_excluded_val_tiles": len(train_pool_names) - len(fit_names),
+            "fit_names_sha256": fit_digest,
+        }
+        computed = compute_modality_band_stats(
+            train_img_dir,
+            train_lbl_dir,
+            fit_names,
+            provenance=prov,
+            raw_by_name=preloaded_raw_by_name,
+        )
+        _FIT_STATS_CACHE[cache_key] = computed
+        if split_kind == "train":
+            _LAST_TRAIN_STATS_BY_DIR[(os.path.abspath(train_img_dir), dataset)] = computed
+        return computed
 
     if stats is None:
         raise FileNotFoundError(
@@ -525,6 +749,12 @@ def load_stats(
         )
     if ds_stats is None:
         raise KeyError(f"No normalization stats for {dataset} in {path}")
+    if want_fit_only and fit_only is not False:
+        raise KeyError(
+            f"No matching fit-only normalization stats for dataset={dataset!r} "
+            f"(seed={eff_seed}, val_fraction={eff_vf}, image_size={eff_image_size}, "
+            f"max_samples={max_samples}) in {path}, and local training tiles were not found."
+        )
     return ds_stats
 
 
@@ -545,7 +775,7 @@ def normalize_bands(raw, modality, band_names, mstats):
         x = raw[i].astype(np.float32)
         s = mstats["bands"][b]
         nod = x == NODATA
-        if b in LOG_BANDS:
+        if s.get("log1p", b in LOG_BANDS):
             x = np.log1p(np.clip(x, 0, None))
         lo, hi = s["lo"], s["hi"]
         x = (x - lo) / (hi - lo) if hi > lo else np.zeros_like(x)
@@ -555,15 +785,19 @@ def normalize_bands(raw, modality, band_names, mstats):
     return np.stack(out)
 
 
-def load_image_clean(img_path, image_size, bands, stats):
-    """HWC float32 in [-1, 1]."""
-    raw = read_raw(img_path)
+def _normalize_raw_clean(raw, image_size, bands, stats, img_path="<raw>"):
     modality = MODALITY_BY_COUNT.get(raw.shape[0])
     if modality is None:
         raise ValueError(f"{img_path}: unexpected band count {raw.shape[0]}")
     x = normalize_bands(raw, modality, bands[modality], stats[modality])
     x = np.clip(_resize_float(x, image_size), -1.0, 1.0)
     return np.transpose(x, (1, 2, 0))
+
+
+def load_image_clean(img_path, image_size, bands, stats):
+    """HWC float32 in [-1, 1]."""
+    raw = read_raw(img_path)
+    return _normalize_raw_clean(raw, image_size, bands, stats, img_path=img_path)
 
 
 def load_image_legacy(img_path, image_size):
@@ -668,7 +902,18 @@ def load_samples(
         if not pairs:
             raise ValueError(f"No manifest-allowed image/mask pairs found in {images_dir}")
     pairs = _slice_pairs_preload(pairs, max_samples, sample_seed=eff_sample_seed)
-    dataset, _ = infer_dataset_split(images_dir)
+    dataset, split_kind = infer_dataset_split(images_dir)
+
+    raw_items = []
+    raw_by_name = {}
+    masks_by_name = {}
+    for name, img_path, mask_path in wrap(pairs, desc="Loading data"):
+        raw = read_raw(img_path)
+        mask = load_mask(mask_path, image_size)
+        raw_items.append((name, img_path, raw, mask))
+        raw_by_name[name] = raw
+        masks_by_name[name] = mask
+
     stats = load_stats(
         dataset,
         stats_path,
@@ -678,10 +923,16 @@ def load_samples(
         data_root=data_root,
         images_dir=images_dir,
         masks_dir=masks_dir,
+        image_size=image_size,
+        max_samples=max_samples if split_kind == "train" else None,
+        sample_seed=eff_sample_seed,
+        preloaded_train_names=[p[0] for p in pairs] if split_kind == "train" else None,
+        preloaded_raw_by_name=raw_by_name if split_kind == "train" else None,
+        preloaded_masks_by_name=masks_by_name if split_kind == "train" else None,
     )
     band_sel = resolve_bands(bands)
-    for name, img_path, mask_path in wrap(pairs, desc="Loading data"):
-        samples.append((load_image_clean(img_path, image_size, band_sel, stats),
-                        load_mask(mask_path, image_size)))
+    _LAST_LOADED_PROVENANCE_BY_DIR[os.path.abspath(images_dir)] = stats_provenance(stats)
+    for name, img_path, raw, mask in raw_items:
+        samples.append((_normalize_raw_clean(raw, image_size, band_sel, stats, img_path=img_path), mask))
         names.append(name)
     return samples, names

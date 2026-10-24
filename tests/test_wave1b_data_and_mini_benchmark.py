@@ -335,9 +335,14 @@ def test_issue_30_mini_dataset_bands_nodata_and_cli_overrides(tmp_path):
 
     assert sar_raw.shape == (6, 24, 24)
     assert sar_raw.dtype == np.float32
+    assert float(sar_raw[0].max()) < 0.0 and float(sar_raw[1].max()) < 0.0  # VV, VH in dB scale
     assert np.any(sar_raw[2] == flood_data.NODATA)  # MERIT_DEM nodata
     assert np.any(sar_raw[3] == flood_data.NODATA)  # COP_DEM nodata
     assert os.path.isfile(info["stats_path"])
+    with open(info["stats_path"]) as f:
+        st_json = json.load(f)
+    assert st_json["flood_SAR"]["sar"]["bands"]["VV"]["log1p"] is False
+    assert st_json["flood_SAR"]["sar"]["bands"]["VH"]["log1p"] is False
 
     # Verify CLI overrides and fingerprint sensitivity
     parser = argparse.ArgumentParser()
@@ -383,3 +388,92 @@ def test_issue_30_mini_dataset_bands_nodata_and_cli_overrides(tmp_path):
         cfg2,
         "quantum",
     ) is False
+
+
+def test_review_r1_max_samples_image_size_dataset_root_and_manifest_validation(tmp_path, monkeypatch):
+    """Regression test for Round 1 review findings:
+      1. --max-samples bounds TIFF reads to max_samples and excludes capped val_idx from norm stats.
+      2. --image-size stratification changes invalidate 128-px precomputed stats and recompute fit-only stats.
+      3. Dataset-level --data-root resolves sibling Training/ for Testing/ stats, and explicit fit_only=True
+         without local tiles or matching precomputed stats raises KeyError instead of falling back silently.
+      4. validate_manifest() rejects tampered conflict_policy, conflict_groups, counts, and excluded metadata.
+    """
+    data_root = str(tmp_path / "r1_mini")
+    info = make_mini_flood_dataset.generate_mini_flood_dataset(
+        data_root, n_train=12, n_test=4, image_size=32, seed=42, val_fraction=0.15, seeds=(42,)
+    )
+    ds_root = os.path.join(data_root, "flood_optical")
+    train_img_dir = os.path.join(ds_root, "Training", "images")
+    train_lbl_dir = os.path.join(ds_root, "Training", "labels")
+    test_img_dir = os.path.join(ds_root, "Testing", "images")
+    test_lbl_dir = os.path.join(ds_root, "Testing", "labels")
+
+    # 1. With max_samples=4, load_samples reads at most 4 TIFFs and excludes the 4-tile validation holdout
+    flood_data._FIT_STATS_CACHE.clear()
+    flood_data._LAST_TRAIN_STATS_BY_DIR.clear()
+    read_calls = []
+    orig_read_raw = flood_data.read_raw
+
+    def spy_read_raw(path):
+        read_calls.append(os.path.basename(path))
+        return orig_read_raw(path)
+
+    monkeypatch.setattr(flood_data, "read_raw", spy_read_raw)
+    samples, names = flood_data.load_samples(
+        train_img_dir,
+        train_lbl_dir,
+        32,
+        stats_path=info["stats_path"],
+        data_root=ds_root,  # dataset-level data_root
+        max_samples=4,
+        sample_seed=42,
+        seed=42,
+        val_fraction=0.15,
+        fit_only=True,
+    )
+    assert len(samples) == 4
+    assert len(read_calls) == 4, f"Expected exactly 4 TIFF reads for max_samples=4, got {len(read_calls)}"
+    prov = flood_data.get_last_loaded_stats_provenance(train_img_dir)
+    assert prov["fit_only"] is True
+    assert prov["max_samples"] == 4
+    assert prov["n_manifest_train_tiles"] == 4
+    assert prov["n_fit_train_tiles"] < 4
+
+    # Paired Testing load with dataset-level data_root reuses the exact capped training stats without reading training TIFFs
+    read_calls.clear()
+    test_samples, _ = flood_data.load_samples(
+        test_img_dir,
+        test_lbl_dir,
+        32,
+        stats_path=info["stats_path"],
+        data_root=ds_root,
+        seed=42,
+        val_fraction=0.15,
+        fit_only=True,
+    )
+    assert len(test_samples) == 4
+    assert len(read_calls) == 4  # Only the 4 testing TIFFs read
+    test_prov = flood_data.get_last_loaded_stats_provenance(test_img_dir)
+    assert test_prov["stats_sha256"] == prov["stats_sha256"]
+    assert test_prov["n_fit_train_tiles"] == prov["n_fit_train_tiles"]
+
+    # 2. Explicit fit_only=True for a missing seed without local training tiles must raise KeyError
+    with pytest.raises(KeyError, match="No matching fit-only normalization stats"):
+        flood_data.load_stats(
+            "flood_SAR",
+            stats_path=os.path.join(ROOT, "splits", "norm_stats.json"),
+            seed=99999,
+            val_fraction=0.15,
+            fit_only=True,
+            data_root=str(tmp_path / "nonexistent_root"),
+        )
+
+    # 3. validate_manifest() rejects tampered metadata
+    tampered = json.loads(json.dumps(info["manifests"]["flood_SAR"]))
+    tampered["conflict_groups"] = 999
+    with pytest.raises(ValueError, match="conflict_groups"):
+        dedup_splits.validate_manifest(tampered, expected_policy="drop")
+    tampered2 = json.loads(json.dumps(info["manifests"]["flood_SAR"]))
+    tampered2["conflict_policy"] = "first"
+    with pytest.raises(ValueError, match="conflict_policy"):
+        dedup_splits.validate_manifest(tampered2, expected_policy="drop")

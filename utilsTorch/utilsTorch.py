@@ -40,6 +40,7 @@ class FloodSegmentationDataset(Dataset):
             manifest=manifest, stats_path=stats_path, progress=tqdm,
             max_samples=max_samples, sample_seed=sample_seed, data_root=data_root,
             seed=seed, val_fraction=val_fraction, fit_only=fit_only)
+        self.norm_provenance = flood_data.get_last_loaded_stats_provenance(images_dir)
     def __len__(self):
         return len(self.samples)
     def __getitem__(self, idx):
