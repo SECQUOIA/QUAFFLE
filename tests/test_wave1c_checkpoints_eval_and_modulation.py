@@ -466,3 +466,297 @@ def test_issue_27_ablation_resnet_block_and_backward_compatible_additive_mode():
     assert len(shared_keys) > 0
     for k in shared_keys:
         torch.testing.assert_close(q_sd[k], c_sd[k], rtol=0, atol=0)
+
+
+# ---------------------------------------------------------------------------
+# Round 1 Review Regression Tests (PR #32)
+# ---------------------------------------------------------------------------
+
+
+def test_round1_legacy_additive_state_dict_compatibility():
+    """Verify QResnetBlock does not register duplicate q_block.* state_dict keys and loads base-revision state_dicts."""
+    torch.manual_seed(11)
+    q_block = QuantumBlock(quantum_channels=8, q_ansatz="reupload", q_layers=1, q_backend="torch", seed=11)
+    res_block = QResnetBlock(
+        16, 16, time_emb_dim=32, groups=2, quantum_channels=8,
+        quantum_block=q_block, skip_modulation="additive",
+    )
+    assert res_block.q_block is res_block.quantum_block
+
+    sd = res_block.state_dict()
+    assert any(k.startswith("quantum_block.") for k in sd.keys())
+    assert not any(k.startswith("q_block.") for k in sd.keys()), (
+        "QResnetBlock registered duplicate q_block.* submodule keys in state_dict()"
+    )
+
+    # Strict load into a fresh additive QResnetBlock
+    q_block2 = QuantumBlock(quantum_channels=8, q_ansatz="reupload", q_layers=1, q_backend="torch", seed=99)
+    res_block2 = QResnetBlock(
+        16, 16, time_emb_dim=32, groups=2, quantum_channels=8,
+        quantum_block=q_block2, skip_modulation="additive",
+    )
+    res_block2.load_state_dict(sd, strict=True)
+
+    x = torch.randn(2, 16, 8, 8)
+    t = torch.randn(2, 32)
+    res_block.eval()
+    res_block2.eval()
+    with torch.no_grad():
+        torch.testing.assert_close(res_block(x, t), res_block2(x, t), rtol=0, atol=0)
+
+
+def test_round1_modulation_alias_fingerprint_and_metrics(tmp_path):
+    """Verify q_residual_mode alias is normalized into effective_skip_modulation, fingerprints, and metrics.json."""
+    base_cfg = {
+        "seed": 42,
+        "batch_size": 4,
+        "learning_rate": 1e-4,
+        "fed_rounds": 2,
+        "local_epochs": 1,
+        "num_clients": 2,
+        "clients_per_round": 2,
+    }
+    cfg_alias_add = {**base_cfg, "q_residual_mode": "additive"}
+    cfg_alias_aff = {**base_cfg, "q_residual_mode": "affine"}
+    assert tc.effective_skip_modulation(cfg_alias_add) == "additive"
+    assert tc.effective_skip_modulation(cfg_alias_aff) == "affine"
+    assert tc.centralized_fingerprint(cfg_alias_add, "quantum") != tc.centralized_fingerprint(cfg_alias_aff, "quantum")
+    assert tc.run_fingerprint(cfg_alias_add, "quantum") != tc.run_fingerprint(cfg_alias_aff, "quantum")
+
+    m_path = tc.write_metrics_json(
+        str(tmp_path),
+        script="centralized_demoTorchQ.py",
+        training="centralized",
+        model_type="quantum",
+        config=cfg_alias_add,
+        val_metrics={"loss": 0.5, "accuracy": 0.8, "auc": 0.8, "iou": 0.6, "dice": 0.75},
+        test_metrics={"loss": 0.5, "accuracy": 0.8, "auc": 0.8, "iou": 0.6, "dice": 0.75},
+    )
+    payload = json.loads(pathlib.Path(m_path).read_text(encoding="utf-8"))
+    assert payload["skip_modulation"] == "additive"
+
+
+def test_round1_centralized_initial_validation_and_trainer_selection(tmp_path, monkeypatch):
+    """Verify centralized trainer snapshots initial step-0 validation and restores best step across training."""
+    import centralized_demoTorchClassical as cent_cls
+
+    dummy_ds = TensorDataset(
+        torch.zeros((4, 3, 16, 16), dtype=torch.float32),
+        torch.zeros((4, 1, 16, 16), dtype=torch.float32),
+    )
+    dummy_loader = DataLoader(dummy_ds, batch_size=2)
+    monkeypatch.setattr(cent_cls, "save_training_curves", lambda *a, **kw: None)
+
+    step_counter = {"step": 0}
+
+    def fake_train_one_epoch(model, loader, optimizer, device):
+        step_counter["step"] += 1
+        val = float(step_counter["step"])
+        with torch.no_grad():
+            for p in model.parameters():
+                p.fill_(val)
+        return 0.5, 0.8
+
+    monkeypatch.setattr(cent_cls, "train_one_epoch", fake_train_one_epoch)
+
+    # IoU by parameter fill value: step 0 -> 0.50, step 1 -> 0.90 (best), step 2 -> 0.30
+    iou_by_fill = {0.0: 0.50, 1.0: 0.90, 2.0: 0.30}
+
+    def fake_evaluate_model(model, loader, device):
+        first_val = round(float(next(model.parameters()).flatten()[0].item()), 1)
+        iou = iou_by_fill.get(first_val, 0.10)
+        return {"loss": 1.0 - iou, "accuracy": 0.8, "auc": iou, "iou": iou, "dice": iou}
+
+    monkeypatch.setattr(cent_cls, "evaluate_model", fake_evaluate_model)
+
+    cfg = {
+        "image_size": 16,
+        "channels": 3,
+        "num_classes": 2,
+        "out_dim": 2,
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": (1, 2),
+        "resnet_block_groups": 2,
+        "batch_size": 2,
+        "learning_rate": 1e-4,
+        "num_epochs": 2,
+        "seed": 42,
+        "log_every": 1,
+        "eval_every": 1,
+        "save_samples": False,
+        "num_val_samples": 1,
+        "num_test_samples": 1,
+        "val_fraction": 0.2,
+        "select_metric": "iou",
+        "skip_modulation": "affine",
+    }
+
+    # Case 1: eval_every=1 -> step 1 (iou=0.90) beats step 0 (0.50) and step 2 (0.30)
+    out_dir = tmp_path / "out_cent"
+    model = tc.build_model(cent_cls.UNetSegmentation, cfg)
+    with torch.no_grad():
+        for p in model.parameters():
+            p.zero_()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    model, _, val_metrics = cent_cls.train_model(
+        cfg, dummy_loader, dummy_loader, model, optimizer, torch.device("cpu"), str(out_dir)
+    )
+    assert model._best_step == 1
+    assert model._best_val_metrics["iou"] == pytest.approx(0.90)
+    assert val_metrics[-1]["iou"] == pytest.approx(0.30)
+    assert round(float(next(model.parameters()).flatten()[0].item()), 1) == 1.0
+    assert round(float(next(iter(model._final_state_dict.values())).flatten()[0].item()), 1) == 2.0
+
+    # Case 2: eval_every=10 -> only initial step-0 validation runs (iou=0.50)
+    step_counter["step"] = 0
+    cfg_init_only = {**cfg, "eval_every": 10}
+    out_dir_init_only = tmp_path / "out_cent_init_only"
+    model2 = tc.build_model(cent_cls.UNetSegmentation, cfg_init_only)
+    with torch.no_grad():
+        for p in model2.parameters():
+            p.zero_()
+    optimizer2 = torch.optim.Adam(model2.parameters(), lr=1e-4)
+    model2, _, val_metrics2 = cent_cls.train_model(
+        cfg_init_only, dummy_loader, dummy_loader, model2, optimizer2, torch.device("cpu"), str(out_dir_init_only)
+    )
+    assert len(val_metrics2) == 1
+    assert model2._best_step == 0
+    assert model2._best_val_metrics["iou"] == pytest.approx(0.50)
+    # Restored model weights are step 0 (0.0), while _final_state_dict is step 2 (2.0)
+    assert round(float(next(model2.parameters()).flatten()[0].item()), 1) == 0.0
+    assert round(float(next(iter(model2._final_state_dict.values())).flatten()[0].item()), 1) == 2.0
+
+
+def test_round1_federated_strategy_callbacks_and_unvalidated_final_round(tmp_path, monkeypatch):
+    """Verify CustomFedAvg.aggregate_fit/aggregate_evaluate track final_round and best_parameters across rounds."""
+    from flwr.common import ndarrays_to_parameters
+    import federated_demoTorchClassical as fed_cls
+
+    cfg = {
+        "image_size": 16,
+        "channels": 3,
+        "num_classes": 2,
+        "out_dim": 2,
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": (1, 2),
+        "resnet_block_groups": 2,
+        "batch_size": 2,
+        "learning_rate": 1e-4,
+        "fed_rounds": 3,
+        "ckpt_every": 1,
+        "local_epochs": 1,
+        "num_clients": 2,
+        "clients_per_round": 2,
+        "seed": 42,
+        "select_metric": "iou",
+        "skip_modulation": "affine",
+    }
+    dummy_val = DataLoader(
+        TensorDataset(
+            torch.zeros((2, 3, 16, 16), dtype=torch.float32),
+            torch.zeros((2, 1, 16, 16), dtype=torch.float32),
+        ),
+        batch_size=2,
+    )
+    strategy = fed_cls.CustomFedAvg(
+        val_loader=dummy_val,
+        config=cfg,
+        device_str="cpu",
+        output_dir=str(tmp_path),
+    )
+    strategy.fingerprint = tc.run_fingerprint(cfg, "classical")
+
+    base_model = tc.build_model(fed_cls.UNetSegmentation, cfg)
+    template_arrays = fed_cls.torch_params_to_numpy(base_model)
+
+    def make_params(fill_value: float):
+        return ndarrays_to_parameters([np.full_like(arr, fill_value) for arr in template_arrays])
+
+    # Monkeypatch super().aggregate_fit and super().aggregate_evaluate
+    fill_by_round = {1: 1.0, 2: 2.0, 3: 3.0}
+    iou_by_round = {1: 0.45, 2: 0.88, 3: 0.35}
+
+    monkeypatch.setattr(
+        fed_cls.FedAvg,
+        "aggregate_fit",
+        lambda self, rnd, results, failures: (make_params(fill_by_round[rnd]), {}),
+    )
+    monkeypatch.setattr(
+        fed_cls.FedAvg,
+        "aggregate_evaluate",
+        lambda self, rnd, results, failures: (0.5, {}),
+    )
+    monkeypatch.setattr(
+        fed_cls,
+        "evaluate_model",
+        lambda model, loader, device: {
+            "loss": 0.3,
+            "accuracy": 0.85,
+            "auc": 0.90,
+            "iou": iou_by_round[round(float(next(model.parameters()).flatten()[0].item()))],
+            "dice": 0.80,
+        },
+    )
+
+    # Round 1: fit + evaluate (iou=0.45)
+    strategy.aggregate_fit(1, [object()], [])
+    strategy.aggregate_evaluate(1, [object()], [])
+    assert strategy.best_round == 1
+    assert strategy.final_round == 1
+
+    # Round 2: fit + evaluate (iou=0.88 -> new best)
+    strategy.aggregate_fit(2, [object()], [])
+    strategy.aggregate_evaluate(2, [object()], [])
+    assert strategy.best_round == 2
+    assert strategy.final_round == 2
+    assert strategy.best_val_score == pytest.approx(0.88)
+
+    # Round 3: fit ONLY (simulating unvalidated final round where round 2 was last validated round)
+    strategy.aggregate_fit(3, [object()], [])
+    assert strategy.best_round == 2
+    assert strategy.final_round == 3
+
+    selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
+    assert used_best is True
+    assert strategy.best_round != strategy.final_round
+    assert not tc.ndarrays_equal(selected_params, final_params)
+    assert np.allclose(selected_params[0], 2.0)
+    assert np.allclose(final_params[0], 3.0)
+
+
+def test_round1_analyze_results_parses_best_and_final_validation_headers(tmp_path):
+    """Verify analyze_results._parse_summary prefers Best Validation over Final Validation."""
+    import analyze_results as ar
+
+    summary_file = tmp_path / "summary.txt"
+    summary_file.write_text(
+        "Quantum Flood Segmentation — Centralized Training Summary\n"
+        "============================================================\n\n"
+        "Total parameters: 12,345\n\n"
+        "Best Validation Results (step 2):\n"
+        "  Loss: 0.2500\n"
+        "  Accuracy: 0.9100\n"
+        "  AUC: 0.9400\n"
+        "  IoU: 0.8300\n"
+        "  Dice: 0.9071\n\n"
+        "Final Validation Results:\n"
+        "  Loss: 0.5500\n"
+        "  Accuracy: 0.7800\n"
+        "  AUC: 0.8100\n"
+        "  IoU: 0.6100\n"
+        "  Dice: 0.7578\n\n"
+        "Test Results:\n"
+        "  Loss: 0.2700\n"
+        "  Accuracy: 0.9000\n"
+        "  AUC: 0.9300\n"
+        "  IoU: 0.8100\n"
+        "  Dice: 0.8950\n",
+        encoding="utf-8",
+    )
+    parsed = ar._parse_summary(str(summary_file))
+    assert parsed is not None
+    assert parsed["Val_IoU"] == pytest.approx(0.83)
+    assert parsed["Test_IoU"] == pytest.approx(0.81)
+

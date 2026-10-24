@@ -126,10 +126,10 @@ class QVUNetSegmentation(torch.nn.Module):
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)
-                skip_modulation = self.config.get(
-                    'skip_modulation',
-                    self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION),
-                )
+                raw_skip = self.config.get('skip_modulation')
+                if raw_skip is None:
+                    raw_skip = self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION)
+                skip_modulation = unet.normalize_skip_modulation(raw_skip)
                 return unet.QVUNet(
                     dim=self.config['base_channels'],
                     quantum_block=quantum_block,
@@ -243,10 +243,10 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     )
                 classical_bottleneck = make_block(0)
                 block2 = None if share else make_block(1)
-                skip_modulation = self.config.get(
-                    'skip_modulation',
-                    self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION),
-                )
+                raw_skip = self.config.get('skip_modulation')
+                if raw_skip is None:
+                    raw_skip = self.config.get('q_residual_mode', unet.DEFAULT_SKIP_MODULATION)
+                skip_modulation = unet.normalize_skip_modulation(raw_skip)
                 return unet.QVUNet(
                     dim=self.config['base_channels'],
                     quantum_block=classical_bottleneck,

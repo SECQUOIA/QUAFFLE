@@ -288,9 +288,9 @@ def apply_common_args(config, args):
     else:
         config.setdefault('select_metric', DEFAULT_SELECT_METRIC)
     if getattr(args, 'skip_modulation', None) is not None:
-        config['skip_modulation'] = str(args.skip_modulation).strip().lower()
-    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config:
-        config.setdefault('skip_modulation', DEFAULT_SKIP_MODULATION)
+        config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
+        config['skip_modulation'] = effective_skip_modulation(config)
     if hasattr(args, 'q_ansatz'):
         config['q_ansatz'] = args.q_ansatz
     if getattr(args, 'q_layers', None) is not None:
@@ -897,6 +897,28 @@ def clone_state_dict_cpu(state_dict):
     }
 
 
+def effective_skip_modulation(config):
+    """Resolve and normalize the effective skip modulation ('affine' or 'additive'),
+    consulting `skip_modulation` first and falling back to `q_residual_mode`."""
+    from utilsTorch.unetTorch import normalize_skip_modulation
+    if not isinstance(config, dict):
+        return normalize_skip_modulation(config)
+    raw = config.get('skip_modulation')
+    if raw is None:
+        raw = config.get('q_residual_mode', DEFAULT_SKIP_MODULATION)
+    return normalize_skip_modulation(raw)
+
+
+def ndarrays_equal(a, b):
+    """Return True if two sequences of numpy arrays have identical shapes and values."""
+    if a is None or b is None or len(a) != len(b):
+        return False
+    return all(
+        a_arr.shape == b_arr.shape and np.array_equal(a_arr, b_arr)
+        for a_arr, b_arr in zip(a, b)
+    )
+
+
 def clone_ndarrays(ndarrays):
     """Deep-copy a sequence of numpy parameter arrays."""
     if ndarrays is None:
@@ -960,11 +982,7 @@ def centralized_fingerprint(config, model_type):
     dim_mults = [int(m) for m in config.get('dim_mults', (1, 2, 4, 8))]
     resnet_block_groups = int(config.get('resnet_block_groups', 8))
     data_root = config.get('data_root')
-    skip_mod = (
-        str(config.get('skip_modulation', DEFAULT_SKIP_MODULATION)).strip().lower()
-        if quantum
-        else None
-    )
+    skip_mod = effective_skip_modulation(config) if quantum else None
     return {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
@@ -1327,11 +1345,7 @@ def run_fingerprint(config, model_type):
     ansatz, layers = effective_q_variant(config)
     quantum = model_type in ('quantum', 'ablation')
     data_root = config.get('data_root')
-    skip_mod = (
-        str(config.get('skip_modulation', DEFAULT_SKIP_MODULATION)).strip().lower()
-        if quantum
-        else None
-    )
+    skip_mod = effective_skip_modulation(config) if quantum else None
     fp = {
         'model_type': model_type,
         'dataset': config.get('dataset', 'optical'),
@@ -1507,6 +1521,8 @@ def apply_fed_resume(strategy, ckpt):
     )
     strategy.best_round = ckpt.get('best_round')
     strategy.best_val_metrics = ckpt.get('best_val_metrics')
+    raw_final_round = ckpt.get('final_round')
+    strategy.final_round = int(raw_final_round) if raw_final_round is not None else done
     params = ndarrays_to_parameters(ckpt['parameters'])
     strategy._current_parameters = params
     final_nd = ckpt.get('final_parameters') or ckpt['parameters']
@@ -1551,6 +1567,7 @@ def fed_round_end(strategy, server_round):
             'run_format': RUN_FORMAT,
             'fingerprint': strategy.fingerprint,
             'completed_round': int(server_round),
+            'final_round': int(getattr(strategy, 'final_round', None) or server_round),
             'parameters': curr_nd,
             'final_parameters': final_nd,
             'best_parameters': best_nd,
@@ -1646,11 +1663,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': layers if quantum else None,
-        'skip_modulation': (
-            str(config.get('skip_modulation', DEFAULT_SKIP_MODULATION)).strip().lower()
-            if quantum
-            else None
-        ),
+        'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         # Circuit simulator (quantum runs only). The ablation has no circuit.
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)

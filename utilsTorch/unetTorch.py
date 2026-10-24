@@ -972,7 +972,6 @@ class QResnetBlock(nn.Module):
             raise ValueError("QResnetBlock requires quantum_block (or q_block)")
         self.quantum_channels = quantum_channels
         self.quantum_block = quantum_block
-        self.q_block = quantum_block
         self.in_dim = in_dim
         self.out_dim = out_dim
         eff_mode = q_residual_mode if q_residual_mode is not None else skip_modulation
@@ -1011,6 +1010,10 @@ class QResnetBlock(nn.Module):
             if in_dim != out_dim
             else nn.Identity()
         )
+
+    @property
+    def q_block(self):
+        return self.quantum_block
 
     def forward(self, x, time_emb, params=None):
         B, C, H, W = x.shape

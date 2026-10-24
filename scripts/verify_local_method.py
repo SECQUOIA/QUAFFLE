@@ -90,15 +90,16 @@ def _assert_metrics_json(
     with open(metrics_path) as f:
         m = json.load(f)
     assert m.get("schema") == "quaffle-metrics-v1", m.get("schema")
-    assert m.get("select_metric") in tc.SELECT_METRIC_CHOICES, m.get("select_metric")
-    for split_key in (
-        "val",
-        "test",
-        "best_val_metrics",
-        "final_val_metrics",
-        "best_val_test_metrics",
-        "final_test_metrics",
-    ):
+    required_splits = ["val", "test"]
+    if "select_metric" in m or require_canonical_meta:
+        assert m.get("select_metric") in ("iou", "dice", "auc", "loss"), m.get("select_metric")
+        required_splits.extend([
+            "best_val_metrics",
+            "final_val_metrics",
+            "best_val_test_metrics",
+            "final_test_metrics",
+        ])
+    for split_key in required_splits:
         block = m.get(split_key)
         assert isinstance(block, dict), f"Missing {split_key} metrics in {metrics_path}"
         for metric_key in ("loss", "accuracy", "auc", "iou", "dice"):

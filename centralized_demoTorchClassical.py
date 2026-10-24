@@ -116,6 +116,12 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
         val_result = evaluate_model(model, val_loader, device)
         val_result['epoch'] = epoch
         val_metrics.append(val_result)
+        cand_score = tc.extract_val_score(val_result, select_metric)
+        if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+            best_val_score = cand_score
+            best_epoch = epoch
+            best_val_metrics = dict(val_result)
+            best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
         print(f"Initial Validation: Loss = {val_result['loss']:.4f}, Accuracy = {val_result['accuracy']:.4f}, AUC = {val_result['auc']:.4f}, IoU = {val_result['iou']:.4f}, Dice = {val_result['dice']:.4f}")
 
         # Log initial evaluation scores to text file
@@ -196,11 +202,8 @@ def train_model(config, train_loader, val_loader, model, optimizer, device, outp
     if best_state_dict is None:
         best_state_dict = final_state_dict
         best_epoch = epoch
-        best_val_metrics = dict(val_metrics[-1]) if val_metrics else None
-        best_val_score = (
-            tc.extract_val_score(best_val_metrics, select_metric)
-            if best_val_metrics else float('nan')
-        )
+        best_val_metrics = None
+        best_val_score = float('nan')
     model.load_state_dict(best_state_dict)
     print(f"Restored best validation checkpoint from epoch {best_epoch} "
           f"({select_metric}={best_val_score:.4f})")
@@ -390,7 +393,14 @@ def main():
             f.write(f"Training samples: {len(train_subset)}\n\n")
             
             if val_metrics:
-                final_val = getattr(model, '_best_val_metrics', None) or val_metrics[-1]
+                best_val = getattr(model, '_best_val_metrics', None) or val_metrics[-1]
+                final_val = val_metrics[-1]
+                f.write(f"Best Validation Results (epoch {getattr(model, '_best_epoch', None)}):\n")
+                f.write(f"  Loss: {best_val['loss']:.4f}\n")
+                f.write(f"  Accuracy: {best_val['accuracy']:.4f}\n")
+                f.write(f"  AUC: {best_val['auc']:.4f}\n")
+                f.write(f"  IoU: {best_val['iou']:.4f}\n")
+                f.write(f"  Dice: {best_val['dice']:.4f}\n\n")
                 f.write("Final Validation Results:\n")
                 f.write(f"  Loss: {final_val['loss']:.4f}\n")
                 f.write(f"  Accuracy: {final_val['accuracy']:.4f}\n")

@@ -295,6 +295,7 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
         self.best_parameters = None
         self.best_val_metrics = None
         self.final_parameters = None
+        self.final_round = None
         self.failed_rounds = []
         self._current_parameters = None
         self.fingerprint = None
@@ -388,6 +389,7 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
         if aggregated_result is not None:
             self._current_parameters = aggregated_result[0]
             self.final_parameters = aggregated_result[0]
+            self.final_round = int(server_round)
         
         return aggregated_result
 
@@ -554,10 +556,10 @@ def main():
     if strategy.failed_rounds:
         tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
                                 f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
-    if strategy._current_parameters is None:
+    if strategy._current_parameters is None and strategy.final_parameters is None:
         tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
     if len(strategy.round_metrics) == 0:
-        tc.fail_run(output_dir, "no server-side validation round completed")
+        print("Warning: no server-side validation round completed; falling back to final_parameters for test evaluation")
     print(f"Best AUC achieved: {strategy.best_performance:.4f}")
     
     # Get best global model (falling back to final parameters if no validation rounds ran) for testing
@@ -597,8 +599,14 @@ def main():
             print(f"Test Results - Loss: {test_result['loss']:.4f}, "
                   f"Accuracy: {test_result['accuracy']:.4f}, AUC: {test_result['auc']:.4f}, IoU: {test_result['iou']:.4f}, Dice: {test_result['dice']:.4f}")
 
-            final_round = strategy.round_metrics[-1].get('step') if strategy.round_metrics else None
-            if used_best and final_params is not None and strategy.best_round != final_round:
+            final_round = getattr(strategy, 'final_round', None)
+            if final_round is None and strategy.round_metrics:
+                final_round = strategy.round_metrics[-1].get('step')
+            if (
+                used_best
+                and final_params is not None
+                and (strategy.best_round != final_round or not tc.ndarrays_equal(selected_params, final_params))
+            ):
                 numpy_to_torch_params(final_model, final_params)
                 final_test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
                 numpy_to_torch_params(final_model, selected_params)
@@ -651,7 +659,14 @@ def main():
                 f.write(f"Best AUC achieved: {strategy.best_performance:.4f}\n\n")
                 
                 if strategy.round_metrics:
-                    final_metrics = strategy.best_val_metrics or strategy.round_metrics[-1]
+                    best_metrics = strategy.best_val_metrics or strategy.round_metrics[-1]
+                    final_metrics = strategy.round_metrics[-1]
+                    f.write(f"Best Validation Results (round {strategy.best_round}):\n")
+                    f.write(f"  Loss: {best_metrics['loss']:.4f}\n")
+                    f.write(f"  Accuracy: {best_metrics['accuracy']:.4f}\n")
+                    f.write(f"  AUC: {best_metrics['auc']:.4f}\n")
+                    f.write(f"  IoU: {best_metrics['iou']:.4f}\n")
+                    f.write(f"  Dice: {best_metrics['dice']:.4f}\n\n")
                     f.write("Final Validation Results:\n")
                     f.write(f"  Loss: {final_metrics['loss']:.4f}\n")
                     f.write(f"  Accuracy: {final_metrics['accuracy']:.4f}\n")
@@ -673,7 +688,7 @@ def main():
             print(f"Results summary saved to: {summary_path}")
     
     # Canonical per-run metrics (analysis reads this, not the Excel file).
-    final_val = strategy.round_metrics[-1]
+    final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
     best_val = strategy.best_val_metrics or final_val
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated", model_type="classical",

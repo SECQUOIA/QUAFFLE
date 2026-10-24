@@ -637,10 +637,18 @@ def _parse_summary(path):
     if pm:
         out["Total_Params"] = int(pm.group(1).replace(",", ""))
 
-    # Final Validation block — main runs have "Final Validation Results:",
-    # ablation runs have "Final Validation:". Accept both.
-    val_m = _re_disk.search(
-        r"Final Validation(?: Results)?:\s*\n((?:\s*\w+:\s+[\d.]+\s*\n)+)", text)
+    # Validation block — prefer "Best Validation [Results] (...):" if present,
+    # falling back to "Final Validation [Results]:".
+    val_m = (
+        _re_disk.search(
+            r"Best Validation(?: Results)?(?:\s*\([^)]*\))?:\s*\n((?:\s*\w+:\s+[\d.]+\s*\n)+)",
+            text,
+        )
+        or _re_disk.search(
+            r"Final Validation(?: Results)?:\s*\n((?:\s*\w+:\s+[\d.]+\s*\n)+)",
+            text,
+        )
+    )
     if val_m:
         for line in val_m.group(1).splitlines():
             mm = _re_disk.match(r"\s*(\w+):\s+([\d.]+)", line)

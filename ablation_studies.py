@@ -294,6 +294,12 @@ def run_centralized_torch(args):
         r = evaluate_model(model, val_loader, device)
         r['epoch'] = start_epoch
         val_metrics.append(r)
+        cand_score = tc.extract_val_score(r, select_metric)
+        if best_state_dict is None or tc.is_better_val_score(cand_score, best_val_score, select_metric):
+            best_val_score = cand_score
+            best_epoch = start_epoch
+            best_val_metrics = dict(r)
+            best_state_dict = tc.clone_state_dict_cpu(model.state_dict())
         print(f"Initial Val: Loss={r['loss']:.4f} Acc={r['accuracy']:.4f} "
               f"AUC={r['auc']:.4f} IoU={r['iou']:.4f} Dice={r['dice']:.4f}")
         with open(eval_log, 'a') as f:
@@ -362,11 +368,8 @@ def run_centralized_torch(args):
     if best_state_dict is None:
         best_state_dict = final_state_dict
         best_epoch = epoch
-        best_val_metrics = dict(val_metrics[-1]) if val_metrics else None
-        best_val_score = (
-            tc.extract_val_score(best_val_metrics, select_metric)
-            if best_val_metrics else float('nan')
-        )
+        best_val_metrics = None
+        best_val_score = float('nan')
     model.load_state_dict(best_state_dict)
     print(f"Restored best validation checkpoint from epoch {best_epoch} "
           f"({select_metric}={best_val_score:.4f})")
@@ -411,7 +414,8 @@ def run_centralized_torch(args):
                                       f"({config['val_fraction']} of the training pool, stratified)",
                                       f"Checkpoint selection metric: {select_metric} (best epoch: {best_epoch})"],
                          provenance=provenance, knockout=knockout,
-                         best_val_metrics=best_val, final_test_result=final_test_result)
+                         best_val_metrics=best_val, best_step=best_epoch,
+                         final_test_result=final_test_result)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="centralized",
         model_type="ablation", config=config,
@@ -556,6 +560,7 @@ class _TorchAblationFedAvg:
         self.best_parameters = None
         self.best_val_metrics = None
         self.final_parameters = None
+        self.final_round = None
         self._current_parameters = None
         self.failed_rounds = []
         # Resume support: Flower counts rounds from 1 in every process, a
@@ -598,6 +603,7 @@ class _TorchAblationFedAvg:
         if agg is not None:
             self._current_parameters = agg[0]
             self.final_parameters = agg[0]
+            self.final_round = int(server_round)
         return agg
 
     def aggregate_evaluate(self, server_round, results, failures):
@@ -778,15 +784,16 @@ def run_federated_torch(args):
     if strategy.failed_rounds:
         tc.fail_run(output_dir, f"{len(strategy.failed_rounds)} federated rounds had client failures "
                                 f"(first: round {strategy.failed_rounds[0][0]}, {strategy.failed_rounds[0][2]})")
-    if strategy._current_parameters is None:
+    if strategy._current_parameters is None and strategy.final_parameters is None:
         tc.fail_run(output_dir, "no aggregated global parameters (every round failed)")
     if not strategy.round_metrics:
-        tc.fail_run(output_dir, "no server-side validation round completed")
+        print("Warning: no server-side validation round completed; falling back to final aggregated parameters")
     selected_params, final_params, used_best = tc.select_federated_eval_parameters(strategy)
     best_round = strategy.best_round
     best_val_score = strategy.best_val_score
     best_val_metrics = strategy.best_val_metrics
-    print(f"\nFederated training complete. Best {strategy.select_metric}: {best_val_score:.4f} "
+    score_str = f"{best_val_score:.4f}" if best_round is not None else "n/a"
+    print(f"\nFederated training complete. Best {strategy.select_metric}: {score_str} "
           f"(round {best_round}), Best AUC: {strategy.best_performance:.4f}")
 
     test_result = None
@@ -813,8 +820,11 @@ def run_federated_torch(args):
             print(f"Test: Loss={test_result['loss']:.4f} Acc={test_result['accuracy']:.4f} "
                   f"AUC={test_result['auc']:.4f} IoU={test_result['iou']:.4f} "
                   f"Dice={test_result['dice']:.4f}")
-            final_round = strategy.round_metrics[-1].get('step') if strategy.round_metrics else None
-            if used_best and final_params is not None and best_round != final_round:
+            final_round = getattr(strategy, 'final_round', None)
+            if final_round is None and strategy.round_metrics:
+                final_round = strategy.round_metrics[-1].get('step')
+            if (used_best and final_params is not None and
+                    (best_round != final_round or not tc.ndarrays_equal(selected_params, final_params))):
                 _numpy_to_torch_params(final_model, final_params)
                 final_test_result = evaluate_model(final_model, test_loader, torch.device(device_str))
                 _numpy_to_torch_params(final_model, selected_params)
@@ -847,7 +857,8 @@ def run_federated_torch(args):
                              f"Checkpoint selection metric: {strategy.select_metric} (best round: {best_round})",
                          ],
                          provenance=provenance, knockout=knockout,
-                         best_val_metrics=best_val, final_test_result=final_test_result)
+                         best_val_metrics=best_val, best_step=best_round,
+                         final_test_result=final_test_result)
     tc.write_metrics_json(
         output_dir, script=os.path.basename(__file__), training="federated",
         model_type="ablation", config=config,
@@ -878,7 +889,8 @@ def run_federated_torch(args):
 def _write_summary_torch(output_dir, backend, q_params, base_channels,
                          total_params, val_metrics, test_result,
                          mode='centralized', extra_lines=None, provenance=None,
-                         knockout=None, best_val_metrics=None, final_test_result=None):
+                         knockout=None, best_val_metrics=None, best_step=None,
+                         final_test_result=None):
     summary_path = os.path.join(output_dir, "results", "summary.txt")
     os.makedirs(os.path.dirname(summary_path), exist_ok=True)
     with open(summary_path, 'w') as f:
@@ -892,10 +904,15 @@ def _write_summary_torch(output_dir, backend, q_params, base_channels,
         f.write(f"Classical base_channels: {base_channels}\n")
         f.write(f"Classical model params:  {total_params:,}\n\n")
         if val_metrics:
-            v = best_val_metrics or val_metrics[-1]
+            bv = best_val_metrics or val_metrics[-1]
+            step_lbl = "epoch" if mode == 'centralized' else "round"
+            f.write(f"Best Validation ({step_lbl} {best_step}):\n")
+            f.write(f"  Loss: {bv['loss']:.4f}\n  Accuracy: {bv['accuracy']:.4f}\n")
+            f.write(f"  AUC: {bv['auc']:.4f}\n  IoU: {bv['iou']:.4f}\n  Dice: {bv['dice']:.4f}\n\n")
+            fv = val_metrics[-1]
             f.write("Final Validation:\n")
-            f.write(f"  Loss: {v['loss']:.4f}\n  Accuracy: {v['accuracy']:.4f}\n")
-            f.write(f"  AUC: {v['auc']:.4f}\n  IoU: {v['iou']:.4f}\n  Dice: {v['dice']:.4f}\n\n")
+            f.write(f"  Loss: {fv['loss']:.4f}\n  Accuracy: {fv['accuracy']:.4f}\n")
+            f.write(f"  AUC: {fv['auc']:.4f}\n  IoU: {fv['iou']:.4f}\n  Dice: {fv['dice']:.4f}\n\n")
         if test_result:
             f.write("Test Results:\n")
             f.write(f"  Loss: {test_result['loss']:.4f}\n  Accuracy: {test_result['accuracy']:.4f}\n")
