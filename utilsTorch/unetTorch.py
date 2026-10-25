@@ -1479,6 +1479,22 @@ class AblationResnetBlock(QResnetBlock):
 
 
 # --- U-Net Components ---
+COMBINED_INPUT_MODE_CHOICES = ('shared3', 'concat6', 'dual_stem')
+DEFAULT_COMBINED_INPUT_MODE = 'shared3'
+
+
+def normalize_combined_input_mode(mode=None):
+    """Normalize combined_input_mode ('shared3' default, 'concat6', or 'dual_stem'; #14)."""
+    if mode is None:
+        return DEFAULT_COMBINED_INPUT_MODE
+    key = str(mode).strip().lower()
+    if key not in COMBINED_INPUT_MODE_CHOICES:
+        raise ValueError(
+            f"Unknown combined_input_mode {mode!r}, expected one of {COMBINED_INPUT_MODE_CHOICES}"
+        )
+    return key
+
+
 class DownUnet(nn.Module):
     def __init__(
         self,
@@ -1488,6 +1504,8 @@ class DownUnet(nn.Module):
         resnet_block_groups=8,
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
+        combined_input_mode: str = DEFAULT_COMBINED_INPUT_MODE,
+        in_channels: Optional[int] = None,
     ):
         super().__init__()
         self.dim = dim
@@ -1496,10 +1514,26 @@ class DownUnet(nn.Module):
         self.resnet_block_groups = resnet_block_groups
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
-        
-        # Initial convolution
-        self.init_conv = nn.Conv2d(3, self.init_dim, 7, padding=3)  # Assuming 3 input channels
-        
+        self.combined_input_mode = normalize_combined_input_mode(combined_input_mode)
+
+        # Initial convolution stem(s) (#14)
+        if self.combined_input_mode == 'concat6':
+            self.in_channels = int(in_channels) if in_channels is not None else 6
+            self.init_conv = nn.Conv2d(self.in_channels, self.init_dim, 7, padding=3)
+            self.init_conv_sar = None
+        elif self.combined_input_mode == 'dual_stem':
+            self.in_channels = 6
+            self.init_conv = nn.Conv2d(3, self.init_dim, 7, padding=3)
+            with torch.random.fork_rng(devices=[]):
+                w0 = float(self.init_conv.weight.detach().flatten()[0].item())
+                sar_seed = (int(abs(w0) * 1e9) ^ 0x5A120001) & 0x7FFFFFFF
+                torch.default_generator.manual_seed(sar_seed)
+                self.init_conv_sar = nn.Conv2d(3, self.init_dim, 7, padding=3)
+        else:
+            self.in_channels = int(in_channels) if in_channels is not None else 3
+            self.init_conv = nn.Conv2d(self.in_channels, self.init_dim, 7, padding=3)
+            self.init_conv_sar = None
+
         # Time embedding
         if self.use_time_emb:
             self.time_emb = SinusoidalPosEmb(dim)
@@ -1538,10 +1572,39 @@ class DownUnet(nn.Module):
         # Final conv
         mid_dim = dim * dim_mults[-1]
         self.final_conv = nn.Conv2d(dims[-2], mid_dim, 3, padding=1)
+
+    def _apply_input_stem(self, x):
+        if self.combined_input_mode == 'concat6':
+            if x.shape[1] == 3 and self.init_conv.in_channels == 6:
+                x = torch.cat([x, torch.zeros_like(x)], dim=1)
+            return self.init_conv(x)
+        if self.combined_input_mode == 'dual_stem' and self.init_conv_sar is not None:
+            if x.shape[1] >= 6:
+                x_opt = x[:, :3]
+                x_sar = x[:, 3:6]
+                h_opt = self.init_conv(x_opt)
+                h_sar = self.init_conv_sar(x_sar)
+                opt_energy = x_opt.abs().amax(dim=(1, 2, 3), keepdim=True)
+                sar_energy = x_sar.abs().amax(dim=(1, 2, 3), keepdim=True)
+                opt_active = opt_energy > 0
+                sar_active = sar_energy > 0
+                both_or_neither = (opt_active & sar_active) | (~opt_active & ~sar_active)
+                return torch.where(
+                    both_or_neither,
+                    0.5 * (h_opt + h_sar),
+                    torch.where(sar_active, h_sar, h_opt),
+                )
+            return self.init_conv(x)
+        if x.shape[1] == 6 and self.init_conv.in_channels == 3:
+            x_opt = x[:, :3]
+            x_sar = x[:, 3:6]
+            use_sar = x_sar.abs().amax(dim=(1, 2, 3), keepdim=True) > x_opt.abs().amax(dim=(1, 2, 3), keepdim=True)
+            x = torch.where(use_sar, x_sar, x_opt)
+        return self.init_conv(x)
     
     def forward(self, x, time=None):
-        # Initial conv
-        h = self.init_conv(x)
+        # Initial conv stem
+        h = self._apply_input_stem(x)
         hs = [h]
         
         # Time embedding
@@ -2002,6 +2065,7 @@ class QVUNet(nn.Module):
         skip_modulation=DEFAULT_SKIP_MODULATION,
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
+        combined_input_mode: str = DEFAULT_COMBINED_INPUT_MODE,
     ):
         super().__init__()
         self.dim = dim
@@ -2013,10 +2077,12 @@ class QVUNet(nn.Module):
         self.skip_modulation = normalize_skip_modulation(skip_modulation)
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
+        self.combined_input_mode = normalize_combined_input_mode(combined_input_mode)
         
         self.down = DownUnet(
             dim, init_dim, dim_mults, resnet_block_groups,
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
+            combined_input_mode=self.combined_input_mode,
         )
         self.vertex = QVertex(
             dim, quantum_block, quantum_channels, dim_mults, resnet_block_groups,
@@ -2027,6 +2093,14 @@ class QVUNet(nn.Module):
             dim, init_dim, out_dim, dim_mults, resnet_block_groups,
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
         )
+
+    @property
+    def init_conv(self):
+        return self.down.init_conv
+
+    @property
+    def init_conv_sar(self):
+        return self.down.init_conv_sar
 
     def set_quantum_mode(self, mode='on', knockout_seed=0):
         """Apply the knockout switch to every bottleneck block (quantum or
@@ -2093,6 +2167,7 @@ class UNet(nn.Module):
         resnet_block_groups=8,
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
+        combined_input_mode: str = DEFAULT_COMBINED_INPUT_MODE,
     ):
         super().__init__()
         self.dim = dim
@@ -2102,10 +2177,12 @@ class UNet(nn.Module):
         self.resnet_block_groups = resnet_block_groups
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
+        self.combined_input_mode = normalize_combined_input_mode(combined_input_mode)
         
         self.down = DownUnet(
             dim, init_dim, dim_mults, resnet_block_groups,
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
+            combined_input_mode=self.combined_input_mode,
         )
         self.vertex = Vertex(
             dim, dim_mults, resnet_block_groups,
@@ -2116,6 +2193,14 @@ class UNet(nn.Module):
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
         )
     
+    @property
+    def init_conv(self):
+        return self.down.init_conv
+
+    @property
+    def init_conv_sar(self):
+        return self.down.init_conv_sar
+
     def forward(self, x, time=None):
         h, hs, time_emb = self.down(x, time)
         h, time_emb = self.vertex(h, time_emb)

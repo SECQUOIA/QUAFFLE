@@ -83,6 +83,7 @@ FLOOR_HOURS = 1
 
 METHODS = ["classical", "ablation", "quantum"]
 MODES = ["centralized", "fed-random", "fed-dirichlet"]
+ALL_MODES = ["centralized", "fed-random", "fed-dirichlet", "fed-modality", "fed-geo_cluster"]
 DATASETS = ["optical", "sar", "combined"]
 
 SCRIPT = {
@@ -311,7 +312,10 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
               q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"], hqunet_grid=None,
               q_spatial_mode=None, base_channels=None, skip_modulation=None,
-              backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False):
+              backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False,
+              combined_input_mode=None, fl_strategy=None, fedprox_mu=None,
+              q_angle_agg=None, num_clients=None, clients_per_round=None,
+              fraction_fit=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -319,11 +323,31 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     if method == "ablation":
         args += ["--framework", "torch", "--mode", kind]
     if kind == "federated":
-        part = "dirichlet" if mode == "fed-dirichlet" else "random"
+        part_map = {
+            "fed-random": "random",
+            "fed-dirichlet": "dirichlet",
+            "fed-modality": "modality",
+            "fed-geo_cluster": "geo_cluster",
+        }
+        part = part_map.get(mode, "random")
         args += ["--partition", part]
         if part == "dirichlet":
             args += ["--alpha", str(alpha)]
+        if fl_strategy is not None:
+            args += ["--fl-strategy", str(fl_strategy)]
+        if fedprox_mu is not None:
+            args += ["--fedprox-mu", str(fedprox_mu)]
+        if method == "quantum" and q_angle_agg is not None:
+            args += ["--q-angle-agg", str(q_angle_agg)]
+        if num_clients is not None:
+            args += ["--num-clients", str(num_clients)]
+        if clients_per_round is not None:
+            args += ["--clients-per-round", str(clients_per_round)]
+        if fraction_fit is not None:
+            args += ["--fraction-fit", str(fraction_fit)]
     args += ["--dataset", dataset, "--seed", str(seed)]
+    if combined_input_mode is not None:
+        args += ["--combined-input-mode", str(combined_input_mode)]
     if base_channels is not None:
         args += ["--base-channels", str(base_channels)]
     if backbone_conv_mode is not None:
@@ -367,7 +391,9 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
 
     mtag = {"classical": "classical", "ablation": "ablation", "quantum": "quantum"}[method]
     dtag = {"centralized": "central", "fed-random": "fedrandom",
-            "fed-dirichlet": "feddir%s" % alpha}[mode]
+            "fed-dirichlet": "feddir%s" % alpha,
+            "fed-modality": "fedmodality",
+            "fed-geo_cluster": "fedgeocluster"}[mode]
     parts = [mtag, dtag, dataset]
     if method in ("quantum", "ablation"):
         ans_tag = q_ansatz
@@ -380,6 +406,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             parts.append(str(q_spatial_mode))
         if skip_modulation == "additive":
             parts.append("addskip")
+    if combined_input_mode is not None and combined_input_mode != "shared3":
+        parts.append("in-%s" % combined_input_mode)
     if backbone_conv_mode == "depthwise_sep":
         parts.append("depthwise_sep")
     if loss is not None and loss != "ce":
@@ -388,6 +416,21 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         parts.append("notime")
     if augment:
         parts.append("aug")
+    if kind == "federated":
+        if fl_strategy == "fedprox" or (fedprox_mu is not None and float(fedprox_mu) > 0.0):
+            mu_val = float(fedprox_mu) if fedprox_mu is not None else 0.01
+            parts.append("fedprox%g" % mu_val)
+        if method == "quantum" and q_angle_agg == "circular":
+            parts.append("qagg-circular")
+        if num_clients is not None or clients_per_round is not None or fraction_fit is not None:
+            nc = int(num_clients) if num_clients is not None else 4
+            if clients_per_round is not None:
+                cpr = int(clients_per_round)
+            elif fraction_fit is not None:
+                cpr = max(1, min(nc, int(round(float(fraction_fit) * nc))))
+            else:
+                cpr = nc
+            parts.append("K%dC%d" % (nc, cpr))
     if quantum_channels is not None:
         parts.append("qc%d" % quantum_channels)
     if base_channels is not None:
@@ -395,7 +438,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     parts.append("seed%d" % seed)
     name = "_".join(parts)
     short = {"classical": "c", "ablation": "a", "quantum": "q"}[method]
-    short += {"centralized": "C", "fed-random": "R", "fed-dirichlet": "D"}[mode]
+    short += {"centralized": "C", "fed-random": "R", "fed-dirichlet": "D",
+              "fed-modality": "M", "fed-geo_cluster": "G"}[mode]
     ans_short = ""
     if method != "classical" and q_ansatz != "reupload":
         ans_short = "_hq" if q_ansatz == "hqunet" else "_leg"
@@ -743,7 +787,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--methods", nargs="+", choices=METHODS, default=METHODS)
-    ap.add_argument("--modes", nargs="+", choices=MODES, default=MODES)
+    ap.add_argument("--modes", nargs="+", choices=ALL_MODES, default=MODES)
     ap.add_argument("--datasets", nargs="+", choices=DATASETS, default=DATASETS)
     ap.add_argument("--seeds", type=int, nargs="+", default=ALL_SEEDS,
                     help="Subset of config/seeds.py (default: all %s)" % ALL_SEEDS)
@@ -753,7 +797,14 @@ def main(argv=None):
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
-    ap.add_argument("--backbone-conv-mode", choices=["standard", "depthwise_sep"], default=None)
+    ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
+    ap.add_argument("--combined-input-mode", choices=["shared3", "concat6", "dual_stem"], default=None)
+    ap.add_argument("--fl-strategy", choices=["fedavg", "fedprox"], default=None)
+    ap.add_argument("--fedprox-mu", type=float, default=None)
+    ap.add_argument("--q-angle-agg", choices=["linear", "circular"], default=None)
+    ap.add_argument("--num-clients", type=int, default=None)
+    ap.add_argument("--clients-per-round", type=int, default=None)
+    ap.add_argument("--fraction-fit", type=float, default=None)
     ap.add_argument("--loss", choices=["ce", "dice_ce", "focal_dice"], default=None)
     ap.add_argument("--no-time-emb", action="store_true", default=False)
     ap.add_argument("--augment", action="store_true", default=False)
@@ -792,7 +843,7 @@ def main(argv=None):
         for method in METHODS:
             if method not in args.methods:
                 continue
-            for mode in MODES:
+            for mode in ALL_MODES:
                 if mode not in args.modes:
                     continue
                 for dataset in DATASETS:
@@ -811,7 +862,12 @@ def main(argv=None):
                         q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
                         skip_modulation=args.skip_modulation,
                         backbone_conv_mode=args.backbone_conv_mode,
-                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment))
+                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment,
+                        combined_input_mode=args.combined_input_mode,
+                        fl_strategy=args.fl_strategy, fedprox_mu=args.fedprox_mu,
+                        q_angle_agg=args.q_angle_agg, num_clients=args.num_clients,
+                        clients_per_round=args.clients_per_round,
+                        fraction_fit=args.fraction_fit))
     finish(ap, args, jobs, out_dir)
 
 

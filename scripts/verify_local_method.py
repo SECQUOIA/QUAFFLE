@@ -884,6 +884,58 @@ def run_verification(
                     f"Mini-run Excel tracker must not create or modify {p}"
                 )
 
+            # 8b. Wave 3 verification (#14 dual_stem + modality/geo_cluster partitioning; #15 circular angle agg + FedProx)
+            t0 = time.perf_counter()
+            import numpy as np
+            from utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation, fedprox_proximal_loss
+            w3_cfg = {
+                "seed": 42,
+                "dataset": "combined",
+                "combined_input_mode": "dual_stem",
+                "base_channels": 4,
+                "init_dim": 4,
+                "out_dim": 2,
+                "dim_mults": (1, 2),
+                "resnet_block_groups": 4,
+                "quantum_channels": 4,
+                "image_size": 32,
+                "batch_size": 4,
+                "val_fraction": 0.15,
+                "num_clients": 4,
+                "clients_per_round": 2,
+                "min_client_samples": 1,
+                "fl_strategy": "fedprox",
+                "fedprox_mu": 0.05,
+                "q_angle_agg": "circular",
+                "data_root": data_root,
+                "results_dir": results_dir,
+            }
+            _, comb_train_img, comb_train_msk, _, _ = tc.resolve_data_dirs("combined", data_root)
+            comb_ds = tc.load_dataset(comb_train_img, comb_train_msk, w3_cfg)
+            sample_img0, _ = comb_ds[0]
+            assert tuple(sample_img0.shape) == (6, 32, 32), f"Expected 6-ch dual_stem sample, got {sample_img0.shape}"
+            assert set(comb_ds.modalities) == {"optical", "sar"}, f"Expected both optical and sar modalities, got {set(comb_ds.modalities)}"
+            for p_mode in ("modality", "geo_cluster"):
+                w3_cfg["partition"] = p_mode
+                c_lists, v_idxs, _ = tc.build_federated_split(comb_ds, w3_cfg)
+                assert len(c_lists) == 4 and all(len(c) >= 1 for c in c_lists)
+            w3_q = tc.build_model(QVUNetSegmentation, w3_cfg)
+            w3_a = tc.build_model(ClassicalAblationUNetSegmentation, w3_cfg)
+            assert w3_q.model.init_conv_sar is not None and w3_a.model.init_conv_sar is not None
+            assert torch.equal(w3_q.model.init_conv.weight, w3_a.model.init_conv.weight)
+            assert torch.equal(w3_q.model.init_conv_sar.weight, w3_a.model.init_conv_sar.weight)
+            eps = 0.04
+            circ = tc.circular_mean_angles(
+                [np.array([np.pi - eps], dtype=np.float32), np.array([-np.pi + eps], dtype=np.float32)],
+                [1.0, 1.0],
+            )
+            assert abs(abs(float(circ[0])) - np.pi) < 1e-5
+            prox_l = fedprox_proximal_loss(w3_q, [p.detach().clone() + 0.5 for p in w3_q.parameters()], 0.1)
+            assert float(prox_l.item()) > 0.0
+            dt = time.perf_counter() - t0
+            timings.append(("wave3_dual_stem_non_iid_fedprox_and_circular_agg", dt))
+            print(f"[PASS] wave3_dual_stem_non_iid_fedprox_and_circular_agg ({dt:.2f}s)")
+
             # 9. Downstream analysis pipeline, exemplar figure, circuit diagram, and backend comparison
             t0 = time.perf_counter()
             import analyze_results

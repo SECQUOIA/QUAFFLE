@@ -10,7 +10,7 @@ from flwr.server.strategy import FedAvg
 import torch
 import torch.nn as nn
 
-from utilsTorch import UNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
+from utilsTorch import UNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, fedprox_proximal_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
 from torch.utils.data import Subset
 import copy
 from results_tracker import save_results_to_excel
@@ -19,7 +19,7 @@ from tools import training_common as tc
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Federated Classical Flood Segmentation")
-    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+    parser.add_argument('--partition', choices=list(tc.PARTITION_CHOICES), default='random',
                         help='Data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
                         help='Dirichlet concentration parameter, lower = more non-IID (default: 0.5)')
@@ -185,6 +185,13 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
         # Update parameters if provided
         if parameters:
             numpy_to_torch_params(self.local_model, parameters)
+
+        fedprox_mu = tc.effective_fedprox_mu(self.config)
+        global_params = (
+            [p.detach().clone() for p in self.local_model.parameters()]
+            if fedprox_mu > 0.0
+            else None
+        )
         
         # Create optimizer for local training
         optimizer = torch.optim.Adam(
@@ -220,6 +227,8 @@ class ClassicalFlowerClient(fl.client.NumPyClient):
                 loss = segmentation_loss(
                     logits, masks_long, loss_mode=self.config.get('loss', 'ce')
                 )
+                if fedprox_mu > 0.0 and global_params is not None:
+                    loss = loss + fedprox_proximal_loss(self.local_model, global_params, fedprox_mu)
                 
                 # Backward pass
                 loss.backward()
@@ -440,11 +449,16 @@ def main():
     config['partition'] = args.partition
     config['dirichlet_alpha'] = args.alpha
     tc.apply_common_args(config, args)
-    vtag = tc.classical_variant_tag(config)
+    vtag = tc.classical_variant_tag(config) + tc.federated_variant_tag(config, quantum=False)
     if args.partition == 'dirichlet':
-        default_out = f"results/flood_federated_optical_pytorch_classical_dirichlet{args.alpha}{ds_suffix}{vtag}_seed{config['seed']}"
+        part_prefix = f"dirichlet{args.alpha}"
+    elif args.partition == 'modality':
+        part_prefix = "modality"
+    elif args.partition == 'geo_cluster':
+        part_prefix = "geocluster"
     else:
-        default_out = f"results/flood_federated_optical_pytorch_classical_random{ds_suffix}{vtag}_seed{config['seed']}"
+        part_prefix = "random"
+    default_out = f"results/flood_federated_optical_pytorch_classical_{part_prefix}{ds_suffix}{vtag}_seed{config['seed']}"
     output_dir = tc.resolve_output_dir(default_out, config, args)
 
     # Seed python, numpy, torch and cuda once in the driver process. Ray

@@ -35,13 +35,17 @@ class FloodSegmentationDataset(Dataset):
     """
     def __init__(self, images_dir, masks_dir, image_size, legacy=None, bands=None,
                  manifest=None, stats_path=None, max_samples=None, sample_seed=42,
-                 data_root=None, seed=None, val_fraction=None, fit_only=None):
+                 data_root=None, seed=None, val_fraction=None, fit_only=None,
+                 combined_input_mode=None):
+        self.combined_input_mode = flood_data.normalize_combined_input_mode(combined_input_mode)
         self.samples, self.names = flood_data.load_samples(
             images_dir, masks_dir, image_size, legacy=legacy, bands=bands,
             manifest=manifest, stats_path=stats_path, progress=tqdm,
             max_samples=max_samples, sample_seed=sample_seed, data_root=data_root,
-            seed=seed, val_fraction=val_fraction, fit_only=fit_only)
+            seed=seed, val_fraction=val_fraction, fit_only=fit_only,
+            combined_input_mode=self.combined_input_mode)
         self.norm_provenance = flood_data.get_last_loaded_stats_provenance(images_dir)
+        self.modalities = flood_data.get_last_loaded_modalities(images_dir)
     def __len__(self):
         return len(self.samples)
     def __getitem__(self, idx):
@@ -53,12 +57,13 @@ class FloodSegmentationDataset(Dataset):
 def get_dataloaders(images_dir, masks_dir, image_size, batch_size, num_workers=2, shuffle=True,
                     legacy=None, bands=None, manifest=None, stats_path=None,
                     max_samples=None, sample_seed=42, data_root=None,
-                    seed=None, val_fraction=None, fit_only=None):
+                    seed=None, val_fraction=None, fit_only=None, combined_input_mode=None):
     dataset = FloodSegmentationDataset(
         images_dir, masks_dir, image_size, legacy=legacy, bands=bands,
         manifest=manifest, stats_path=stats_path, max_samples=max_samples,
         sample_seed=sample_seed, data_root=data_root, seed=seed,
-        val_fraction=val_fraction, fit_only=fit_only)
+        val_fraction=val_fraction, fit_only=fit_only,
+        combined_input_mode=combined_input_mode)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     return loader
 
@@ -149,6 +154,9 @@ class QVUNetSegmentation(torch.nn.Module):
             backbone_conv_mode = unet.normalize_backbone_conv_mode(
                 self.config.get('backbone_conv_mode')
             )
+            combined_input_mode = unet.normalize_combined_input_mode(
+                self.config.get('combined_input_mode')
+            )
 
             def build():
                 def make_block(offset):
@@ -182,6 +190,7 @@ class QVUNetSegmentation(torch.nn.Module):
                     skip_modulation=skip_modulation,
                     use_time_emb=use_time_emb,
                     backbone_conv_mode=backbone_conv_mode,
+                    combined_input_mode=combined_input_mode,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -271,6 +280,9 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             backbone_conv_mode = unet.normalize_backbone_conv_mode(
                 self.config.get('backbone_conv_mode')
             )
+            combined_input_mode = unet.normalize_combined_input_mode(
+                self.config.get('combined_input_mode')
+            )
             if q_ansatz == 'legacy':
                 kind, hidden = 'linear', None
             elif q_ansatz == 'hqunet':
@@ -311,6 +323,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     skip_modulation=skip_modulation,
                     use_time_emb=use_time_emb,
                     backbone_conv_mode=backbone_conv_mode,
+                    combined_input_mode=combined_input_mode,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -380,6 +393,9 @@ class UNetSegmentation(torch.nn.Module):
             backbone_conv_mode = unet.normalize_backbone_conv_mode(
                 self.config.get('backbone_conv_mode')
             )
+            combined_input_mode = unet.normalize_combined_input_mode(
+                self.config.get('combined_input_mode')
+            )
             
             self._model = _build_seeded(self.seed, lambda: unet.UNet(
                 dim=self.config['base_channels'],
@@ -389,6 +405,7 @@ class UNetSegmentation(torch.nn.Module):
                 resnet_block_groups=self.config.get('resnet_block_groups', 8),
                 use_time_emb=use_time_emb,
                 backbone_conv_mode=backbone_conv_mode,
+                combined_input_mode=combined_input_mode,
             ))
     
     @property
@@ -478,9 +495,48 @@ def segmentation_loss(
     raise ValueError(f"Unknown loss mode {loss_mode!r}")
 
 
-def train_one_epoch(model, dataloader, optimizer, device, loss_mode: Optional[str] = None):
+def fedprox_proximal_loss(model, global_params, mu: float = 0.0):
+    """Compute the FedProx proximal penalty (mu / 2) * sum_p ||w_p - w_p^(t)||_2^2 (#15).
+
+    `global_params` may be a sequence of torch.Tensors or numpy ndarrays matching
+    `model.parameters()`. Returns a scalar Tensor on the model's device.
+    """
+    mu_val = float(mu or 0.0)
+    params = list(model.parameters())
+    if not params:
+        return torch.tensor(0.0)
+    dev = params[0].device
+    if mu_val <= 0.0 or global_params is None:
+        return torch.zeros((), dtype=params[0].dtype, device=dev)
+    prox = torch.zeros((), dtype=params[0].dtype, device=dev)
+    for p, p0 in zip(params, global_params):
+        if not p.requires_grad:
+            continue
+        ref = p0 if isinstance(p0, torch.Tensor) else torch.as_tensor(p0, dtype=p.dtype, device=p.device)
+        if ref.device != p.device or ref.dtype != p.dtype:
+            ref = ref.to(device=p.device, dtype=p.dtype)
+        prox = prox + torch.sum((p - ref.detach()) ** 2)
+    return 0.5 * mu_val * prox
+
+
+def train_one_epoch(
+    model,
+    dataloader,
+    optimizer,
+    device,
+    loss_mode: Optional[str] = None,
+    fedprox_mu: float = 0.0,
+    global_params=None,
+):
     model.train()
     eff_loss_mode = _resolve_model_loss_mode(model, loss_mode)
+    mu_val = float(fedprox_mu or 0.0)
+    ref_params = None
+    if mu_val > 0.0 and global_params is not None:
+        ref_params = [
+            (p0.detach().to(device) if isinstance(p0, torch.Tensor) else torch.as_tensor(p0, device=device))
+            for p0 in global_params
+        ]
     total_loss = 0
     total_correct = 0
     total_pixels = 0
@@ -489,6 +545,8 @@ def train_one_epoch(model, dataloader, optimizer, device, loss_mode: Optional[st
         optimizer.zero_grad()
         logits = model(imgs)
         loss = segmentation_loss(logits, masks, loss_mode=eff_loss_mode)
+        if mu_val > 0.0 and ref_params is not None:
+            loss = loss + fedprox_proximal_loss(model, ref_params, mu_val)
         loss.backward()
         optimizer.step()
         total_loss += loss.item() * imgs.size(0)
@@ -666,7 +724,13 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
             for i in range(imgs.size(0)):
                 if count >= num_samples:
                     break
-                image_np = np.clip((imgs[i].cpu().numpy().transpose(1, 2, 0) + 1.0) / 2.0, 0.0, 1.0)
+                raw_chw = imgs[i].cpu().numpy()
+                if raw_chw.shape[0] >= 6:
+                    opt_chw, sar_chw = raw_chw[:3], raw_chw[3:6]
+                    raw_chw = sar_chw if np.abs(sar_chw).max() > np.abs(opt_chw).max() else opt_chw
+                elif raw_chw.shape[0] > 3:
+                    raw_chw = raw_chw[:3]
+                image_np = np.clip((raw_chw.transpose(1, 2, 0) + 1.0) / 2.0, 0.0, 1.0)
                 mask_np = masks[i, 0].cpu().numpy()
                 prediction_np = preds[i].cpu().numpy()
                 probabilities_np = probs[i].cpu().numpy()

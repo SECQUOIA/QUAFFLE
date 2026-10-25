@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument('--quantum-backend', choices=['pennylane', 'ptlayer'],
                         default='pennylane',
                         help='Quantum backend for reference QVUNet (Torch only, default: pennylane)')
-    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+    parser.add_argument('--partition', choices=list(tc.PARTITION_CHOICES), default='random',
                         help='Federated data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
                         help='Dirichlet alpha, lower = more non-IID (default: 0.5)')
@@ -488,7 +488,7 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         import torch
-        from utilsTorch import ClassicalAblationUNetSegmentation, segmentation_loss
+        from utilsTorch import ClassicalAblationUNetSegmentation, segmentation_loss, fedprox_proximal_loss
         round_seed = tc.seed_client_round(self.config['seed'], self.client_id, config)
         torch.manual_seed(round_seed)
         if torch.cuda.is_available():
@@ -502,6 +502,12 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
         self.local_model = self.template_model
         if parameters:
             _numpy_to_torch_params(self.local_model, parameters)
+        fedprox_mu = tc.effective_fedprox_mu(self.config)
+        global_params = (
+            [p.detach().clone() for p in self.local_model.parameters()]
+            if fedprox_mu > 0.0
+            else None
+        )
         opt = torch.optim.Adam(self.local_model.parameters(), lr=self.config['learning_rate'])
         self.local_model.train()
         total_loss = total_acc = n = 0
@@ -516,6 +522,8 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
                 loss = segmentation_loss(
                     logits, masks_long, loss_mode=self.config.get('loss', 'ce')
                 )
+                if fedprox_mu > 0.0 and global_params is not None:
+                    loss = loss + fedprox_proximal_loss(self.local_model, global_params, fedprox_mu)
                 loss.backward()
                 opt.step()
                 preds = torch.argmax(logits, dim=1)
@@ -669,7 +677,14 @@ def run_federated_torch(args):
 
     _DATA_DIRS = {'optical': 'data/flood_optical', 'sar': 'data/flood_SAR', 'combined': 'data/flood_combined'}
     backend = args.quantum_backend
-    suffix  = f"_dirichlet{args.alpha}" if args.partition == 'dirichlet' else "_random"
+    if args.partition == 'dirichlet':
+        suffix = f"_dirichlet{args.alpha}"
+    elif args.partition == 'modality':
+        suffix = "_modality"
+    elif args.partition == 'geo_cluster':
+        suffix = "_geocluster"
+    else:
+        suffix = "_random"
 
     print("=" * 60)
     print("Ablation (Torch): Parameter-Matched Classical UNet (Federated)")
@@ -715,7 +730,7 @@ def run_federated_torch(args):
     tc.apply_common_args(config, args)
     tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
-    vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
+    vtag = tc.variant_tag(config) + tc.federated_variant_tag(config, quantum=False)  # matched quantum variant, e.g. _reupload_L2
     output_dir = tc.resolve_output_dir(
         f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}",
         config,

@@ -62,17 +62,41 @@ STAT_PERCENTILES = (1.0, 99.0)
 STRIDE = {"sar": 8, "optical": 2}
 DEFAULT_VAL_FRACTION = 0.15
 FLOOD_LABEL_THRESHOLD = 0.05
+COMBINED_INPUT_MODE_CHOICES = ("shared3", "concat6", "dual_stem")
+DEFAULT_COMBINED_INPUT_MODE = "shared3"
 
-_DEFAULTS = {"legacy": None, "bands": None, "data_root": None}
+_DEFAULTS = {"legacy": None, "bands": None, "data_root": None, "combined_input_mode": None}
 _FIT_STATS_CACHE = {}
 _LAST_TRAIN_STATS_BY_DIR = {}
 _LAST_LOADED_PROVENANCE_BY_DIR = {}
+_LAST_LOADED_MODALITIES_BY_DIR = {}
+
+
+def normalize_combined_input_mode(mode=None):
+    """Normalize combined_input_mode ('shared3' default, 'concat6', or 'dual_stem')."""
+    if mode is None:
+        mode = _DEFAULTS.get("combined_input_mode")
+    if mode is None:
+        return DEFAULT_COMBINED_INPUT_MODE
+    key = str(mode).strip().lower()
+    if key not in COMBINED_INPUT_MODE_CHOICES:
+        raise ValueError(
+            f"Unknown combined_input_mode {mode!r}, expected one of {COMBINED_INPUT_MODE_CHOICES}"
+        )
+    return key
 
 
 def get_last_loaded_stats_provenance(images_dir):
     if images_dir is None:
         return None
     return _LAST_LOADED_PROVENANCE_BY_DIR.get(os.path.abspath(images_dir))
+
+
+def get_last_loaded_modalities(images_dir):
+    if images_dir is None:
+        return None
+    mods = _LAST_LOADED_MODALITIES_BY_DIR.get(os.path.abspath(images_dir))
+    return list(mods) if mods is not None else None
 
 
 def _fit_names_digest(names):
@@ -125,7 +149,7 @@ def stats_provenance(stats_dict):
     return out
 
 
-def set_data_defaults(legacy=None, bands=None, data_root=None):
+def set_data_defaults(legacy=None, bands=None, data_root=None, combined_input_mode=None):
     """Set process-wide defaults (e.g. from a --legacy-data CLI flag)."""
     if legacy is not None:
         _DEFAULTS["legacy"] = bool(legacy)
@@ -133,6 +157,8 @@ def set_data_defaults(legacy=None, bands=None, data_root=None):
         _DEFAULTS["bands"] = bands
     if data_root is not None:
         _DEFAULTS["data_root"] = data_root
+    if combined_input_mode is not None:
+        _DEFAULTS["combined_input_mode"] = normalize_combined_input_mode(combined_input_mode)
 
 
 def resolve_legacy(legacy=None):
@@ -1071,6 +1097,21 @@ def normalize_bands(raw, modality, band_names, mstats):
     return np.stack(out)
 
 
+def _format_image_for_combined_mode(img_hwc, modality, combined_input_mode=DEFAULT_COMBINED_INPUT_MODE):
+    """Format a 3-channel HWC image into 3 channels ('shared3') or 6 channels
+    [Optical(3), SAR(3)] ('concat6' / 'dual_stem')."""
+    mode = normalize_combined_input_mode(combined_input_mode)
+    if mode == "shared3":
+        return img_hwc
+    h, w = img_hwc.shape[:2]
+    out = np.zeros((h, w, 6), dtype=np.float32)
+    if modality == "sar":
+        out[:, :, 3:6] = img_hwc[:, :, :3]
+    else:
+        out[:, :, 0:3] = img_hwc[:, :, :3]
+    return out
+
+
 def _normalize_raw_clean(raw, image_size, bands, stats, img_path="<raw>"):
     modality = MODALITY_BY_COUNT.get(raw.shape[0])
     if modality is None:
@@ -1080,17 +1121,32 @@ def _normalize_raw_clean(raw, image_size, bands, stats, img_path="<raw>"):
     return np.transpose(x, (1, 2, 0))
 
 
-def load_image_clean(img_path, image_size, bands, stats):
-    """HWC float32 in [-1, 1]."""
+def load_image_clean(
+    img_path,
+    image_size,
+    bands,
+    stats,
+    combined_input_mode=None,
+    return_modality=False,
+):
+    """HWC float32 in [-1, 1] (3 channels for 'shared3', 6 channels for 'concat6'/'dual_stem')."""
     raw = read_raw(img_path)
-    return _normalize_raw_clean(raw, image_size, bands, stats, img_path=img_path)
+    modality = MODALITY_BY_COUNT.get(raw.shape[0])
+    img_hwc = _normalize_raw_clean(raw, image_size, bands, stats, img_path=img_path)
+    img_out = _format_image_for_combined_mode(img_hwc, modality, combined_input_mode)
+    if return_modality:
+        return img_out, modality
+    return img_out
 
 
-def load_image_legacy(img_path, image_size):
+def load_image_legacy(img_path, image_size, combined_input_mode=None, return_modality=False):
     """Original reader: first three bands, per-image percentile stretch."""
+    modality = "optical"
     try:
         import rasterio
         with rasterio.open(img_path) as src:
+            raw_count = int(src.count)
+            modality = MODALITY_BY_COUNT.get(raw_count, "sar" if raw_count <= 6 else "optical")
             img_data = src.read()[:3]
             img_array = np.transpose(img_data, (1, 2, 0))
             if img_array.dtype == np.uint8:
@@ -1111,7 +1167,10 @@ def load_image_legacy(img_path, image_size):
         img = Image.open(img_path).convert('RGB')
         img = img.resize((image_size, image_size), Image.LANCZOS)
         img_array = np.array(img, dtype=np.float32) / 255.0
-    return img_array * 2.0 - 1.0
+    img_out = _format_image_for_combined_mode(img_array * 2.0 - 1.0, modality, combined_input_mode)
+    if return_modality:
+        return img_out, modality
+    return img_out
 
 
 def _slice_pairs_preload(pairs, max_samples, sample_seed=42, images_dir=None, data_root=None):
@@ -1144,6 +1203,7 @@ def load_samples(
     seed=None,
     val_fraction=None,
     fit_only=None,
+    combined_input_mode=None,
 ):
     """Return a list of (image HWC float32 in [-1,1], mask HW1 float32) and
     the list of sample names, in deterministic order.
@@ -1155,10 +1215,12 @@ def load_samples(
                   BEFORE reading every TIFF from disk. Full-manifest validation
                   remains strict when max_samples is None.
     sample_seed:  Seed used for pre-load max_samples subset selection.
+    combined_input_mode: 'shared3' (default 3-ch) or 'concat6'/'dual_stem' (6-ch [Optical(3), SAR(3)]).
     """
     legacy = resolve_legacy(legacy)
+    eff_combined_mode = normalize_combined_input_mode(combined_input_mode)
     wrap = progress or (lambda it, **kw: it)
-    samples, names = [], []
+    samples, names, modalities = [], [], []
     eff_sample_seed = sample_seed if sample_seed is not None else (seed if seed is not None else 42)
     if legacy:
         pairs = list_pairs(images_dir, masks_dir, sort=False)
@@ -1169,13 +1231,17 @@ def load_samples(
         )
         for name, img_path, mask_path in wrap(pairs, desc="Loading data (legacy)"):
             try:
-                samples.append((load_image_legacy(img_path, image_size),
-                                load_mask(mask_path, image_size)))
+                img_out, mod = load_image_legacy(
+                    img_path, image_size, combined_input_mode=eff_combined_mode, return_modality=True
+                )
+                samples.append((img_out, load_mask(mask_path, image_size)))
                 names.append(name)
+                modalities.append(mod)
             except Exception as e:
                 print(f"Error loading {img_path}: {e}")
         if not samples:
             raise ValueError("No valid image-mask pairs loaded")
+        _LAST_LOADED_MODALITIES_BY_DIR[os.path.abspath(images_dir)] = list(modalities)
         return samples, names
 
     pairs = list_pairs(images_dir, masks_dir, sort=True)
@@ -1213,9 +1279,18 @@ def load_samples(
         )
         _LAST_LOADED_PROVENANCE_BY_DIR[os.path.abspath(images_dir)] = stats_provenance(stats)
         for name, img_path, mask_path in wrap(pairs, desc="Loading data"):
-            samples.append((load_image_clean(img_path, image_size, band_sel, stats),
-                            load_mask(mask_path, image_size)))
+            img_out, mod = load_image_clean(
+                img_path,
+                image_size,
+                band_sel,
+                stats,
+                combined_input_mode=eff_combined_mode,
+                return_modality=True,
+            )
+            samples.append((img_out, load_mask(mask_path, image_size)))
             names.append(name)
+            modalities.append(mod)
+        _LAST_LOADED_MODALITIES_BY_DIR[os.path.abspath(images_dir)] = list(modalities)
         return samples, names
 
     pair_names = [p[0] for p in pairs]
@@ -1237,7 +1312,16 @@ def load_samples(
     )
     _LAST_LOADED_PROVENANCE_BY_DIR[os.path.abspath(images_dir)] = stats_provenance(stats)
     for name, img_path, _ in wrap(pairs, desc="Loading data"):
-        samples.append((load_image_clean(img_path, image_size, band_sel, stats),
-                        masks_by_name[name]))
+        img_out, mod = load_image_clean(
+            img_path,
+            image_size,
+            band_sel,
+            stats,
+            combined_input_mode=eff_combined_mode,
+            return_modality=True,
+        )
+        samples.append((img_out, masks_by_name[name]))
         names.append(name)
+        modalities.append(mod)
+    _LAST_LOADED_MODALITIES_BY_DIR[os.path.abspath(images_dir)] = list(modalities)
     return samples, names
