@@ -10,7 +10,7 @@ from flwr.server.strategy import FedAvg
 import torch
 import torch.nn as nn
 
-from utilsTorch import QVUNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
+from utilsTorch import QVUNetSegmentation, FloodSegmentationDataset, get_dataloaders, segmentation_loss, fedprox_proximal_loss, train_one_epoch, evaluate_model, save_training_curves, visualize_results
 from torch.utils.data import DataLoader, Subset
 import copy
 from results_tracker import save_results_to_excel
@@ -19,7 +19,7 @@ from tools import training_common as tc
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Federated Quantum Flood Segmentation")
-    parser.add_argument('--partition', choices=['random', 'dirichlet'], default='random',
+    parser.add_argument('--partition', choices=list(tc.PARTITION_CHOICES), default='random',
                         help='Data partitioning strategy (default: random)')
     parser.add_argument('--alpha', type=float, default=0.5,
                         help='Dirichlet concentration parameter, lower = more non-IID (default: 0.5)')
@@ -192,6 +192,13 @@ class QuantumFlowerClient(fl.client.NumPyClient):
         # Update parameters if provided
         if parameters:
             numpy_to_torch_params(self.local_model, parameters)
+
+        fedprox_mu = tc.effective_fedprox_mu(self.config)
+        global_params = (
+            [p.detach().clone() for p in self.local_model.parameters()]
+            if fedprox_mu > 0.0
+            else None
+        )
         
         # Create optimizer for local training
         optimizer = torch.optim.Adam(
@@ -227,6 +234,8 @@ class QuantumFlowerClient(fl.client.NumPyClient):
                 loss = segmentation_loss(
                     logits, masks_long, loss_mode=self.config.get('loss', 'ce')
                 )
+                if fedprox_mu > 0.0 and global_params is not None:
+                    loss = loss + fedprox_proximal_loss(self.local_model, global_params, fedprox_mu)
                 
                 # Backward pass
                 loss.backward()
@@ -385,6 +394,17 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
         tc.fed_round_end(self, server_round)
         return aggregated_result
     
+    def _ensure_param_keys(self):
+        if getattr(self, '_param_keys', None) is not None:
+            return self._param_keys
+        if self.template_model is not None:
+            self._param_keys = [name for name, _ in self.template_model.named_parameters()]
+            return self._param_keys
+        tmp = tc.build_model(QVUNetSegmentation, self.config)
+        self._param_keys = [name for name, _ in tmp.named_parameters()]
+        del tmp
+        return self._param_keys
+
     def aggregate_fit(self, server_round: int, results, failures):
         """Aggregate fit results and store parameters."""
         server_round += self.round_offset  # keep global numbering on resume
@@ -397,6 +417,12 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
         
         # Store current parameters for evaluation
         if aggregated_result is not None:
+            agg_params, agg_metrics = aggregated_result
+            if tc.effective_q_angle_agg(self.config) == 'circular':
+                agg_params = tc.apply_circular_q_angle_agg_to_fit_result(
+                    agg_params, results, self._ensure_param_keys(), self.config
+                )
+                aggregated_result = (agg_params, agg_metrics)
             self._current_parameters = aggregated_result[0]
             self.final_parameters = aggregated_result[0]
             self.final_round = int(server_round)
@@ -451,11 +477,16 @@ def main():
     config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
     # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
     # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
-    vtag = tc.variant_tag(config) + tc.backend_tag(config)
+    vtag = tc.variant_tag(config) + tc.federated_variant_tag(config, quantum=True) + tc.backend_tag(config)
     if args.partition == 'dirichlet':
-        default_out = f"results/flood_federated_optical_pytorch_pennylane_dirichlet{args.alpha}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
+        part_prefix = f"dirichlet{args.alpha}"
+    elif args.partition == 'modality':
+        part_prefix = "modality"
+    elif args.partition == 'geo_cluster':
+        part_prefix = "geocluster"
     else:
-        default_out = f"results/flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
+        part_prefix = "random"
+    default_out = f"results/flood_federated_optical_pytorch_pennylane_{part_prefix}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}"
     output_dir = tc.resolve_output_dir(default_out, config, args)
     print(f"Output directory: {output_dir}")
 

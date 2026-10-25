@@ -70,6 +70,25 @@ the torch interface, `diff_method="backprop"` and parameter broadcasting over
 the batch and the 8 groups (one QNode call per block forward pass, see
 `q_backend` below).
 
+### `hqunet` (2D spatial patch lattice, `#21`)
+
+`--q-ansatz hqunet --hqunet-grid {2,4}` replaces global spatial pooling with a
+2D spatial patch lattice of $G \times G$ qubits ($n_{\text{qubits}} = 4$ for
+`hqunet_grid=2`, $n_{\text{qubits}} = 16$ for `hqunet_grid=4`):
+
+1. A $1\times 1$ pre-projection compresses bottleneck channels into `hqunet_groups` groups, and each spatial feature map is adaptively pooled onto a $G \times G$ spatial grid (`1` qubit per spatial patch).
+2. Each layer applies bounded angle encoding $\operatorname{RY}(\pi \tanh(s_{l,q} x_q))$, general single-qubit rotations $\operatorname{Rot}(\phi_{l,q}, \theta_{l,q}, \omega_{l,q})$, and 2D nearest-neighbor horizontal + vertical $\operatorname{CZ}$ entanglement across the $G \times G$ spatial grid.
+3. Single-qubit $\langle Z_q \rangle$ expectations are reshaped back to $(G, G)$, projected via a $1\times 1$ post-projection, and bilinearly upsampled to $(H, W)$ to preserve 2D spatial boundary structure.
+
+### Ansatz expressivity & classical simulability progression
+
+| Ansatz / Bottleneck | Qubits per circuit | Entanglement & Non-commutativity | Classical Simulability & Analytical Form | Scientific Role in QUAFFLE |
+| --- | --- | --- | --- | --- |
+| `legacy` | $4$ ($8$ groups) | Single $\operatorname{RX}(x_j)\operatorname{RY}(\theta_j)$ layer before computational-basis $\operatorname{CNOT}$ ring | **Analytically trivial**: $\operatorname{CNOT}$ acts on a product state right before $Z$-basis measurement, reducing exact $\langle Z_k \rangle$ to closed-form monomials of $c_j = \cos(x_j)\cos(\theta_j)$ (`4` multiplications) | Baseline showing that shallow single-layer computational-basis entanglement collapses to a classical product unit |
+| `reupload` ($L \ge 2$) | $4$ ($8$ groups) | Interleaved $\operatorname{RY}(\pi\tanh(s_{l,j}x_j)) + \operatorname{Rot}(\phi,\theta,\omega) + \operatorname{CNOT}$ rings across $L$ layers | **Non-factorizable trigonometric Fourier series**: intermediate $\operatorname{Rot}$ gates between $\operatorname{CNOT}$ rings mix computational-basis amplitudes so outputs cannot be factored into single-qubit cosines; classically simulable via $2^4 = 16$-dim statevector because $n=4$ | Controlled test of multi-layer data re-uploading inductive bias vs. parameter-matched classical bottleneck |
+| `hqunet` ($G \in \{2,4\}$) | $G^2 \in \{4, 16\}$ | 2D nearest-neighbor horizontal + vertical $\operatorname{CZ}$ lattice across $G \times G$ spatial patches | $G=2$ ($2^4=16$ statevector) or $G=4$ ($2^{16}=65{,}536$ statevector) coupling adjacent spatial patches rather than globally pooled channels | Tests spatially-local quantum entanglement for flood boundary preservation |
+| `ClassicalAblation` (`ablation_studies.py`) | $0$ (classical) | Parameter-matched per-group `Linear`/`MLP`, `conv1x1`, `depthwise3x3`, `lowrank`, or `hqunet_spatial` | Purely classical bottleneck with **100% identical paired-seed U-Net encoder/decoder initialization** (`#5`) | Isolates whether any segmentation gain comes from the PQC mapping vs. the bottleneck parameter budget / channel split |
+
 ## Circuit simulator (`q_backend`)
 
 `QuantumBlock(q_backend=..., q_sim_device=...)`, the config keys `q_backend`
@@ -267,19 +286,66 @@ Gradients flow through the standardization. This affects the classical and
 hybrid models in the same way, so results from before and after this change
 are not directly comparable.
 
+## Multimodal input stems & non-IID federated partitioning (`#14`)
+
+In `flood_combined`, 12-band optical GeoTIFFs (default 3-band selection `[GREEN, NIR, SWIR1]`)
+and 6-band SAR GeoTIFFs (default 3-band selection `[VV, VH, COP_DEM]`) have distinct physical
+units and noise characteristics. `--combined-input-mode` controls how `flood_data.py`
+and `DownUnet` (`QVUNet` / `UNet`) represent and process these modalities:
+
+| `combined_input_mode` | Loader output | Input stem (`DownUnet`) |
+| --- | --- | --- |
+| `'shared3'` (default) | `(3, H, W)` per sample | Single shared 3-channel `init_conv = Conv2d(3, init_dim, 7, padding=3)` |
+| `'concat6'` | `(6, H, W)` (`[Optical(3), SAR(3)]` with inactive half zero-padded) | 6-channel `init_conv = Conv2d(6, init_dim, 7, padding=3)` |
+| `'dual_stem'` | `(4, H, W)` (`[C0, C1, C2, modality_id]`) | Separate 3-channel optical `init_conv` and SAR `init_conv_sar` stems routed per sample before the shared encoder (`init_conv_sar` is initialized under an isolated `fork_rng` so downstream paired-seed backbone weights remain 100% identical across Quantum, Ablation, and Classical models) |
+
+Federated partitioning (`--partition`) supports four realistic data-silo regimes:
+
+* `'random'` (default): IID uniform random shards.
+* `'dirichlet'`: Label-skew Dirichlet ($\operatorname{Dir}(\alpha)$) over binarized flood dominance with `min_client_samples` guard.
+* `'modality'`: Cross-sensor non-IID silos grouping optical tiles and SAR tiles onto dedicated pure sensor-specific clients (constrained by each modality's capacity under `min_client_samples`).
+* `'geo_cluster'`: Geolocation / topographic feature-cluster non-IID silos using deterministic seeded $k$-means++ clustering on canonical 7-D per-tile feature vectors (`3` channel means + `3` channel standard deviations + `1` flood coverage fraction, invariant across `combined_input_mode`) with `min_client_samples` guard.
+
+## Federated heterogeneity & circular PQC angle aggregation (`#15`)
+
+* **FedProx (`--fl-strategy fedprox --fedprox-mu <float>`)**: Adds the proximal penalty
+  $\frac{\mu}{2}\sum_p \|w_p - w_p^{(t)}\|_2^2$ relative to the round's initial global
+  parameters $w^{(t)}$ during local client updates (`QuantumFlowerClient`,
+  `ClassicalFlowerClient`, `_TorchClassicalFlowerClient`) to bound client drift on
+  strongly non-IID splits.
+* **Circular PQC angle aggregation (`--q-angle-agg {linear,circular}`)**: Because PQC
+  rotation gates ($\operatorname{RX}, \operatorname{RY}, \operatorname{RZ}, \operatorname{Rot}$)
+  are $2\pi$-periodic on $S^1 = [-\pi, \pi]$, naive Euclidean averaging across the branch
+  cut ($\theta_1 = \pi - \epsilon$, $\theta_2 = -\pi + \epsilon$) averages to $0$ (the
+  antipodal gate) instead of $\pm\pi$. Setting `--q-angle-agg circular` aggregates
+  periodic rotation tensors (`quantum_params`, `hqunet_weights`) in `QuantumFedAvg.aggregate_fit`
+  via the weighted circular mean
+  $$\bar{\theta} = \operatorname{atan2}\!\left(\sum_k w_k \sin\theta_k,\; \sum_k w_k \cos\theta_k\right) \in [-\pi, \pi],$$
+  while keeping unbounded Euclidean parameters (`input_scales`, `pre_q_conv`,
+  `post_q_proj`, and classical backbone layers) on standard weighted averaging.
+* **Partial client participation (`--num-clients K --clients-per-round C` or `--fraction-fit f`)**:
+  Supports $K > 4$ client silos with $C < K$ sampled per round.
+
 ## How training scripts pass the options
 
 Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
-(`UNetSegmentation` ignores them):
+(`UNetSegmentation` also reads `combined_input_mode`, `backbone_conv_mode`, and `use_time_emb`):
 
 | key | default | values |
 | --- | --- | --- |
 | `q_backend` | `'pennylane'` | `'pennylane'`, `'pennylane_pergroup'`, `'torch'` (simulator only, same math) |
 | `q_sim_device` | `'cpu'` | `'cpu'`, `'model'` (where the `pennylane` circuit runs) |
-| `q_ansatz` | `'reupload'` | `'legacy'`, `'reupload'` |
-| `q_layers` | `2` | int >= 1 (reupload only) |
+| `q_ansatz` | `'reupload'` | `'legacy'`, `'reupload'`, `'hqunet'` |
+| `q_layers` | `2` | int >= 1 (`reupload` and `hqunet`) |
+| `hqunet_grid` | `2` | `2`, `4` (`hqunet` 2D spatial patch grid size) |
+| `q_spatial_mode` | `'global'` | `'global'`, `'pixel'`, `'patch2x2'`, `'patch4x4'`, `'se_gate'` |
+| `ablation_mode` | `'auto'` | `'auto'`, `'linear'`, `'mlp'`, `'conv1x1'`, `'depthwise3x3'`, `'lowrank'`, `'hqunet_spatial'` |
 | `q_share_blocks` | `True` | bool |
 | `skip_modulation` | `'affine'` | `'affine'`, `'additive'` (`QResnetBlock` / `AblationResnetBlock` skip modulation) |
+| `combined_input_mode` | `'shared3'` | `'shared3'`, `'concat6'`, `'dual_stem'` (`#14`) |
+| `fl_strategy` | `'fedavg'` | `'fedavg'`, `'fedprox'` (`#15`, federated only) |
+| `fedprox_mu` | `0.0` | float >= 0.0 (`#15`, defaults to `0.01` when `fl_strategy='fedprox'`) |
+| `q_angle_agg` | `'linear'` | `'linear'`, `'circular'` (`#15`, federated quantum only) |
 | `select_metric` | `'iou'` | `'iou'`, `'dice'`, `'auc'`, `'loss'` (validation metric for best-checkpoint restoration) |
 
 The training scripts set these keys from `--q-ansatz`, `--q-layers`,

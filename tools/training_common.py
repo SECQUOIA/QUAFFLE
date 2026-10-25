@@ -59,6 +59,17 @@ DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
 LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
 DEFAULT_LOSS_MODE = 'ce'
 
+# Wave 3 multimodal input stems, realistic non-IID partitioning, and federated optimization (#14, #15).
+COMBINED_INPUT_MODE_CHOICES = ('shared3', 'concat6', 'dual_stem')
+DEFAULT_COMBINED_INPUT_MODE = 'shared3'
+PARTITION_CHOICES = ('random', 'dirichlet', 'modality', 'geo_cluster')
+DEFAULT_PARTITION = 'random'
+FL_STRATEGY_CHOICES = ('fedavg', 'fedprox')
+DEFAULT_FL_STRATEGY = 'fedavg'
+DEFAULT_FEDPROX_MU = 0.01
+Q_ANGLE_AGG_CHOICES = ('linear', 'circular')
+DEFAULT_Q_ANGLE_AGG = 'linear'
+
 # Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
 Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
 DEFAULT_Q_BACKEND = 'pennylane'
@@ -215,6 +226,12 @@ def add_common_args(parser, quantum=True, federated=False):
     parser.add_argument('--augment', action='store_true',
                         help='Enable seed-reproducible dihedral (D4: 90-deg rotations + '
                              'horizontal reflection) geometric augmentations on training splits (#25)')
+    parser.add_argument('--combined-input-mode', choices=list(COMBINED_INPUT_MODE_CHOICES),
+                        default=DEFAULT_COMBINED_INPUT_MODE,
+                        help="Input stem mode for multimodal flood_combined tiles (#14): "
+                             "'shared3' (default, 3-ch shared init_conv), 'concat6' (6-ch "
+                             "[Optical(3), SAR(3)] into 6-ch init_conv), or 'dual_stem' "
+                             "(separate 3-ch optical and SAR input stems routed per sample)")
     if quantum:
         parser.add_argument('--q-ansatz', choices=list(Q_ANSATZ_CHOICES), default='reupload',
                             help='Quantum bottleneck ansatz (default: reupload)')
@@ -260,6 +277,21 @@ def add_common_args(parser, quantum=True, federated=False):
                             help='Override the number of federated clients (debug)')
         parser.add_argument('--clients-per-round', type=int, default=None,
                             help='Override the number of clients sampled per federated round (debug)')
+        parser.add_argument('--fraction-fit', type=float, default=None,
+                            help='Fraction of clients sampled per federated round in (0, 1] '
+                                 '(overrides --clients-per-round when set; #15)')
+        parser.add_argument('--fl-strategy', choices=list(FL_STRATEGY_CHOICES), default=None,
+                            help="Federated optimization strategy (#15): 'fedavg' (default) or "
+                                 "'fedprox' (adds proximal penalty (mu/2)*||w - w^(t)||_2^2)")
+        parser.add_argument('--fedprox-mu', type=float, default=None,
+                            help="FedProx proximal penalty coefficient mu >= 0 "
+                                 f"(default: {DEFAULT_FEDPROX_MU} when --fl-strategy=fedprox, else 0.0; #15)")
+        if quantum:
+            parser.add_argument('--q-angle-agg', choices=list(Q_ANGLE_AGG_CHOICES),
+                                default=DEFAULT_Q_ANGLE_AGG,
+                                help="Server aggregation mode for periodic PQC rotation angles (#15): "
+                                     "'linear' (default Euclidean average) or 'circular' "
+                                     "(weighted circular mean atan2(sum w_k sin theta_k, sum w_k cos theta_k))")
     else:
         parser.add_argument('--epochs', type=int, default=None,
                             help='Override the number of training epochs/steps (debug)')
@@ -343,6 +375,10 @@ def apply_common_args(config, args):
         config['augment'] = True
     else:
         config['augment'] = bool(config.get('augment', False))
+    if getattr(args, 'combined_input_mode', None) is not None:
+        config['combined_input_mode'] = effective_combined_input_mode({'combined_input_mode': args.combined_input_mode})
+    else:
+        config['combined_input_mode'] = effective_combined_input_mode(config)
     if getattr(args, 'skip_modulation', None) is not None:
         config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
@@ -385,13 +421,50 @@ def apply_common_args(config, args):
         config['fed_rounds'] = int(args.rounds)
     if getattr(args, 'local_epochs', None) is not None:
         config['local_epochs'] = int(args.local_epochs)
+    prev_nc = int(config['num_clients']) if config.get('num_clients') is not None else None
+    prev_cpr = int(config['clients_per_round']) if config.get('clients_per_round') is not None else None
     if getattr(args, 'num_clients', None) is not None:
         nc = int(args.num_clients)
+        if nc < 1:
+            raise ValueError(f"num_clients={nc} must be >= 1")
         config['num_clients'] = nc
-        if getattr(args, 'clients_per_round', None) is None and 'clients_per_round' in config:
-            config['clients_per_round'] = min(int(config['clients_per_round']), nc)
+        if getattr(args, 'clients_per_round', None) is None and getattr(args, 'fraction_fit', None) is None:
+            if prev_cpr is None or prev_cpr == prev_nc:
+                config['clients_per_round'] = nc
+            else:
+                config['clients_per_round'] = min(prev_cpr, nc)
     if getattr(args, 'clients_per_round', None) is not None:
-        config['clients_per_round'] = int(args.clients_per_round)
+        cpr = int(args.clients_per_round)
+        nc_eff = int(config.get('num_clients', max(1, cpr)))
+        if cpr < 1 or cpr > nc_eff:
+            raise ValueError(f"clients_per_round={cpr} must be in [1, num_clients={nc_eff}]")
+        config['clients_per_round'] = cpr
+        config.pop('fraction_fit', None)
+    if getattr(args, 'fraction_fit', None) is not None:
+        ff = float(args.fraction_fit)
+        if ff <= 0.0 or ff > 1.0:
+            raise ValueError(f"fraction_fit={ff} must be in (0.0, 1.0]")
+        config['fraction_fit'] = ff
+    if 'num_clients' in config or getattr(args, 'clients_per_round', None) is not None or getattr(args, 'fraction_fit', None) is not None:
+        resolve_client_participation(config)
+    if getattr(args, 'fl_strategy', None) is not None:
+        config['fl_strategy'] = str(args.fl_strategy).strip().lower()
+        if getattr(args, 'fedprox_mu', None) is None:
+            config.pop('fedprox_mu', None)
+    if getattr(args, 'fedprox_mu', None) is not None:
+        mu_val = float(args.fedprox_mu)
+        if mu_val < 0.0:
+            raise ValueError(f"fedprox_mu={mu_val} must be >= 0.0")
+        config['fedprox_mu'] = mu_val
+        if getattr(args, 'fl_strategy', None) is None and mu_val > 0.0:
+            config['fl_strategy'] = 'fedprox'
+    if 'fl_strategy' in config or 'fedprox_mu' in config or hasattr(args, 'fl_strategy'):
+        config['fl_strategy'] = effective_fl_strategy(config)
+        config['fedprox_mu'] = effective_fedprox_mu(config)
+    if getattr(args, 'q_angle_agg', None) is not None:
+        config['q_angle_agg'] = effective_q_angle_agg({'q_angle_agg': args.q_angle_agg})
+    elif hasattr(args, 'q_angle_agg') or 'q_angle_agg' in config:
+        config['q_angle_agg'] = effective_q_angle_agg(config)
     if hasattr(args, 'ckpt_every'):
         config['ckpt_every'] = max(1, int(args.ckpt_every))
         config['resume'] = not bool(getattr(args, 'no_resume', False))
@@ -582,6 +655,8 @@ def _supported_kwargs(fn, config):
         kwargs['val_fraction'] = float(config['val_fraction'])
     if 'fit_only' in params and config.get('fit_only_norm') is not None:
         kwargs['fit_only'] = bool(config['fit_only_norm'])
+    if 'combined_input_mode' in params and config.get('combined_input_mode') is not None:
+        kwargs['combined_input_mode'] = effective_combined_input_mode(config)
     return kwargs
 
 
@@ -757,6 +832,235 @@ def split_label_skew_dirichlet(pool_indices, labels, num_clients, alpha, seed,
     return [sorted(c) for c in client]
 
 
+def sample_modalities(dataset):
+    """Return a list of per-sample modality tags ('optical' or 'sar') for `dataset` (#14).
+
+    Consults `dataset.modalities` (including through `Subset` / `DihedralAugmentDataset`
+    wrappers), falling back to inspecting 6-channel `[Optical(3), SAR(3)]` tensors or
+    defaulting to `'optical'`.
+    """
+    ds = unwrap_dataset(dataset)
+    mods = getattr(ds, 'modalities', None)
+    if mods is not None and len(mods) == len(ds):
+        return [str(m).strip().lower() for m in mods]
+    if hasattr(ds, 'dataset') and hasattr(ds, 'indices'):
+        parent_mods = sample_modalities(ds.dataset)
+        return [parent_mods[int(i)] for i in ds.indices]
+    out = []
+    for i in range(len(ds)):
+        item = ds[i]
+        img = item[0] if isinstance(item, (tuple, list)) else item
+        if hasattr(img, 'shape') and len(img.shape) == 3 and img.shape[0] == 6:
+            opt_energy = float(img[:3].abs().sum())
+            sar_energy = float(img[3:6].abs().sum())
+            out.append('optical' if opt_energy >= sar_energy else 'sar')
+        else:
+            out.append('optical')
+    return out
+
+
+def _enforce_min_client_samples(client, labels, num_clients, min_samples):
+    """Deterministically move samples from the largest client until every client has >= min_samples."""
+    moved = 0
+    for cid in range(num_clients):
+        while len(client[cid]) < min_samples:
+            donor = max(range(num_clients), key=lambda k: (len(client[k]), -k))
+            donor_labels = labels[np.asarray(client[donor])]
+            major = int(np.bincount(donor_labels, minlength=2).argmax())
+            cand = sorted(i for i in client[donor] if labels[i] == major)
+            take = cand[-1]
+            client[donor].remove(take)
+            client[cid].append(take)
+            moved += 1
+    return moved
+
+
+def split_modality_silos(dataset, pool_indices, labels, num_clients, seed,
+                         min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
+    """Cross-sensor modality non-IID partition (`--partition modality`, #14).
+
+    Groups `pool_indices` by sensor modality (`'optical'` vs. `'sar'`) and assigns
+    dedicated clients to each modality silo in proportion to the pool's modality share
+    while constraining the client allocation so that every client receives at least
+    `min_samples` pure single-modality tiles (never transferring samples across
+    modalities). Raises `ValueError` if a pure single-modality allocation is infeasible.
+    """
+    pool = np.asarray(pool_indices, dtype=np.int64)
+    min_samples = max(1, int(min_samples))
+    if num_clients < 1:
+        raise ValueError(f"num_clients={num_clients} must be >= 1")
+    if num_clients * min_samples > len(pool):
+        raise ValueError(
+            f"min_samples={min_samples} x {num_clients} clients exceeds the "
+            f"training pool ({len(pool)} samples)"
+        )
+    mods = sample_modalities(dataset)
+    opt_pool = np.asarray([i for i in pool if mods[int(i)] != 'sar'], dtype=np.int64)
+    sar_pool = np.asarray([i for i in pool if mods[int(i)] == 'sar'], dtype=np.int64)
+    rng = np.random.default_rng(derive_seed(seed, 4))
+
+    if len(opt_pool) > 0 and len(sar_pool) > 0:
+        if num_clients < 2:
+            raise ValueError(
+                f"Cannot partition {len(opt_pool)} optical and {len(sar_pool)} SAR samples "
+                f"into pure single-modality silos with num_clients={num_clients} (< 2)"
+            )
+        max_opt_clients = len(opt_pool) // min_samples
+        max_sar_clients = len(sar_pool) // min_samples
+        low_opt = max(1, num_clients - max_sar_clients)
+        high_opt = min(num_clients - 1, max_opt_clients)
+        if low_opt > high_opt:
+            raise ValueError(
+                f"Infeasible pure modality silos for num_clients={num_clients}, "
+                f"min_samples={min_samples}: optical pool has {len(opt_pool)} samples "
+                f"(max {max_opt_clients} pure clients) and SAR pool has {len(sar_pool)} "
+                f"samples (max {max_sar_clients} pure clients)"
+            )
+        frac_opt = len(opt_pool) / float(len(pool))
+        target_opt = int(round(num_clients * frac_opt))
+        n_opt_clients = max(low_opt, min(high_opt, target_opt))
+        n_sar_clients = num_clients - n_opt_clients
+        opt_shards = np.array_split(rng.permutation(opt_pool), n_opt_clients)
+        sar_shards = np.array_split(rng.permutation(sar_pool), n_sar_clients)
+        client = [s.tolist() for s in opt_shards] + [s.tolist() for s in sar_shards]
+        silo_roles = (['optical'] * n_opt_clients) + (['sar'] * n_sar_clients)
+    else:
+        perm = rng.permutation(pool)
+        shards = np.array_split(perm, num_clients)
+        client = [s.tolist() for s in shards]
+        active_mod = 'sar' if len(sar_pool) > len(opt_pool) else 'optical'
+        silo_roles = [active_mod] * num_clients
+
+    sizes = [len(c) for c in client]
+    flood = [int(sum(labels[i] for i in c)) for c in client]
+    print(f"Modality non-IID silos ({silo_roles}) client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
+    return [sorted(c) for c in client]
+
+
+def _canonical_three_channel_tensor(img, modality=None):
+    """Extract the canonical 3-channel physical tile (3, H, W) invariant to combined_input_mode (#14)."""
+    import torch
+    t = img.detach().float().cpu() if isinstance(img, torch.Tensor) else torch.as_tensor(img, dtype=torch.float32)
+    if t.ndim == 2:
+        t = t.unsqueeze(0)
+    c = int(t.shape[0])
+    if c == 4:
+        # dual_stem: channels 0..2 are physical [C0, C1, C2]; channel 3 is modality indicator
+        return t[:3]
+    if c == 6:
+        # concat6: [Optical(3), SAR(3)] zero-padded on the inactive sensor
+        mod = str(modality).strip().lower() if modality is not None else None
+        if mod == 'sar':
+            return t[3:6]
+        if mod == 'optical':
+            return t[:3]
+        opt_energy = float(t[:3].abs().sum())
+        sar_energy = float(t[3:6].abs().sum())
+        return t[3:6] if sar_energy > opt_energy else t[:3]
+    if c >= 3:
+        return t[:3]
+    reps = (3 + c - 1) // max(1, c)
+    return t.repeat(reps, 1, 1)[:3]
+
+
+def _sample_geo_feature_vector(img, mask, modality=None):
+    """Extract a canonical 7-D per-tile topographic/spectral/flood feature vector (#14).
+
+    Returns `[c0_mean, c1_mean, c2_mean, c0_std, c1_std, c2_std, flood_fraction]` (shape `(7,)`),
+    computed on the canonical 3-channel physical tile so partitions are 100% invariant
+    across `--combined-input-mode {shared3,concat6,dual_stem}`.
+    """
+    import torch
+    t = _canonical_three_channel_tensor(img, modality=modality)
+    m = mask.detach().float().cpu() if isinstance(mask, torch.Tensor) else torch.as_tensor(mask, dtype=torch.float32)
+    ch_means = t.mean(dim=(-2, -1)).numpy().astype(np.float64)
+    ch_stds = t.std(dim=(-2, -1), unbiased=False).numpy().astype(np.float64)
+    flood_frac = np.array([float(m.mean())], dtype=np.float64)
+    return np.concatenate([ch_means, ch_stds, flood_frac], axis=0)
+
+
+def split_geo_cluster_silos(dataset, pool_indices, labels, num_clients, seed,
+                            min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
+    """Geolocation / topographic feature-cluster non-IID partition (`--partition geo_cluster`, #14).
+
+    Extracts deterministic 7-D per-tile spectral/elevation/flood feature vectors
+    for `pool_indices`, standardizes them, and runs seeded k-means++ clustering into
+    `num_clients` regional/feature silos followed by the `min_samples` guard.
+    """
+    pool = np.asarray(pool_indices, dtype=np.int64)
+    if num_clients * min_samples > len(pool):
+        raise ValueError(
+            f"min_samples={min_samples} x {num_clients} clients exceeds the "
+            f"training pool ({len(pool)} samples)"
+        )
+    if num_clients == 1:
+        return [sorted(pool.tolist())]
+
+    ds = unwrap_dataset(dataset)
+    mods = sample_modalities(ds)
+    feats = np.stack([
+        _sample_geo_feature_vector(
+            *ds[int(i)],
+            modality=(mods[int(i)] if int(i) < len(mods) else None),
+        )
+        for i in pool
+    ], axis=0)
+    mean = feats.mean(axis=0, keepdims=True)
+    std = np.maximum(feats.std(axis=0, keepdims=True), 1e-6)
+    x = (feats - mean) / std
+
+    rng = np.random.default_rng(derive_seed(seed, 5))
+    n = len(pool)
+    # Seeded k-means++ initialization
+    centers = np.empty((num_clients, x.shape[1]), dtype=np.float64)
+    first_idx = int(rng.integers(0, n))
+    centers[0] = x[first_idx]
+    closest_dist_sq = np.sum((x - centers[0]) ** 2, axis=1)
+    for cid in range(1, num_clients):
+        total_d = float(closest_dist_sq.sum())
+        if total_d <= 1e-12:
+            pick = int(rng.integers(0, n))
+        else:
+            probs = closest_dist_sq / total_d
+            pick = int(rng.choice(n, p=probs))
+        centers[cid] = x[pick]
+        dist_sq = np.sum((x - centers[cid]) ** 2, axis=1)
+        closest_dist_sq = np.minimum(closest_dist_sq, dist_sq)
+
+    assign = np.zeros(n, dtype=np.int64)
+    for _ in range(25):
+        dists = np.sum((x[:, None, :] - centers[None, :, :]) ** 2, axis=2)
+        new_assign = np.argmin(dists, axis=1)
+        # Ensure no empty cluster during Lloyd updates
+        for cid in range(num_clients):
+            if not np.any(new_assign == cid):
+                farthest = int(np.argmax(np.min(dists, axis=1)))
+                new_assign[farthest] = cid
+                dists[farthest, cid] = 0.0
+        if np.array_equal(new_assign, assign):
+            break
+        assign = new_assign
+        for cid in range(num_clients):
+            pts = x[assign == cid]
+            if len(pts) > 0:
+                centers[cid] = pts.mean(axis=0)
+
+    # Order clusters deterministically by first principal coordinate / feature mean
+    cluster_order = np.argsort([float(centers[c].sum()) for c in range(num_clients)])
+    client = [pool[assign == int(c)].tolist() for c in cluster_order]
+    raw_sizes = [len(c) for c in client]
+    moved = _enforce_min_client_samples(client, labels, num_clients, min_samples)
+    sizes = [len(c) for c in client]
+    flood = [int(sum(labels[i] for i in c)) for c in client]
+    print(f"Geo/feature cluster non-IID raw client sizes: {raw_sizes}")
+    if moved:
+        print(f"  min-samples guard ({min_samples}) moved {moved} samples")
+    print(f"Geo/feature cluster non-IID final client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
+    return [sorted(c) for c in client]
+
+
 def build_federated_split(dataset, config):
     """Global validation holdout followed by client partitioning.
 
@@ -766,13 +1070,24 @@ def build_federated_split(dataset, config):
     seed = config['seed']
     train_idx, val_idx, labels = holdout_validation(
         dataset, seed, config.get('val_fraction', VAL_FRACTION))
-    n = config['num_clients']
-    if config.get('partition') == 'dirichlet':
+    n = int(config['num_clients'])
+    min_s = int(config.get('min_client_samples', DEFAULT_MIN_CLIENT_SAMPLES))
+    part_mode = str(config.get('partition', 'random') or 'random').strip().lower()
+    if part_mode not in PARTITION_CHOICES:
+        raise ValueError(
+            f"Unknown partition={part_mode!r}; expected one of {PARTITION_CHOICES}"
+        )
+    if part_mode == 'dirichlet':
         clients = split_label_skew_dirichlet(
-            train_idx, labels, n, config['dirichlet_alpha'], seed,
-            config.get('min_client_samples', DEFAULT_MIN_CLIENT_SAMPLES))
-        part = f"label-skew Dirichlet (alpha={config['dirichlet_alpha']}, " \
-               f"min {config.get('min_client_samples', DEFAULT_MIN_CLIENT_SAMPLES)} per client)"
+            train_idx, labels, n, config['dirichlet_alpha'], seed, min_s)
+        part = (f"label-skew Dirichlet (alpha={config['dirichlet_alpha']}, "
+                f"min {min_s} per client)")
+    elif part_mode == 'modality':
+        clients = split_modality_silos(dataset, train_idx, labels, n, seed, min_s)
+        part = f"cross-sensor modality silos (min {min_s} per client)"
+    elif part_mode == 'geo_cluster':
+        clients = split_geo_cluster_silos(dataset, train_idx, labels, n, seed, min_s)
+        part = f"geo/topographic feature clusters (k={n}, min {min_s} per client)"
     else:
         clients = split_random(train_idx, n, seed)
         part = "random IID"
@@ -1090,6 +1405,198 @@ def effective_backbone_conv_mode(config):
     return normalize_backbone_conv_mode(config.get('backbone_conv_mode', DEFAULT_BACKBONE_CONV_MODE))
 
 
+def effective_combined_input_mode(config):
+    """Resolve and normalize `combined_input_mode` ('shared3' default, 'concat6', or 'dual_stem', #14)."""
+    from utilsTorch.unetTorch import normalize_combined_input_mode
+    if not isinstance(config, dict):
+        return normalize_combined_input_mode(config)
+    return normalize_combined_input_mode(config.get('combined_input_mode', DEFAULT_COMBINED_INPUT_MODE))
+
+
+def effective_fl_strategy(config):
+    """Resolve and normalize federated strategy ('fedavg' default, or 'fedprox', #15)."""
+    if not isinstance(config, dict):
+        raw = str(config).strip().lower() if config is not None else DEFAULT_FL_STRATEGY
+    else:
+        raw = config.get('fl_strategy')
+        if raw is None:
+            mu = float(config.get('fedprox_mu', 0.0) or 0.0)
+            raw = 'fedprox' if mu > 0.0 else DEFAULT_FL_STRATEGY
+        else:
+            raw = str(raw).strip().lower()
+    if raw not in FL_STRATEGY_CHOICES:
+        raise ValueError(
+            f"Unknown fl_strategy={raw!r}; expected one of {FL_STRATEGY_CHOICES}"
+        )
+    return raw
+
+
+def effective_fedprox_mu(config):
+    """Resolve and validate FedProx proximal penalty coefficient `fedprox_mu` (#15).
+
+    Returns 0.0 when `fl_strategy == 'fedavg'`. When `fl_strategy == 'fedprox'` and
+    `fedprox_mu` is unset (`None`), defaults to `DEFAULT_FEDPROX_MU` (0.01); an
+    explicit `fedprox_mu=0.0` is preserved as 0.0.
+    """
+    if not isinstance(config, dict):
+        return 0.0
+    strat = effective_fl_strategy(config)
+    raw = config.get('fedprox_mu')
+    if raw is None:
+        return DEFAULT_FEDPROX_MU if strat == 'fedprox' else 0.0
+    val = float(raw)
+    if val < 0.0:
+        raise ValueError(f"fedprox_mu={val} must be >= 0.0")
+    if strat == 'fedavg':
+        return 0.0
+    return val
+
+
+def effective_q_angle_agg(config):
+    """Resolve and normalize quantum angle aggregation mode ('linear' default, or 'circular', #15)."""
+    if not isinstance(config, dict):
+        raw = str(config).strip().lower() if config is not None else DEFAULT_Q_ANGLE_AGG
+    else:
+        raw = str(config.get('q_angle_agg', DEFAULT_Q_ANGLE_AGG) or DEFAULT_Q_ANGLE_AGG).strip().lower()
+    if raw not in Q_ANGLE_AGG_CHOICES:
+        raise ValueError(
+            f"Unknown q_angle_agg={raw!r}; expected one of {Q_ANGLE_AGG_CHOICES}"
+        )
+    return raw
+
+
+def resolve_client_participation(config):
+    """Resolve `(num_clients, clients_per_round, fraction_fit)` and normalize `config` (#15)."""
+    if not isinstance(config, dict):
+        return 4, 4, 1.0
+    nc = int(config.get('num_clients', 4))
+    if nc < 1:
+        raise ValueError(f"num_clients={nc} must be >= 1")
+    if config.get('fraction_fit') is not None:
+        ff_raw = float(config['fraction_fit'])
+        if ff_raw <= 0.0 or ff_raw > 1.0:
+            raise ValueError(f"fraction_fit={ff_raw} must be in (0.0, 1.0]")
+        cpr = max(1, min(nc, int(round(ff_raw * nc))))
+    elif config.get('clients_per_round') is not None:
+        cpr = int(config['clients_per_round'])
+    else:
+        cpr = nc
+    if cpr < 1 or cpr > nc:
+        raise ValueError(f"clients_per_round={cpr} must be in [1, num_clients={nc}]")
+    ff = float(cpr) / float(nc)
+    config['num_clients'] = nc
+    config['clients_per_round'] = cpr
+    config['fraction_fit'] = ff
+    return nc, cpr, ff
+
+
+def is_periodic_quantum_param_name(name: str) -> bool:
+    """Return True if `name` is a periodic PQC rotation parameter on S^1 = [-pi, pi] (#15).
+
+    Matches `quantum_params` (`legacy` and `reupload` ansatze) and `hqunet_weights`
+    (`hqunet` ansatz). Excludes unbounded Euclidean parameters (`input_scales`,
+    `pre_q_conv`, `post_q_proj`, and classical backbone layers).
+    """
+    s = str(name)
+    return ('quantum_params' in s) or ('hqunet_weights' in s)
+
+
+def quantum_periodic_param_indices(model_or_state_keys):
+    """Return sorted set of state_dict parameter indices holding periodic PQC angles (#15)."""
+    if model_or_state_keys is None:
+        return set()
+    if isinstance(model_or_state_keys, dict):
+        keys = list(model_or_state_keys.keys())
+    elif isinstance(model_or_state_keys, (list, tuple)):
+        keys = [str(k) for k in model_or_state_keys]
+    elif hasattr(model_or_state_keys, 'state_dict'):
+        keys = list(model_or_state_keys.state_dict().keys())
+    elif hasattr(model_or_state_keys, 'model') and hasattr(model_or_state_keys.model, 'state_dict'):
+        keys = list(model_or_state_keys.model.state_dict().keys())
+    else:
+        return set()
+    return {idx for idx, name in enumerate(keys) if is_periodic_quantum_param_name(name)}
+
+
+def circular_mean_angles(arrays, weights):
+    """Weighted circular mean on S^1 = [-pi, pi] via atan2(sum w_k sin theta_k, sum w_k cos theta_k) (#15).
+
+    If the resultant vector length R = sqrt(S^2 + C^2) < 1e-12 (exact antipodal
+    cancellation), falls back to the wrapped linear weighted mean in [-pi, pi].
+    """
+    if not arrays:
+        raise ValueError("circular_mean_angles requires at least one array")
+    orig_dtype = np.asarray(arrays[0]).dtype
+    w = np.asarray(weights, dtype=np.float64)
+    w_sum = float(w.sum())
+    if w_sum <= 0.0:
+        w = np.ones(len(arrays), dtype=np.float64) / float(len(arrays))
+    else:
+        w = w / w_sum
+    sin_sum = np.zeros_like(arrays[0], dtype=np.float64)
+    cos_sum = np.zeros_like(arrays[0], dtype=np.float64)
+    lin_sum = np.zeros_like(arrays[0], dtype=np.float64)
+    for arr, wk in zip(arrays, w):
+        theta = np.asarray(arr, dtype=np.float64)
+        sin_sum += wk * np.sin(theta)
+        cos_sum += wk * np.cos(theta)
+        lin_sum += wk * theta
+    r = np.hypot(sin_sum, cos_sum)
+    circ = np.arctan2(sin_sum, cos_sum)
+    wrapped_lin = ((lin_sum + np.pi) % (2.0 * np.pi)) - np.pi
+    out = np.where(r >= 1e-12, circ, wrapped_lin)
+    return out.astype(orig_dtype, copy=False)
+
+
+def aggregate_ndarrays_quantum_aware(results, periodic_indices=None, q_angle_agg=DEFAULT_Q_ANGLE_AGG):
+    """Aggregate `(ndarrays, num_examples)` pairs using circular mean on `periodic_indices`
+    when `q_angle_agg == 'circular'` and standard Euclidean weighted average elsewhere (#15)."""
+    if not results:
+        return []
+    agg_mode = effective_q_angle_agg({'q_angle_agg': q_angle_agg})
+    p_idx = set(periodic_indices or ())
+    weights = [float(num_ex) for _, num_ex in results]
+    w_arr = np.asarray(weights, dtype=np.float64)
+    w_sum = float(w_arr.sum())
+    w_norm = (w_arr / w_sum) if w_sum > 0.0 else (np.ones(len(results), dtype=np.float64) / float(len(results)))
+    num_params = len(results[0][0])
+    out = []
+    for idx in range(num_params):
+        layer_arrays = [np.asarray(params[idx]) for params, _ in results]
+        if agg_mode == 'circular' and idx in p_idx and np.issubdtype(layer_arrays[0].dtype, np.floating):
+            out.append(circular_mean_angles(layer_arrays, weights))
+        else:
+            acc = np.zeros_like(layer_arrays[0], dtype=np.float64)
+            for arr, wk in zip(layer_arrays, w_norm):
+                acc += wk * arr.astype(np.float64)
+            out.append(acc.astype(layer_arrays[0].dtype, copy=False))
+    return out
+
+
+def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, model_or_keys, config=None):
+    """Replace periodic PQC rotation parameters in `aggregated_parameters` with their
+    weighted circular mean when `effective_q_angle_agg(config) == 'circular'` (#15)."""
+    if aggregated_parameters is None or not results:
+        return aggregated_parameters
+    if effective_q_angle_agg(config) != 'circular':
+        return aggregated_parameters
+    p_idx = quantum_periodic_param_indices(model_or_keys)
+    if not p_idx:
+        return aggregated_parameters
+    from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
+    agg_nd = list(parameters_to_ndarrays(aggregated_parameters))
+    client_nd_weights = []
+    for item in results:
+        fit_res = item[1] if isinstance(item, tuple) else item
+        client_nd_weights.append((parameters_to_ndarrays(fit_res.parameters), float(fit_res.num_examples)))
+    weights = [w for _, w in client_nd_weights]
+    for idx in sorted(p_idx):
+        if 0 <= idx < len(agg_nd) and np.issubdtype(agg_nd[idx].dtype, np.floating):
+            layer_arrays = [nd[idx] for nd, _ in client_nd_weights]
+            agg_nd[idx] = circular_mean_angles(layer_arrays, weights)
+    return ndarrays_to_parameters(agg_nd)
+
+
 def _uses_hqunet_grid(config, model_type=None):
     """Return True when `hqunet_grid` affects the model architecture for `(config, model_type)`."""
     ansatz, _ = effective_q_variant(config)
@@ -1117,7 +1624,7 @@ def _effective_fingerprint_q_layers(config, model_type):
 
 
 def _normalize_saved_fingerprint(saved, model_type=None):
-    """Fill in historical Wave 2 default values for keys absent from pre-Wave-2
+    """Fill in historical Wave 2/3 default values for keys absent from older
     checkpoint fingerprints so default-config runs can resume older checkpoints."""
     if not isinstance(saved, dict):
         return saved
@@ -1127,15 +1634,23 @@ def _normalize_saved_fingerprint(saved, model_type=None):
     ansatz = out.get('q_ansatz') or ('reupload' if quantum else None)
     abl_mode = out.get('ablation_mode', DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None)
     uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
+    is_fed = 'fed_rounds' in out or 'partition' in out
     defaults = {
         'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
         'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
         'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
         'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
+        'combined_input_mode': DEFAULT_COMBINED_INPUT_MODE,
         'loss': DEFAULT_LOSS_MODE,
         'use_time_emb': True,
         'augment': False,
     }
+    if is_fed:
+        defaults.update({
+            'fl_strategy': DEFAULT_FL_STRATEGY,
+            'fedprox_mu': 0.0,
+            'q_angle_agg': DEFAULT_Q_ANGLE_AGG if eff_model_type == 'quantum' else None,
+        })
     for k, default_val in defaults.items():
         if k not in out:
             out[k] = default_val
@@ -1245,6 +1760,7 @@ def centralized_fingerprint(config, model_type):
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
@@ -1363,13 +1879,16 @@ def effective_q_variant(config):
 
 
 def classical_variant_tag(config):
-    """Directory suffix for non-default backbone, loss, time_emb, or augmentation flags."""
+    """Directory suffix for non-default backbone, input mode, loss, time_emb, or augmentation flags."""
     if not isinstance(config, dict):
         return ''
     parts = []
     bb = effective_backbone_conv_mode(config)
     if bb != DEFAULT_BACKBONE_CONV_MODE:
         parts.append(bb)
+    cim = effective_combined_input_mode(config)
+    if cim != DEFAULT_COMBINED_INPUT_MODE:
+        parts.append(f'in-{cim}')
     loss_mode = effective_loss_mode(config)
     if loss_mode != DEFAULT_LOSS_MODE:
         parts.append(loss_mode)
@@ -1377,6 +1896,40 @@ def classical_variant_tag(config):
         parts.append('notime')
     if bool(config.get('augment', False)):
         parts.append('aug')
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
+def partition_tag(config):
+    """Short directory tag for federated partitioning mode (#14)."""
+    if not isinstance(config, dict):
+        return 'iid'
+    part = str(config.get('partition', 'random') or 'random').strip().lower()
+    if part == 'dirichlet':
+        return f"dir{config['dirichlet_alpha']}"
+    if part == 'modality':
+        return 'modality'
+    if part == 'geo_cluster':
+        return 'geocluster'
+    return 'iid'
+
+
+def federated_variant_tag(config, quantum=False):
+    """Directory suffix for non-default federated strategy, angle aggregation, or client participation (#15)."""
+    if not isinstance(config, dict):
+        return ''
+    parts = []
+    fl_strat = effective_fl_strategy(config)
+    if fl_strat == 'fedprox':
+        mu = effective_fedprox_mu(config)
+        parts.append(f"fedprox{mu:g}")
+    if quantum:
+        q_agg = effective_q_angle_agg(config)
+        if q_agg != DEFAULT_Q_ANGLE_AGG:
+            parts.append(f"qagg-{q_agg}")
+    nc = int(config.get('num_clients', 4))
+    cpr = int(config.get('clients_per_round', nc))
+    if nc != 4 or cpr != nc:
+        parts.append(f"K{nc}C{cpr}")
     return ('_' + '_'.join(parts)) if parts else ''
 
 
@@ -1665,6 +2218,7 @@ def run_fingerprint(config, model_type):
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
@@ -1675,6 +2229,10 @@ def run_fingerprint(config, model_type):
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
                       if model_type == 'quantum' else None),
         'select_metric': select_metric_name(config),
+        'fl_strategy': effective_fl_strategy(config),
+        'fedprox_mu': effective_fedprox_mu(config),
+        'q_angle_agg': (effective_q_angle_agg(config)
+                        if model_type == 'quantum' else None),
         'fed_rounds': int(config['fed_rounds']),
         'local_epochs': int(config['local_epochs']),
         'num_clients': int(config['num_clients']),
@@ -1822,6 +2380,10 @@ def apply_fed_resume(strategy, ckpt):
     strategy.round_offset = done
     strategy.resumed_from_round = done
     strategy.round_metrics = list(ckpt.get('round_metrics', []))
+    strategy.selected_clients_by_round = {
+        int(k): [str(c) for c in v]
+        for k, v in dict(ckpt.get('selected_clients_by_round', {}) or {}).items()
+    }
     strategy.best_performance = float(ckpt.get('best_performance', 0.0))
     strategy.select_metric = select_metric_name(ckpt.get('select_metric', select_metric))
     raw_best_score = ckpt.get('best_val_score')
@@ -1887,6 +2449,7 @@ def fed_round_end(strategy, server_round):
             'best_round': getattr(strategy, 'best_round', None),
             'best_val_metrics': getattr(strategy, 'best_val_metrics', None),
             'round_metrics': strategy.round_metrics,
+            'selected_clients_by_round': dict(getattr(strategy, 'selected_clients_by_round', {}) or {}),
             'best_performance': strategy.best_performance,
             'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }, fed_checkpoint_path(strategy.output_dir))
@@ -1901,16 +2464,67 @@ def fed_round_end(strategy, server_round):
         raise SystemExit(75)
 
 
+def _logical_client_id(cid, proxy):
+    """Return the stable logical client identity (`partition_id` in Flower Ray simulation,
+    falling back to `proxy_state.node_config['partition-id']` or `cid`)."""
+    part_id = getattr(proxy, 'partition_id', None)
+    if part_id is not None:
+        return str(part_id)
+    proxy_state = getattr(proxy, 'proxy_state', None)
+    node_cfg = getattr(proxy_state, 'node_config', None)
+    if isinstance(node_cfg, dict) and 'partition-id' in node_cfg:
+        return str(node_cfg['partition-id'])
+    return str(getattr(proxy, 'cid', cid))
+
+
 class RoundOffsetMixin:
     """Mixin for FedAvg subclasses: Flower always counts rounds from 1, so a
     resumed run shifts every server_round by round_offset. This keeps the
     on_fit_config_fn round (and therefore the per (seed, client, round)
-    shuffle seed), logs and checkpoints numbered as in an uninterrupted run.
+    shuffle seed), deterministic partial-participation client sampling over
+    stable logical partition IDs, logs, and checkpoints numbered as in an
+    uninterrupted run.
     aggregate_fit / aggregate_evaluate apply the offset in the subclass."""
     round_offset = 0
 
     def configure_fit(self, server_round, parameters, client_manager):
-        return super().configure_fit(server_round + self.round_offset, parameters, client_manager)
+        global_round = int(server_round) + int(self.round_offset)
+        all_clients = client_manager.all() if hasattr(client_manager, 'all') else None
+        if isinstance(all_clients, dict) and hasattr(self, 'num_fit_clients'):
+            from flwr.common import FitIns
+            fit_cfg = {}
+            if getattr(self, 'on_fit_config_fn', None) is not None:
+                fit_cfg = self.on_fit_config_fn(global_round)
+            fit_ins = FitIns(parameters, fit_cfg)
+            sample_size, min_num_clients = self.num_fit_clients(client_manager.num_available())
+            if hasattr(client_manager, 'wait_for'):
+                client_manager.wait_for(min_num_clients)
+                all_clients = client_manager.all()
+            if isinstance(all_clients, dict) and len(all_clients) >= sample_size:
+                logical_to_proxy = {
+                    _logical_client_id(cid, proxy): proxy
+                    for cid, proxy in all_clients.items()
+                }
+                if len(logical_to_proxy) == len(all_clients):
+                    sorted_lids = sorted(
+                        logical_to_proxy.keys(),
+                        key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                    )
+                    cfg_dict = getattr(self, 'config', None)
+                    base_seed = int(cfg_dict.get('seed', 42)) if isinstance(cfg_dict, dict) else 42
+                    if sample_size >= len(sorted_lids):
+                        chosen_lids = list(sorted_lids)
+                    else:
+                        rng = random.Random(derive_seed(base_seed, 7000 + global_round))
+                        chosen_lids = sorted(
+                            rng.sample(sorted_lids, sample_size),
+                            key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                        )
+                    if not hasattr(self, 'selected_clients_by_round') or self.selected_clients_by_round is None:
+                        self.selected_clients_by_round = {}
+                    self.selected_clients_by_round[int(global_round)] = [str(c) for c in chosen_lids]
+                    return [(logical_to_proxy[lid], fit_ins) for lid in chosen_lids]
+        return super().configure_fit(global_round, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):
         return super().configure_evaluate(server_round + self.round_offset, parameters,
@@ -1979,6 +2593,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
@@ -1988,6 +2603,10 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
                       if model_type == 'quantum' else None),
         'q_simulator': q_simulator if model_type == 'quantum' else None,
         'select_metric': sel_metric,
+        'fl_strategy': effective_fl_strategy(config) if training == 'federated' else None,
+        'fedprox_mu': effective_fedprox_mu(config) if training == 'federated' else None,
+        'q_angle_agg': (effective_q_angle_agg(config)
+                        if (training == 'federated' and model_type == 'quantum') else None),
         'best_val_score': best_val_score,
         'best_epoch': best_epoch,
         'best_step': best_step if best_step is not None else best_epoch,
@@ -1996,6 +2615,10 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'fed_rounds': config.get('fed_rounds') if training == 'federated' else None,
         'local_epochs': config.get('local_epochs') if training == 'federated' else None,
         'num_clients': config.get('num_clients') if training == 'federated' else None,
+        'clients_per_round': (int(config.get('clients_per_round', config['num_clients']))
+                              if (training == 'federated' and config.get('num_clients') is not None) else None),
+        'fraction_fit': (float(config.get('fraction_fit', 1.0))
+                         if training == 'federated' else None),
         'epochs_or_steps': (config.get('num_epochs') or config.get('num_train_steps'))
         if training != 'federated' else None,
         'base_channels': int(config['base_channels']) if config.get('base_channels') is not None else None,

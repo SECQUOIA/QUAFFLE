@@ -229,6 +229,10 @@ def assign_method(row):
     if training == "federated":
         if "dirichlet" in partition:
             part_label = "(Dirichlet)"
+        elif "modality" in partition:
+            part_label = "(Modality)"
+        elif "geo_cluster" in partition or "geocluster" in partition:
+            part_label = "(GeoCluster)"
         elif "random" in partition:
             part_label = "(Random)"
         else:
@@ -270,7 +274,14 @@ PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
 _DEFAULT_Q_LAYERS = 2
 
 _SCALE_TAG_RE = _re_disk.compile(r"(?:_(?:bc\d+|img\d+|max\d+|dr[0-9a-f]{6}))+$")
-_CLASSICAL_MOD_PART = r"(?:_(?:standard|depthwise_sep))?(?:_(?:dice_ce|focal_dice))?(?:_notime)?(?:_aug)?"
+_FED_MOD_PART = r"(?:_fedprox[\d.eE+-]+)?(?:_qagg-circular)?(?:_K\d+C\d+)?"
+_CLASSICAL_MOD_PART = (
+    r"(?:_(?:standard|depthwise_sep))?"
+    r"(?:_in-(?:concat6|dual_stem))?"
+    r"(?:_(?:dice_ce|focal_dice))?"
+    r"(?:_notime)?(?:_aug)?"
+    + _FED_MOD_PART
+)
 _VTAG_RE = _re_disk.compile(
     r"_((?:legacy|reupload_L\d+|hqunet_G\d+_L\d+)"
     r"(?:_(?:pixel|patch2x2|patch4x4|se_gate))?"
@@ -280,11 +291,9 @@ _VTAG_RE = _re_disk.compile(
     + r")$"
 )
 _CLASSICAL_VTAG_RE = _re_disk.compile(
-    r"_(("
-    r"(?:standard|depthwise_sep)(?:_(?:dice_ce|focal_dice))?(?:_notime)?(?:_aug)?"
-    r"|(?:dice_ce|focal_dice)(?:_notime)?(?:_aug)?"
-    r"|notime(?:_aug)?"
-    r"|aug"
+    r"_((?:"
+    r"(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+)"
+    r"(?:_(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+))*"
     r"))$"
 )
 _BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
@@ -370,6 +379,9 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
         bb = data.get("backbone_conv_mode")
         if bb and bb != "ws_conv":
             parts.append(str(bb))
+        cim = data.get("combined_input_mode")
+        if cim and cim != "shared3":
+            parts.append(f"in-{cim}")
         loss_m = data.get("loss")
         if loss_m and loss_m != "ce":
             parts.append(str(loss_m))
@@ -377,6 +389,27 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             parts.append("notime")
         if data.get("augment") is True:
             parts.append("aug")
+        if data.get("training") == "federated":
+            fl_strat = data.get("fl_strategy")
+            mu = data.get("fedprox_mu")
+            eff_fl = (
+                fl_strat
+                if fl_strat is not None
+                else ("fedprox" if (mu is not None and float(mu) > 0.0) else "fedavg")
+            )
+            if eff_fl == "fedprox":
+                mu_val = float(mu) if mu is not None else 0.01
+                parts.append(f"fedprox{mu_val:g}")
+            q_agg = data.get("q_angle_agg")
+            if q_agg and q_agg != "linear":
+                parts.append(f"qagg-{q_agg}")
+            nc = data.get("num_clients")
+            cpr = data.get("clients_per_round")
+            if nc is not None:
+                nc_i = int(nc)
+                cpr_i = int(cpr) if cpr is not None else nc_i
+                if nc_i != 4 or cpr_i != nc_i:
+                    parts.append(f"K{nc_i}C{cpr_i}")
     return "_".join(parts) if parts else None
 
 
@@ -488,6 +521,10 @@ def _parse_run_dir_full(dirname):
             return ("Ablation Fed (Random)", dataset, seed, 32, "federated", "random", variant)
         if "dirichlet" in base:
             return ("Ablation Fed (Dirichlet)", dataset, seed, 32, "federated", "dirichlet", variant)
+        if "modality" in base:
+            return ("Ablation Fed (Modality)", dataset, seed, 32, "federated", "modality", variant)
+        if "geocluster" in base or "geo_cluster" in base:
+            return ("Ablation Fed (GeoCluster)", dataset, seed, 32, "federated", "geo_cluster", variant)
         return None
 
     if not base.startswith("flood_"):
@@ -501,6 +538,10 @@ def _parse_run_dir_full(dirname):
             partition = "random"
         elif "dirichlet" in base:
             partition = "dirichlet"
+        elif "modality" in base:
+            partition = "modality"
+        elif "geocluster" in base or "geo_cluster" in base:
+            partition = "geo_cluster"
         else:
             return None
     else:
@@ -517,6 +558,10 @@ def _parse_run_dir_full(dirname):
         method = f"{kind} Central{qc_suffix}"
     elif partition == "random":
         method = f"{kind} Fed (Random){qc_suffix}"
+    elif partition == "modality":
+        method = f"{kind} Fed (Modality){qc_suffix}"
+    elif partition == "geo_cluster":
+        method = f"{kind} Fed (GeoCluster){qc_suffix}"
     else:
         method = f"{kind} Fed (Dirichlet){qc_suffix}"
 
