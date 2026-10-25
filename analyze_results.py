@@ -393,7 +393,7 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             fl_strat = data.get("fl_strategy")
             mu = data.get("fedprox_mu")
             if fl_strat == "fedprox" or (mu is not None and float(mu) > 0.0):
-                mu_val = float(mu) if (mu is not None and float(mu) > 0.0) else 0.01
+                mu_val = float(mu) if mu is not None else 0.01
                 parts.append(f"fedprox{mu_val:g}")
             q_agg = data.get("q_angle_agg")
             if q_agg and q_agg != "linear":
@@ -403,7 +403,7 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             if nc is not None:
                 nc_i = int(nc)
                 cpr_i = int(cpr) if cpr is not None else nc_i
-                if nc_i > 4 or cpr_i != nc_i:
+                if nc_i != 4 or cpr_i != nc_i:
                     parts.append(f"K{nc_i}C{cpr_i}")
     return "_".join(parts) if parts else None
 

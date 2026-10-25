@@ -587,7 +587,7 @@ def run_verification(
             )
             timings.append(("federated_classical_random_interrupt_round1", dt))
             f_cls_rand_dir = _rdir(
-                "flood_federated_optical_pytorch_classical_random_seed42"
+                "flood_federated_optical_pytorch_classical_random_K2C2_seed42"
             )
             f_ck1 = _assert_federated_ckpt(f_cls_rand_dir, 1, expected_total_rounds=2)
             assert len(f_ck1["round_metrics"]) == 1
@@ -632,7 +632,7 @@ def run_verification(
             )
             timings.append(("federated_classical_dirichlet_round1", dt))
             f_cls_dir_dir = _rdir(
-                "flood_federated_optical_pytorch_classical_dirichlet0.5_sar_seed42"
+                "flood_federated_optical_pytorch_classical_dirichlet0.5_sar_K2C2_seed42"
             )
             _assert_federated_ckpt(f_cls_dir_dir, 1, expected_total_rounds=1)
             _assert_metrics_json(f_cls_dir_dir, expect_resumed_round=0, require_canonical_meta=True)
@@ -655,7 +655,7 @@ def run_verification(
             )
             timings.append(("federated_ablation_random_legacy_round1", dt))
             f_abl_rand_dir = _rdir(
-                "ablation_federated_torch_bottleneck_matched_pennylane_random_legacy_seed42"
+                "ablation_federated_torch_bottleneck_matched_pennylane_random_legacy_K2C2_seed42"
             )
             _assert_federated_ckpt(f_abl_rand_dir, 1, expected_total_rounds=1)
             _assert_metrics_json(
@@ -686,7 +686,7 @@ def run_verification(
             )
             timings.append(("federated_ablation_dirichlet_reupload_interrupt_round1", dt))
             f_abl_dir_dir = _rdir(
-                "ablation_federated_torch_bottleneck_matched_pennylane_dirichlet0.5_reupload_L1_seed42"
+                "ablation_federated_torch_bottleneck_matched_pennylane_dirichlet0.5_reupload_L1_K2C2_seed42"
             )
             f_abl_ck1 = _assert_federated_ckpt(f_abl_dir_dir, 1, expected_total_rounds=2)
             assert len(f_abl_ck1["round_metrics"]) == 1
@@ -740,7 +740,7 @@ def run_verification(
             )
             timings.append(("federated_quantum_random_legacy_round1", dt))
             f_q_rand_dir = _rdir(
-                "flood_federated_optical_pytorch_pennylane_random_legacy_seed42"
+                "flood_federated_optical_pytorch_pennylane_random_legacy_K2C2_seed42"
             )
             _assert_federated_ckpt(f_q_rand_dir, 1, expected_total_rounds=1)
             _assert_metrics_json(
@@ -769,7 +769,7 @@ def run_verification(
             )
             timings.append(("federated_quantum_dirichlet_reupload_interrupt_round1", dt))
             f_q_dir_dir = _rdir(
-                "flood_federated_optical_pytorch_pennylane_dirichlet0.5_reupload_L1_seed42"
+                "flood_federated_optical_pytorch_pennylane_dirichlet0.5_reupload_L1_K2C2_seed42"
             )
             f_q_ck1 = _assert_federated_ckpt(f_q_dir_dir, 1, expected_total_rounds=2)
             assert len(f_q_ck1["round_metrics"]) == 1

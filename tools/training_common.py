@@ -439,19 +439,18 @@ def apply_common_args(config, args):
         if cpr < 1 or cpr > nc_eff:
             raise ValueError(f"clients_per_round={cpr} must be in [1, num_clients={nc_eff}]")
         config['clients_per_round'] = cpr
-        config['fraction_fit'] = float(cpr) / float(nc_eff)
+        config.pop('fraction_fit', None)
     if getattr(args, 'fraction_fit', None) is not None:
         ff = float(args.fraction_fit)
         if ff <= 0.0 or ff > 1.0:
             raise ValueError(f"fraction_fit={ff} must be in (0.0, 1.0]")
-        nc_eff = int(config.get('num_clients', 4))
-        cpr = max(1, min(nc_eff, int(round(ff * nc_eff))))
-        config['clients_per_round'] = cpr
-        config['fraction_fit'] = float(cpr) / float(nc_eff)
-    elif 'num_clients' in config:
+        config['fraction_fit'] = ff
+    if 'num_clients' in config or getattr(args, 'clients_per_round', None) is not None or getattr(args, 'fraction_fit', None) is not None:
         resolve_client_participation(config)
     if getattr(args, 'fl_strategy', None) is not None:
         config['fl_strategy'] = str(args.fl_strategy).strip().lower()
+        if getattr(args, 'fedprox_mu', None) is None:
+            config.pop('fedprox_mu', None)
     if getattr(args, 'fedprox_mu', None) is not None:
         mu_val = float(args.fedprox_mu)
         if mu_val < 0.0:
@@ -882,11 +881,14 @@ def split_modality_silos(dataset, pool_indices, labels, num_clients, seed,
 
     Groups `pool_indices` by sensor modality (`'optical'` vs. `'sar'`) and assigns
     dedicated clients to each modality silo in proportion to the pool's modality share
-    (at least 1 client per active modality when `num_clients >= 2`). Within each
-    modality silo, samples are split via seeded IID shards, followed by the
-    deterministic `min_samples` guard.
+    while constraining the client allocation so that every client receives at least
+    `min_samples` pure single-modality tiles (never transferring samples across
+    modalities). Raises `ValueError` if a pure single-modality allocation is infeasible.
     """
     pool = np.asarray(pool_indices, dtype=np.int64)
+    min_samples = max(1, int(min_samples))
+    if num_clients < 1:
+        raise ValueError(f"num_clients={num_clients} must be >= 1")
     if num_clients * min_samples > len(pool):
         raise ValueError(
             f"min_samples={min_samples} x {num_clients} clients exceeds the "
@@ -897,9 +899,26 @@ def split_modality_silos(dataset, pool_indices, labels, num_clients, seed,
     sar_pool = np.asarray([i for i in pool if mods[int(i)] == 'sar'], dtype=np.int64)
     rng = np.random.default_rng(derive_seed(seed, 4))
 
-    if len(opt_pool) > 0 and len(sar_pool) > 0 and num_clients >= 2:
+    if len(opt_pool) > 0 and len(sar_pool) > 0:
+        if num_clients < 2:
+            raise ValueError(
+                f"Cannot partition {len(opt_pool)} optical and {len(sar_pool)} SAR samples "
+                f"into pure single-modality silos with num_clients={num_clients} (< 2)"
+            )
+        max_opt_clients = len(opt_pool) // min_samples
+        max_sar_clients = len(sar_pool) // min_samples
+        low_opt = max(1, num_clients - max_sar_clients)
+        high_opt = min(num_clients - 1, max_opt_clients)
+        if low_opt > high_opt:
+            raise ValueError(
+                f"Infeasible pure modality silos for num_clients={num_clients}, "
+                f"min_samples={min_samples}: optical pool has {len(opt_pool)} samples "
+                f"(max {max_opt_clients} pure clients) and SAR pool has {len(sar_pool)} "
+                f"samples (max {max_sar_clients} pure clients)"
+            )
         frac_opt = len(opt_pool) / float(len(pool))
-        n_opt_clients = max(1, min(num_clients - 1, int(round(num_clients * frac_opt))))
+        target_opt = int(round(num_clients * frac_opt))
+        n_opt_clients = max(low_opt, min(high_opt, target_opt))
         n_sar_clients = num_clients - n_opt_clients
         opt_shards = np.array_split(rng.permutation(opt_pool), n_opt_clients)
         sar_shards = np.array_split(rng.permutation(sar_pool), n_sar_clients)
@@ -912,52 +931,60 @@ def split_modality_silos(dataset, pool_indices, labels, num_clients, seed,
         active_mod = 'sar' if len(sar_pool) > len(opt_pool) else 'optical'
         silo_roles = [active_mod] * num_clients
 
-    raw_sizes = [len(c) for c in client]
-    moved = _enforce_min_client_samples(client, labels, num_clients, min_samples)
     sizes = [len(c) for c in client]
     flood = [int(sum(labels[i] for i in c)) for c in client]
-    print(f"Modality non-IID silos ({silo_roles}) raw client sizes: {raw_sizes}")
-    if moved:
-        print(f"  min-samples guard ({min_samples}) moved {moved} samples")
-    print(f"Modality non-IID final client sizes: {sizes}, flood-dominant per client: {flood}")
+    print(f"Modality non-IID silos ({silo_roles}) client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
     return [sorted(c) for c in client]
 
 
-def _sample_geo_feature_vector(img, mask):
-    """Extract a deterministic per-tile topographic/spectral/flood feature vector (#14)."""
+def _canonical_three_channel_tensor(img, modality=None):
+    """Extract the canonical 3-channel physical tile (3, H, W) invariant to combined_input_mode (#14)."""
     import torch
     t = img.detach().float().cpu() if isinstance(img, torch.Tensor) else torch.as_tensor(img, dtype=torch.float32)
-    m = mask.detach().float().cpu() if isinstance(mask, torch.Tensor) else torch.as_tensor(mask, dtype=torch.float32)
     if t.ndim == 2:
         t = t.unsqueeze(0)
-    c, h, w = t.shape
-    ch_means = t.mean(dim=(-2, -1)).numpy()
-    ch_stds = t.std(dim=(-2, -1), unbiased=False).numpy()
-    # Pad/truncate channel summaries to 6 channels so 3-ch and 6-ch inputs have fixed width
-    feat_means = np.zeros(6, dtype=np.float64)
-    feat_stds = np.zeros(6, dtype=np.float64)
-    k = min(6, c)
-    feat_means[:k] = ch_means[:k]
-    feat_stds[:k] = ch_stds[:k]
-    # Spatial quadrant means of primary active channel (proxy for regional terrain/illumination gradient)
-    active_c = 3 if (c == 6 and float(t[:3].abs().sum()) < float(t[3:6].abs().sum())) else 0
-    ch0 = t[active_c]
-    h2, w2 = max(1, h // 2), max(1, w // 2)
-    quads = np.array([
-        float(ch0[:h2, :w2].mean()),
-        float(ch0[:h2, w2:].mean()),
-        float(ch0[h2:, :w2].mean()),
-        float(ch0[h2:, w2:].mean()),
-    ], dtype=np.float64)
+    c = int(t.shape[0])
+    if c == 4:
+        # dual_stem: channels 0..2 are physical [C0, C1, C2]; channel 3 is modality indicator
+        return t[:3]
+    if c == 6:
+        # concat6: [Optical(3), SAR(3)] zero-padded on the inactive sensor
+        mod = str(modality).strip().lower() if modality is not None else None
+        if mod == 'sar':
+            return t[3:6]
+        if mod == 'optical':
+            return t[:3]
+        opt_energy = float(t[:3].abs().sum())
+        sar_energy = float(t[3:6].abs().sum())
+        return t[3:6] if sar_energy > opt_energy else t[:3]
+    if c >= 3:
+        return t[:3]
+    reps = (3 + c - 1) // max(1, c)
+    return t.repeat(reps, 1, 1)[:3]
+
+
+def _sample_geo_feature_vector(img, mask, modality=None):
+    """Extract a canonical 7-D per-tile topographic/spectral/flood feature vector (#14).
+
+    Returns `[c0_mean, c1_mean, c2_mean, c0_std, c1_std, c2_std, flood_fraction]` (shape `(7,)`),
+    computed on the canonical 3-channel physical tile so partitions are 100% invariant
+    across `--combined-input-mode {shared3,concat6,dual_stem}`.
+    """
+    import torch
+    t = _canonical_three_channel_tensor(img, modality=modality)
+    m = mask.detach().float().cpu() if isinstance(mask, torch.Tensor) else torch.as_tensor(mask, dtype=torch.float32)
+    ch_means = t.mean(dim=(-2, -1)).numpy().astype(np.float64)
+    ch_stds = t.std(dim=(-2, -1), unbiased=False).numpy().astype(np.float64)
     flood_frac = np.array([float(m.mean())], dtype=np.float64)
-    return np.concatenate([feat_means, feat_stds, quads, flood_frac], axis=0)
+    return np.concatenate([ch_means, ch_stds, flood_frac], axis=0)
 
 
 def split_geo_cluster_silos(dataset, pool_indices, labels, num_clients, seed,
                             min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
     """Geolocation / topographic feature-cluster non-IID partition (`--partition geo_cluster`, #14).
 
-    Extracts deterministic per-tile spectral/elevation/quadrant/flood feature vectors
+    Extracts deterministic 7-D per-tile spectral/elevation/flood feature vectors
     for `pool_indices`, standardizes them, and runs seeded k-means++ clustering into
     `num_clients` regional/feature silos followed by the `min_samples` guard.
     """
@@ -971,7 +998,14 @@ def split_geo_cluster_silos(dataset, pool_indices, labels, num_clients, seed,
         return [sorted(pool.tolist())]
 
     ds = unwrap_dataset(dataset)
-    feats = np.stack([_sample_geo_feature_vector(*ds[int(i)]) for i in pool], axis=0)
+    mods = sample_modalities(ds)
+    feats = np.stack([
+        _sample_geo_feature_vector(
+            *ds[int(i)],
+            modality=(mods[int(i)] if int(i) < len(mods) else None),
+        )
+        for i in pool
+    ], axis=0)
     mean = feats.mean(axis=0, keepdims=True)
     std = np.maximum(feats.std(axis=0, keepdims=True), 1e-6)
     x = (feats - mean) / std
@@ -1401,18 +1435,21 @@ def effective_fedprox_mu(config):
     """Resolve and validate FedProx proximal penalty coefficient `fedprox_mu` (#15).
 
     Returns 0.0 when `fl_strategy == 'fedavg'`. When `fl_strategy == 'fedprox'` and
-    `fedprox_mu` is unset or 0.0, defaults to `DEFAULT_FEDPROX_MU` (0.01).
+    `fedprox_mu` is unset (`None`), defaults to `DEFAULT_FEDPROX_MU` (0.01); an
+    explicit `fedprox_mu=0.0` is preserved as 0.0.
     """
     if not isinstance(config, dict):
         return 0.0
     strat = effective_fl_strategy(config)
     raw = config.get('fedprox_mu')
-    val = float(raw) if raw is not None else 0.0
+    if raw is None:
+        return DEFAULT_FEDPROX_MU if strat == 'fedprox' else 0.0
+    val = float(raw)
     if val < 0.0:
         raise ValueError(f"fedprox_mu={val} must be >= 0.0")
     if strat == 'fedavg':
         return 0.0
-    return val if val > 0.0 else DEFAULT_FEDPROX_MU
+    return val
 
 
 def effective_q_angle_agg(config):
@@ -1435,13 +1472,13 @@ def resolve_client_participation(config):
     nc = int(config.get('num_clients', 4))
     if nc < 1:
         raise ValueError(f"num_clients={nc} must be >= 1")
-    if config.get('clients_per_round') is not None:
-        cpr = int(config['clients_per_round'])
-    elif config.get('fraction_fit') is not None:
+    if config.get('fraction_fit') is not None:
         ff_raw = float(config['fraction_fit'])
         if ff_raw <= 0.0 or ff_raw > 1.0:
             raise ValueError(f"fraction_fit={ff_raw} must be in (0.0, 1.0]")
         cpr = max(1, min(nc, int(round(ff_raw * nc))))
+    elif config.get('clients_per_round') is not None:
+        cpr = int(config['clients_per_round'])
     else:
         cpr = nc
     if cpr < 1 or cpr > nc:
@@ -1891,7 +1928,7 @@ def federated_variant_tag(config, quantum=False):
             parts.append(f"qagg-{q_agg}")
     nc = int(config.get('num_clients', 4))
     cpr = int(config.get('clients_per_round', nc))
-    if nc > 4 or cpr != nc:
+    if nc != 4 or cpr != nc:
         parts.append(f"K{nc}C{cpr}")
     return ('_' + '_'.join(parts)) if parts else ''
 
@@ -2343,6 +2380,10 @@ def apply_fed_resume(strategy, ckpt):
     strategy.round_offset = done
     strategy.resumed_from_round = done
     strategy.round_metrics = list(ckpt.get('round_metrics', []))
+    strategy.selected_clients_by_round = {
+        int(k): [str(c) for c in v]
+        for k, v in dict(ckpt.get('selected_clients_by_round', {}) or {}).items()
+    }
     strategy.best_performance = float(ckpt.get('best_performance', 0.0))
     strategy.select_metric = select_metric_name(ckpt.get('select_metric', select_metric))
     raw_best_score = ckpt.get('best_val_score')
@@ -2408,6 +2449,7 @@ def fed_round_end(strategy, server_round):
             'best_round': getattr(strategy, 'best_round', None),
             'best_val_metrics': getattr(strategy, 'best_val_metrics', None),
             'round_metrics': strategy.round_metrics,
+            'selected_clients_by_round': dict(getattr(strategy, 'selected_clients_by_round', {}) or {}),
             'best_performance': strategy.best_performance,
             'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         }, fed_checkpoint_path(strategy.output_dir))
@@ -2426,12 +2468,44 @@ class RoundOffsetMixin:
     """Mixin for FedAvg subclasses: Flower always counts rounds from 1, so a
     resumed run shifts every server_round by round_offset. This keeps the
     on_fit_config_fn round (and therefore the per (seed, client, round)
-    shuffle seed), logs and checkpoints numbered as in an uninterrupted run.
+    shuffle seed), deterministic partial-participation client sampling, logs,
+    and checkpoints numbered as in an uninterrupted run.
     aggregate_fit / aggregate_evaluate apply the offset in the subclass."""
     round_offset = 0
 
     def configure_fit(self, server_round, parameters, client_manager):
-        return super().configure_fit(server_round + self.round_offset, parameters, client_manager)
+        global_round = int(server_round) + int(self.round_offset)
+        all_clients = client_manager.all() if hasattr(client_manager, 'all') else None
+        if isinstance(all_clients, dict) and hasattr(self, 'num_fit_clients'):
+            from flwr.common import FitIns
+            fit_cfg = {}
+            if getattr(self, 'on_fit_config_fn', None) is not None:
+                fit_cfg = self.on_fit_config_fn(global_round)
+            fit_ins = FitIns(parameters, fit_cfg)
+            sample_size, min_num_clients = self.num_fit_clients(client_manager.num_available())
+            if hasattr(client_manager, 'wait_for'):
+                client_manager.wait_for(min_num_clients)
+                all_clients = client_manager.all()
+            if isinstance(all_clients, dict) and len(all_clients) >= sample_size:
+                sorted_cids = sorted(
+                    all_clients.keys(),
+                    key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                )
+                cfg_dict = getattr(self, 'config', None)
+                base_seed = int(cfg_dict.get('seed', 42)) if isinstance(cfg_dict, dict) else 42
+                if sample_size >= len(sorted_cids):
+                    chosen_cids = list(sorted_cids)
+                else:
+                    rng = random.Random(derive_seed(base_seed, 7000 + global_round))
+                    chosen_cids = sorted(
+                        rng.sample(sorted_cids, sample_size),
+                        key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                    )
+                if not hasattr(self, 'selected_clients_by_round') or self.selected_clients_by_round is None:
+                    self.selected_clients_by_round = {}
+                self.selected_clients_by_round[int(global_round)] = [str(c) for c in chosen_cids]
+                return [(all_clients[cid], fit_ins) for cid in chosen_cids]
+        return super().configure_fit(global_round, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):
         return super().configure_evaluate(server_round + self.round_offset, parameters,

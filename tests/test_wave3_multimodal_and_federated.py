@@ -213,6 +213,63 @@ def test_modality_and_geo_cluster_partitioning():
     all_assigned = sorted([i for c in clients_geo1 for i in c] + list(val_idx_geo1))
     assert all_assigned == list(range(len(ds)))
 
+    # B2 regression: 7-D canonical feature vector & partition invariance across combined_input_mode
+    ds_shared3 = _SyntheticMultimodalDataset(n_samples=20, combined_input_mode="shared3", seed=42)
+    ds_concat6 = _SyntheticMultimodalDataset(n_samples=20, combined_input_mode="concat6", seed=42)
+    ds_dual = _SyntheticMultimodalDataset(n_samples=20, combined_input_mode="dual_stem", seed=42)
+    for idx in range(len(ds_shared3)):
+        f_sh = tc._sample_geo_feature_vector(*ds_shared3[idx], modality=ds_shared3.modalities[idx])
+        f_c6 = tc._sample_geo_feature_vector(*ds_concat6[idx], modality=ds_concat6.modalities[idx])
+        f_ds = tc._sample_geo_feature_vector(*ds_dual[idx], modality=ds_dual.modalities[idx])
+        assert f_sh.shape == (7,)
+        assert np.allclose(f_sh, f_c6, atol=1e-6)
+        assert np.allclose(f_sh, f_ds, atol=1e-6)
+
+    clients_geo_sh, val_sh, _ = tc.build_federated_split(ds_shared3, cfg_geo)
+    clients_geo_c6, val_c6, _ = tc.build_federated_split(ds_concat6, cfg_geo)
+    clients_geo_ds, val_ds, _ = tc.build_federated_split(ds_dual, cfg_geo)
+    assert clients_geo_sh == clients_geo_c6 == clients_geo_ds
+    assert val_sh == val_c6 == val_ds
+
+    # B1 regression: unbalanced modality counts (14 optical, 30 SAR, 8 clients, min_samples=5)
+    # must allocate 2 pure optical + 6 pure SAR clients (no cross-modality transfers)
+    class _UnbalancedModalityDataset(Dataset):
+        def __init__(self, n_opt, n_sar):
+            self.modalities = (["optical"] * n_opt) + (["sar"] * n_sar)
+            self.n = n_opt + n_sar
+
+        def __len__(self):
+            return self.n
+
+        def __getitem__(self, idx):
+            return torch.zeros(3, 8, 8), torch.zeros(8, 8)
+
+    ds_unbal = _UnbalancedModalityDataset(14, 30)
+    pool_unbal = np.arange(44, dtype=np.int64)
+    labels_unbal = np.zeros(44, dtype=np.int64)
+    silos_unbal = tc.split_modality_silos(
+        ds_unbal, pool_unbal, labels_unbal, num_clients=8, seed=42, min_samples=5
+    )
+    assert len(silos_unbal) == 8
+    assert all(len(c) >= 5 for c in silos_unbal)
+    opt_clients = 0
+    sar_clients = 0
+    for c_idxs in silos_unbal:
+        c_mods = {ds_unbal.modalities[i] for i in c_idxs}
+        assert len(c_mods) == 1, f"Cross-modality contamination detected: {c_mods}"
+        if "optical" in c_mods:
+            opt_clients += 1
+        else:
+            sar_clients += 1
+    assert opt_clients == 2 and sar_clients == 6
+
+    # Infeasible pure-silo request (4 optical, 40 SAR, 8 clients, min_samples=5) must raise ValueError
+    ds_infeas = _UnbalancedModalityDataset(4, 40)
+    with pytest.raises(ValueError, match="Infeasible pure modality silos"):
+        tc.split_modality_silos(
+            ds_infeas, np.arange(44, dtype=np.int64), labels_unbal, num_clients=8, seed=42, min_samples=5
+        )
+
 
 # ---------------------------------------------------------------------------
 # #15: Circular PQC angle aggregation across the +/-pi branch cut
@@ -357,6 +414,153 @@ def test_partial_client_participation_and_fingerprints():
     assert norm_old["q_angle_agg"] == "linear"
     assert norm_old["combined_input_mode"] == "shared3"
 
+    # B3 regression: explicit --fl-strategy fedprox --fedprox-mu 0 is preserved as 0.0 (not 0.01)
+    args_zero_mu = parser.parse_args(["--fl-strategy", "fedprox", "--fedprox-mu", "0"])
+    cfg_zero_mu = _tiny_config()
+    tc.apply_common_args(cfg_zero_mu, args_zero_mu)
+    assert cfg_zero_mu["fl_strategy"] == "fedprox"
+    assert cfg_zero_mu["fedprox_mu"] == 0.0
+    assert tc.effective_fedprox_mu(cfg_zero_mu) == 0.0
+
+    # Omitting --fedprox-mu with --fl-strategy fedprox defaults to 0.01
+    args_def_mu = parser.parse_args(["--fl-strategy", "fedprox"])
+    cfg_def_mu = _tiny_config()
+    tc.apply_common_args(cfg_def_mu, args_def_mu)
+    assert cfg_def_mu["fl_strategy"] == "fedprox"
+    assert abs(cfg_def_mu["fedprox_mu"] - 0.01) < 1e-9
+
+    # B4 regression: non-default client counts (including nc < 4) are tagged in federated_variant_tag
+    assert tc.federated_variant_tag({"num_clients": 4, "clients_per_round": 4}) == ""
+    assert tc.federated_variant_tag({"num_clients": 2, "clients_per_round": 2}) == "_K2C2"
+    assert tc.federated_variant_tag({"num_clients": 3, "clients_per_round": 3}) == "_K3C3"
+    assert tc.federated_variant_tag({"num_clients": 4, "clients_per_round": 2}) == "_K4C2"
+
+
+def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_path):
+    """B5 regression: interrupted-vs-uninterrupted partial participation (`num_clients=4`,
+    `clients_per_round=2`, `fed_rounds=2`) selects the exact same client IDs on every
+    global round and produces identical aggregated parameters."""
+    from flwr.server.client_manager import SimpleClientManager
+    from flwr.server.client_proxy import ClientProxy
+
+    class _DummyProxy(ClientProxy):
+        def __init__(self, cid):
+            super().__init__(str(cid))
+
+        def get_properties(self, ins, timeout, group_id=None):
+            return None
+
+        def get_parameters(self, ins, timeout, group_id=None):
+            return None
+
+        def fit(self, ins, timeout, group_id=None):
+            return None
+
+        def evaluate(self, ins, timeout, group_id=None):
+            return None
+
+        def reconnect(self, ins, timeout, group_id=None):
+            return None
+
+    cm = SimpleClientManager()
+    for cid in range(4):
+        cm.register(_DummyProxy(cid))
+
+    cfg = _tiny_config(
+        seed=42,
+        num_clients=4,
+        clients_per_round=2,
+        fed_rounds=2,
+        ckpt_every=1,
+        q_angle_agg="circular",
+    )
+    model = tc.build_model(QVUNetSegmentation, cfg)
+    init_nd = [p.detach().cpu().numpy().copy() for p in model.parameters()]
+    init_params = ndarrays_to_parameters(init_nd)
+
+    def _make_client_fit_res(cid_int, global_round):
+        arrs = [a.copy() + 0.05 * (int(cid_int) + 1) + 0.01 * int(global_round) for a in init_nd]
+        return FitRes(
+            status=Status(code=Code.OK, message=""),
+            parameters=ndarrays_to_parameters(arrs),
+            num_examples=4,
+            metrics={"loss": 0.5 / (global_round + cid_int + 1)},
+        )
+
+    # 1. Uninterrupted 2-round run
+    dir_unint = str(tmp_path / "uninterrupted")
+    os.makedirs(dir_unint, exist_ok=True)
+    strat_unint = QuantumFedAvg(
+        val_loader=None,
+        config=cfg,
+        device_str="cpu",
+        output_dir=dir_unint,
+        fraction_fit=0.5,
+        min_fit_clients=2,
+        min_available_clients=4,
+    )
+    strat_unint.fingerprint = tc.run_fingerprint(cfg, "quantum")
+    curr_p = init_params
+    for r in (1, 2):
+        pairs = strat_unint.configure_fit(r, curr_p, cm)
+        assert len(pairs) == 2
+        results = [(proxy, _make_client_fit_res(int(proxy.cid), r)) for proxy, _ in pairs]
+        curr_p, _ = strat_unint.aggregate_fit(r, results, [])
+        strat_unint.round_metrics.append({"round": r, "loss": 0.5 / r})
+        tc.fed_round_end(strat_unint, r)
+
+    # 2. Interrupted after round 1, then resumed for round 2 (with global random perturbed!)
+    dir_res = str(tmp_path / "resumed")
+    os.makedirs(dir_res, exist_ok=True)
+    strat_r1 = QuantumFedAvg(
+        val_loader=None,
+        config=cfg,
+        device_str="cpu",
+        output_dir=dir_res,
+        fraction_fit=0.5,
+        min_fit_clients=2,
+        min_available_clients=4,
+    )
+    strat_r1.fingerprint = tc.run_fingerprint(cfg, "quantum")
+    pairs_r1 = strat_r1.configure_fit(1, init_params, cm)
+    res_r1 = [(proxy, _make_client_fit_res(int(proxy.cid), 1)) for proxy, _ in pairs_r1]
+    p_after_r1, _ = strat_r1.aggregate_fit(1, res_r1, [])
+    strat_r1.round_metrics.append({"round": 1, "loss": 0.5})
+    tc.fed_round_end(strat_r1, 1)
+
+    # Perturb Python's global random state before resuming to prove sampling is independent of it
+    import random as _py_random
+    _py_random.seed(999999)
+    for _ in range(37):
+        _py_random.random()
+
+    strat_r2 = QuantumFedAvg(
+        val_loader=None,
+        config=cfg,
+        device_str="cpu",
+        output_dir=dir_res,
+        fraction_fit=0.5,
+        min_fit_clients=2,
+        min_available_clients=4,
+    )
+    strat_r2.fingerprint = tc.run_fingerprint(cfg, "quantum")
+    ckpt_r1 = tc.load_fed_checkpoint(dir_res, strat_r2.fingerprint, resume=True)
+    resumed_params, rem_rounds = tc.apply_fed_resume(strat_r2, ckpt_r1)
+    assert rem_rounds == 1
+    assert strat_r2.round_offset == 1
+    # Flower starts resumed simulation at server_round=1 (global_round = 1 + 1 = 2)
+    pairs_r2 = strat_r2.configure_fit(1, resumed_params, cm)
+    res_r2 = [(proxy, _make_client_fit_res(int(proxy.cid), 2)) for proxy, _ in pairs_r2]
+    p_after_r2, _ = strat_r2.aggregate_fit(1, res_r2, [])
+    strat_r2.round_metrics.append({"round": 2, "loss": 0.25})
+    tc.fed_round_end(strat_r2, 2)
+
+    assert strat_r2.selected_clients_by_round == strat_unint.selected_clients_by_round
+    nd_unint = parameters_to_ndarrays(curr_p)
+    nd_res = parameters_to_ndarrays(p_after_r2)
+    for a, b in zip(nd_unint, nd_res):
+        assert np.allclose(a, b, atol=1e-6)
+
 
 def test_generate_grid_wave3_check_flags():
     """Verify `misc/generate_grid.py` builds jobs for Wave 3 modes/flags and passes `--check-flags`."""
@@ -405,6 +609,20 @@ def test_generate_grid_wave3_check_flags():
     assert "qagg-circular" in jobs[0]["name"]
     assert "K8C4" in jobs[0]["name"]
     assert gg.check_flags(jobs, REPO_ROOT, sys.executable)
+
+    # NB1 regression: fraction_fit takes precedence over clients_per_round in generate_grid naming
+    job_both = gg.build_job(
+        method="quantum",
+        mode="fed-random",
+        dataset="combined",
+        seed=42,
+        root=REPO_ROOT,
+        python=sys.executable,
+        num_clients=8,
+        clients_per_round=2,
+        fraction_fit=0.5,
+    )
+    assert "K8C4" in job_both["name"] and "K8C2" not in job_both["name"]
 
     # Also verify analyze_results parses Wave 3 directory names and metrics fields
     import analyze_results as ar

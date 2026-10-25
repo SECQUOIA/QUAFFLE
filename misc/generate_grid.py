@@ -424,13 +424,14 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             parts.append("qagg-circular")
         if num_clients is not None or clients_per_round is not None or fraction_fit is not None:
             nc = int(num_clients) if num_clients is not None else 4
-            if clients_per_round is not None:
-                cpr = int(clients_per_round)
-            elif fraction_fit is not None:
+            if fraction_fit is not None:
                 cpr = max(1, min(nc, int(round(float(fraction_fit) * nc))))
+            elif clients_per_round is not None:
+                cpr = int(clients_per_round)
             else:
                 cpr = nc
-            parts.append("K%dC%d" % (nc, cpr))
+            if nc != 4 or cpr != nc:
+                parts.append("K%dC%d" % (nc, cpr))
     if quantum_channels is not None:
         parts.append("qc%d" % quantum_channels)
     if base_channels is not None:
