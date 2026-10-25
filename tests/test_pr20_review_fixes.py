@@ -305,7 +305,8 @@ def test_local_mini_sweep_review_fixes_custom_seeds_workdir_and_validation(tmp_p
 
     monkeypatch.setattr(sweep, "_invoke_entry", _fast_invoke)
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "sentinel_gpu")
-    monkeypatch.setenv("QUAFFLE_Q_SIM_DEVICE", "sentinel_sim")
+    monkeypatch.delenv("QUAFFLE_SKIP_EXCEL_TRACKER", raising=False)
+    monkeypatch.delenv("QUAFFLE_SKIP_CURVE_PLOTS", raising=False)
 
     work_dir = str(tmp_path / "reused_work")
     out_json = str(tmp_path / "out" / "summary.json")
@@ -333,11 +334,12 @@ def test_local_mini_sweep_review_fixes_custom_seeds_workdir_and_validation(tmp_p
     assert len(opt_train_1) == 6
     assert len(opt_test_1) == 3
 
-    # NB2: environment variables restored after run_mini_sweep
+    # NB2: all modified environment variables restored after run_mini_sweep
     assert os.environ.get("CUDA_VISIBLE_DEVICES") == "sentinel_gpu"
-    assert os.environ.get("QUAFFLE_Q_SIM_DEVICE") == "sentinel_sim"
+    assert "QUAFFLE_SKIP_EXCEL_TRACKER" not in os.environ
+    assert "QUAFFLE_SKIP_CURVE_PLOTS" not in os.environ
 
-    # B2 second run on same work_dir with smaller n_train=4, n_test=2 must not retain stale tiles
+    # B2 second run on same work_dir with smaller n_train=4, n_test=2 must not retain stale tiles or stale seed1 runs
     summary2 = sweep.run_mini_sweep(
         seeds=[2],
         image_size=16,
@@ -355,6 +357,34 @@ def test_local_mini_sweep_review_fixes_custom_seeds_workdir_and_validation(tmp_p
     opt_test_2 = glob.glob(os.path.join(work_dir, "mini_data", "flood_optical", "Testing", "images", "*.tif"))
     assert len(opt_train_2) == 4
     assert len(opt_test_2) == 2
+    seed1_dirs = glob.glob(os.path.join(work_dir, "results", "*_seed1"))
+    seed2_dirs = glob.glob(os.path.join(work_dir, "results", "*_seed2"))
+    assert len(seed1_dirs) == 0
+    assert len(seed2_dirs) == 3
+
+    # B1 failure-resilience check: if analyze_results.main raises, out_json and out_md are already written
+    out_json_fail = str(tmp_path / "out_fail" / "summary.json")
+    out_md_fail = str(tmp_path / "out_fail" / "report.md")
+
+    def _fail_on_analyze(entry_fn, argv):
+        if entry_fn is sweep.analyze_results.main:
+            raise RuntimeError("simulated analyze_results failure")
+        return _fast_invoke(entry_fn, argv)
+
+    monkeypatch.setattr(sweep, "_invoke_entry", _fail_on_analyze)
+    with pytest.raises(RuntimeError, match="simulated analyze_results failure"):
+        sweep.run_mini_sweep(
+            seeds=[3],
+            image_size=16,
+            n_train=4,
+            n_test=2,
+            device="cpu",
+            out_json=out_json_fail,
+            out_md=out_md_fail,
+            panels_filter=[2],
+        )
+    assert os.path.isfile(out_json_fail)
+    assert os.path.isfile(out_md_fail)
 
 
 def test_centralized_checkpoint_fingerprint_validation(capsys):

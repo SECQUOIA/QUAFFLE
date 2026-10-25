@@ -222,7 +222,6 @@ def run_mini_sweep(
 
     _env_keys = (
         "CUDA_VISIBLE_DEVICES",
-        "QUAFFLE_Q_SIM_DEVICE",
         "QUAFFLE_SKIP_EXCEL_TRACKER",
         "QUAFFLE_SKIP_CURVE_PLOTS",
     )
@@ -236,13 +235,10 @@ def run_mini_sweep(
     try:
         if device == "cpu":
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
-            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cpu"
             eff_device = "cpu"
         elif device == "cuda" or torch.cuda.is_available():
-            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cuda"
             eff_device = "cuda"
         else:
-            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cpu"
             eff_device = "cpu"
 
         os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "1"
