@@ -33,13 +33,17 @@ import re
 import sys
 from collections import OrderedDict
 
+_SCALE_TAG_RE_STR = r"(?P<scale>(?:_bc\d+)?(?:_img\d+)?(?:_n\d+)?(?:_dr[0-9a-f]{6,16})?)"
+_SCALE_STRIP_RE = re.compile(_SCALE_TAG_RE_STR + r"$")
+
 RUN_RE = re.compile(
     r"^flood_(?P<kind>central|federated)_optical_pytorch_pennylane"
     r"(?:_(?P<part>random|dirichlet(?P<alpha>[0-9.]+)))?"
     r"(?:_(?P<ds>sar|combined))?"
-    r"(?P<variant>(?:_[A-Za-z0-9.]+?)*?)"
+    r"(?P<variant>(?:_[A-Za-z0-9.-]+?)*?)"
     r"(?P<btag>_qtorch|_qpergroup)?"
-    r"_seed(?P<seed>\d+)$")
+    + _SCALE_TAG_RE_STR
+    + r"_seed(?P<seed>\d+)$")
 
 # (label, path into the metrics dict)
 METRICS = [
@@ -68,8 +72,9 @@ def parse_name(name):
         if not part:
             return None
         mode = "fed-random" if part == "random" else "fed-dirichlet" + m.group("alpha")
+    var = (m.group("variant") or "") + (m.group("scale") or "")
     return (mode, m.group("ds") or "optical", int(m.group("seed")),
-            m.group("variant") or "", m.group("btag") or "")
+            var, m.group("btag") or "")
 
 
 _NUM = r"([-+0-9.eE]+|nan)"
@@ -169,7 +174,10 @@ def collect(root, variant=None, btag=None):
         if key is None:
             continue
         mode, ds, seed, var, tag = key
-        if (variant is not None and var != variant) or (btag is not None and tag != btag):
+        var_base = _SCALE_STRIP_RE.sub("", var)
+        if (variant is not None and var != variant and var_base != variant) or (
+            btag is not None and tag != btag
+        ):
             continue
         d, src = load_run(p)
         if d is None:
@@ -229,17 +237,28 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("root_a", help="First results root (for example runs with the torch simulator)")
-    ap.add_argument("root_b", help="Second results root (for example runs with PennyLane)")
+    ap.add_argument("root_b", nargs="?", default=None,
+                    help="Second results root (default: same as root_a, comparing _qtorch vs pennylane)")
     ap.add_argument("--variant", default=None,
                     help="Only use runs with this name variant, for example '_reupload_L2' "
                          "(default: all, matched per variant)")
     ap.add_argument("--btag-a", default=None,
                     help="Only use runs in root A with this backend tag ('', '_qtorch', "
-                         "'_qpergroup'). Default: any")
-    ap.add_argument("--btag-b", default=None, help="Same for root B")
+                         "'_qpergroup'). Default: any (or '_qtorch' when root_a == root_b)")
+    ap.add_argument("--btag-b", default=None,
+                    help="Same for root B (default: '' when root_a == root_b)")
     ap.add_argument("--csv", default=None, help="Also write the table to this CSV file")
     ap.add_argument("--per-run", action="store_true", help="Also print every matched run")
     args = ap.parse_args(argv)
+    if args.root_b is None:
+        args.root_b = args.root_a
+    if (
+        os.path.abspath(args.root_a) == os.path.abspath(args.root_b)
+        and args.btag_a is None
+        and args.btag_b is None
+    ):
+        args.btag_a = "_qtorch"
+        args.btag_b = ""
 
     for r in (args.root_a, args.root_b):
         if not os.path.isdir(r):

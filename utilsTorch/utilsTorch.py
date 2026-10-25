@@ -657,6 +657,8 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
     count = 0
     with torch.no_grad():
         for imgs, masks in dataloader:
+            if count >= num_samples:
+                break
             imgs, masks = imgs.to(device), masks.to(device)
             logits = model(imgs)
             preds = torch.argmax(logits, dim=1)
@@ -664,7 +666,7 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
             for i in range(imgs.size(0)):
                 if count >= num_samples:
                     break
-                image_np = (imgs[i].cpu().numpy().transpose(1, 2, 0) + 1.0) / 2.0
+                image_np = np.clip((imgs[i].cpu().numpy().transpose(1, 2, 0) + 1.0) / 2.0, 0.0, 1.0)
                 mask_np = masks[i, 0].cpu().numpy()
                 prediction_np = preds[i].cpu().numpy()
                 probabilities_np = probs[i].cpu().numpy()

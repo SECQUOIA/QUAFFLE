@@ -208,12 +208,21 @@ def _assert_federated_ckpt(run_dir, expected_round, *, expected_total_rounds=Non
     return ckpt
 
 
-def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_process_start=False):
+def run_verification(
+    work_dir=None,
+    max_seconds=60.0,
+    device="cpu",
+    include_process_start=False,
+    keep=False,
+):
     t_start = _PROCESS_START if include_process_start else time.perf_counter()
     timings = []
     if include_process_start:
         timings.append(("module_imports", _IMPORT_ELAPSED))
 
+    if work_dir is None and keep:
+        work_dir = tempfile.mkdtemp(prefix="quaffle_verify_")
+        print(f"Keeping verification work_dir: {work_dir}")
     ctx = (
         tempfile.TemporaryDirectory(prefix="quaffle_verify_")
         if work_dir is None
@@ -790,10 +799,79 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             )
             assert m_f_q["val"]["iou"] > init_val_iou and m_f_q["test"]["iou"] > init_test_iou
 
-            # 8. Downstream analysis pipeline (analyze_results, build_table2_data, build_forest_plot)
+            # 8. Wave 2 features, combined modality, tracker isolation, plots, and tools
+            # 8a. Centralized Quantum HQ-UNet on combined modality (pennylane & torch backends)
+            #     with curve plots, sample visualizations, and Excel tracker enabled
+            os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "0"
+            os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "0"
+            wave2_args = [
+                "--dataset", "combined",
+                "--epochs", "1",
+                "--q-ansatz", "hqunet",
+                "--hqunet-grid", "2",
+                "--q-layers", "1",
+                "--backbone-conv-mode", "depthwise_sep",
+                "--loss", "dice_ce",
+                "--no-time-emb",
+                "--augment",
+                "--data-root", data_root,
+                "--results-dir", results_dir,
+                "--base-channels", "4",
+                "--image-size", "32",
+                "--batch-size", "4",
+                "--learning-rate", "5e-3",
+                "--eval-every", "1",
+                "--seed", "42",
+            ]
+            dt = _run_entry(
+                "centralized_quantum_hqunet_combined_pennylane",
+                centralized_demoTorchQ.main,
+                ["centralized_demoTorchQ.py", "--q-backend", "pennylane", *wave2_args],
+            )
+            timings.append(("centralized_quantum_hqunet_combined_pennylane", dt))
+
+            dt = _run_entry(
+                "centralized_quantum_hqunet_combined_torch",
+                centralized_demoTorchQ.main,
+                ["centralized_demoTorchQ.py", "--q-backend", "torch", *wave2_args, "--no-save-samples"],
+            )
+            timings.append(("centralized_quantum_hqunet_combined_torch", dt))
+
+            dt = _run_entry(
+                "centralized_ablation_hqunet_spatial_combined",
+                ablation_studies.main,
+                [
+                    "ablation_studies.py",
+                    "--framework", "torch",
+                    "--mode", "centralized",
+                    "--ablation-mode", "hqunet_spatial",
+                    *wave2_args,
+                    "--no-save-samples",
+                ],
+            )
+            timings.append(("centralized_ablation_hqunet_spatial_combined", dt))
+            os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "1"
+            os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "1"
+
+            hq_pl_dir = _rdir(
+                "flood_central_optical_pytorch_pennylane_combined_hqunet_G2_L1_depthwise_sep_dice_ce_notime_aug_seed42"
+            )
+            _assert_metrics_json(hq_pl_dir, expect_resumed_epoch=0, expect_epochs_trained=1, require_canonical_meta=True)
+            assert os.path.isfile(os.path.join(hq_pl_dir, "results", "loss_curve.png"))
+            assert os.path.isfile(os.path.join(hq_pl_dir, "results", "test_sample_1.png"))
+            assert os.path.isfile(os.path.join(results_dir, "results_summary_combined_mini.xlsx")), (
+                "Expected mini-run Excel tracker in results_dir/results_summary_combined_mini.xlsx"
+            )
+            assert not os.path.isfile(os.path.join(REPO_ROOT, "results", "results_summary_combined_mini.xlsx")), (
+                "Mini-run Excel tracker must not pollute <repo>/results/"
+            )
+
+            # 9. Downstream analysis pipeline, exemplar figure, circuit diagram, and backend comparison
             t0 = time.perf_counter()
             import analyze_results
-            from scripts import build_forest_plot, build_table2_data
+            import visualize_circuit
+            from scripts import build_exemplar_figure, build_forest_plot, build_table2_data
+            from tools import compare_backends
 
             os.environ["QUAFFLE_RESULTS_DIR"] = results_dir
             os.environ["QUAFFLE_ANALYSIS_OUT_DIR"] = results_dir
@@ -824,9 +902,34 @@ def run_verification(work_dir=None, max_seconds=60.0, device="cpu", include_proc
             build_forest_plot.main(["--out-dir", forest_dir])
             assert os.path.isfile(os.path.join(forest_dir, "iou_delta_forest.png"))
             assert os.path.isfile(os.path.join(forest_dir, "iou_delta_forest_data.json"))
+
+            exemplar_dir = os.path.join(results_dir, "exemplars")
+            build_exemplar_figure.main(
+                [
+                    "--results-dir", results_dir,
+                    "--data-root", data_root,
+                    "--out-dir", exemplar_dir,
+                    "--seed", "42",
+                ]
+            )
+            assert os.path.isfile(os.path.join(exemplar_dir, "exemplars_grid.png"))
+            assert os.path.isfile(os.path.join(exemplar_dir, "meta.json"))
+
+            circuit_dir = os.path.join(results_dir, "circuits")
+            visualize_circuit.main(
+                ["--q-ansatz", "hqunet", "--hqunet-grid", "2", "--q-layers", "1", "--out-dir", circuit_dir]
+            )
+            assert os.path.isfile(os.path.join(circuit_dir, "quantum_circuit_hqunet_G2_L1.txt"))
+            assert os.path.isfile(os.path.join(circuit_dir, "quantum_circuit_hqunet_G2_L1.png"))
+            assert os.path.isfile(os.path.join(circuit_dir, "quantum_circuit_hqunet_G2_L1_expvals.png"))
+
+            cmp_csv = os.path.join(results_dir, "backend_compare.csv")
+            compare_backends.main([results_dir, "--csv", cmp_csv])
+            assert os.path.isfile(cmp_csv) and os.path.getsize(cmp_csv) > 0
+
             dt = time.perf_counter() - t0
-            timings.append(("downstream_analysis_table2_and_forest_plot", dt))
-            print(f"[PASS] downstream_analysis_table2_and_forest_plot ({dt:.2f}s)")
+            timings.append(("downstream_analysis_exemplar_circuit_and_compare", dt))
+            print(f"[PASS] downstream_analysis_exemplar_circuit_and_compare ({dt:.2f}s)")
 
     finally:
         os.chdir(old_cwd)
@@ -867,6 +970,7 @@ def _null_tempdir(path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--work-dir", default=None, help="Optional directory to keep generated artifacts")
+    ap.add_argument("--keep", action="store_true", help="Keep temporary verification directory on disk")
     ap.add_argument("--max-seconds", type=float, default=60.0, help="Maximum allowed runtime in seconds (default: 60)")
     ap.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="Device for mini verification (default: cpu)")
     args = ap.parse_args()
@@ -875,6 +979,7 @@ def main():
         max_seconds=args.max_seconds,
         device=args.device,
         include_process_start=True,
+        keep=args.keep,
     )
 
 

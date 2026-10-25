@@ -32,8 +32,9 @@ def main(argv=None):
     ap.add_argument("--datasets", nargs="+", choices=gg.DATASETS, default=gg.DATASETS)
     ap.add_argument("--seeds", type=int, nargs="+", default=gg.ALL_SEEDS)
     ap.add_argument("--alpha", type=float, default=0.5)
-    ap.add_argument("--q-ansatz", choices=["reupload", "legacy"], default="reupload")
+    ap.add_argument("--q-ansatz", choices=["reupload", "legacy", "hqunet"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
+    ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--no-quantum-knockout-eval", dest="knockout", action="store_false")
     ap.add_argument("--ckpt-every", type=int, default=5)
     ap.add_argument("--out-dir", default=None)
@@ -62,7 +63,7 @@ def main(argv=None):
                         knockout=args.knockout, quantum_channels=qc,
                         ckpt_every=args.ckpt_every, ckpt_support=support,
                         safety=args.safety, floor=args.floor_hours,
-                        cpus=cluster["cpus_per_task"]))
+                        cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid))
     gg.finish(ap, args, jobs, out_dir)
 
 

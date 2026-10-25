@@ -33,7 +33,7 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 RESULTS_DIR = os.environ.get("QUAFFLE_RESULTS_DIR", os.path.join(REPO_ROOT, "results"))
 OUT_DIR = os.path.join(os.environ.get("QUAFFLE_FIGURES_DIR", os.path.join(REPO_ROOT, "figures")),
                        "exemplars")
-DATA_ROOT = os.path.join(REPO_ROOT, "data")
+DATA_ROOT = os.environ.get("QUAFFLE_DATA_ROOT", os.path.join(REPO_ROOT, "data"))
 
 # QUAFFLE federated-quantum checkpoints (seed 999, random partition) for each dataset.
 # Pooled Opt.+SAR ("combined") row is not included: the QUAFFLE prediction
@@ -45,13 +45,19 @@ DATA_ROOT = os.path.join(REPO_ROOT, "data")
 # path lookup and the QVUNetSegmentation architecture in CONFIG.
 EXEMPLAR_QC = int(os.environ.get("QUAFFLE_EXEMPLAR_QC", "32"))
 EXEMPLAR_VARIANT = os.environ.get("QUAFFLE_EXEMPLAR_VARIANT", "reupload_L2")
+EXEMPLAR_SEED = int(os.environ.get("QUAFFLE_EXEMPLAR_SEED", "999"))
 
 
 def _parse_exemplar_variant(variant_str: str):
     v = (variant_str or "reupload_L2").strip()
-    if v == "legacy":
+    if v == "legacy" or v.startswith("legacy_"):
         return "legacy", 1
-    m = re.match(r"^([A-Za-z0-9]+)_L(\d+)$", v)
+    m_hq = re.match(r"^hqunet(?:_G(\d+))?_L(\d+)(?:_.*)?$", v)
+    if m_hq:
+        return "hqunet", int(m_hq.group(2))
+    if v == "hqunet":
+        return "hqunet", 2
+    m = re.match(r"^([A-Za-z0-9]+)_L(\d+)(?:_.*)?$", v)
     if m:
         return m.group(1), int(m.group(2))
     if v == "reupload":
@@ -73,33 +79,70 @@ def _normalize_ds_suffix(dataset_or_suffix: str) -> str:
     return s if s.startswith("_") else f"_{s}"
 
 
-def _canonical_vtag() -> str:
-    if not EXEMPLAR_VARIANT:
+def _canonical_vtag(variant_str: str = None) -> str:
+    v = EXEMPLAR_VARIANT if variant_str is None else variant_str
+    if not v:
         return ""
-    if _EXEMPLAR_ANSATZ == "legacy":
+    ansatz, layers = _parse_exemplar_variant(v)
+    if ansatz == "legacy":
         return "_legacy"
-    return f"_{_EXEMPLAR_ANSATZ}_L{_EXEMPLAR_LAYERS}"
+    if ansatz == "hqunet":
+        m_hq = re.match(r"^hqunet_G(\d+)_L(\d+)", v.strip())
+        grid = int(m_hq.group(1)) if m_hq else 2
+        return f"_hqunet_G{grid}_L{layers}"
+    return f"_{ansatz}_L{layers}"
 
 
-def _fed_ckpt(*args, seed=999):
+def _find_ckpt_in_dir(run_dir: str):
+    """Return the preferred checkpoint path inside `run_dir`, or None."""
+    if not os.path.isdir(run_dir):
+        return None
+    # Prefer highest checkpoint_round_<N>.pt, then fed_resume.pt, then centralized checkpoints
+    round_ckpts = []
+    try:
+        for fname in os.listdir(run_dir):
+            m = re.match(r"^checkpoint_round_(\d+)\.pt$", fname)
+            if m:
+                round_ckpts.append((int(m.group(1)), os.path.join(run_dir, fname)))
+    except OSError:
+        pass
+    if round_ckpts:
+        round_ckpts.sort(key=lambda x: x[0], reverse=True)
+        return round_ckpts[0][1]
+    for name in ("checkpoint_round_25.pt", "fed_resume.pt", "best_model.pt", "checkpoint.pt", "final_model.pt"):
+        p = os.path.join(run_dir, name)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
+    explicit_seed = seed is not None
+    if seed is None:
+        seed = EXEMPLAR_SEED
     if len(args) == 1:
         ds_suffix = _normalize_ds_suffix(args[0])
     elif len(args) == 2:
         if isinstance(args[1], int):
             ds_suffix = _normalize_ds_suffix(args[0])
             seed = int(args[1])
+            explicit_seed = True
         else:
             ds_suffix = _normalize_ds_suffix(args[1])
     elif len(args) >= 3:
         ds_suffix = _normalize_ds_suffix(args[1])
         seed = int(args[2])
+        explicit_seed = True
     else:
         ds_suffix = ""
-    qc_suffix = "" if EXEMPLAR_QC == 32 else f"_qc{EXEMPLAR_QC}"
-    vtag = _canonical_vtag()
-    raw_vtag = "" if not EXEMPLAR_VARIANT else f"_{EXEMPLAR_VARIANT}"
+    eff_results_dir = results_dir or RESULTS_DIR
+    eff_qc = EXEMPLAR_QC if qc is None else int(qc)
+    eff_variant = EXEMPLAR_VARIANT if variant is None else variant
+    qc_suffix = "" if eff_qc == 32 else f"_qc{eff_qc}"
+    vtag = _canonical_vtag(eff_variant)
+    raw_vtag = "" if not eff_variant else f"_{eff_variant}"
     base = os.path.join(
-        RESULTS_DIR,
+        eff_results_dir,
         f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}",
     )
     candidates = [f"{base}{vtag}_seed{seed}"]
@@ -107,10 +150,51 @@ def _fed_ckpt(*args, seed=999):
         candidates.append(f"{base}{raw_vtag}_seed{seed}")
     candidates.append(f"{base}_seed{seed}")
     for d in candidates:
-        for name in ("checkpoint_round_25.pt", "fed_resume.pt"):
-            p = os.path.join(d, name)
-            if os.path.exists(p):
-                return p
+        found = _find_ckpt_in_dir(d)
+        if found:
+            return found
+
+    # Fallback discovery for scale-tagged mini-dataset runs or alternative seeds in eff_results_dir
+    if os.path.isdir(eff_results_dir):
+        fed_prefix = f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}"
+        cent_prefix = f"flood_central_optical_pytorch_pennylane{ds_suffix}"
+        other_ds = ("_sar", "_combined") if ds_suffix == "" else ()
+        try:
+            entries = sorted(os.listdir(eff_results_dir))
+        except OSError:
+            entries = []
+
+        def _matches_prefix(entry_name: str, prefix: str) -> bool:
+            if not entry_name.startswith(prefix):
+                return False
+            rest = entry_name[len(prefix):]
+            for od in other_ds:
+                if rest.startswith(od):
+                    return False
+            return True
+
+        # 1. Federated runs matching requested seed (e.g. with _bc4_img32_dr<hash>_seed<seed>)
+        for entry in entries:
+            if _matches_prefix(entry, fed_prefix) and entry.endswith(f"_seed{seed}"):
+                found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
+                if found:
+                    return found
+        # 2. If seed was not explicitly forced (or default 999 not present), any federated seed for modality
+        if not explicit_seed:
+            for entry in entries:
+                if _matches_prefix(entry, fed_prefix) and "_seed" in entry:
+                    found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
+                    if found:
+                        return found
+        # 3. Centralized quantum run fallback for mini-benchmark directories
+        for entry in entries:
+            if _matches_prefix(entry, cent_prefix) and (
+                entry.endswith(f"_seed{seed}") or (not explicit_seed and "_seed" in entry)
+            ):
+                found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
+                if found:
+                    return found
+
     return os.path.join(candidates[0], "checkpoint_round_25.pt")
 
 
@@ -139,6 +223,7 @@ CONFIG = {
 }
 
 sys.path.insert(0, REPO_ROOT)
+from tools import training_common as tc
 from utilsTorch.utilsTorch import FloodSegmentationDataset, QVUNetSegmentation
 
 
@@ -240,29 +325,133 @@ def _load_checkpoint_into_model(model, ckpt):
     return model
 
 
+def _resolve_model_config_for_checkpoint(ckpt, ckpt_path=None, base_config=None):
+    """Build a QVUNetSegmentation config dict matching the saved checkpoint architecture.
+
+    Reads architecture keys from `ckpt['fingerprint']` (and sibling `results/metrics.json`
+    when available), falling back to `base_config` / `CONFIG` for legacy checkpoints.
+    """
+    cfg = dict(base_config or CONFIG)
+    sources = []
+    if ckpt_path:
+        metrics_path = os.path.join(os.path.dirname(os.path.abspath(ckpt_path)), "results", "metrics.json")
+        if os.path.exists(metrics_path):
+            try:
+                with open(metrics_path, encoding="utf-8") as f:
+                    mdata = json.load(f)
+                if isinstance(mdata.get("config"), dict):
+                    sources.append(mdata["config"])
+                if isinstance(mdata.get("fingerprint"), dict):
+                    sources.append(mdata["fingerprint"])
+            except Exception:
+                pass
+    if isinstance(ckpt, dict):
+        if isinstance(ckpt.get("config"), dict):
+            sources.append(ckpt["config"])
+        if isinstance(ckpt.get("fingerprint"), dict):
+            sources.append(ckpt["fingerprint"])
+
+    int_keys = (
+        "image_size",
+        "base_channels",
+        "init_dim",
+        "resnet_block_groups",
+        "quantum_channels",
+        "q_layers",
+        "hqunet_grid",
+    )
+    str_keys = (
+        "q_ansatz",
+        "q_spatial_mode",
+        "skip_modulation",
+        "backbone_conv_mode",
+    )
+    bool_keys = ("use_time_emb",)
+
+    explicit_init_dim = False
+    explicit_groups = False
+    for src in sources:
+        for k in int_keys:
+            if src.get(k) is not None:
+                cfg[k] = int(src[k])
+                if k == "init_dim":
+                    explicit_init_dim = True
+                elif k == "resnet_block_groups":
+                    explicit_groups = True
+        for k in str_keys:
+            if src.get(k) is not None:
+                cfg[k] = str(src[k])
+        for k in bool_keys:
+            if src.get(k) is not None:
+                cfg[k] = bool(src[k])
+
+    bc = int(cfg.get("base_channels", 32))
+    if not explicit_init_dim:
+        cfg["init_dim"] = bc
+    if not explicit_groups:
+        cfg["resnet_block_groups"] = min(int(cfg.get("resnet_block_groups", 4)), bc)
+    return cfg
+
+
 def main(argv=None):
-    global OUT_DIR
+    global OUT_DIR, RESULTS_DIR, DATA_ROOT
     ap = argparse.ArgumentParser(description="Build the exemplar figure.")
-    ap.add_argument("--out-dir", default=OUT_DIR, help="Output folder (default %(default)s)")
-    OUT_DIR = os.path.abspath(ap.parse_args(argv).out_dir)
+    ap.add_argument("--out-dir", "--out", dest="out_dir", default=OUT_DIR,
+                    help="Output folder (default %(default)s)")
+    ap.add_argument("--results-dir", default=RESULTS_DIR,
+                    help="Results folder containing checkpoints (default %(default)s)")
+    ap.add_argument("--data-root", default=DATA_ROOT,
+                    help="Data root containing flood_optical/ and flood_SAR/ (default %(default)s)")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="Checkpoint seed to load (default: $QUAFFLE_EXEMPLAR_SEED or 999, with mini-run fallback)")
+    ap.add_argument("--qc", type=int, default=EXEMPLAR_QC,
+                    help="Quantum channels (default %(default)s)")
+    ap.add_argument("--variant", default=EXEMPLAR_VARIANT,
+                    help="Quantum variant tag, e.g. reupload_L2, legacy, hqunet_G2_L2 (default %(default)s)")
+    args = ap.parse_args(argv)
+    OUT_DIR = os.path.abspath(args.out_dir)
+    RESULTS_DIR = os.path.abspath(args.results_dir)
+    DATA_ROOT = os.path.abspath(args.data_root)
     os.makedirs(OUT_DIR, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    ansatz, layers = _parse_exemplar_variant(args.variant)
+    base_cfg = dict(
+        CONFIG,
+        quantum_channels=int(args.qc),
+        q_ansatz=ansatz,
+        q_layers=layers,
+    )
+    checkpoints = {
+        "optical": _fed_ckpt("", seed=args.seed, results_dir=RESULTS_DIR, qc=args.qc, variant=args.variant),
+        "sar": _fed_ckpt("_sar", seed=args.seed, results_dir=RESULTS_DIR, qc=args.qc, variant=args.variant),
+    }
+    test_dirs = {
+        "optical": (os.path.join(DATA_ROOT, "flood_optical/Testing/images"),
+                    os.path.join(DATA_ROOT, "flood_optical/Testing/labels")),
+        "sar": (os.path.join(DATA_ROOT, "flood_SAR/Testing/images"),
+                os.path.join(DATA_ROOT, "flood_SAR/Testing/labels")),
+    }
+
     picks = {}
-    for modality, ckpt_path in CHECKPOINTS.items():
+    for modality, ckpt_path in checkpoints.items():
         print(f"\n=== {modality.upper()} ===")
         if not os.path.exists(ckpt_path):
             print(f"  MISSING checkpoint: {ckpt_path}")
             continue
-        imgs_dir, masks_dir = TEST_DIRS[modality]
+        imgs_dir, masks_dir = test_dirs[modality]
+        if not os.path.isdir(imgs_dir) or not os.path.isdir(masks_dir):
+            print(f"  MISSING test split: {imgs_dir}")
+            continue
         print(f"  Test dir: {imgs_dir}")
-        ds = FloodSegmentationDataset(imgs_dir, masks_dir, CONFIG["image_size"])
+        ckpt = tc.safe_torch_load(ckpt_path, map_location=device)
+        model_cfg = _resolve_model_config_for_checkpoint(ckpt, ckpt_path=ckpt_path, base_config=base_cfg)
+        ds = FloodSegmentationDataset(imgs_dir, masks_dir, model_cfg["image_size"], data_root=DATA_ROOT)
         print(f"  Loaded {len(ds)} test samples")
         loader = DataLoader(ds, batch_size=8, shuffle=False, num_workers=0)
 
-        model = QVUNetSegmentation(CONFIG).to(device)
-        ckpt = torch.load(ckpt_path, map_location=device)
+        model = QVUNetSegmentation(model_cfg).to(device)
         _load_checkpoint_into_model(model, ckpt)
         print(f"  Loaded checkpoint ({sum(p.numel() for p in model.parameters())/1e6:.2f}M params)")
 

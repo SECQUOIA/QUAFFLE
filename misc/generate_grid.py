@@ -309,7 +309,7 @@ def supports_ckpt_every(root, script):
 def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               q_ansatz="reupload", q_layers=None, knockout=True, quantum_channels=None,
               ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
-              q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"]):
+              q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"], hqunet_grid=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -326,14 +326,16 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
+        if q_ansatz == "hqunet" and hqunet_grid is not None:
+            args += ["--hqunet-grid", str(hqunet_grid)]
     if method == "quantum":
         args += ["--q-backend", q_backend]
     if method == "quantum" and knockout:
         args += ["--quantum-knockout-eval"]
     qc = MEASURED_QC
     if quantum_channels is not None:
-        if not (method == "quantum" and kind == "federated"):
-            raise ValueError("--quantum_channels only exists in federated_demoTorchQ.py")
+        if method not in ("quantum", "ablation"):
+            raise ValueError("--quantum_channels is only supported for quantum and ablation methods")
         args += ["--quantum_channels", str(quantum_channels)]
         qc = quantum_channels
     ckpt = False
@@ -352,16 +354,24 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             "fed-dirichlet": "feddir%s" % alpha}[mode]
     parts = [mtag, dtag, dataset]
     if method in ("quantum", "ablation"):
-        parts.append(q_ansatz + ("L%d" % q_layers if q_layers is not None else ""))
+        ans_tag = q_ansatz
+        if q_ansatz == "hqunet" and hqunet_grid is not None:
+            ans_tag += "G%d" % int(hqunet_grid)
+        if q_layers is not None:
+            ans_tag += "L%d" % q_layers
+        parts.append(ans_tag)
     if quantum_channels is not None:
         parts.append("qc%d" % quantum_channels)
     parts.append("seed%d" % seed)
     name = "_".join(parts)
     short = {"classical": "c", "ablation": "a", "quantum": "q"}[method]
     short += {"centralized": "C", "fed-random": "R", "fed-dirichlet": "D"}[mode]
+    ans_short = ""
+    if method != "classical" and q_ansatz != "reupload":
+        ans_short = "_hq" if q_ansatz == "hqunet" else "_leg"
     jshort = "%s_%s%s%s_s%d" % (short, dataset[:3], "" if quantum_channels is None else
                                 "_qc%d" % quantum_channels,
-                                "" if q_ansatz == "reupload" or method == "classical" else "_leg",
+                                ans_short,
                                 seed)
     command = " ".join([shlex.quote(python), script] + [shlex.quote(a) for a in args])
     return OrderedDict([
@@ -708,8 +718,9 @@ def main(argv=None):
     ap.add_argument("--seeds", type=int, nargs="+", default=ALL_SEEDS,
                     help="Subset of config/seeds.py (default: all %s)" % ALL_SEEDS)
     ap.add_argument("--alpha", type=float, default=0.5, help="Dirichlet alpha (default 0.5)")
-    ap.add_argument("--q-ansatz", choices=["reupload", "legacy"], default="reupload")
+    ap.add_argument("--q-ansatz", choices=["reupload", "legacy", "hqunet"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
+    ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
                     default=Q_BACKEND,
                     help="Circuit simulator passed to quantum jobs (default %(default)s). Use "
@@ -756,7 +767,7 @@ def main(argv=None):
                         knockout=args.knockout, ckpt_every=args.ckpt_every,
                         ckpt_support=support.get(script, False), safety=args.safety,
                         floor=args.floor_hours, q_backend=args.q_backend,
-                        cpus=cluster["cpus_per_task"]))
+                        cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid))
     finish(ap, args, jobs, out_dir)
 
 
