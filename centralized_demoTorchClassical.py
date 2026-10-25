@@ -244,8 +244,9 @@ def main():
     config['dataset'] = args.dataset
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     tc.apply_common_args(config, args)
+    vtag = tc.classical_variant_tag(config)
     output_dir = tc.resolve_output_dir(
-        f"results/flood_central_optical_pytorch_classical{ds_suffix}_seed{config['seed']}",
+        f"results/flood_central_optical_pytorch_classical{ds_suffix}{vtag}_seed{config['seed']}",
         config,
         args,
     )
@@ -272,7 +273,11 @@ def main():
     train_indices, val_indices, _ = tc.holdout_validation(
         full_dataset, config['seed'], config['val_fraction'])
 
-    train_subset = torch.utils.data.Subset(full_dataset, train_indices)
+    train_subset = tc.maybe_wrap_augment(
+        torch.utils.data.Subset(full_dataset, train_indices),
+        config,
+        seed=config['seed'],
+    )
     val_subset = torch.utils.data.Subset(full_dataset, val_indices)
 
     train_loader = tc.make_loader(train_subset, config['batch_size'], True, config['seed'])

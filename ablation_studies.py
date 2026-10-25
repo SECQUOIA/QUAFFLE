@@ -246,7 +246,8 @@ def run_centralized_torch(args):
     full_dataset = tc.load_dataset(train_images_dir, train_masks_dir, config)
     full_dataset = tc.cap_samples(full_dataset, config.get('max_samples'), config['seed'])
     tr_idx, va_idx, _ = tc.holdout_validation(full_dataset, config['seed'], config['val_fraction'])
-    train_loader = tc.make_loader(Subset(full_dataset, tr_idx), config['batch_size'], True, config['seed'])
+    train_subset = tc.maybe_wrap_augment(Subset(full_dataset, tr_idx), config, seed=config['seed'])
+    train_loader = tc.make_loader(train_subset, config['batch_size'], True, config['seed'])
     val_loader   = tc.make_loader(Subset(full_dataset, va_idx), config['batch_size'], False, config['seed'])
     print(f"Train: {len(tr_idx)}, Val: {len(va_idx)}")
 
@@ -477,7 +478,7 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
         # (seed, client_id, server_round), see tc.client_round_seed.
         self.loader = tc.make_loader(client_dataset, config['batch_size'], True,
                                      tc.client_round_seed(config['seed'], client_id, 0))
-        self.eval_loader = tc.make_loader(client_dataset, config['batch_size'], False,
+        self.eval_loader = tc.make_loader(tc.unwrap_dataset(client_dataset), config['batch_size'], False,
                                           config['seed'])
         print(f"Client {client_id}: {len(client_dataset)} samples on {self.device}")
 
@@ -487,7 +488,7 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         import torch
-        from utilsTorch import ClassicalAblationUNetSegmentation
+        from utilsTorch import ClassicalAblationUNetSegmentation, segmentation_loss
         round_seed = tc.seed_client_round(self.config['seed'], self.client_id, config)
         torch.manual_seed(round_seed)
         if torch.cuda.is_available():
@@ -512,7 +513,9 @@ class _TorchClassicalFlowerClient(fl.client.NumPyClient):
                 dummy_t = torch.zeros((B,), device=self.device)
                 logits = self.local_model.model(imgs, dummy_t)
                 masks_long = masks.squeeze(1).long()
-                loss = torch.nn.functional.cross_entropy(logits, masks_long)
+                loss = segmentation_loss(
+                    logits, masks_long, loss_mode=self.config.get('loss', 'ce')
+                )
                 loss.backward()
                 opt.step()
                 preds = torch.argmax(logits, dim=1)
@@ -732,7 +735,10 @@ def run_federated_torch(args):
     # Global validation holdout first, then random IID or label-skew
     # Dirichlet partitioning (shared with the main federated demos).
     client_index_lists, val_indices, split_info = tc.build_federated_split(full_dataset, config)
-    client_datasets = [Subset(full_dataset, idxs) for idxs in client_index_lists]
+    client_datasets = [
+        tc.maybe_wrap_augment(Subset(full_dataset, idxs), config, seed=config['seed'] + cid)
+        for cid, idxs in enumerate(client_index_lists)
+    ]
     val_dataset = Subset(full_dataset, val_indices)
     val_loader = tc.make_loader(val_dataset, config['batch_size'], False, config['seed'])
     print(f"Validation set: {len(val_dataset)} samples")

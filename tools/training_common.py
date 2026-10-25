@@ -46,6 +46,19 @@ DEFAULT_SELECT_METRIC = 'iou'
 SKIP_MODULATION_CHOICES = ('affine', 'additive')
 DEFAULT_SKIP_MODULATION = 'affine'
 
+# Wave 2 bottleneck, backbone, loss, and augmentation options (#13, #16, #18, #22, #25).
+Q_ANSATZ_CHOICES = ('reupload', 'legacy', 'hqunet')
+Q_SPATIAL_MODES = ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
+DEFAULT_Q_SPATIAL_MODE = 'global'
+HQUNET_GRID_CHOICES = (2, 4)
+DEFAULT_HQUNET_GRID = 2
+ABLATION_MODE_CHOICES = ('auto', 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')
+DEFAULT_ABLATION_MODE = 'auto'
+BACKBONE_CONV_CHOICES = ('ws_conv', 'standard', 'depthwise_sep')
+DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
+LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
+DEFAULT_LOSS_MODE = 'ce'
+
 # Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
 Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
 DEFAULT_Q_BACKEND = 'pennylane'
@@ -187,12 +200,39 @@ def add_common_args(parser, quantum=True, federated=False):
                         help="Validation metric used to select the best checkpoint for test "
                              f"evaluation (default: {DEFAULT_SELECT_METRIC}; 'loss' minimizes, "
                              "others maximize)")
+    parser.add_argument('--backbone-conv-mode', choices=list(BACKBONE_CONV_CHOICES),
+                        default=DEFAULT_BACKBONE_CONV_MODE,
+                        help="Backbone 3x3 convolution type in ResnetBlock / QResnetBlock "
+                             f"(default: {DEFAULT_BACKBONE_CONV_MODE}; 'standard' uses standard "
+                             "nn.Conv2d; 'depthwise_sep' uses 3x3 depthwise + 1x1 WSConv)")
+    parser.add_argument('--loss', choices=list(LOSS_CHOICES),
+                        default=DEFAULT_LOSS_MODE,
+                        help="Segmentation training/evaluation loss mode "
+                             f"(default: {DEFAULT_LOSS_MODE}; choices: {LOSS_CHOICES})")
+    parser.add_argument('--no-time-emb', action='store_true',
+                        help='Omit unused diffusion SinusoidalPosEmb / time_mlp layers from '
+                             'encoder, bottleneck, and decoder ResnetBlocks (#16)')
+    parser.add_argument('--augment', action='store_true',
+                        help='Enable seed-reproducible dihedral (D4: 90-deg rotations + '
+                             'horizontal reflection) geometric augmentations on training splits (#25)')
     if quantum:
-        parser.add_argument('--q-ansatz', choices=['reupload', 'legacy'], default='reupload',
+        parser.add_argument('--q-ansatz', choices=list(Q_ANSATZ_CHOICES), default='reupload',
                             help='Quantum bottleneck ansatz (default: reupload)')
         parser.add_argument('--q-layers', type=int, default=None,
                             help='Number of variational layers in the quantum bottleneck '
                                  '(default: model default)')
+        parser.add_argument('--q-spatial-mode', choices=list(Q_SPATIAL_MODES),
+                            default=DEFAULT_Q_SPATIAL_MODE,
+                            help="Spatial feature preservation mode for 4-qubit bottleneck groups "
+                                 f"(default: {DEFAULT_Q_SPATIAL_MODE}; choices: {Q_SPATIAL_MODES})")
+        parser.add_argument('--hqunet-grid', type=int, choices=list(HQUNET_GRID_CHOICES),
+                            default=DEFAULT_HQUNET_GRID,
+                            help="Spatial grid dimension G for --q-ansatz hqunet "
+                                 f"(default: {DEFAULT_HQUNET_GRID}, N_q = G^2 qubits)")
+        parser.add_argument('--ablation-mode', choices=list(ABLATION_MODE_CHOICES),
+                            default=DEFAULT_ABLATION_MODE,
+                            help="Classical bottleneck architecture for parameter-matched ablation "
+                                 f"(default: {DEFAULT_ABLATION_MODE}; choices: {ABLATION_MODE_CHOICES})")
         parser.add_argument('--skip-modulation', choices=list(SKIP_MODULATION_CHOICES),
                             default=DEFAULT_SKIP_MODULATION,
                             help="How QResnetBlock / AblationResnetBlock combines the spatially "
@@ -287,6 +327,22 @@ def apply_common_args(config, args):
         config['select_metric'] = str(args.select_metric).strip().lower()
     else:
         config.setdefault('select_metric', DEFAULT_SELECT_METRIC)
+    if getattr(args, 'backbone_conv_mode', None) is not None:
+        config['backbone_conv_mode'] = effective_backbone_conv_mode({'backbone_conv_mode': args.backbone_conv_mode})
+    else:
+        config['backbone_conv_mode'] = effective_backbone_conv_mode(config)
+    if getattr(args, 'loss', None) is not None:
+        config['loss'] = effective_loss_mode({'loss': args.loss})
+    else:
+        config['loss'] = effective_loss_mode(config)
+    if getattr(args, 'no_time_emb', False):
+        config['use_time_emb'] = False
+    else:
+        config['use_time_emb'] = effective_use_time_emb(config)
+    if getattr(args, 'augment', False):
+        config['augment'] = True
+    else:
+        config['augment'] = bool(config.get('augment', False))
     if getattr(args, 'skip_modulation', None) is not None:
         config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
@@ -295,6 +351,18 @@ def apply_common_args(config, args):
         config['q_ansatz'] = args.q_ansatz
     if getattr(args, 'q_layers', None) is not None:
         config['q_layers'] = args.q_layers
+    if getattr(args, 'q_spatial_mode', None) is not None:
+        config['q_spatial_mode'] = effective_q_spatial_mode({'q_spatial_mode': args.q_spatial_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_spatial_mode' in config:
+        config['q_spatial_mode'] = effective_q_spatial_mode(config)
+    if getattr(args, 'hqunet_grid', None) is not None:
+        config['hqunet_grid'] = effective_hqunet_grid({'hqunet_grid': args.hqunet_grid})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'hqunet_grid' in config:
+        config['hqunet_grid'] = effective_hqunet_grid(config)
+    if getattr(args, 'ablation_mode', None) is not None:
+        config['ablation_mode'] = effective_ablation_mode({'ablation_mode': args.ablation_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'ablation_mode' in config:
+        config['ablation_mode'] = effective_ablation_mode(config)
     if hasattr(args, 'quantum_knockout_eval'):
         config['quantum_knockout_eval'] = bool(args.quantum_knockout_eval)
     if hasattr(args, 'q_backend'):
@@ -368,12 +436,93 @@ def _seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2 ** 32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
+    info = torch.utils.data.get_worker_info()
+    if info is not None and hasattr(info, 'dataset'):
+        ds = info.dataset
+        while ds is not None:
+            if isinstance(ds, DihedralAugmentDataset):
+                ds.reseed(derive_seed(worker_seed, int(worker_id) + 1))
+                break
+            ds = getattr(ds, 'dataset', None)
+
+
+def apply_dihedral_transform(image, mask, k: int = 0, flip=None):
+    """Apply dihedral D4 transform (k * 90-deg counter-clockwise rotation + optional
+    horizontal reflection) jointly to (image, mask) (#25).
+
+    If `flip` is None, `k` in {0..7} encodes both rotation (`k % 4`) and horizontal
+    reflection (`(k // 4) % 2 == 1`).
+    """
+    import torch
+    k_int = int(k)
+    k_mod = k_int % 4
+    do_flip = bool((k_int // 4) % 2) if flip is None else bool(flip)
+    img_out = image
+    mask_out = mask
+    if k_mod != 0:
+        img_out = torch.rot90(img_out, k=k_mod, dims=(-2, -1))
+        mask_out = torch.rot90(mask_out, k=k_mod, dims=(-2, -1))
+    if do_flip:
+        img_out = torch.flip(img_out, dims=(-1,))
+        mask_out = torch.flip(mask_out, dims=(-1,))
+    return img_out, mask_out
+
+
+class DihedralAugmentDataset:
+    """Seed-reproducible D4 dihedral geometric augmentation wrapper for training splits (#25).
+
+    Applies one of the 8 D4 symmetry transformations (k in {0,1,2,3} 90-deg rotations
+    and flip in {False, True} horizontal reflections) jointly to `(image, mask)` using
+    a dedicated seeded `torch.Generator`. Validation and test splits must never be wrapped.
+    """
+
+    def __init__(self, dataset, seed: int = 42):
+        import torch
+        self.dataset = dataset
+        self.seed = int(seed)
+        self.generator = torch.Generator()
+        self.generator.manual_seed(derive_seed(self.seed, 25))
+
+    def reseed(self, seed: int):
+        import torch
+        self.seed = int(seed)
+        self.generator = torch.Generator()
+        self.generator.manual_seed(derive_seed(self.seed, 25))
+        return self
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        import torch
+        image, mask = self.dataset[idx]
+        k = int(torch.randint(0, 4, (1,), generator=self.generator).item())
+        flip = bool(torch.randint(0, 2, (1,), generator=self.generator).item())
+        return apply_dihedral_transform(image, mask, k=k, flip=flip)
+
+
+def unwrap_dataset(dataset):
+    """Return the underlying unaugmented dataset if wrapped by `DihedralAugmentDataset`."""
+    while isinstance(dataset, DihedralAugmentDataset):
+        dataset = dataset.dataset
+    return dataset
+
+
+def maybe_wrap_augment(dataset, config=None, seed=None):
+    """Wrap `dataset` in `DihedralAugmentDataset` when `config['augment']` is True (#25)."""
+    dataset = unwrap_dataset(dataset)
+    if not isinstance(config, dict) or not bool(config.get('augment', False)):
+        return dataset
+    eff_seed = int(seed if seed is not None else config.get('seed', 42))
+    return DihedralAugmentDataset(dataset, seed=eff_seed)
 
 
 def make_loader(dataset, batch_size, shuffle, seed, num_workers=0):
     """DataLoader with an explicit seeded generator (and worker seeding)."""
     import torch
     from torch.utils.data import DataLoader
+    if shuffle and hasattr(dataset, 'reseed') and callable(dataset.reseed):
+        dataset.reseed(int(seed))
     g = torch.Generator()
     g.manual_seed(int(seed))
     kwargs = dict(batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
@@ -909,6 +1058,107 @@ def effective_skip_modulation(config):
     return normalize_skip_modulation(raw)
 
 
+def effective_q_spatial_mode(config):
+    """Resolve and normalize `q_spatial_mode` ('global' default, or 'pixel', 'patch2x2', 'patch4x4', 'se_gate')."""
+    from utilsTorch.unetTorch import normalize_q_spatial_mode
+    if not isinstance(config, dict):
+        return normalize_q_spatial_mode(config)
+    return normalize_q_spatial_mode(config.get('q_spatial_mode', DEFAULT_Q_SPATIAL_MODE))
+
+
+def effective_hqunet_grid(config):
+    """Resolve and normalize `hqunet_grid` (2 default, or 4)."""
+    from utilsTorch.unetTorch import normalize_hqunet_grid
+    if not isinstance(config, dict):
+        return normalize_hqunet_grid(config)
+    return normalize_hqunet_grid(config.get('hqunet_grid', DEFAULT_HQUNET_GRID))
+
+
+def effective_ablation_mode(config):
+    """Resolve and normalize `ablation_mode` ('auto' default, or 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')."""
+    from utilsTorch.unetTorch import normalize_ablation_mode
+    if not isinstance(config, dict):
+        return normalize_ablation_mode(config)
+    return normalize_ablation_mode(config.get('ablation_mode', DEFAULT_ABLATION_MODE))
+
+
+def effective_backbone_conv_mode(config):
+    """Resolve and normalize `backbone_conv_mode` ('ws_conv' default, 'standard', or 'depthwise_sep')."""
+    from utilsTorch.unetTorch import normalize_backbone_conv_mode
+    if not isinstance(config, dict):
+        return normalize_backbone_conv_mode(config)
+    return normalize_backbone_conv_mode(config.get('backbone_conv_mode', DEFAULT_BACKBONE_CONV_MODE))
+
+
+def _uses_hqunet_grid(config, model_type=None):
+    """Return True when `hqunet_grid` affects the model architecture for `(config, model_type)`."""
+    ansatz, _ = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if quantum and ansatz == 'hqunet':
+        return True
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return True
+    return False
+
+
+def effective_ablation_q_layers(config):
+    """Effective layer count when `ablation_mode == 'hqunet_spatial'` (even if `q_ansatz == 'legacy'`)."""
+    layers = config.get('q_layers') if isinstance(config, dict) else None
+    return int(layers) if layers is not None else default_q_layers()
+
+
+def _effective_fingerprint_q_layers(config, model_type):
+    """Effective `q_layers` recorded in fingerprints and `metrics.json`."""
+    _, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return effective_ablation_q_layers(config)
+    return layers if quantum else None
+
+
+def _normalize_saved_fingerprint(saved, model_type=None):
+    """Fill in historical Wave 2 default values for keys absent from pre-Wave-2
+    checkpoint fingerprints so default-config runs can resume older checkpoints."""
+    if not isinstance(saved, dict):
+        return saved
+    out = dict(saved)
+    eff_model_type = model_type or out.get('model_type')
+    quantum = eff_model_type in ('quantum', 'ablation')
+    ansatz = out.get('q_ansatz') or ('reupload' if quantum else None)
+    abl_mode = out.get('ablation_mode', DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None)
+    uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
+    defaults = {
+        'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
+        'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
+        'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
+        'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
+        'loss': DEFAULT_LOSS_MODE,
+        'use_time_emb': True,
+        'augment': False,
+    }
+    for k, default_val in defaults.items():
+        if k not in out:
+            out[k] = default_val
+    return out
+
+
+def effective_loss_mode(config):
+    """Resolve and normalize segmentation loss mode ('ce' default, 'dice_ce', 'focal_dice')."""
+    from utilsTorch.utilsTorch import normalize_loss_mode
+    if not isinstance(config, dict):
+        return normalize_loss_mode(config)
+    return normalize_loss_mode(config.get('loss', DEFAULT_LOSS_MODE))
+
+
+def effective_use_time_emb(config):
+    """Resolve whether diffusion time_mlp layers are enabled (True default)."""
+    if not isinstance(config, dict):
+        return bool(config) if config is not None else True
+    if config.get('no_time_emb'):
+        return False
+    return bool(config.get('use_time_emb', True))
+
+
 def ndarrays_equal(a, b):
     """Return True if two sequences of numpy arrays have identical shapes and values."""
     if a is None or b is None or len(a) != len(b):
@@ -989,8 +1239,15 @@ def centralized_fingerprint(config, model_type):
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
         'quantum_channels': (int(config['quantum_channels'])
                              if quantum and config.get('quantum_channels') is not None else None),
         'quantum_backend': (config.get('quantum_backend', 'pennylane')
@@ -1042,6 +1299,7 @@ def checkpoint_matches_centralized(ckpt, config, model_type, path=None):
         if path and os.path.exists(path):
             move_aside(path, 'incompatible')
         return False
+    saved = _normalize_saved_fingerprint(saved, model_type)
     diff = {k: (saved.get(k), v) for k, v in want.items() if saved.get(k) != v}
     if diff:
         print("Rejecting centralized checkpoint, config differs (saved, current): "
@@ -1104,14 +1362,52 @@ def effective_q_variant(config):
     return ansatz, int(layers) if layers is not None else default_q_layers()
 
 
+def classical_variant_tag(config):
+    """Directory suffix for non-default backbone, loss, time_emb, or augmentation flags."""
+    if not isinstance(config, dict):
+        return ''
+    parts = []
+    bb = effective_backbone_conv_mode(config)
+    if bb != DEFAULT_BACKBONE_CONV_MODE:
+        parts.append(bb)
+    loss_mode = effective_loss_mode(config)
+    if loss_mode != DEFAULT_LOSS_MODE:
+        parts.append(loss_mode)
+    if not effective_use_time_emb(config):
+        parts.append('notime')
+    if bool(config.get('augment', False)):
+        parts.append('aug')
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
 def variant_tag(config):
     """Directory suffix that separates quantum ansatz variants, e.g.
-    '_reupload_L2' or '_legacy'. Used for quantum runs and the ablation
-    (whose classical bottleneck is matched to the quantum variant)."""
+    '_reupload_L2' or '_legacy' (plus non-default spatial/ablation/backbone/loss/aug tags).
+    Used for quantum runs and the ablation (whose classical bottleneck is matched to
+    the quantum variant)."""
     ansatz, layers = effective_q_variant(config)
     if ansatz == 'legacy':
-        return '_legacy'
-    return f'_{ansatz}_L{layers}'
+        tag = '_legacy'
+    elif ansatz == 'hqunet':
+        grid = effective_hqunet_grid(config)
+        tag = f'_hqunet_G{grid}_L{layers}'
+    else:
+        tag = f'_{ansatz}_L{layers}'
+    if isinstance(config, dict):
+        q_sp = effective_q_spatial_mode(config)
+        abl = effective_ablation_mode(config)
+        if q_sp != DEFAULT_Q_SPATIAL_MODE and (ansatz != 'hqunet' or abl in ('linear', 'mlp')):
+            tag += f'_{q_sp}'
+        if abl != DEFAULT_ABLATION_MODE:
+            if abl == 'hqunet_spatial' and ansatz != 'hqunet':
+                if ansatz == 'legacy':
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}_L{effective_ablation_q_layers(config)}'
+                else:
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
+            else:
+                tag += f'_abl-{abl}'
+        tag += classical_variant_tag(config)
+    return tag
 
 
 _BACKEND_TAGS = {'pennylane': '', 'torch': '_qtorch', 'pennylane_pergroup': '_qpergroup'}
@@ -1302,7 +1598,7 @@ def safe_torch_load(path, map_location=None):
 
 
 def rng_state(loader=None):
-    """Python / numpy / torch (and loader generator) RNG state for checkpoints."""
+    """Python / numpy / torch (and loader / augmentation generator) RNG state for checkpoints."""
     import torch
     st = {'python': random.getstate(), 'numpy': np.random.get_state(),
           'torch': torch.get_rng_state()}
@@ -1314,6 +1610,10 @@ def rng_state(loader=None):
     gen = getattr(loader, 'generator', None) if loader is not None else None
     if gen is not None:
         st['loader'] = gen.get_state()
+    ds = getattr(loader, 'dataset', None) if loader is not None else None
+    aug_gen = getattr(ds, 'generator', None) if ds is not None else None
+    if aug_gen is not None:
+        st['augment_generator'] = aug_gen.get_state()
     return st
 
 
@@ -1331,6 +1631,10 @@ def restore_rng_state(st, loader=None):
         gen = getattr(loader, 'generator', None) if loader is not None else None
         if gen is not None and 'loader' in st:
             gen.set_state(st['loader'].cpu())
+        ds = getattr(loader, 'dataset', None) if loader is not None else None
+        aug_gen = getattr(ds, 'generator', None) if ds is not None else None
+        if aug_gen is not None and 'augment_generator' in st:
+            aug_gen.set_state(st['augment_generator'].cpu())
         print("Restored RNG and data loader state from checkpoint")
     except Exception as e:
         print(f"WARNING: could not restore RNG state from checkpoint ({e})")
@@ -1355,8 +1659,15 @@ def run_fingerprint(config, model_type):
                             if config.get('partition') == 'dirichlet' else None),
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         'quantum_backend': config.get('quantum_backend') if quantum else None,
         # Circuit simulator: a checkpoint written with another simulator (or
@@ -1481,7 +1792,7 @@ def load_fed_checkpoint(output_dir, fingerprint, resume=True):
     if not checkpoint_compatible(ckpt):
         move_aside(path, 'incompatible')
         return None
-    saved = ckpt.get('fingerprint') or {}
+    saved = _normalize_saved_fingerprint(ckpt.get('fingerprint') or {}, fingerprint.get('model_type'))
     diff = {k: (saved.get(k), v) for k, v in fingerprint.items() if saved.get(k) != v}
     if diff:
         print("Rejecting federated checkpoint, config differs (saved, current): "
@@ -1662,8 +1973,15 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         else None,
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
-        'q_layers': layers if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
         'skip_modulation': effective_skip_modulation(config) if quantum else None,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
         'quantum_channels': config.get('quantum_channels') if quantum else None,
         # Circuit simulator (quantum runs only). The ablation has no circuit.
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
