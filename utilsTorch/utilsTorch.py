@@ -653,6 +653,8 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
     output_dir = os.path.abspath(output_dir)
     results_dir = os.path.join(output_dir, "results")
     os.makedirs(results_dir, exist_ok=True)
+    if num_samples <= 0:
+        return
     model.eval()
     count = 0
     with torch.no_grad():
@@ -664,7 +666,7 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
             for i in range(imgs.size(0)):
                 if count >= num_samples:
                     break
-                image_np = (imgs[i].cpu().numpy().transpose(1, 2, 0) + 1.0) / 2.0
+                image_np = np.clip((imgs[i].cpu().numpy().transpose(1, 2, 0) + 1.0) / 2.0, 0.0, 1.0)
                 mask_np = masks[i, 0].cpu().numpy()
                 prediction_np = preds[i].cpu().numpy()
                 probabilities_np = probs[i].cpu().numpy()
@@ -689,6 +691,8 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
                 count += 1
                 if count >= num_samples:
                     break
+            if count >= num_samples:
+                break
     print(f"Visualizations saved in {results_dir}")
 
 

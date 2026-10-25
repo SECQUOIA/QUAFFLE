@@ -42,9 +42,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from tools import training_common as tc  # noqa: E402
 from utilsTorch import unetTorch as unet  # noqa: E402
 from utilsTorch.utilsTorch import (QVUNetSegmentation,  # noqa: E402
-                                   ClassicalAblationUNetSegmentation)
+                                   ClassicalAblationUNetSegmentation,
+                                   segmentation_loss)
 
 ABLATION = 'classical ablation (mlp)'
 
@@ -104,9 +106,25 @@ def _first_quantum_block(model):
     return None
 
 
-def make_block(q_backend, q_sim_device, q_ansatz, q_layers):
-    kw = dict(backend='pennylane', quantum_channels=32, seed=0, q_ansatz=q_ansatz,
-              q_layers=q_layers, q_backend=q_backend)
+def make_block(
+    q_backend,
+    q_sim_device,
+    q_ansatz,
+    q_layers,
+    quantum_channels=32,
+    q_spatial_mode='global',
+    hqunet_grid=2,
+):
+    kw = dict(
+        backend='pennylane',
+        quantum_channels=quantum_channels,
+        seed=0,
+        q_ansatz=q_ansatz,
+        q_layers=q_layers,
+        q_backend=q_backend,
+        q_spatial_mode=q_spatial_mode,
+        hqunet_grid=hqunet_grid,
+    )
     if q_sim_device is not None:
         if not _supports_sim_device():
             raise ValueError('QuantumBlock has no q_sim_device argument on this checkout')
@@ -114,17 +132,35 @@ def make_block(q_backend, q_sim_device, q_ansatz, q_layers):
     return unet.QuantumBlock(**kw)
 
 
-def bench_block(device, steps, warmup, batches, ansatzes, sims):
+def bench_block(
+    device,
+    steps,
+    warmup,
+    batches,
+    ansatzes,
+    sims,
+    quantum_channels=32,
+    q_spatial_mode='global',
+    hqunet_grid=2,
+):
     rows = []
     for ans, L in ansatzes:
         for B in batches:
             for label, qb, sd in sims:
                 try:
-                    blk = make_block(qb, sd, ans, L).to(device)
+                    blk = make_block(
+                        qb,
+                        sd,
+                        ans,
+                        L,
+                        quantum_channels=quantum_channels,
+                        q_spatial_mode=q_spatial_mode,
+                        hqunet_grid=hqunet_grid,
+                    ).to(device)
                 except (ValueError, TypeError, ImportError) as e:
                     print(f"block {ans:8s} L={L} B={B:2d} {label:18s}: skipped ({e})", flush=True)
                     continue
-                x = torch.randn(B, 32, 8, 8, device=device, requires_grad=True)
+                x = torch.randn(B, quantum_channels, 8, 8, device=device, requires_grad=True)
 
                 def step():
                     blk.zero_grad(set_to_none=True)
@@ -132,9 +168,11 @@ def bench_block(device, steps, warmup, batches, ansatzes, sims):
                     blk(x).sum().backward()
 
                 # The per-group path is slow, time it with fewer repetitions.
-                n = max(2, steps // 4) if qb == 'pennylane_pergroup' else steps
+                n = max(1, steps // 4) if qb == 'pennylane_pergroup' else max(1, steps)
                 dt = _time(step, device, n, warmup)
-                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L, batch=B,
+                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L,
+                                 q_spatial_mode=q_spatial_mode, hqunet_grid=hqunet_grid,
+                                 quantum_channels=quantum_channels, batch=B,
                                  simulator=label, q_backend=qb, q_sim_device=sd, reps=n,
                                  ms=dt * 1e3, info=_block_info(blk)))
                 print(f"block {ans:8s} L={L} B={B:2d} {label:18s}: {dt * 1e3:9.2f} ms fwd+bwd",
@@ -143,22 +181,28 @@ def bench_block(device, steps, warmup, batches, ansatzes, sims):
 
 
 def _config(**kw):
-    cfg = dict(image_size=128, base_channels=32, init_dim=32, out_dim=2,
-               dim_mults=(1, 2, 4, 8), resnet_block_groups=4, quantum_channels=32,
+    bc = int(kw.get('base_channels', 32))
+    groups = tc._compatible_group_count(bc, int(kw.get('resnet_block_groups', 4)))
+    cfg = dict(image_size=128, base_channels=bc, init_dim=bc, out_dim=2,
+               dim_mults=(1, 2, 4, 8), resnet_block_groups=groups, quantum_channels=32,
                quantum_backend='pennylane', q_ansatz='reupload', q_layers=2,
+               q_spatial_mode='global', hqunet_grid=2,
                q_share_blocks=True)
     cfg.update(kw)
     return cfg
 
 
-def model_variants(sims):
+def model_variants(sims, **cfg_kw):
     out = []
     for label, qb, sd in sims:
-        cfg = _config(q_backend=qb)
+        cfg = _config(q_backend=qb, **cfg_kw)
         if sd is not None:
             cfg['q_sim_device'] = sd
         out.append(('quantum ' + label, QVUNetSegmentation, cfg, qb, sd))
-    out.append((ABLATION, ClassicalAblationUNetSegmentation, _config(), None, None))
+    ablation_cfg = _config(**cfg_kw)
+    if cfg_kw.get('q_ansatz') == 'hqunet' and 'ablation_mode' not in ablation_cfg:
+        ablation_cfg['ablation_mode'] = 'hqunet_spatial'
+    out.append((ABLATION, ClassicalAblationUNetSegmentation, ablation_cfg, None, None))
     return out
 
 
@@ -188,10 +232,12 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
         x = torch.randn(batch, 3, image, image, generator=gen).to(device)
         y = (torch.rand(batch, 1, image, image, generator=gen) > 0.5).long().to(device)
 
+        loss_mode = str(cfg.get('loss', 'ce'))
+
         def step():
             opt.zero_grad()
             out = model(x)
-            loss = torch.nn.functional.cross_entropy(out, y.squeeze(1))
+            loss = segmentation_loss(out, y.squeeze(1), loss_mode=loss_mode)
             loss.backward()
             opt.step()
 
@@ -215,19 +261,43 @@ def ratios_to_ablation(rows):
     return {k: v / base for k, v in ts.items() if k != ABLATION}
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     ap.add_argument('--steps', type=int, default=10)
     ap.add_argument('--warmup', type=int, default=2)
-    ap.add_argument('--batch', type=int, default=8, help='full model batch size')
-    ap.add_argument('--image', type=int, default=128, help='full model image size')
+    ap.add_argument('--batch', '--batch-size', dest='batch', type=int, default=8,
+                    help='full model batch size')
+    ap.add_argument('--image', '--image-size', dest='image', type=int, default=128,
+                    help='full model image size')
+    ap.add_argument('--base-channels', type=int, default=32,
+                    help='UNet base channels (default: 32)')
+    ap.add_argument('--quantum-channels', '--quantum_channels', dest='quantum_channels',
+                    type=int, default=32, help='quantum channels (default: 32)')
+    ap.add_argument('--q-ansatz', choices=list(getattr(unet, 'Q_ANSATZ_CHOICES', ('reupload', 'legacy', 'hqunet'))),
+                    default=None, help='specific ansatz to benchmark (default: all)')
+    ap.add_argument('--q-layers', type=int, default=2, help='circuit layers (default: 2)')
+    ap.add_argument('--q-spatial-mode',
+                    choices=list(getattr(unet, 'Q_SPATIAL_MODE_CHOICES', ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate'))),
+                    default='global', help='spatial bottleneck mode (default: global)')
+    ap.add_argument('--hqunet-grid', type=int, choices=[2, 4], default=2,
+                    help='2D grid size G in {2, 4} for hqunet (default: 2)')
+    ap.add_argument('--skip-modulation', choices=['affine', 'additive'], default='affine',
+                    help='quantum bottleneck skip modulation (default: affine)')
+    ap.add_argument('--backbone-conv-mode', choices=['standard', 'depthwise_sep'], default='standard',
+                    help='UNet backbone convolution mode (default: standard)')
+    ap.add_argument('--loss', choices=['ce', 'dice_ce', 'focal_dice'], default='ce',
+                    help='segmentation training loss (default: ce)')
+    ap.add_argument('--no-time-emb', action='store_true', default=False,
+                    help='disable constant time-embedding MLP across ResNet blocks')
+    ap.add_argument('--augment', action='store_true', default=False,
+                    help='enable geometric training augmentation flag in config')
     ap.add_argument('--quick', action='store_true', help='reupload L=2 only in the block benchmark')
     ap.add_argument('--skip-block', action='store_true')
     ap.add_argument('--skip-model', action='store_true')
     ap.add_argument('--threads', type=int, default=None, help='torch.set_num_threads(N)')
     ap.add_argument('--json', default=None)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     if args.threads:
         torch.set_num_threads(args.threads)
@@ -248,12 +318,53 @@ def main():
 
     rows = []
     if not args.skip_block:
-        ansatzes = [('reupload', 2)] if args.quick else [('legacy', 1), ('reupload', 2), ('reupload', 3)]
-        rows += bench_block(device, args.steps * 5, args.warmup, (4, 8, 16), ansatzes, sims)
+        if args.q_ansatz is not None:
+            ansatzes = [(args.q_ansatz, 1 if args.q_ansatz == 'legacy' else args.q_layers)]
+            batches = (args.batch,) if args.quick else (4, 8, 16)
+        elif args.quick:
+            ansatzes = [('reupload', 2)]
+            batches = (args.batch,) if args.batch != 8 else (4, 8, 16)
+        else:
+            ansatzes = [('legacy', 1), ('reupload', 2), ('reupload', 3), ('hqunet', 2)]
+            batches = (4, 8, 16)
+        block_steps = args.steps if args.quick else args.steps * 5
+        rows += bench_block(
+            device,
+            block_steps,
+            args.warmup,
+            batches,
+            ansatzes,
+            sims,
+            quantum_channels=args.quantum_channels,
+            q_spatial_mode=args.q_spatial_mode,
+            hqunet_grid=args.hqunet_grid,
+        )
     ratios = {}
     if not args.skip_model:
-        rows += bench_train_step(device, args.steps, args.warmup, args.batch, args.image,
-                                 model_variants(sims))
+        model_ansatz = args.q_ansatz or 'reupload'
+        model_layers = 1 if model_ansatz == 'legacy' else args.q_layers
+        rows += bench_train_step(
+            device,
+            args.steps,
+            args.warmup,
+            args.batch,
+            args.image,
+            model_variants(
+                sims,
+                image_size=args.image,
+                base_channels=args.base_channels,
+                quantum_channels=args.quantum_channels,
+                q_ansatz=model_ansatz,
+                q_layers=model_layers,
+                q_spatial_mode=args.q_spatial_mode,
+                hqunet_grid=args.hqunet_grid,
+                skip_modulation=args.skip_modulation,
+                backbone_conv_mode=args.backbone_conv_mode,
+                loss=args.loss,
+                use_time_emb=not args.no_time_emb,
+                augment=args.augment,
+            ),
+        )
         ratios = ratios_to_ablation(rows)
         if ratios:
             print("\nfull train step time / classical ablation step time:")
@@ -264,6 +375,7 @@ def main():
         with open(args.json, 'w') as f:
             json.dump(dict(info=info, rows=rows, ratio_to_ablation=ratios), f, indent=2,
                       default=str)
+    return dict(info=info, rows=rows, ratio_to_ablation=ratios)
 
 
 if __name__ == '__main__':

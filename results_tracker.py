@@ -10,10 +10,65 @@ import os
 from datetime import datetime
 
 
-_RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-# Testing / relocation hook: QUAFFLE_TRACKER_DIR overrides where the shared
-# workbooks live.
-_RESULTS_DIR = os.environ.get("QUAFFLE_TRACKER_DIR", _RESULTS_DIR)
+_DEFAULT_RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
+# Testing / relocation hook: QUAFFLE_TRACKER_DIR (resolved dynamically at call time)
+# or monkeypatching _RESULTS_DIR overrides where the shared workbooks live.
+_RESULTS_DIR = _DEFAULT_RESULTS_DIR
+
+
+def _is_mini_or_scaled_config(config) -> bool:
+    """Return True when config has non-canonical scale settings (mini/downscaled run)."""
+    if config is None:
+        return False
+    try:
+        from tools import training_common as tc
+        cfg_dict = config if isinstance(config, dict) else dict(config)
+        return bool(tc.scale_tag(cfg_dict))
+    except Exception:
+        return False
+
+
+def resolve_tracker_excel_path(dataset="optical", config=None) -> str:
+    """Resolve the target Excel workbook path for a completed training run.
+
+    Priority for directory:
+      1. $QUAFFLE_TRACKER_DIR (explicit tracker override)
+      2. Module-level _RESULTS_DIR if overridden from _DEFAULT_RESULTS_DIR
+      3. config['results_dir'] (when --results-dir / QUAFFLE_RESULTS_DIR was passed)
+      4. $QUAFFLE_RESULTS_DIR
+      5. <repo>/results (_DEFAULT_RESULTS_DIR)
+
+    When config represents a downscaled/mini run (non-empty scale_tag) and
+    $QUAFFLE_TRACKER_DIR is not explicitly set, writes to
+    results_summary_{dataset}_mini.xlsx so mini runs never pollute canonical
+    full-scale workbooks.
+    """
+    env_tracker = os.environ.get("QUAFFLE_TRACKER_DIR", "").strip()
+    cfg_results_dir = None
+    if config is not None:
+        try:
+            cfg_results_dir = (
+                config.get("results_dir")
+                if isinstance(config, dict)
+                else getattr(config, "results_dir", None)
+            )
+        except Exception:
+            cfg_results_dir = None
+    env_results = os.environ.get("QUAFFLE_RESULTS_DIR", "").strip()
+
+    if env_tracker:
+        target_dir = os.path.abspath(env_tracker)
+    elif _RESULTS_DIR != _DEFAULT_RESULTS_DIR:
+        target_dir = os.path.abspath(_RESULTS_DIR)
+    elif cfg_results_dir:
+        target_dir = os.path.abspath(str(cfg_results_dir))
+    elif env_results:
+        target_dir = os.path.abspath(env_results)
+    else:
+        target_dir = _DEFAULT_RESULTS_DIR
+
+    suffix = "_mini" if (not env_tracker and _is_mini_or_scaled_config(config)) else ""
+    return os.path.join(target_dir, f"results_summary_{dataset}{suffix}.xlsx")
 
 COLUMNS = [
     "Timestamp",
@@ -101,8 +156,8 @@ def save_results_to_excel(demo_name, framework, training, variant, val_metrics, 
         print("Warning: openpyxl not installed, skipping Excel export. Install with: pip install openpyxl")
         return
 
-    excel_path = os.path.join(_RESULTS_DIR, f"results_summary_{dataset}.xlsx")
-    os.makedirs(_RESULTS_DIR, exist_ok=True)
+    excel_path = resolve_tracker_excel_path(dataset=dataset, config=config)
+    os.makedirs(os.path.dirname(excel_path), exist_ok=True)
 
     # Cross-node lock. fcntl.flock is not reliable across nodes on GPFS (on
     # 2026-10-02 two jobs on different nodes wrote results_summary_optical.xlsx
