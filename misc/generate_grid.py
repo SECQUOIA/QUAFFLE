@@ -310,7 +310,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               q_ansatz="reupload", q_layers=None, knockout=True, quantum_channels=None,
               ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
               q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"], hqunet_grid=None,
-              q_spatial_mode=None, base_channels=None):
+              q_spatial_mode=None, base_channels=None, skip_modulation=None,
+              backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -325,6 +326,14 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     args += ["--dataset", dataset, "--seed", str(seed)]
     if base_channels is not None:
         args += ["--base-channels", str(base_channels)]
+    if backbone_conv_mode is not None:
+        args += ["--backbone-conv-mode", str(backbone_conv_mode)]
+    if loss is not None:
+        args += ["--loss", str(loss)]
+    if no_time_emb:
+        args += ["--no-time-emb"]
+    if augment:
+        args += ["--augment"]
     if method in ("quantum", "ablation"):
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
@@ -333,6 +342,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             args += ["--hqunet-grid", str(hqunet_grid)]
         if q_spatial_mode is not None and q_ansatz != "hqunet":
             args += ["--q-spatial-mode", str(q_spatial_mode)]
+        if skip_modulation is not None:
+            args += ["--skip-modulation", str(skip_modulation)]
     if method == "quantum":
         args += ["--q-backend", q_backend]
     if method == "quantum" and knockout:
@@ -367,6 +378,16 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         parts.append(ans_tag)
         if q_spatial_mode is not None and q_ansatz != "hqunet" and q_spatial_mode != "global":
             parts.append(str(q_spatial_mode))
+        if skip_modulation == "additive":
+            parts.append("addskip")
+    if backbone_conv_mode == "depthwise_sep":
+        parts.append("depthwise_sep")
+    if loss is not None and loss != "ce":
+        parts.append(str(loss))
+    if no_time_emb:
+        parts.append("notime")
+    if augment:
+        parts.append("aug")
     if quantum_channels is not None:
         parts.append("qc%d" % quantum_channels)
     if base_channels is not None:
@@ -731,6 +752,11 @@ def main(argv=None):
     ap.add_argument("--q-layers", type=int, default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
+    ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
+    ap.add_argument("--backbone-conv-mode", choices=["standard", "depthwise_sep"], default=None)
+    ap.add_argument("--loss", choices=["ce", "dice_ce", "focal_dice"], default=None)
+    ap.add_argument("--no-time-emb", action="store_true", default=False)
+    ap.add_argument("--augment", action="store_true", default=False)
     ap.add_argument("--base-channels", type=int, default=None)
     ap.add_argument("--quantum-channels", "--quantum_channels", dest="quantum_channels", type=int, default=None)
     ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
@@ -782,7 +808,10 @@ def main(argv=None):
                         ckpt_support=support.get(script, False), safety=args.safety,
                         floor=args.floor_hours, q_backend=args.q_backend,
                         cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
-                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels))
+                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
+                        skip_modulation=args.skip_modulation,
+                        backbone_conv_mode=args.backbone_conv_mode,
+                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment))
     finish(ap, args, jobs, out_dir)
 
 

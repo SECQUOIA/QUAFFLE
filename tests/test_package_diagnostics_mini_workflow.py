@@ -374,6 +374,43 @@ def test_r1_exemplar_round_checkpoint_top_level_metrics_and_mixed_variants(tmp_p
     picked_missing = bef._fed_ckpt("", seed=42, results_dir=str(results_dir), qc=16, variant="legacy")
     assert not os.path.exists(picked_missing)
 
+    # Round 2 (r2-exemplar-suffixed-variant): requesting a suffixed variant when only unsuffixed dir_reup exists
+    # must NOT substitute the unsuffixed _reupload_L2 run.
+    picked_suffixed_absent = bef._fed_ckpt(
+        "",
+        seed=42,
+        results_dir=str(results_dir),
+        qc=16,
+        variant="reupload_L2_patch2x2",
+    )
+    assert not os.path.exists(picked_suffixed_absent)
+
+    # When both unsuffixed _reupload_L2 and suffixed _reupload_L2_patch2x2 exist, each selects its own run
+    dir_reup_patch = tc.resolve_output_dir(
+        "results/flood_federated_optical_pytorch_pennylane_random_qc16_reupload_L2_patch2x2_seed42",
+        cfg_reup,
+    )
+    os.makedirs(dir_reup_patch, exist_ok=True)
+    ckpt_patch_path = os.path.join(dir_reup_patch, "checkpoint_round_2.pt")
+    torch.save({"round": 2, "model_state_dict": model_reup.state_dict()}, ckpt_patch_path)
+
+    picked_suffixed_present = bef._fed_ckpt(
+        "",
+        seed=42,
+        results_dir=str(results_dir),
+        qc=16,
+        variant="reupload_L2_patch2x2",
+    )
+    assert picked_suffixed_present == ckpt_patch_path
+    picked_unsuffixed_present = bef._fed_ckpt(
+        "",
+        seed=42,
+        results_dir=str(results_dir),
+        qc=16,
+        variant="reupload_L2",
+    )
+    assert picked_unsuffixed_present == ckpt_round2_path
+
     # Finding 1 & 7: _resolve_model_config_for_checkpoint reads top-level metrics.json and computes compatible group count (3 for bc=6)
     raw_ckpt = tc.safe_torch_load(ckpt_round2_path, map_location="cpu")
     resolved_cfg = bef._resolve_model_config_for_checkpoint(raw_ckpt, ckpt_path=ckpt_round2_path)
@@ -438,6 +475,7 @@ def test_r1_compare_backends_max_samples_and_partial_btag(tmp_path):
 
 def test_r1_bench_and_generate_grid_wave2_flags(tmp_path):
     from misc import generate_grid as gg
+    from misc import generate_qc_ablation_scripts as gq
     from tools import bench_quantum as bq
 
     cfg6 = bq._config(base_channels=6)
@@ -454,9 +492,94 @@ def test_r1_bench_and_generate_grid_wave2_flags(tmp_path):
         q_spatial_mode="patch2x2",
         base_channels=8,
         quantum_channels=16,
+        skip_modulation="additive",
+        backbone_conv_mode="depthwise_sep",
+        loss="dice_ce",
+        no_time_emb=True,
+        augment=True,
     )
     assert "--q-spatial-mode" in j["args"] and "patch2x2" in j["args"]
     assert "--base-channels" in j["args"] and "8" in j["args"]
     assert "--quantum_channels" in j["args"] and "16" in j["args"]
-    assert "patch2x2" in j["name"] and "bc8" in j["name"] and "qc16" in j["name"]
+    assert "--skip-modulation" in j["args"] and "additive" in j["args"]
+    assert "--backbone-conv-mode" in j["args"] and "depthwise_sep" in j["args"]
+    assert "--loss" in j["args"] and "dice_ce" in j["args"]
+    assert "--no-time-emb" in j["args"]
+    assert "--augment" in j["args"]
+    for tok in ("patch2x2", "addskip", "depthwise_sep", "dice_ce", "notime", "aug", "bc8", "qc16"):
+        assert tok in j["name"]
+
+    grid_out = tmp_path / "grid_wave2_full"
+    gg.main([
+        "--methods", "quantum",
+        "--modes", "centralized",
+        "--datasets", "optical",
+        "--seeds", "42",
+        "--q-ansatz", "reupload",
+        "--q-layers", "2",
+        "--q-spatial-mode", "patch2x2",
+        "--skip-modulation", "additive",
+        "--backbone-conv-mode", "depthwise_sep",
+        "--loss", "dice_ce",
+        "--no-time-emb",
+        "--augment",
+        "--base-channels", "8",
+        "--quantum-channels", "16",
+        "--account", "testacct",
+        "--partition", "gpu",
+        "--out-dir", str(grid_out),
+    ])
+    assert (grid_out / "manifest.csv").is_file()
+    grid_scripts = [p for p in grid_out.glob("*.sh") if p.name != "submit_all.sh"]
+    assert len(grid_scripts) == 1
+    grid_script_text = grid_scripts[0].read_text()
+    for flag in ("--q-spatial-mode patch2x2", "--skip-modulation additive", "--backbone-conv-mode depthwise_sep", "--loss dice_ce", "--no-time-emb", "--augment", "--base-channels 8", "--quantum_channels 16"):
+        assert flag in grid_script_text
+
+    qc_out = tmp_path / "qc_wave2_full"
+    gq.main([
+        "--qc", "16",
+        "--modes", "fed-random",
+        "--datasets", "optical",
+        "--seeds", "42",
+        "--q-ansatz", "reupload",
+        "--q-layers", "2",
+        "--q-spatial-mode", "patch2x2",
+        "--skip-modulation", "additive",
+        "--backbone-conv-mode", "depthwise_sep",
+        "--loss", "dice_ce",
+        "--no-time-emb",
+        "--augment",
+        "--base-channels", "8",
+        "--account", "testacct",
+        "--partition", "gpu",
+        "--out-dir", str(qc_out),
+    ])
+    assert (qc_out / "manifest.csv").is_file()
+    qc_scripts = [p for p in qc_out.glob("*.sh") if p.name != "submit_all.sh"]
+    assert len(qc_scripts) == 1
+    qc_script_text = qc_scripts[0].read_text()
+    for flag in ("--q-spatial-mode patch2x2", "--skip-modulation additive", "--backbone-conv-mode depthwise_sep", "--loss dice_ce", "--no-time-emb", "--augment", "--base-channels 8", "--quantum_channels 16"):
+        assert flag in qc_script_text
+
+    bench_res = bq.main([
+        "--device", "cpu",
+        "--steps", "1",
+        "--warmup", "1",
+        "--batch", "2",
+        "--image", "16",
+        "--base-channels", "4",
+        "--quantum-channels", "8",
+        "--q-ansatz", "reupload",
+        "--q-layers", "1",
+        "--q-spatial-mode", "patch2x2",
+        "--skip-modulation", "additive",
+        "--backbone-conv-mode", "depthwise_sep",
+        "--loss", "dice_ce",
+        "--no-time-emb",
+        "--augment",
+        "--skip-block",
+    ])
+    assert any(r["kind"] == "train_step" for r in bench_res["rows"])
+
 

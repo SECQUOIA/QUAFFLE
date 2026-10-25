@@ -45,7 +45,8 @@ if ROOT not in sys.path:
 from tools import training_common as tc  # noqa: E402
 from utilsTorch import unetTorch as unet  # noqa: E402
 from utilsTorch.utilsTorch import (QVUNetSegmentation,  # noqa: E402
-                                   ClassicalAblationUNetSegmentation)
+                                   ClassicalAblationUNetSegmentation,
+                                   segmentation_loss)
 
 ABLATION = 'classical ablation (mlp)'
 
@@ -231,10 +232,12 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
         x = torch.randn(batch, 3, image, image, generator=gen).to(device)
         y = (torch.rand(batch, 1, image, image, generator=gen) > 0.5).long().to(device)
 
+        loss_mode = str(cfg.get('loss', 'ce'))
+
         def step():
             opt.zero_grad()
             out = model(x)
-            loss = torch.nn.functional.cross_entropy(out, y.squeeze(1))
+            loss = segmentation_loss(out, y.squeeze(1), loss_mode=loss_mode)
             loss.backward()
             opt.step()
 
@@ -279,6 +282,16 @@ def main(argv=None):
                     default='global', help='spatial bottleneck mode (default: global)')
     ap.add_argument('--hqunet-grid', type=int, choices=[2, 4], default=2,
                     help='2D grid size G in {2, 4} for hqunet (default: 2)')
+    ap.add_argument('--skip-modulation', choices=['affine', 'additive'], default='affine',
+                    help='quantum bottleneck skip modulation (default: affine)')
+    ap.add_argument('--backbone-conv-mode', choices=['standard', 'depthwise_sep'], default='standard',
+                    help='UNet backbone convolution mode (default: standard)')
+    ap.add_argument('--loss', choices=['ce', 'dice_ce', 'focal_dice'], default='ce',
+                    help='segmentation training loss (default: ce)')
+    ap.add_argument('--no-time-emb', action='store_true', default=False,
+                    help='disable constant time-embedding MLP across ResNet blocks')
+    ap.add_argument('--augment', action='store_true', default=False,
+                    help='enable geometric training augmentation flag in config')
     ap.add_argument('--quick', action='store_true', help='reupload L=2 only in the block benchmark')
     ap.add_argument('--skip-block', action='store_true')
     ap.add_argument('--skip-model', action='store_true')
@@ -345,6 +358,11 @@ def main(argv=None):
                 q_layers=model_layers,
                 q_spatial_mode=args.q_spatial_mode,
                 hqunet_grid=args.hqunet_grid,
+                skip_modulation=args.skip_modulation,
+                backbone_conv_mode=args.backbone_conv_mode,
+                loss=args.loss,
+                use_time_emb=not args.no_time_emb,
+                augment=args.augment,
             ),
         )
         ratios = ratios_to_ablation(rows)

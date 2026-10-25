@@ -83,14 +83,48 @@ def _canonical_vtag(variant_str: str = None) -> str:
     v = EXEMPLAR_VARIANT if variant_str is None else variant_str
     if not v:
         return ""
-    ansatz, layers = _parse_exemplar_variant(v)
-    if ansatz == "legacy":
-        return "_legacy"
-    if ansatz == "hqunet":
-        m_hq = re.match(r"^hqunet_G(\d+)_L(\d+)", v.strip())
-        grid = int(m_hq.group(1)) if m_hq else 2
-        return f"_hqunet_G{grid}_L{layers}"
-    return f"_{ansatz}_L{layers}"
+    v_clean = v.strip().lstrip("_")
+    if not v_clean:
+        return ""
+    if v_clean == "legacy" or v_clean.startswith("legacy_"):
+        return f"_{v_clean}"
+    if v_clean == "hqunet":
+        return "_hqunet_G2_L2"
+    m_hq = re.match(r"^hqunet(?:_G(\d+))?_L(\d+)(.*)$", v_clean)
+    if m_hq:
+        grid = int(m_hq.group(1)) if m_hq.group(1) else 2
+        layers = int(m_hq.group(2))
+        suffix = m_hq.group(3) or ""
+        return f"_hqunet_G{grid}_L{layers}{suffix}"
+    if v_clean == "reupload":
+        return "_reupload_L2"
+    m = re.match(r"^([A-Za-z0-9]+)_L(\d+)(.*)$", v_clean)
+    if m:
+        return f"_{m.group(1)}_L{int(m.group(2))}{m.group(3) or ''}"
+    return f"_{v_clean}"
+
+
+def _apply_variant_to_config(cfg: dict, variant_str: str) -> dict:
+    out = dict(cfg)
+    ansatz, layers = _parse_exemplar_variant(variant_str)
+    out["q_ansatz"] = ansatz
+    out["q_layers"] = layers
+    v = (variant_str or "").strip().lstrip("_")
+    m_hq = re.match(r"^hqunet_G(\d+)_L(\d+)", v)
+    if m_hq:
+        out["hqunet_grid"] = int(m_hq.group(1))
+    tokens = set(v.split("_"))
+    for sm in ("pixel", "patch2x2", "patch4x4", "se_gate"):
+        if sm in tokens or f"_{sm}" in f"_{v}":
+            out["q_spatial_mode"] = sm
+            break
+    if "addskip" in tokens:
+        out["skip_modulation"] = "additive"
+    if "depthwise_sep" in v:
+        out["backbone_conv_mode"] = "depthwise_sep"
+    if "notime" in tokens:
+        out["use_time_emb"] = False
+    return out
 
 
 def _find_ckpt_in_dir(run_dir: str):
@@ -147,9 +181,15 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
     eff_results_dir = results_dir or RESULTS_DIR
     eff_qc = EXEMPLAR_QC if qc is None else int(qc)
     eff_variant = EXEMPLAR_VARIANT if variant is None else variant
+    is_default_qc = (not explicit_qc) and (eff_qc == 32) and ("QUAFFLE_EXEMPLAR_QC" not in os.environ)
+    is_default_variant = (
+        (not explicit_variant)
+        and (eff_variant == "reupload_L2")
+        and ("QUAFFLE_EXEMPLAR_VARIANT" not in os.environ)
+    )
     qc_suffix = "" if eff_qc == 32 else f"_qc{eff_qc}"
     vtag = _canonical_vtag(eff_variant)
-    raw_vtag = "" if not eff_variant else f"_{eff_variant}"
+    raw_vtag = "" if not eff_variant else f"_{eff_variant.strip().lstrip('_')}"
     base = os.path.join(
         eff_results_dir,
         f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}{qc_suffix}",
@@ -157,7 +197,7 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
     candidates = [f"{base}{vtag}_seed{seed}"]
     if raw_vtag and raw_vtag != vtag:
         candidates.append(f"{base}{raw_vtag}_seed{seed}")
-    if not explicit_variant:
+    if is_default_variant:
         candidates.append(f"{base}_seed{seed}")
     for d in candidates:
         found = _find_ckpt_in_dir(d)
@@ -190,7 +230,7 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
         expected_var_parts = [f"{qc_suffix}{vtag}"]
         if raw_vtag and f"{qc_suffix}{raw_vtag}" not in expected_var_parts:
             expected_var_parts.append(f"{qc_suffix}{raw_vtag}")
-        if not explicit_variant and qc_suffix not in expected_var_parts:
+        if is_default_variant and qc_suffix not in expected_var_parts:
             expected_var_parts.append(qc_suffix)
 
         # Pass 1: exact (qc, variant) match on scale-tagged federated or centralized runs
@@ -212,9 +252,9 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
                             if found:
                                 return found
 
-        # Pass 2: only when neither --qc nor --variant was explicitly requested,
+        # Pass 2: only when neither --qc nor --variant (nor QUAFFLE_EXEMPLAR_*) was explicitly requested,
         # fall back to an unambiguous single available variant for that modality
-        if not explicit_qc and not explicit_variant:
+        if is_default_qc and is_default_variant:
             for prefix in (fed_prefix, cent_prefix):
                 seed_matches = []
                 any_matches = []
@@ -476,12 +516,9 @@ def main(argv=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    ansatz, layers = _parse_exemplar_variant(eff_variant)
-    base_cfg = dict(
-        CONFIG,
-        quantum_channels=eff_qc,
-        q_ansatz=ansatz,
-        q_layers=layers,
+    base_cfg = _apply_variant_to_config(
+        dict(CONFIG, quantum_channels=eff_qc),
+        eff_variant,
     )
     checkpoints = {
         "optical": _fed_ckpt("", seed=args.seed, results_dir=results_dir, qc=args.qc, variant=args.variant),

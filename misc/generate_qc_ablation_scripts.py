@@ -36,6 +36,11 @@ def main(argv=None):
     ap.add_argument("--q-layers", type=int, default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
+    ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
+    ap.add_argument("--backbone-conv-mode", choices=["standard", "depthwise_sep"], default=None)
+    ap.add_argument("--loss", choices=["ce", "dice_ce", "focal_dice"], default=None)
+    ap.add_argument("--no-time-emb", action="store_true", default=False)
+    ap.add_argument("--augment", action="store_true", default=False)
     ap.add_argument("--base-channels", type=int, default=None)
     ap.add_argument("--no-quantum-knockout-eval", dest="knockout", action="store_false")
     ap.add_argument("--ckpt-every", type=int, default=5)
@@ -66,7 +71,10 @@ def main(argv=None):
                         ckpt_every=args.ckpt_every, ckpt_support=support,
                         safety=args.safety, floor=args.floor_hours,
                         cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
-                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels))
+                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
+                        skip_modulation=args.skip_modulation,
+                        backbone_conv_mode=args.backbone_conv_mode,
+                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment))
     gg.finish(ap, args, jobs, out_dir)
 
 
