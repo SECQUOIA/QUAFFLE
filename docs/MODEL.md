@@ -288,8 +288,8 @@ are not directly comparable.
 
 ## Multimodal input stems & non-IID federated partitioning (`#14`)
 
-In `flood_combined`, optical tiles (`(8, H, W)` GeoTIFFs; channels `[DEM, Blue, Green]`)
-and SAR tiles (`(4, H, W)` GeoTIFFs; channels `[DEM, VV, VH]`) have distinct physical
+In `flood_combined`, 12-band optical GeoTIFFs (default 3-band selection `[GREEN, NIR, SWIR1]`)
+and 6-band SAR GeoTIFFs (default 3-band selection `[VV, VH, COP_DEM]`) have distinct physical
 units and noise characteristics. `--combined-input-mode` controls how `flood_data.py`
 and `DownUnet` (`QVUNet` / `UNet`) represent and process these modalities:
 
@@ -297,14 +297,14 @@ and `DownUnet` (`QVUNet` / `UNet`) represent and process these modalities:
 | --- | --- | --- |
 | `'shared3'` (default) | `(3, H, W)` per sample | Single shared 3-channel `init_conv = Conv2d(3, init_dim, 7, padding=3)` |
 | `'concat6'` | `(6, H, W)` (`[Optical(3), SAR(3)]` with inactive half zero-padded) | 6-channel `init_conv = Conv2d(6, init_dim, 7, padding=3)` |
-| `'dual_stem'` | `(6, H, W)` (`[Optical(3), SAR(3)]`) | Separate 3-channel optical `init_conv` and SAR `init_conv_sar` stems routed per sample before the shared encoder (`init_conv_sar` is initialized under an isolated `fork_rng` so downstream paired-seed backbone weights remain 100% identical across Quantum, Ablation, and Classical models) |
+| `'dual_stem'` | `(4, H, W)` (`[C0, C1, C2, modality_id]`) | Separate 3-channel optical `init_conv` and SAR `init_conv_sar` stems routed per sample before the shared encoder (`init_conv_sar` is initialized under an isolated `fork_rng` so downstream paired-seed backbone weights remain 100% identical across Quantum, Ablation, and Classical models) |
 
 Federated partitioning (`--partition`) supports four realistic data-silo regimes:
 
 * `'random'` (default): IID uniform random shards.
 * `'dirichlet'`: Label-skew Dirichlet ($\operatorname{Dir}(\alpha)$) over binarized flood dominance with `min_client_samples` guard.
-* `'modality'`: Cross-sensor non-IID silos grouping optical tiles and SAR tiles onto dedicated sensor-specific clients (with `min_client_samples` guard).
-* `'geo_cluster'`: Geolocation / topographic feature-cluster non-IID silos using deterministic seeded $k$-means++ clustering on per-tile spectral/elevation/quadrant/flood feature vectors (with `min_client_samples` guard).
+* `'modality'`: Cross-sensor non-IID silos grouping optical tiles and SAR tiles onto dedicated pure sensor-specific clients (constrained by each modality's capacity under `min_client_samples`).
+* `'geo_cluster'`: Geolocation / topographic feature-cluster non-IID silos using deterministic seeded $k$-means++ clustering on canonical 7-D per-tile feature vectors (`3` channel means + `3` channel standard deviations + `1` flood coverage fraction, invariant across `combined_input_mode`) with `min_client_samples` guard.
 
 ## Federated heterogeneity & circular PQC angle aggregation (`#15`)
 

@@ -2464,12 +2464,26 @@ def fed_round_end(strategy, server_round):
         raise SystemExit(75)
 
 
+def _logical_client_id(cid, proxy):
+    """Return the stable logical client identity (`partition_id` in Flower Ray simulation,
+    falling back to `proxy_state.node_config['partition-id']` or `cid`)."""
+    part_id = getattr(proxy, 'partition_id', None)
+    if part_id is not None:
+        return str(part_id)
+    proxy_state = getattr(proxy, 'proxy_state', None)
+    node_cfg = getattr(proxy_state, 'node_config', None)
+    if isinstance(node_cfg, dict) and 'partition-id' in node_cfg:
+        return str(node_cfg['partition-id'])
+    return str(getattr(proxy, 'cid', cid))
+
+
 class RoundOffsetMixin:
     """Mixin for FedAvg subclasses: Flower always counts rounds from 1, so a
     resumed run shifts every server_round by round_offset. This keeps the
     on_fit_config_fn round (and therefore the per (seed, client, round)
-    shuffle seed), deterministic partial-participation client sampling, logs,
-    and checkpoints numbered as in an uninterrupted run.
+    shuffle seed), deterministic partial-participation client sampling over
+    stable logical partition IDs, logs, and checkpoints numbered as in an
+    uninterrupted run.
     aggregate_fit / aggregate_evaluate apply the offset in the subclass."""
     round_offset = 0
 
@@ -2487,24 +2501,29 @@ class RoundOffsetMixin:
                 client_manager.wait_for(min_num_clients)
                 all_clients = client_manager.all()
             if isinstance(all_clients, dict) and len(all_clients) >= sample_size:
-                sorted_cids = sorted(
-                    all_clients.keys(),
-                    key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
-                )
-                cfg_dict = getattr(self, 'config', None)
-                base_seed = int(cfg_dict.get('seed', 42)) if isinstance(cfg_dict, dict) else 42
-                if sample_size >= len(sorted_cids):
-                    chosen_cids = list(sorted_cids)
-                else:
-                    rng = random.Random(derive_seed(base_seed, 7000 + global_round))
-                    chosen_cids = sorted(
-                        rng.sample(sorted_cids, sample_size),
+                logical_to_proxy = {
+                    _logical_client_id(cid, proxy): proxy
+                    for cid, proxy in all_clients.items()
+                }
+                if len(logical_to_proxy) == len(all_clients):
+                    sorted_lids = sorted(
+                        logical_to_proxy.keys(),
                         key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
                     )
-                if not hasattr(self, 'selected_clients_by_round') or self.selected_clients_by_round is None:
-                    self.selected_clients_by_round = {}
-                self.selected_clients_by_round[int(global_round)] = [str(c) for c in chosen_cids]
-                return [(all_clients[cid], fit_ins) for cid in chosen_cids]
+                    cfg_dict = getattr(self, 'config', None)
+                    base_seed = int(cfg_dict.get('seed', 42)) if isinstance(cfg_dict, dict) else 42
+                    if sample_size >= len(sorted_lids):
+                        chosen_lids = list(sorted_lids)
+                    else:
+                        rng = random.Random(derive_seed(base_seed, 7000 + global_round))
+                        chosen_lids = sorted(
+                            rng.sample(sorted_lids, sample_size),
+                            key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                        )
+                    if not hasattr(self, 'selected_clients_by_round') or self.selected_clients_by_round is None:
+                        self.selected_clients_by_round = {}
+                    self.selected_clients_by_round[int(global_round)] = [str(c) for c in chosen_lids]
+                    return [(logical_to_proxy[lid], fit_ins) for lid in chosen_lids]
         return super().configure_fit(global_round, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):

@@ -392,7 +392,12 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
         if data.get("training") == "federated":
             fl_strat = data.get("fl_strategy")
             mu = data.get("fedprox_mu")
-            if fl_strat == "fedprox" or (mu is not None and float(mu) > 0.0):
+            eff_fl = (
+                fl_strat
+                if fl_strat is not None
+                else ("fedprox" if (mu is not None and float(mu) > 0.0) else "fedavg")
+            )
+            if eff_fl == "fedprox":
                 mu_val = float(mu) if mu is not None else 0.01
                 parts.append(f"fedprox{mu_val:g}")
             q_agg = data.get("q_angle_agg")

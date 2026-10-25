@@ -438,14 +438,17 @@ def test_partial_client_participation_and_fingerprints():
 
 def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_path):
     """B5 regression: interrupted-vs-uninterrupted partial participation (`num_clients=4`,
-    `clients_per_round=2`, `fed_rounds=2`) selects the exact same client IDs on every
-    global round and produces identical aggregated parameters."""
+    `clients_per_round=2`, `fed_rounds=2`) selects the exact same logical `partition_id`s
+    on every global round and produces identical aggregated parameters even when Flower's
+    `RayActorClientProxy` regenerates new `node_id`s (`proxy.cid`) across simulation restarts."""
     from flwr.server.client_manager import SimpleClientManager
     from flwr.server.client_proxy import ClientProxy
 
-    class _DummyProxy(ClientProxy):
-        def __init__(self, cid):
-            super().__init__(str(cid))
+    class _DummyRayProxy(ClientProxy):
+        def __init__(self, node_id, partition_id):
+            super().__init__(str(node_id))
+            self.node_id = int(node_id)
+            self.partition_id = int(partition_id)
 
         def get_properties(self, ins, timeout, group_id=None):
             return None
@@ -462,9 +465,15 @@ def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_
         def reconnect(self, ins, timeout, group_id=None):
             return None
 
-    cm = SimpleClientManager()
-    for cid in range(4):
-        cm.register(_DummyProxy(cid))
+    # Manager 1 (uninterrupted & round 1): ascending node_ids so lexicographic sort matches partition_id
+    cm_run1 = SimpleClientManager()
+    for part_id, node_id in zip([0, 1, 2, 3], [1001, 2002, 3003, 4004]):
+        cm_run1.register(_DummyRayProxy(node_id=node_id, partition_id=part_id))
+
+    # Manager 2 (restarted simulation for round 2): reversed / permuted node_ids so sorting by cid would invert order!
+    cm_run2 = SimpleClientManager()
+    for part_id, node_id in zip([0, 1, 2, 3], [9004, 8003, 7002, 6001]):
+        cm_run2.register(_DummyRayProxy(node_id=node_id, partition_id=part_id))
 
     cfg = _tiny_config(
         seed=42,
@@ -478,13 +487,13 @@ def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_
     init_nd = [p.detach().cpu().numpy().copy() for p in model.parameters()]
     init_params = ndarrays_to_parameters(init_nd)
 
-    def _make_client_fit_res(cid_int, global_round):
-        arrs = [a.copy() + 0.05 * (int(cid_int) + 1) + 0.01 * int(global_round) for a in init_nd]
+    def _make_client_fit_res(partition_id_int, global_round):
+        arrs = [a.copy() + 0.05 * (int(partition_id_int) + 1) + 0.01 * int(global_round) for a in init_nd]
         return FitRes(
             status=Status(code=Code.OK, message=""),
             parameters=ndarrays_to_parameters(arrs),
             num_examples=4,
-            metrics={"loss": 0.5 / (global_round + cid_int + 1)},
+            metrics={"loss": 0.5 / (global_round + partition_id_int + 1)},
         )
 
     # 1. Uninterrupted 2-round run
@@ -502,14 +511,14 @@ def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_
     strat_unint.fingerprint = tc.run_fingerprint(cfg, "quantum")
     curr_p = init_params
     for r in (1, 2):
-        pairs = strat_unint.configure_fit(r, curr_p, cm)
+        pairs = strat_unint.configure_fit(r, curr_p, cm_run1)
         assert len(pairs) == 2
-        results = [(proxy, _make_client_fit_res(int(proxy.cid), r)) for proxy, _ in pairs]
+        results = [(proxy, _make_client_fit_res(int(proxy.partition_id), r)) for proxy, _ in pairs]
         curr_p, _ = strat_unint.aggregate_fit(r, results, [])
         strat_unint.round_metrics.append({"round": r, "loss": 0.5 / r})
         tc.fed_round_end(strat_unint, r)
 
-    # 2. Interrupted after round 1, then resumed for round 2 (with global random perturbed!)
+    # 2. Interrupted after round 1, then resumed for round 2 on cm_run2 (regenerated node_ids + perturbed random)
     dir_res = str(tmp_path / "resumed")
     os.makedirs(dir_res, exist_ok=True)
     strat_r1 = QuantumFedAvg(
@@ -522,8 +531,8 @@ def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_
         min_available_clients=4,
     )
     strat_r1.fingerprint = tc.run_fingerprint(cfg, "quantum")
-    pairs_r1 = strat_r1.configure_fit(1, init_params, cm)
-    res_r1 = [(proxy, _make_client_fit_res(int(proxy.cid), 1)) for proxy, _ in pairs_r1]
+    pairs_r1 = strat_r1.configure_fit(1, init_params, cm_run1)
+    res_r1 = [(proxy, _make_client_fit_res(int(proxy.partition_id), 1)) for proxy, _ in pairs_r1]
     p_after_r1, _ = strat_r1.aggregate_fit(1, res_r1, [])
     strat_r1.round_metrics.append({"round": 1, "loss": 0.5})
     tc.fed_round_end(strat_r1, 1)
@@ -548,9 +557,10 @@ def test_partial_participation_checkpoint_resume_client_sampling_continuity(tmp_
     resumed_params, rem_rounds = tc.apply_fed_resume(strat_r2, ckpt_r1)
     assert rem_rounds == 1
     assert strat_r2.round_offset == 1
-    # Flower starts resumed simulation at server_round=1 (global_round = 1 + 1 = 2)
-    pairs_r2 = strat_r2.configure_fit(1, resumed_params, cm)
-    res_r2 = [(proxy, _make_client_fit_res(int(proxy.cid), 2)) for proxy, _ in pairs_r2]
+    # Flower starts resumed simulation at server_round=1 (global_round = 1 + 1 = 2) with new node_ids (cm_run2)
+    pairs_r2 = strat_r2.configure_fit(1, resumed_params, cm_run2)
+    assert [int(p.partition_id) for p, _ in pairs_r2] == [int(c) for c in strat_unint.selected_clients_by_round[2]]
+    res_r2 = [(proxy, _make_client_fit_res(int(proxy.partition_id), 2)) for proxy, _ in pairs_r2]
     p_after_r2, _ = strat_r2.aggregate_fit(1, res_r2, [])
     strat_r2.round_metrics.append({"round": 2, "loss": 0.25})
     tc.fed_round_end(strat_r2, 2)
@@ -623,6 +633,19 @@ def test_generate_grid_wave3_check_flags():
         fraction_fit=0.5,
     )
     assert "K8C4" in job_both["name"] and "K8C2" not in job_both["name"]
+
+    # NB2 regression: explicit fl_strategy="fedavg" with fedprox_mu > 0 keeps fedavg naming
+    job_fedavg_mu = gg.build_job(
+        method="quantum",
+        mode="fed-random",
+        dataset="combined",
+        seed=42,
+        root=REPO_ROOT,
+        python=sys.executable,
+        fl_strategy="fedavg",
+        fedprox_mu=0.1,
+    )
+    assert "fedprox" not in job_fedavg_mu["name"]
 
     # Also verify analyze_results parses Wave 3 directory names and metrics fields
     import analyze_results as ar

@@ -417,7 +417,12 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     if augment:
         parts.append("aug")
     if kind == "federated":
-        if fl_strategy == "fedprox" or (fedprox_mu is not None and float(fedprox_mu) > 0.0):
+        eff_fl_strategy = (
+            fl_strategy
+            if fl_strategy is not None
+            else ("fedprox" if (fedprox_mu is not None and float(fedprox_mu) > 0.0) else "fedavg")
+        )
+        if eff_fl_strategy == "fedprox":
             mu_val = float(fedprox_mu) if fedprox_mu is not None else 0.01
             parts.append("fedprox%g" % mu_val)
         if method == "quantum" and q_angle_agg == "circular":
