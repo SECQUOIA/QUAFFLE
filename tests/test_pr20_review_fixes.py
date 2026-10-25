@@ -233,6 +233,130 @@ def test_local_mini_sweep_cli_and_summary_helpers():
     assert abs(st["ko_zero_delta_loss"]["mean"] - 0.05) < 1e-6
 
 
+def test_local_mini_sweep_review_fixes_custom_seeds_workdir_and_validation(tmp_path, monkeypatch):
+    """PR #38 Round 1 review fixes:
+    - B1: custom seeds (outside config/seeds.py) work end-to-end with analyze_results and preserve reports.
+    - B2: reusing --work-dir cleans stale dataset tiles and result directories.
+    - NB1: duplicate/empty seeds and invalid/duplicate panel IDs are rejected.
+    - NB2: explicit --device cuda raises when CUDA is unavailable, and env vars are restored.
+    """
+    import glob
+    import json
+    import pytest
+    from scripts import run_local_mini_sweep as sweep
+
+    # NB1: validation checks
+    with pytest.raises(ValueError, match="must not be empty"):
+        sweep.run_mini_sweep(seeds=[])
+    with pytest.raises(ValueError, match="Duplicate seeds"):
+        sweep.run_mini_sweep(seeds=[42, 42])
+    with pytest.raises(ValueError, match="panels_filter"):
+        sweep.run_mini_sweep(seeds=[42], panels_filter=[99])
+    with pytest.raises(ValueError, match="Duplicate panel IDs"):
+        sweep.run_mini_sweep(seeds=[42], panels_filter=[1, 1])
+    with pytest.raises(SystemExit):
+        sweep.main(["--seeds", "42", "42"])
+    with pytest.raises(SystemExit):
+        sweep.main(["--panels", "99"])
+
+    # NB2: explicit --device cuda fails loudly when CUDA is unavailable
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    with pytest.raises(RuntimeError, match="Requested --device cuda"):
+        sweep.run_mini_sweep(seeds=[42], device="cuda")
+
+    # Mock _invoke_entry for training entrypoints while letting analyze_results.main run for real
+    call_counter = {"n": 0}
+    orig_invoke = sweep._invoke_entry
+
+    def _fast_invoke(entry_fn, argv):
+        if entry_fn is sweep.analyze_results.main:
+            return orig_invoke(entry_fn, [*argv, "--skip-plots"])
+        call_counter["n"] += 1
+        rdir = argv[argv.index("--results-dir") + 1]
+        seed = int(argv[argv.index("--seed") + 1])
+        in_mode = argv[argv.index("--combined-input-mode") + 1] if "--combined-input-mode" in argv else "shared3"
+        tag = f"_in-{in_mode}" if in_mode != "shared3" else ""
+        run_name = f"flood_central_optical_pytorch_pennylane_combined_reupload_L2{tag}_bc8_img16_seed{seed}"
+        out_dir = os.path.join(rdir, run_name, "results")
+        os.makedirs(out_dir, exist_ok=True)
+        metrics = {
+            "seed": seed,
+            "dataset": "combined",
+            "training": "centralized",
+            "variant": "quantum",
+            "q_ansatz": "reupload",
+            "q_layers": 2,
+            "q_backend": "pennylane",
+            "combined_input_mode": in_mode,
+            "base_channels": 8,
+            "image_size": 16,
+            "is_mini_run": True,
+            "total_params": 537386,
+            "val": {"iou": 0.85, "dice": 0.91, "auc": 0.97, "loss": 0.20, "accuracy": 0.90},
+            "test": {"iou": 0.86, "dice": 0.92, "auc": 0.98, "loss": 0.19, "accuracy": 0.91},
+            "knockout": {
+                "on": {"iou": 0.86, "loss": 0.19},
+                "zero": {"iou": 0.81, "loss": 0.24},
+            },
+        }
+        with open(os.path.join(out_dir, "metrics.json"), "w") as f:
+            json.dump(metrics, f)
+        return 0.05
+
+    monkeypatch.setattr(sweep, "_invoke_entry", _fast_invoke)
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "sentinel_gpu")
+    monkeypatch.setenv("QUAFFLE_Q_SIM_DEVICE", "sentinel_sim")
+
+    work_dir = str(tmp_path / "reused_work")
+    out_json = str(tmp_path / "out" / "summary.json")
+    out_md = str(tmp_path / "out" / "report.md")
+
+    # B1 + B2 first run: custom seed=1 (not in config/seeds.py), n_train=6, n_test=3
+    summary1 = sweep.run_mini_sweep(
+        seeds=[1],
+        image_size=16,
+        n_train=6,
+        n_test=3,
+        device="cpu",
+        work_dir=work_dir,
+        keep_work_dir=True,
+        out_json=out_json,
+        out_md=out_md,
+        panels_filter=[2],
+    )
+    assert summary1["seeds"] == [1]
+    assert os.path.isfile(out_json)
+    assert os.path.isfile(out_md)
+    assert os.path.isfile(os.path.join(work_dir, "results", "analysis", "analysis_summary.xlsx"))
+    opt_train_1 = glob.glob(os.path.join(work_dir, "mini_data", "flood_optical", "Training", "images", "*.tif"))
+    opt_test_1 = glob.glob(os.path.join(work_dir, "mini_data", "flood_optical", "Testing", "images", "*.tif"))
+    assert len(opt_train_1) == 6
+    assert len(opt_test_1) == 3
+
+    # NB2: environment variables restored after run_mini_sweep
+    assert os.environ.get("CUDA_VISIBLE_DEVICES") == "sentinel_gpu"
+    assert os.environ.get("QUAFFLE_Q_SIM_DEVICE") == "sentinel_sim"
+
+    # B2 second run on same work_dir with smaller n_train=4, n_test=2 must not retain stale tiles
+    summary2 = sweep.run_mini_sweep(
+        seeds=[2],
+        image_size=16,
+        n_train=4,
+        n_test=2,
+        device="cpu",
+        work_dir=work_dir,
+        keep_work_dir=True,
+        out_json=out_json,
+        out_md=out_md,
+        panels_filter=[2],
+    )
+    assert summary2["seeds"] == [2]
+    opt_train_2 = glob.glob(os.path.join(work_dir, "mini_data", "flood_optical", "Training", "images", "*.tif"))
+    opt_test_2 = glob.glob(os.path.join(work_dir, "mini_data", "flood_optical", "Testing", "images", "*.tif"))
+    assert len(opt_train_2) == 4
+    assert len(opt_test_2) == 2
+
+
 def test_centralized_checkpoint_fingerprint_validation(capsys):
     """Blocking #6: centralized resume validates full config fingerprint and RUN_FORMAT."""
     assert tc.RUN_FORMAT == "split-v3"

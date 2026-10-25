@@ -196,21 +196,64 @@ def run_mini_sweep(
     panels_filter: Optional[Sequence[int]] = None,
 ) -> Dict[str, Any]:
     t_start = time.perf_counter()
-    if device == "cpu":
-        os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    eff_device = "cuda" if (device != "cpu" and torch.cuda.is_available()) else "cpu"
+    seed_list = [int(s) for s in seeds]
+    if not seed_list:
+        raise ValueError("seeds must not be empty.")
+    if len(set(seed_list)) != len(seed_list):
+        raise ValueError(f"Duplicate seeds are not allowed: {seed_list}")
 
-    os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "1"
-    os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "1"
+    valid_panel_ids = {1, 2, 3}
+    if panels_filter is not None:
+        panel_list = [int(p) for p in panels_filter]
+        if not panel_list or not set(panel_list).issubset(valid_panel_ids):
+            raise ValueError(
+                f"panels_filter must be a non-empty subset of {sorted(valid_panel_ids)}, got {panel_list}"
+            )
+        if len(set(panel_list)) != len(panel_list):
+            raise ValueError(f"Duplicate panel IDs are not allowed: {panel_list}")
+        active_panels = set(panel_list)
+    else:
+        active_panels = set(valid_panel_ids)
+
+    if device not in ("auto", "cpu", "cuda"):
+        raise ValueError(f"device must be 'auto', 'cpu', or 'cuda', got {device!r}")
+    if device == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("Requested --device cuda, but torch.cuda.is_available() is False.")
+
+    _env_keys = (
+        "CUDA_VISIBLE_DEVICES",
+        "QUAFFLE_Q_SIM_DEVICE",
+        "QUAFFLE_SKIP_EXCEL_TRACKER",
+        "QUAFFLE_SKIP_CURVE_PLOTS",
+    )
+    _saved_env = {k: os.environ.get(k) for k in _env_keys}
 
     created_tmp = work_dir is None
     root_dir = work_dir or tempfile.mkdtemp(prefix="quaffle_mini_sweep_")
     data_root = os.path.join(root_dir, "mini_data")
     results_dir = os.path.join(root_dir, "results")
-    os.makedirs(results_dir, exist_ok=True)
 
-    seed_list = [int(s) for s in seeds]
     try:
+        if device == "cpu":
+            os.environ["CUDA_VISIBLE_DEVICES"] = ""
+            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cpu"
+            eff_device = "cpu"
+        elif device == "cuda" or torch.cuda.is_available():
+            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cuda"
+            eff_device = "cuda"
+        else:
+            os.environ["QUAFFLE_Q_SIM_DEVICE"] = "cpu"
+            eff_device = "cpu"
+
+        os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "1"
+        os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "1"
+
+        if os.path.exists(data_root):
+            shutil.rmtree(data_root)
+        if os.path.exists(results_dir):
+            shutil.rmtree(results_dir)
+        os.makedirs(results_dir, exist_ok=True)
+
         make_mini_flood_dataset.generate_mini_flood_dataset(
             data_root,
             n_train=int(n_train),
@@ -398,7 +441,6 @@ def run_mini_sweep(
             ),
         ]
 
-        active_panels = set(panels_filter) if panels_filter else {1, 2, 3}
         panels_out = []
         pattern = os.path.join(results_dir, "*", "results", "metrics.json")
 
@@ -430,16 +472,19 @@ def run_mini_sweep(
                 "rows": rows_out,
             })
 
-        analysis_dir = os.path.join(results_dir, "analysis")
-        _invoke_entry(
-            analyze_results.main,
-            [
-                "analyze_results.py",
-                "--results-dir", results_dir,
-                "--out-dir", analysis_dir,
-                "--include-mini",
-            ],
-        )
+        def _write_outputs(summary_dict: Dict[str, Any], md_text: str) -> None:
+            if out_json:
+                out_json_dir = os.path.dirname(os.path.abspath(out_json))
+                if out_json_dir:
+                    os.makedirs(out_json_dir, exist_ok=True)
+                with open(out_json, "w") as f:
+                    json.dump(summary_dict, f, indent=2)
+            if out_md:
+                out_md_dir = os.path.dirname(os.path.abspath(out_md))
+                if out_md_dir:
+                    os.makedirs(out_md_dir, exist_ok=True)
+                with open(out_md, "w") as f:
+                    f.write(md_text)
 
         total_elapsed = time.perf_counter() - t_start
         summary = {
@@ -456,23 +501,36 @@ def run_mini_sweep(
             "panels": panels_out,
         }
         md_report = _format_markdown_report(summary)
-        print("\n" + md_report)
+        _write_outputs(summary, md_report)
 
-        if out_json:
-            os.makedirs(os.path.dirname(os.path.abspath(out_json)), exist_ok=True)
-            with open(out_json, "w") as f:
-                json.dump(summary, f, indent=2)
-        if out_md:
-            os.makedirs(os.path.dirname(os.path.abspath(out_md)), exist_ok=True)
-            with open(out_md, "w") as f:
-                f.write(md_report)
+        analysis_dir = os.path.join(results_dir, "analysis")
+        _invoke_entry(
+            analyze_results.main,
+            [
+                "analyze_results.py",
+                "--results-dir", results_dir,
+                "--out-dir", analysis_dir,
+                "--include-mini",
+                "--seeds", *[str(s) for s in seed_list],
+            ],
+        )
+
+        summary["total_elapsed_s"] = time.perf_counter() - t_start
+        md_report = _format_markdown_report(summary)
+        print("\n" + md_report)
+        _write_outputs(summary, md_report)
         return summary
     finally:
+        for k, val in _saved_env.items():
+            if val is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = val
         if created_tmp and not keep_work_dir and os.path.exists(root_dir):
             shutil.rmtree(root_dir, ignore_errors=True)
 
 
-def main() -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=int, nargs="+", default=[42, 77, 123])
     parser.add_argument("--base-channels", type=int, default=8)
@@ -491,8 +549,12 @@ def main() -> None:
     parser.add_argument("--keep-work-dir", action="store_true")
     parser.add_argument("--out-json", type=str, default=None)
     parser.add_argument("--out-md", type=str, default=None)
-    parser.add_argument("--panels", type=int, nargs="+", default=None)
-    args = parser.parse_args()
+    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3], default=None)
+    args = parser.parse_args(argv)
+    if len(set(args.seeds)) != len(args.seeds):
+        parser.error(f"Duplicate seeds are not allowed: {args.seeds}")
+    if args.panels is not None and len(set(args.panels)) != len(args.panels):
+        parser.error(f"Duplicate panel IDs are not allowed: {args.panels}")
     run_mini_sweep(
         seeds=args.seeds,
         base_channels=args.base_channels,
