@@ -160,8 +160,8 @@ def test_grid_runtime_baseline_and_monotonic_scaling():
 
 
 def test_private_artifact_ignore_guards():
-    """#29 (ignore portion): HANDOFF.md, *handoff*.zip, and plans/ are ignored by git
-    and absent from tracked files."""
+    """#29: HANDOFF.md, *handoff*.zip, and plans/ are ignored by git, absent from
+    tracked files, and root LICENSE file exists with MIT License."""
     for rel in ("HANDOFF.md", "QUAFFLE_handoff.zip", "plans/2026-10-16_quaffle-pennylane-speed.md"):
         r = subprocess.run(
             ["git", "-C", ROOT, "check-ignore", "-q", rel],
@@ -178,6 +178,59 @@ def test_private_artifact_ignore_guards():
         check=True,
     ).stdout.strip()
     assert tracked == "", f"Private handoff files are tracked: {tracked}"
+
+    lic_path = os.path.join(ROOT, "LICENSE")
+    assert os.path.isfile(lic_path), "LICENSE file is missing at repository root"
+    with open(lic_path, "r", encoding="utf-8") as f:
+        lic_text = f.read()
+    assert "MIT License" in lic_text
+    assert "Copyright (c) 2026 SECQUOIA" in lic_text
+
+
+def test_issue_29_gitignore_missing_handoff_guards_and_license_missing():
+    """Triage regression test alias for #29."""
+    test_private_artifact_ignore_guards()
+
+
+def test_local_mini_sweep_cli_and_summary_helpers():
+    """Verify scripts/run_local_mini_sweep.py CLI --help and summary/report helpers."""
+    from scripts import run_local_mini_sweep as rlms
+
+    r = subprocess.run(
+        [sys.executable, os.path.join(ROOT, "scripts", "run_local_mini_sweep.py"), "--help"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        check=True,
+    )
+    assert "--base-channels" in r.stdout
+    assert "--image-size" in r.stdout
+    assert "--seeds" in r.stdout
+
+    fake_records = [
+        {
+            "seed": 42,
+            "total_params": 1000,
+            "val": {"iou": 0.80},
+            "test": {"iou": 0.82, "dice": 0.90, "auc": 0.95, "loss": 0.20},
+            "knockout": {"zero": {"iou": 0.78, "loss": 0.25}},
+            "_elapsed_s": 1.5,
+        },
+        {
+            "seed": 77,
+            "total_params": 1000,
+            "val": {"iou": 0.84},
+            "test": {"iou": 0.86, "dice": 0.92, "auc": 0.97, "loss": 0.16},
+            "knockout": {"zero": {"iou": 0.80, "loss": 0.21}},
+            "_elapsed_s": 1.7,
+        },
+    ]
+    st = rlms._summarize_seed_runs(fake_records)
+    assert st["n_seeds"] == 2
+    assert st["total_params"] == 1000
+    assert abs(st["test_iou"]["mean"] - 0.84) < 1e-6
+    assert abs(st["ko_zero_delta_iou"]["mean"] - 0.05) < 1e-6
+    assert abs(st["ko_zero_delta_loss"]["mean"] - 0.05) < 1e-6
 
 
 def test_centralized_checkpoint_fingerprint_validation(capsys):
