@@ -116,8 +116,17 @@ def _find_ckpt_in_dir(run_dir: str):
     return None
 
 
+_SCALE_AND_SEED_RE = re.compile(
+    r"(?:_qtorch|_qpergroup)?"
+    r"(?:_bc\d+)?(?:_img\d+)?(?:_max\d+|_n\d+)?(?:_dr[0-9a-f]{6,16})?"
+    r"_seed(?P<seed>\d+)$"
+)
+
+
 def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
     explicit_seed = seed is not None
+    explicit_qc = qc is not None
+    explicit_variant = variant is not None
     if seed is None:
         seed = EXEMPLAR_SEED
     if len(args) == 1:
@@ -148,13 +157,14 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
     candidates = [f"{base}{vtag}_seed{seed}"]
     if raw_vtag and raw_vtag != vtag:
         candidates.append(f"{base}{raw_vtag}_seed{seed}")
-    candidates.append(f"{base}_seed{seed}")
+    if not explicit_variant:
+        candidates.append(f"{base}_seed{seed}")
     for d in candidates:
         found = _find_ckpt_in_dir(d)
         if found:
             return found
 
-    # Fallback discovery for scale-tagged mini-dataset runs or alternative seeds in eff_results_dir
+    # Fallback discovery for scale-tagged mini-dataset runs in eff_results_dir
     if os.path.isdir(eff_results_dir):
         fed_prefix = f"flood_federated_optical_pytorch_pennylane_random{ds_suffix}"
         cent_prefix = f"flood_central_optical_pytorch_pennylane{ds_suffix}"
@@ -164,36 +174,64 @@ def _fed_ckpt(*args, seed=None, results_dir=None, qc=None, variant=None):
         except OSError:
             entries = []
 
-        def _matches_prefix(entry_name: str, prefix: str) -> bool:
+        def _parse_entry(entry_name: str, prefix: str):
             if not entry_name.startswith(prefix):
-                return False
+                return None, None
             rest = entry_name[len(prefix):]
             for od in other_ds:
                 if rest.startswith(od):
-                    return False
-            return True
+                    return None, None
+            m = _SCALE_AND_SEED_RE.search(rest)
+            if not m:
+                return None, None
+            var_part = rest[:m.start()]
+            return var_part, int(m.group("seed"))
 
-        # 1. Federated runs matching requested seed (e.g. with _bc4_img32_dr<hash>_seed<seed>)
-        for entry in entries:
-            if _matches_prefix(entry, fed_prefix) and entry.endswith(f"_seed{seed}"):
-                found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
-                if found:
-                    return found
-        # 2. If seed was not explicitly forced (or default 999 not present), any federated seed for modality
-        if not explicit_seed:
-            for entry in entries:
-                if _matches_prefix(entry, fed_prefix) and "_seed" in entry:
+        expected_var_parts = [f"{qc_suffix}{vtag}"]
+        if raw_vtag and f"{qc_suffix}{raw_vtag}" not in expected_var_parts:
+            expected_var_parts.append(f"{qc_suffix}{raw_vtag}")
+        if not explicit_variant and qc_suffix not in expected_var_parts:
+            expected_var_parts.append(qc_suffix)
+
+        # Pass 1: exact (qc, variant) match on scale-tagged federated or centralized runs
+        for prefix in (fed_prefix, cent_prefix):
+            for want_var in expected_var_parts:
+                # 1a. Exact seed match
+                for entry in entries:
+                    var_part, entry_seed = _parse_entry(entry, prefix)
+                    if var_part == want_var and entry_seed == seed:
+                        found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
+                        if found:
+                            return found
+                # 1b. Any seed if seed was not explicitly forced
+                if not explicit_seed:
+                    for entry in entries:
+                        var_part, entry_seed = _parse_entry(entry, prefix)
+                        if var_part == want_var and entry_seed is not None:
+                            found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
+                            if found:
+                                return found
+
+        # Pass 2: only when neither --qc nor --variant was explicitly requested,
+        # fall back to an unambiguous single available variant for that modality
+        if not explicit_qc and not explicit_variant:
+            for prefix in (fed_prefix, cent_prefix):
+                seed_matches = []
+                any_matches = []
+                for entry in entries:
+                    var_part, entry_seed = _parse_entry(entry, prefix)
+                    if var_part is None:
+                        continue
                     found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
-                    if found:
-                        return found
-        # 3. Centralized quantum run fallback for mini-benchmark directories
-        for entry in entries:
-            if _matches_prefix(entry, cent_prefix) and (
-                entry.endswith(f"_seed{seed}") or (not explicit_seed and "_seed" in entry)
-            ):
-                found = _find_ckpt_in_dir(os.path.join(eff_results_dir, entry))
-                if found:
-                    return found
+                    if not found:
+                        continue
+                    any_matches.append((var_part, found))
+                    if entry_seed == seed:
+                        seed_matches.append((var_part, found))
+                if len({vp for vp, _ in seed_matches}) == 1:
+                    return seed_matches[0][1]
+                if not explicit_seed and not seed_matches and len({vp for vp, _ in any_matches}) == 1:
+                    return any_matches[0][1]
 
     return os.path.join(candidates[0], "checkpoint_round_25.pt")
 
@@ -328,23 +366,41 @@ def _load_checkpoint_into_model(model, ckpt):
 def _resolve_model_config_for_checkpoint(ckpt, ckpt_path=None, base_config=None):
     """Build a QVUNetSegmentation config dict matching the saved checkpoint architecture.
 
-    Reads architecture keys from `ckpt['fingerprint']` (and sibling `results/metrics.json`
-    when available), falling back to `base_config` / `CONFIG` for legacy checkpoints.
+    Reads architecture keys from sibling `results/metrics.json` (including top-level
+    fields written by `write_metrics_json`), sibling `fed_resume.pt` (when loading a
+    periodic `checkpoint_round_*.pt`), and `ckpt['fingerprint']` / `ckpt['config']`,
+    falling back to `base_config` / `CONFIG` for legacy checkpoints.
     """
     cfg = dict(base_config or CONFIG)
     sources = []
     if ckpt_path:
-        metrics_path = os.path.join(os.path.dirname(os.path.abspath(ckpt_path)), "results", "metrics.json")
+        run_dir = os.path.dirname(os.path.abspath(ckpt_path))
+        metrics_path = os.path.join(run_dir, "results", "metrics.json")
         if os.path.exists(metrics_path):
             try:
                 with open(metrics_path, encoding="utf-8") as f:
                     mdata = json.load(f)
-                if isinstance(mdata.get("config"), dict):
-                    sources.append(mdata["config"])
-                if isinstance(mdata.get("fingerprint"), dict):
-                    sources.append(mdata["fingerprint"])
+                if isinstance(mdata, dict):
+                    sources.append(mdata)
+                    if isinstance(mdata.get("config"), dict):
+                        sources.append(mdata["config"])
+                    if isinstance(mdata.get("fingerprint"), dict):
+                        sources.append(mdata["fingerprint"])
             except Exception:
                 pass
+        # If loading checkpoint_round_*.pt (which has no fingerprint), also check sibling fed_resume.pt
+        if not (isinstance(ckpt, dict) and isinstance(ckpt.get("fingerprint"), dict)):
+            resume_path = os.path.join(run_dir, "fed_resume.pt")
+            if os.path.exists(resume_path) and os.path.abspath(resume_path) != os.path.abspath(ckpt_path):
+                try:
+                    rckpt = tc.safe_torch_load(resume_path, map_location="cpu")
+                    if isinstance(rckpt, dict):
+                        if isinstance(rckpt.get("config"), dict):
+                            sources.append(rckpt["config"])
+                        if isinstance(rckpt.get("fingerprint"), dict):
+                            sources.append(rckpt["fingerprint"])
+                except Exception:
+                    pass
     if isinstance(ckpt, dict):
         if isinstance(ckpt.get("config"), dict):
             sources.append(ckpt["config"])
@@ -389,12 +445,14 @@ def _resolve_model_config_for_checkpoint(ckpt, ckpt_path=None, base_config=None)
     if not explicit_init_dim:
         cfg["init_dim"] = bc
     if not explicit_groups:
-        cfg["resnet_block_groups"] = min(int(cfg.get("resnet_block_groups", 4)), bc)
+        cfg["resnet_block_groups"] = tc._compatible_group_count(
+            bc, int(cfg.get("resnet_block_groups", 4))
+        )
     return cfg
 
 
 def main(argv=None):
-    global OUT_DIR, RESULTS_DIR, DATA_ROOT
+    global OUT_DIR
     ap = argparse.ArgumentParser(description="Build the exemplar figure.")
     ap.add_argument("--out-dir", "--out", dest="out_dir", default=OUT_DIR,
                     help="Output folder (default %(default)s)")
@@ -404,34 +462,36 @@ def main(argv=None):
                     help="Data root containing flood_optical/ and flood_SAR/ (default %(default)s)")
     ap.add_argument("--seed", type=int, default=None,
                     help="Checkpoint seed to load (default: $QUAFFLE_EXEMPLAR_SEED or 999, with mini-run fallback)")
-    ap.add_argument("--qc", type=int, default=EXEMPLAR_QC,
-                    help="Quantum channels (default %(default)s)")
-    ap.add_argument("--variant", default=EXEMPLAR_VARIANT,
-                    help="Quantum variant tag, e.g. reupload_L2, legacy, hqunet_G2_L2 (default %(default)s)")
+    ap.add_argument("--qc", type=int, default=None,
+                    help="Quantum channels (default: $QUAFFLE_EXEMPLAR_QC or 32)")
+    ap.add_argument("--variant", default=None,
+                    help="Quantum variant tag, e.g. reupload_L2, legacy, hqunet_G2_L2 (default: $QUAFFLE_EXEMPLAR_VARIANT or reupload_L2)")
     args = ap.parse_args(argv)
     OUT_DIR = os.path.abspath(args.out_dir)
-    RESULTS_DIR = os.path.abspath(args.results_dir)
-    DATA_ROOT = os.path.abspath(args.data_root)
+    results_dir = os.path.abspath(args.results_dir)
+    data_root = os.path.abspath(args.data_root)
+    eff_qc = EXEMPLAR_QC if args.qc is None else int(args.qc)
+    eff_variant = EXEMPLAR_VARIANT if args.variant is None else args.variant
     os.makedirs(OUT_DIR, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    ansatz, layers = _parse_exemplar_variant(args.variant)
+    ansatz, layers = _parse_exemplar_variant(eff_variant)
     base_cfg = dict(
         CONFIG,
-        quantum_channels=int(args.qc),
+        quantum_channels=eff_qc,
         q_ansatz=ansatz,
         q_layers=layers,
     )
     checkpoints = {
-        "optical": _fed_ckpt("", seed=args.seed, results_dir=RESULTS_DIR, qc=args.qc, variant=args.variant),
-        "sar": _fed_ckpt("_sar", seed=args.seed, results_dir=RESULTS_DIR, qc=args.qc, variant=args.variant),
+        "optical": _fed_ckpt("", seed=args.seed, results_dir=results_dir, qc=args.qc, variant=args.variant),
+        "sar": _fed_ckpt("_sar", seed=args.seed, results_dir=results_dir, qc=args.qc, variant=args.variant),
     }
     test_dirs = {
-        "optical": (os.path.join(DATA_ROOT, "flood_optical/Testing/images"),
-                    os.path.join(DATA_ROOT, "flood_optical/Testing/labels")),
-        "sar": (os.path.join(DATA_ROOT, "flood_SAR/Testing/images"),
-                os.path.join(DATA_ROOT, "flood_SAR/Testing/labels")),
+        "optical": (os.path.join(data_root, "flood_optical/Testing/images"),
+                    os.path.join(data_root, "flood_optical/Testing/labels")),
+        "sar": (os.path.join(data_root, "flood_SAR/Testing/images"),
+                os.path.join(data_root, "flood_SAR/Testing/labels")),
     }
 
     picks = {}
@@ -447,7 +507,7 @@ def main(argv=None):
         print(f"  Test dir: {imgs_dir}")
         ckpt = tc.safe_torch_load(ckpt_path, map_location=device)
         model_cfg = _resolve_model_config_for_checkpoint(ckpt, ckpt_path=ckpt_path, base_config=base_cfg)
-        ds = FloodSegmentationDataset(imgs_dir, masks_dir, model_cfg["image_size"], data_root=DATA_ROOT)
+        ds = FloodSegmentationDataset(imgs_dir, masks_dir, model_cfg["image_size"], data_root=data_root)
         print(f"  Loaded {len(ds)} test samples")
         loader = DataLoader(ds, batch_size=8, shuffle=False, num_workers=0)
 

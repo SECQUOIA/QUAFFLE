@@ -33,7 +33,7 @@ import re
 import sys
 from collections import OrderedDict
 
-_SCALE_TAG_RE_STR = r"(?P<scale>(?:_bc\d+)?(?:_img\d+)?(?:_n\d+)?(?:_dr[0-9a-f]{6,16})?)"
+_SCALE_TAG_RE_STR = r"(?P<scale>(?:_bc\d+)?(?:_img\d+)?(?:_max\d+|_n\d+)?(?:_dr[0-9a-f]{6,16})?)"
 _SCALE_STRIP_RE = re.compile(_SCALE_TAG_RE_STR + r"$")
 
 RUN_RE = re.compile(
@@ -252,13 +252,14 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.root_b is None:
         args.root_b = args.root_a
-    if (
-        os.path.abspath(args.root_a) == os.path.abspath(args.root_b)
-        and args.btag_a is None
-        and args.btag_b is None
-    ):
-        args.btag_a = "_qtorch"
-        args.btag_b = ""
+    if os.path.abspath(args.root_a) == os.path.abspath(args.root_b):
+        if args.btag_a is None and args.btag_b is None:
+            args.btag_a = "_qtorch"
+            args.btag_b = ""
+        elif args.btag_a is None:
+            args.btag_a = "_qtorch" if args.btag_b == "" else ""
+        elif args.btag_b is None:
+            args.btag_b = "" if args.btag_a != "" else "_qtorch"
 
     for r in (args.root_a, args.root_b):
         if not os.path.isdir(r):

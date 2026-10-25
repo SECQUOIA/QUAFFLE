@@ -653,12 +653,12 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
     output_dir = os.path.abspath(output_dir)
     results_dir = os.path.join(output_dir, "results")
     os.makedirs(results_dir, exist_ok=True)
+    if num_samples <= 0:
+        return
     model.eval()
     count = 0
     with torch.no_grad():
         for imgs, masks in dataloader:
-            if count >= num_samples:
-                break
             imgs, masks = imgs.to(device), masks.to(device)
             logits = model(imgs)
             preds = torch.argmax(logits, dim=1)
@@ -691,6 +691,8 @@ def visualize_results(model, dataloader, device, output_dir, title_prefix="", fi
                 count += 1
                 if count >= num_samples:
                     break
+            if count >= num_samples:
+                break
     print(f"Visualizations saved in {results_dir}")
 
 

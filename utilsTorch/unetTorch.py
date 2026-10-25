@@ -103,6 +103,14 @@ class DepthwiseSeparableConv(nn.Module):
         return self.pointwise(self.depthwise(x))
 
 
+def _compatible_group_count(channels: int, max_groups: int = 4) -> int:
+    """Return the largest divisor of `channels` that is <= `max_groups` (at least 1)."""
+    for g in range(min(int(max_groups), int(channels)), 0, -1):
+        if int(channels) % g == 0:
+            return g
+    return 1
+
+
 def _make_backbone_conv(in_channels, out_channels, backbone_conv_mode=DEFAULT_BACKBONE_CONV_MODE):
     mode = normalize_backbone_conv_mode(backbone_conv_mode)
     if mode == 'depthwise_sep':
@@ -1355,8 +1363,9 @@ class QResnetBlock(nn.Module):
         # Classical path for remaining channels
         if self.classical_channels > 0:
             classical_in_dim = in_dim - self.effective_qc
+            cls_groups = _compatible_group_count(self.classical_channels, groups)
             self.conv0 = _make_backbone_conv(classical_in_dim, self.classical_channels, self.backbone_conv_mode)
-            self.norm0 = nn.GroupNorm(min(groups, self.classical_channels), self.classical_channels)
+            self.norm0 = nn.GroupNorm(cls_groups, self.classical_channels)
             
             if self.use_time_emb:
                 self.time_mlp = nn.Sequential(
@@ -1367,7 +1376,7 @@ class QResnetBlock(nn.Module):
                 self.time_mlp = None
             
             self.conv1 = _make_backbone_conv(self.classical_channels, self.classical_channels, self.backbone_conv_mode)
-            self.norm1 = nn.GroupNorm(min(groups, self.classical_channels), self.classical_channels)
+            self.norm1 = nn.GroupNorm(cls_groups, self.classical_channels)
         else:
             self.conv0 = None
             self.norm0 = None

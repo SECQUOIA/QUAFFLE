@@ -42,6 +42,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from tools import training_common as tc  # noqa: E402
 from utilsTorch import unetTorch as unet  # noqa: E402
 from utilsTorch.utilsTorch import (QVUNetSegmentation,  # noqa: E402
                                    ClassicalAblationUNetSegmentation)
@@ -180,8 +181,9 @@ def bench_block(
 
 def _config(**kw):
     bc = int(kw.get('base_channels', 32))
+    groups = tc._compatible_group_count(bc, int(kw.get('resnet_block_groups', 4)))
     cfg = dict(image_size=128, base_channels=bc, init_dim=bc, out_dim=2,
-               dim_mults=(1, 2, 4, 8), resnet_block_groups=min(4, bc), quantum_channels=32,
+               dim_mults=(1, 2, 4, 8), resnet_block_groups=groups, quantum_channels=32,
                quantum_backend='pennylane', q_ansatz='reupload', q_layers=2,
                q_spatial_mode='global', hqunet_grid=2,
                q_share_blocks=True)

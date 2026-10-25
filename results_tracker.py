@@ -11,9 +11,9 @@ from datetime import datetime
 
 
 _DEFAULT_RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-# Testing / relocation hook: QUAFFLE_TRACKER_DIR overrides where the shared
-# workbooks live.
-_RESULTS_DIR = os.environ.get("QUAFFLE_TRACKER_DIR", _DEFAULT_RESULTS_DIR)
+# Testing / relocation hook: QUAFFLE_TRACKER_DIR (resolved dynamically at call time)
+# or monkeypatching _RESULTS_DIR overrides where the shared workbooks live.
+_RESULTS_DIR = _DEFAULT_RESULTS_DIR
 
 
 def _is_mini_or_scaled_config(config) -> bool:

@@ -228,12 +228,15 @@ def run_verification(
         if work_dir is None
         else _null_tempdir(work_dir)
     )
+    import results_tracker
+
     old_env = {
         k: os.environ.get(k)
         for k in (
             "QUAFFLE_INPROCESS_FED",
             "QUAFFLE_SKIP_EXCEL_TRACKER",
             "QUAFFLE_SKIP_CURVE_PLOTS",
+            "QUAFFLE_TRACKER_DIR",
             "QUAFFLE_RESULTS_DIR",
             "QUAFFLE_ANALYSIS_OUT_DIR",
             "QUAFFLE_INCLUDE_MINI",
@@ -243,11 +246,14 @@ def run_verification(
             "MKL_NUM_THREADS",
         )
     }
+    old_tracker_results_dir = getattr(results_tracker, "_RESULTS_DIR", results_tracker._DEFAULT_RESULTS_DIR)
     old_num_threads = torch.get_num_threads()
     old_cwd = os.getcwd()
     os.environ["QUAFFLE_INPROCESS_FED"] = "1"
     os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "1"
     os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "1"
+    os.environ.pop("QUAFFLE_TRACKER_DIR", None)
+    results_tracker._RESULTS_DIR = results_tracker._DEFAULT_RESULTS_DIR
     os.environ["OMP_NUM_THREADS"] = "2"
     os.environ["MKL_NUM_THREADS"] = "2"
     torch.set_num_threads(min(2, old_num_threads))
@@ -802,6 +808,17 @@ def run_verification(
             # 8. Wave 2 features, combined modality, tracker isolation, plots, and tools
             # 8a. Centralized Quantum HQ-UNet on combined modality (pennylane & torch backends)
             #     with curve plots, sample visualizations, and Excel tracker enabled
+            def _file_sig(p):
+                if not os.path.exists(p):
+                    return None
+                st = os.stat(p)
+                return (st.st_mtime_ns, st.st_size)
+
+            repo_tracker_paths = [
+                os.path.join(REPO_ROOT, "results", "results_summary_combined.xlsx"),
+                os.path.join(REPO_ROOT, "results", "results_summary_combined_mini.xlsx"),
+            ]
+            repo_tracker_before = {p: _file_sig(p) for p in repo_tracker_paths}
             os.environ["QUAFFLE_SKIP_EXCEL_TRACKER"] = "0"
             os.environ["QUAFFLE_SKIP_CURVE_PLOTS"] = "0"
             wave2_args = [
@@ -862,9 +879,10 @@ def run_verification(
             assert os.path.isfile(os.path.join(results_dir, "results_summary_combined_mini.xlsx")), (
                 "Expected mini-run Excel tracker in results_dir/results_summary_combined_mini.xlsx"
             )
-            assert not os.path.isfile(os.path.join(REPO_ROOT, "results", "results_summary_combined_mini.xlsx")), (
-                "Mini-run Excel tracker must not pollute <repo>/results/"
-            )
+            for p, sig_before in repo_tracker_before.items():
+                assert _file_sig(p) == sig_before, (
+                    f"Mini-run Excel tracker must not create or modify {p}"
+                )
 
             # 9. Downstream analysis pipeline, exemplar figure, circuit diagram, and backend comparison
             t0 = time.perf_counter()
@@ -934,6 +952,7 @@ def run_verification(
     finally:
         os.chdir(old_cwd)
         torch.set_num_threads(old_num_threads)
+        results_tracker._RESULTS_DIR = old_tracker_results_dir
         for k, v in old_env.items():
             if v is None:
                 os.environ.pop(k, None)

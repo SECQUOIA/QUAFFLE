@@ -309,7 +309,8 @@ def supports_ckpt_every(root, script):
 def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               q_ansatz="reupload", q_layers=None, knockout=True, quantum_channels=None,
               ckpt_every=5, ckpt_support=None, safety=SAFETY_FACTOR, floor=FLOOR_HOURS,
-              q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"], hqunet_grid=None):
+              q_backend=Q_BACKEND, cpus=CLUSTER_DEFAULTS["cpus_per_task"], hqunet_grid=None,
+              q_spatial_mode=None, base_channels=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -322,12 +323,16 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         if part == "dirichlet":
             args += ["--alpha", str(alpha)]
     args += ["--dataset", dataset, "--seed", str(seed)]
+    if base_channels is not None:
+        args += ["--base-channels", str(base_channels)]
     if method in ("quantum", "ablation"):
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
         if q_ansatz == "hqunet" and hqunet_grid is not None:
             args += ["--hqunet-grid", str(hqunet_grid)]
+        if q_spatial_mode is not None and q_ansatz != "hqunet":
+            args += ["--q-spatial-mode", str(q_spatial_mode)]
     if method == "quantum":
         args += ["--q-backend", q_backend]
     if method == "quantum" and knockout:
@@ -360,8 +365,12 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         if q_layers is not None:
             ans_tag += "L%d" % q_layers
         parts.append(ans_tag)
+        if q_spatial_mode is not None and q_ansatz != "hqunet" and q_spatial_mode != "global":
+            parts.append(str(q_spatial_mode))
     if quantum_channels is not None:
         parts.append("qc%d" % quantum_channels)
+    if base_channels is not None:
+        parts.append("bc%d" % int(base_channels))
     parts.append("seed%d" % seed)
     name = "_".join(parts)
     short = {"classical": "c", "ablation": "a", "quantum": "q"}[method]
@@ -721,6 +730,9 @@ def main(argv=None):
     ap.add_argument("--q-ansatz", choices=["reupload", "legacy", "hqunet"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
+    ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
+    ap.add_argument("--base-channels", type=int, default=None)
+    ap.add_argument("--quantum-channels", "--quantum_channels", dest="quantum_channels", type=int, default=None)
     ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
                     default=Q_BACKEND,
                     help="Circuit simulator passed to quantum jobs (default %(default)s). Use "
@@ -764,10 +776,13 @@ def main(argv=None):
                     jobs.append(build_job(
                         method, mode, dataset, seed, args.root, python=args.python,
                         alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
-                        knockout=args.knockout, ckpt_every=args.ckpt_every,
+                        knockout=args.knockout,
+                        quantum_channels=args.quantum_channels if method != "classical" else None,
+                        ckpt_every=args.ckpt_every,
                         ckpt_support=support.get(script, False), safety=args.safety,
                         floor=args.floor_hours, q_backend=args.q_backend,
-                        cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid))
+                        cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
+                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels))
     finish(ap, args, jobs, out_dir)
 
 
