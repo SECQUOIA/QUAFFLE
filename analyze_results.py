@@ -810,7 +810,12 @@ def filter_backends(df, include_backends=DEFAULT_INCLUDE_BACKENDS):
     return df[keep].reset_index(drop=True)
 
 
-def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS, include_mini=None, results_dir=None):
+def load_all(
+    include_backends=DEFAULT_INCLUDE_BACKENDS,
+    include_mini=None,
+    results_dir=None,
+    seeds=None,
+):
     """Load all per-run results from disk (metrics.json and summary.txt files) and apply
     seed/method/simulator filters. Disk reads are authoritative — the Excel
     logging has historical column-shift bugs for some seeds (notably 7, 42,
@@ -834,36 +839,40 @@ def load_all(include_backends=DEFAULT_INCLUDE_BACKENDS, include_mini=None, resul
     print(f"  {len(df)} runs loaded across {df['Dataset'].nunique()} datasets, "
           f"{df['Method'].nunique()} methods")
 
-    # Restrict every method to the single pre-declared seed list.
+    # Restrict every method to the single pre-declared seed list (or explicit --seeds override).
+    seed_list = tuple(int(s) for s in seeds) if seeds is not None else tuple(SEEDS)
+    allowed_seeds = set(seed_list)
     n_before = len(df)
-    df = df[df["Seed"].isin(MAIN_METHOD_SEEDS)].reset_index(drop=True)
+    df = df[df["Seed"].isin(allowed_seeds)].reset_index(drop=True)
     if len(df) != n_before:
-        print(f"  Dropped {n_before - len(df)} rows with seeds outside config/seeds.py {SEEDS}")
+        print(f"  Dropped {n_before - len(df)} rows with seeds outside {list(seed_list)}")
 
-    report_seed_coverage(df)
+    report_seed_coverage(df, seeds=seed_list)
     return df
 
 
-def report_seed_coverage(df, methods=None):
+def report_seed_coverage(df, methods=None, seeds=None):
     """Print, loudly, every (method, dataset) cell missing seeds from the
     pre-declared list. Returns {(method, dataset): sorted missing seeds}."""
     if methods is None:
         methods = sorted(MAIN_METHOD_SEED_LABELS)
+    seed_list = tuple(int(s) for s in seeds) if seeds is not None else tuple(SEEDS)
+    seed_set = set(seed_list)
     missing = {}
     for m in methods:
         for ds in DATASETS:
             have = set(int(x) for x in df[(df["Method"] == m) & (df["Dataset"] == ds)]["Seed"].dropna())
-            miss = sorted(set(SEEDS) - have)
+            miss = sorted(seed_set - have)
             if miss:
                 missing[(m, ds)] = miss
     if missing:
         print("!" * 70)
-        print(f"WARNING: missing completed runs for the pre-declared seed list {SEEDS}")
+        print(f"WARNING: missing completed runs for the pre-declared seed list {list(seed_list)}")
         for (m, ds), miss in sorted(missing.items()):
-            print(f"  MISSING  {m:<28} {ds:<9} n={len(SEEDS) - len(miss)}/{len(SEEDS)}  seeds={miss}")
+            print(f"  MISSING  {m:<28} {ds:<9} n={len(seed_list) - len(miss)}/{len(seed_list)}  seeds={miss}")
         print("!" * 70)
     else:
-        print(f"  Seed coverage complete: every main cell has all {len(SEEDS)} seeds")
+        print(f"  Seed coverage complete: every main cell has all {len(seed_list)} seeds")
     return missing
 
 
@@ -923,10 +932,11 @@ PAIRED_COMPARISONS = [
 ]
 
 
-def paired_tests(seed_df, metric="Test_IoU"):
+def paired_tests(seed_df, metric="Test_IoU", seeds=None):
     """Paired quantum minus comparator tests per (regime, dataset) on the
     seeds both methods completed. Reports n, included and missing seeds,
     paired t-test and Wilcoxon signed-rank."""
+    seed_set = set(int(s) for s in seeds) if seeds is not None else set(SEEDS)
     rows = []
     for regime, qm, cm in PAIRED_COMPARISONS:
         for ds in DATASETS:
@@ -941,7 +951,7 @@ def paired_tests(seed_df, metric="Test_IoU"):
                 "Regime": regime, "Dataset": ds, "Quantum": qm, "Comparator": cm,
                 "Metric": metric, "N": st["n"],
                 "Included_Seeds": ",".join(map(str, shared)),
-                "Missing_Seeds": ",".join(map(str, sorted(set(SEEDS) - set(shared)))),
+                "Missing_Seeds": ",".join(map(str, sorted(seed_set - set(shared)))),
                 "Delta_Mean": st["mean"], "Delta_Std": st["std"],
                 "CI95_Half": st["ci95_half"],
                 "T_Stat": st["t_stat"], "T_P": st["t_p"],
@@ -1012,7 +1022,7 @@ def make_pivot_numeric(seed_df, metric="Test_IoU", method_order=None):
 # Excel Output
 # ─────────────────────────────────────────────────────────────────────────────
 
-def save_analysis_excel(df, seed_df, out_dir=None):
+def save_analysis_excel(df, seed_df, out_dir=None, seeds=None):
     target_dir = out_dir or os.environ.get("QUAFFLE_ANALYSIS_OUT_DIR", os.environ.get("QUAFFLE_RESULTS_DIR", ANALYSIS_OUT_DIR))
     os.makedirs(target_dir, exist_ok=True)
     out_path = os.path.join(target_dir, "analysis_summary.xlsx")
@@ -1043,7 +1053,7 @@ def save_analysis_excel(df, seed_df, out_dir=None):
         pd.concat(agg_rows).to_excel(writer, sheet_name="Aggregate_Full", index=False)
 
         # ── Sheet: paired tests (t-test and Wilcoxon signed-rank) ─────────────
-        pt = pd.concat([paired_tests(seed_df, m) for m in ("Test_IoU", "Test_Dice")
+        pt = pd.concat([paired_tests(seed_df, m, seeds=seeds) for m in ("Test_IoU", "Test_Dice")
                         if m in seed_df.columns], ignore_index=True)
         pt.to_excel(writer, sheet_name="Paired_Tests", index=False)
 
@@ -2070,7 +2080,7 @@ def save_all_plots(seed_df, raw_df=None, out_dir=None):
 # Console Summary
 # ─────────────────────────────────────────────────────────────────────────────
 
-def print_summary(seed_df):
+def print_summary(seed_df, seeds=None):
     print("\n" + "="*70)
     print("AGGREGATE RESULTS: Test IoU (mean ± std across seeds)")
     print("="*70)
@@ -2097,7 +2107,7 @@ def print_summary(seed_df):
         print(f"PAIRED TESTS, {metric}: quantum minus comparator, paired by seed "
               f"(t-test and Wilcoxon signed-rank)")
         print("=" * 70)
-        pt = paired_tests(seed_df, metric)
+        pt = paired_tests(seed_df, metric, seeds=seeds)
         for _, r in pt.iterrows():
             if r["N"] == 0:
                 print(f"  {r['Regime']:<32}{r['Dataset']:<9} n=0 (no shared seeds)")
@@ -2131,6 +2141,8 @@ def parse_args(argv=None):
                     help="Override output directory for analysis_summary.xlsx and plots/")
     ap.add_argument("--skip-plots", action="store_true",
                     help="Skip generating PNG plots (write analysis_summary.xlsx only)")
+    ap.add_argument("--seeds", type=int, nargs="+", default=None,
+                    help="Override canonical seed list for filtering and coverage checks")
     args = ap.parse_args(argv)
     if "all" in args.include_backend:
         args.include_backend = list(Q_BACKENDS)
@@ -2138,7 +2150,7 @@ def parse_args(argv=None):
 
 
 def main(argv=None):
-    # Parse CLI arguments (including --results-dir, --out-dir, --include-mini, --skip-plots)
+    # Parse CLI arguments (including --results-dir, --out-dir, --include-mini, --skip-plots, --seeds)
     _args = parse_args(argv)
     print("Loading data...")
     inc_mini = True if _args.include_mini else None
@@ -2146,6 +2158,7 @@ def main(argv=None):
         include_backends=_args.include_backend,
         include_mini=inc_mini,
         results_dir=_args.results_dir,
+        seeds=_args.seeds,
     )
 
     if df.empty:
@@ -2161,11 +2174,11 @@ def main(argv=None):
     seed_df = per_seed_summary(df)
     print(f"Per-seed rows after dedup: {len(seed_df)}")
 
-    print_summary(seed_df)
+    print_summary(seed_df, seeds=_args.seeds)
 
     out_dir = _args.out_dir or _args.results_dir
     print("\nSaving Excel...")
-    save_analysis_excel(df, seed_df, out_dir=out_dir)
+    save_analysis_excel(df, seed_df, out_dir=out_dir, seeds=_args.seeds)
 
     skip_plots = _args.skip_plots or (
         os.environ.get("QUAFFLE_SKIP_ANALYSIS_PLOTS", "0").lower() in ("1", "true", "yes")
