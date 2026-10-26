@@ -268,10 +268,11 @@ def main():
     
     tc.apply_common_args(config, args)
     config.setdefault('q_backend', tc.DEFAULT_Q_BACKEND)
+    qc_suffix = "" if config['quantum_channels'] == 32 else f"_qc{config['quantum_channels']}"
     # Variant tag (e.g. _reupload_L2, _legacy) keeps ansatz variants apart,
     # backend tag ('' for pennylane, _qtorch, _qpergroup) keeps simulators apart.
     output_dir = tc.resolve_output_dir(
-        f"results/flood_central_optical_pytorch_pennylane{ds_suffix}"
+        f"results/flood_central_optical_pytorch_pennylane{ds_suffix}{qc_suffix}"
         f"{tc.variant_tag(config)}{tc.backend_tag(config)}_seed{config['seed']}",
         config,
         args,
@@ -288,6 +289,7 @@ def main():
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     print(f"  - Quantum channels: {config['quantum_channels']}")
+    print(f"  - Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}")
     print(f"  - Quantum family: {config['quantum_backend']}")
     print(f"  - Quantum circuit simulator (q_backend): {config['q_backend']}, "
           f"q_sim_device: {config.get('q_sim_device', tc.DEFAULT_Q_SIM_DEVICE)}")
@@ -428,6 +430,9 @@ def main():
             f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
             f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
             f.write(f"Quantum channels: {config['quantum_channels']}\n")
+            f.write(f"Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}\n")
+            b_target, b_actual = tc.bottleneck_param_counts(config, 'quantum', model)
+            f.write(f"Bottleneck parameters (target / actual): {b_target} / {b_actual}\n")
             f.write(f"Skip modulation: {config.get('skip_modulation', tc.DEFAULT_SKIP_MODULATION)}\n")
             f.write(f"Base channels: {config['base_channels']}\n")
             f.write(f"Image size: {config['image_size']}\n")
@@ -503,7 +508,7 @@ def main():
     # Shared Excel summary: best effort, a tracker failure never fails the run.
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name="Centralized Quantum Torch",
+        demo_name=f"Centralized Quantum Torch{qc_suffix}",
         framework="torch",
         training="centralized",
         variant="quantum",

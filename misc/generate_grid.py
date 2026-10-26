@@ -101,14 +101,13 @@ def mode_kind(mode):
     return "centralized" if mode == "centralized" else "federated"
 
 
-def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None):
+def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None, n_qubits=None):
     """Expected wall-clock hours (1 GPU, so also expected SU).
 
     Runtime scales linearly with the number of training tiles. For the
     quantum method the circuit overhead (quantum minus ablation, which is
     the same network without the circuit) is further scaled by
-    quantum_channels/32 and q_layers/2, because the circuit is evaluated
-    once per 4-channel group and per re-uploading layer.
+    quantum_channels/32, q_layers/2, and 2**(n_qubits - 4) when n_qubits > 4.
     """
     kind = mode_kind(mode)
     base = MEASURED_HOURS[(method, kind)]
@@ -118,14 +117,16 @@ def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers
         f = (quantum_channels / MEASURED_QC)
         if q_layers is not None:
             f *= max(q_layers, 1) / MEASURED_Q_LAYERS
+        if n_qubits is not None and int(n_qubits) > 4:
+            f *= float(1 << (int(n_qubits) - 4))
         base = classical_part + overhead * f
     return base * DATASET_SCALE[dataset]
 
 
 def time_limit(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None,
-               safety=SAFETY_FACTOR, floor=FLOOR_HOURS):
+               safety=SAFETY_FACTOR, floor=FLOOR_HOURS, n_qubits=None):
     """Return (expected_hours, limit_hours). limit = ceil(expected * safety), at least floor."""
-    exp = expected_hours(method, mode, dataset, quantum_channels, q_layers)
+    exp = expected_hours(method, mode, dataset, quantum_channels, q_layers, n_qubits=n_qubits)
     limit = max(int(floor), int(math.ceil(exp * safety - 1e-9)))
     return exp, limit
 
@@ -315,7 +316,7 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False,
               combined_input_mode=None, fl_strategy=None, fedprox_mu=None,
               q_angle_agg=None, num_clients=None, clients_per_round=None,
-              fraction_fit=None):
+              fraction_fit=None, n_qubits=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -359,9 +360,16 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     if augment:
         args += ["--augment"]
     if method in ("quantum", "ablation"):
+        if q_ansatz == "hqunet" and n_qubits is not None and int(n_qubits) != 4:
+            raise ValueError(
+                "--n-qubits != 4 is not supported with --q-ansatz hqunet; "
+                "use --hqunet-grid in {2, 4}"
+            )
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
+        if n_qubits is not None and q_ansatz != "hqunet":
+            args += ["--n-qubits", str(n_qubits)]
         if q_ansatz == "hqunet" and hqunet_grid is not None:
             args += ["--hqunet-grid", str(hqunet_grid)]
         if q_spatial_mode is not None and q_ansatz != "hqunet":
@@ -387,7 +395,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             ckpt = True
 
     exp, limit = time_limit(method, mode, dataset, qc,
-                            q_layers if method == "quantum" else None, safety, floor)
+                            q_layers if method == "quantum" else None, safety, floor,
+                            n_qubits=(n_qubits if (method == "quantum" and q_ansatz != "hqunet") else None))
 
     mtag = {"classical": "classical", "ablation": "ablation", "quantum": "quantum"}[method]
     dtag = {"centralized": "central", "fed-random": "fedrandom",
@@ -401,6 +410,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             ans_tag += "G%d" % int(hqunet_grid)
         if q_layers is not None:
             ans_tag += "L%d" % q_layers
+        if n_qubits is not None and q_ansatz != "hqunet" and int(n_qubits) != 4:
+            ans_tag += "nq%d" % int(n_qubits)
         parts.append(ans_tag)
         if q_spatial_mode is not None and q_ansatz != "hqunet" and q_spatial_mode != "global":
             parts.append(str(q_spatial_mode))
@@ -449,15 +460,23 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     ans_short = ""
     if method != "classical" and q_ansatz != "reupload":
         ans_short = "_hq" if q_ansatz == "hqunet" else "_leg"
+    if method != "classical" and n_qubits is not None and q_ansatz != "hqunet" and int(n_qubits) != 4:
+        ans_short += "_nq%d" % int(n_qubits)
     jshort = "%s_%s%s%s_s%d" % (short, dataset[:3], "" if quantum_channels is None else
                                 "_qc%d" % quantum_channels,
                                 ans_short,
                                 seed)
+    eff_nq_meta = (
+        ""
+        if method == "classical"
+        else (int(hqunet_grid or 2) ** 2 if q_ansatz == "hqunet" else int(n_qubits or 4))
+    )
     command = " ".join([shlex.quote(python), script] + [shlex.quote(a) for a in args])
     return OrderedDict([
         ("name", name), ("job_name", jshort), ("method", method), ("mode", mode),
         ("dataset", dataset), ("seed", seed),
         ("ansatz", q_ansatz if method != "classical" else ""),
+        ("n_qubits", eff_nq_meta),
         ("script", script), ("args", args), ("command", command),
         ("exp_h", exp), ("limit_h", limit), ("cpus", cpus if kind == "federated" else None),
         ("ckpt", ckpt),
@@ -523,11 +542,11 @@ def write_jobs(jobs, out_dir, root, cluster, stagger=0, max_concurrent=0, overwr
     with open(os.path.join(out_dir, "manifest.csv"), "w", newline="") as f:
         w = csv.writer(f, lineterminator="\n")
         w.writerow(["script", "job_name", "method", "mode", "dataset", "seed", "ansatz",
-                    "time_limit", "est_su", "limit_su", "ckpt_every", "command"])
+                    "n_qubits", "time_limit", "est_su", "limit_su", "ckpt_every", "command"])
         for j, fname in zip(jobs, names):
             w.writerow([fname, j["job_name"], j["method"], j["mode"], j["dataset"], j["seed"],
-                        j["ansatz"], fmt_hms(j["limit_h"]), "%.2f" % j["exp_h"], j["limit_h"],
-                        int(j["ckpt"]), j["command"]])
+                        j["ansatz"], j.get("n_qubits", ""), fmt_hms(j["limit_h"]), "%.2f" % j["exp_h"],
+                        j["limit_h"], int(j["ckpt"]), j["command"]])
     return names
 
 
@@ -800,6 +819,7 @@ def main(argv=None):
     ap.add_argument("--alpha", type=float, default=0.5, help="Dirichlet alpha (default 0.5)")
     ap.add_argument("--q-ansatz", choices=["reupload", "legacy", "hqunet"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
+    ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
@@ -829,6 +849,13 @@ def main(argv=None):
                     help="Folder for the generated scripts (default <root>/misc/grid/<timestamp>)")
     add_cluster_args(ap)
     args = ap.parse_args(argv)
+    if (
+        args.q_ansatz == "hqunet"
+        and args.n_qubits is not None
+        and int(args.n_qubits) != 4
+        and any(m in ("quantum", "ablation") for m in args.methods)
+    ):
+        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
     seeds = _validate_seeds(ap, args.seeds)
     cluster = resolve_cluster_args(args)
     args.root = os.path.abspath(args.root)
@@ -873,7 +900,7 @@ def main(argv=None):
                         fl_strategy=args.fl_strategy, fedprox_mu=args.fedprox_mu,
                         q_angle_agg=args.q_angle_agg, num_clients=args.num_clients,
                         clients_per_round=args.clients_per_round,
-                        fraction_fit=args.fraction_fit))
+                        fraction_fit=args.fraction_fit, n_qubits=args.n_qubits))
     finish(ap, args, jobs, out_dir)
 
 

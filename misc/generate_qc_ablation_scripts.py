@@ -7,7 +7,7 @@ config/seeds.py (or a --seeds subset). qc=32 is the main grid
 (misc/generate_grid.py --methods quantum).
 
 Time limits, the script header and the cluster settings (see
-config/cluster.example.json) come from misc/generate_grid.py. The circuit runs once per 4-channel group, so the
+config/cluster.example.json) come from misc/generate_grid.py. The circuit runs once per n_qubits-channel group (default 4), so the
 quantum overhead in the measured qc=32 runtime is scaled by qc/32. That is
 an extrapolation, not a measurement. Run one seed first and check sacct.
 
@@ -34,6 +34,7 @@ def main(argv=None):
     ap.add_argument("--alpha", type=float, default=0.5)
     ap.add_argument("--q-ansatz", choices=["reupload", "legacy", "hqunet"], default="reupload")
     ap.add_argument("--q-layers", type=int, default=None)
+    ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
@@ -47,11 +48,14 @@ def main(argv=None):
     ap.add_argument("--out-dir", default=None)
     gg.add_cluster_args(ap)
     args = ap.parse_args(argv)
+    if args.q_ansatz == "hqunet" and args.n_qubits is not None and int(args.n_qubits) != 4:
+        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
     seeds = gg._validate_seeds(ap, args.seeds)
     cluster = gg.resolve_cluster_args(args)
-    bad = [q for q in args.qc if q < 4 or q % 4]
+    group_w = 4 if args.q_ansatz == "hqunet" else int(args.n_qubits or 4)
+    bad = [q for q in args.qc if q < group_w or q % group_w]
     if bad:
-        ap.error("--qc values must be multiples of 4: %s" % bad)
+        ap.error("--qc values must be multiples of %d: %s" % (group_w, bad))
     args.root = os.path.abspath(args.root)
     out_dir = gg.guard_out_dir(ap, args.out_dir or gg.default_out_dir(args.root, "qc_"))
     script = gg.SCRIPT[("quantum", "federated")]
@@ -74,7 +78,8 @@ def main(argv=None):
                         q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
                         skip_modulation=args.skip_modulation,
                         backbone_conv_mode=args.backbone_conv_mode,
-                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment))
+                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment,
+                        n_qubits=args.n_qubits))
     gg.finish(ap, args, jobs, out_dir)
 
 

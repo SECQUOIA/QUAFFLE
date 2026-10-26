@@ -8,10 +8,14 @@ of every model variant.
 
 The QVUNet bottleneck (`QVertex`) has two `QResnetBlock`s (`AblationResnetBlock`
 is an alias used by the parameter-matched ablation) with attention in
-between. Each block splits the 256 bottleneck channels into 32 quantum channels
-and 224 classical channels. The 32 quantum channels form 8 groups of 4. Each
-group is spatially average pooled to 4 numbers, mapped by a 4 qubit circuit to
-4 `<Z>` values, and broadcast back over (H, W). The quantum output `y_q` is
+between. At the default settings (`base_channels=32`, `quantum_channels=32`,
+`n_qubits=4`), each block splits the 256 bottleneck channels into 32 quantum
+channels and 224 classical channels, and the 32 quantum channels form 8 groups
+of 4 (in general, `quantum_channels` channels form `G = quantum_channels // n_qubits`
+groups of `n_qubits` channels for `n_qubits in {2, 4, 8, 12, 16}`). Under the
+default `q_spatial_mode='global'`, each group is spatially average pooled to
+`n_qubits` numbers (4 numbers by default), mapped by an `n_qubits`-qubit circuit
+to `n_qubits` `<Z>` values, and broadcast back over `(H, W)`. The quantum output `y_q` is
 therefore spatially constant within a group. The classical ablation keeps this
 exact pool, transform, broadcast pattern and only swaps the per-group transform.
 
@@ -64,11 +68,26 @@ the original model.
 
 Measurement is `<Z_j>` on every wire. The inputs are encoded again after each
 entangling layer, so the outputs are no longer products of single qubit
-functions of the inputs. Parameters per group are `16 * q_layers` (12 rotation
-angles and 4 input scales per layer). The circuit runs on `default.qubit` with
+functions of the inputs. Parameters per group are `4 * n_qubits * q_layers`
+(`16 * q_layers` at default `n_qubits=4`: `3 * n_qubits` rotation angles and
+`n_qubits` input scales per layer). The circuit runs on `default.qubit` with
 the torch interface, `diff_method="backprop"` and parameter broadcasting over
-the batch and the 8 groups (one QNode call per block forward pass, see
-`q_backend` below).
+the batch and the `num_groups = quantum_channels // n_qubits` groups (one QNode
+call per block forward pass, see `q_backend` below).
+
+### Configurable per-group qubit width (`--n-qubits {2, 4, 8, 12, 16}`, `#39`)
+
+For `q_ansatz in ('reupload', 'legacy')`, `--n-qubits {2, 4, 8, 12, 16}` (default `4`)
+controls how many channels are entangled within each group:
+- `num_groups = quantum_channels // n_qubits`
+- `effective_qc = num_groups * n_qubits`
+- For `q_ansatz='reupload'`, each group has `4 * q_layers * n_qubits` trainable
+  parameters, so at fixed divisible `quantum_channels` (e.g., `QC = 32` across
+  `n_qubits in {4, 8, 16}`, or `QC = 48` across `{2, 4, 8, 12, 16}`), the total
+  unique quantum parameter count `4 * q_layers * effective_qc` (`256` at `QC=32, L=2`)
+  is **invariant** to `n_qubits`, isolating within-group entanglement width
+  ($2^4 = 16 \to 2^8 = 256 \to 2^{16} = 65{,}536$ Hilbert space per group) from
+  parameter count.
 
 ### `hqunet` (2D spatial patch lattice, `#21`)
 
@@ -84,8 +103,8 @@ the batch and the 8 groups (one QNode call per block forward pass, see
 
 | Ansatz / Bottleneck | Qubits per circuit | Entanglement & Non-commutativity | Classical Simulability & Analytical Form | Scientific Role in QUAFFLE |
 | --- | --- | --- | --- | --- |
-| `legacy` | $4$ ($8$ groups) | Single $\operatorname{RX}(x_j)\operatorname{RY}(\theta_j)$ layer before computational-basis $\operatorname{CNOT}$ ring | **Analytically trivial**: $\operatorname{CNOT}$ acts on a product state right before $Z$-basis measurement, reducing exact $\langle Z_k \rangle$ to closed-form monomials of $c_j = \cos(x_j)\cos(\theta_j)$ (`4` multiplications) | Baseline showing that shallow single-layer computational-basis entanglement collapses to a classical product unit |
-| `reupload` ($L \ge 2$) | $4$ ($8$ groups) | Interleaved $\operatorname{RY}(\pi\tanh(s_{l,j}x_j)) + \operatorname{Rot}(\phi,\theta,\omega) + \operatorname{CNOT}$ rings across $L$ layers | **Non-factorizable trigonometric Fourier series**: intermediate $\operatorname{Rot}$ gates between $\operatorname{CNOT}$ rings mix computational-basis amplitudes so outputs cannot be factored into single-qubit cosines; classically simulable via $2^4 = 16$-dim statevector because $n=4$ | Controlled test of multi-layer data re-uploading inductive bias vs. parameter-matched classical bottleneck |
+| `legacy` | $n_q \in \{2,4,8,12,16\}$ ($\lfloor c_q/n_q\rfloor$ groups; default $n_q=4$) | Single $\operatorname{RX}(x_j)\operatorname{RY}(\theta_j)$ layer before computational-basis $\operatorname{CNOT}$ ring | **Analytically trivial**: $\operatorname{CNOT}$ acts on a product state right before $Z$-basis measurement, reducing exact $\langle Z_k \rangle$ to closed-form monomials of $c_j = \cos(x_j)\cos(\theta_j)$ ($n_q$ multiplications) | Baseline showing that shallow single-layer computational-basis entanglement collapses to a classical product unit |
+| `reupload` ($L \ge 2$) | $n_q \in \{2,4,8,12,16\}$ ($\lfloor c_q/n_q\rfloor$ groups; default $n_q=4$) | Interleaved $\operatorname{RY}(\pi\tanh(s_{l,j}x_j)) + \operatorname{Rot}(\phi,\theta,\omega) + \operatorname{CNOT}$ rings across $L$ layers | **Non-factorizable trigonometric Fourier series**: intermediate $\operatorname{Rot}$ gates between $\operatorname{CNOT}$ rings mix computational-basis amplitudes so outputs cannot be factored into single-qubit cosines; statevector dimension scales as $2^{n_q} \in \{4, 16, 256, 4096, 65536\}$ per group while total quantum parameter count stays invariant at $4 L c_q$ | Controlled test of multi-layer data re-uploading inductive bias and entanglement horizon scaling vs. parameter-matched classical bottleneck |
 | `hqunet` ($G \in \{2,4\}$) | $G^2 \in \{4, 16\}$ | 2D nearest-neighbor horizontal + vertical $\operatorname{CZ}$ lattice across $G \times G$ spatial patches | $G=2$ ($2^4=16$ statevector) or $G=4$ ($2^{16}=65{,}536$ statevector) coupling adjacent spatial patches rather than globally pooled channels | Tests spatially-local quantum entanglement for flood boundary preservation |
 | `ClassicalAblation` (`ablation_studies.py`) | $0$ (classical) | Parameter-matched per-group `Linear`/`MLP`, `conv1x1`, `depthwise3x3`, `lowrank`, or `hqunet_spatial` | Purely classical bottleneck with **100% identical paired-seed U-Net encoder/decoder initialization** (`#5`) | Isolates whether any segmentation gain comes from the PQC mapping vs. the bottleneck parameter budget / channel split |
 
@@ -94,31 +113,35 @@ the batch and the 8 groups (one QNode call per block forward pass, see
 `QuantumBlock(q_backend=..., q_sim_device=...)`, the config keys `q_backend`
 and `q_sim_device`, and the training flags `--q-backend` and `--q-sim-device`
 choose how the circuits are evaluated. The math is the same for all three
-simulators. `pennylane` is the default.
+simulators. `pennylane` is the default. When $N_{\text{tokens}} \cdot G \cdot 2^{n_q}$
+exceeds `_MAX_SIM_STATES` ($2^{18}$ complex128 amplitudes), all three backends
+automatically chunk across tokens/groups with non-reentrant activation
+checkpointing.
 
 | `q_backend` | how |
 | --- | --- |
-| `'pennylane'` (default) | one PennyLane `default.qubit` QNode call per block forward, torch interface, `diff_method="backprop"`, broadcast over (batch x groups) including the trainable weights and input scales |
-| `'pennylane_pergroup'` | the previous PennyLane path, one QNode call per 4 qubit group (legacy also loops over batch items). Kept as a test reference and for `visualize_circuit.py` |
-| `'torch'` | exact statevector simulation written in torch, all groups and the whole batch in one pass, on the device of the input. Kept as an independent cross-check |
+| `'pennylane'` (default) | broadcast PennyLane `default.qubit` QNode evaluation (`torch` interface, `diff_method="backprop"`) over `(tokens x groups)` per chunk, including trainable weights and input scales |
+| `'pennylane_pergroup'` | per-group PennyLane QNode evaluation over each $n_q$-qubit group (`legacy` loops over tokens per chunk). Kept as a test reference and for `visualize_circuit.py` |
+| `'torch'` | exact batched statevector simulation written in PyTorch over `(tokens x groups)` per chunk on the input device. Kept as an independent cross-check and fast wide-qubit simulator |
 
 | `q_sim_device` | where the `pennylane` circuit runs |
 | --- | --- |
-| `'cpu'` (default) | the pooled inputs [B x 8, 4] and the stacked parameters are copied to the CPU, the QNode runs there, the [B, 32] output is copied back to the model device |
+| `'cpu'` (default) | the pooled inputs `[N x G, n_q]` and the stacked parameters are copied to the CPU, the QNode runs there, and the `[N, G * n_q]` output is copied back to the model device |
 | `'model'` | the QNode runs on the device of the input (the GPU in a job) |
 
-### How the single call works
+### How the batched call works
 
-`QuantumBlock` pools the 32 quantum channels to [B, 8, 4] and flattens them to
-[B x 8, 4]. The per-group parameters are stacked to [8, L, 4, 3] (rotations)
-and [8, L, 4] (input scales), expanded over the batch and flattened to
-[B x 8, L, 4, 3] and [B x 8, L, 4]. Stacking keeps the autograd link to the
-per-group `nn.Parameter`s, so parameter names, shapes, the state_dict and the
-parameter count are unchanged. One QNode then applies the native gate list
-(`RY`, `Rot`, `CNOT` for reupload, `RX`, `RY`, `CNOT` for legacy) with every
-gate angle broadcast along the B x 8 axis. The QNodes are built once per
-(ansatz, layers) in a module level cache, which also makes the block
-picklable.
+At default $c_q = 32, n_q = 4$ ($G = 8$ groups), `QuantumBlock` pools the 32
+quantum channels to `[B, 8, 4]` (or `[B, G, n_q]` in general) and flattens them
+to `[B x G, n_q]`. The per-group parameters are stacked to `[G, L, n_q, 3]`
+(rotations) and `[G, L, n_q]` (input scales), expanded over the token batch and
+flattened to `[B x G, L, n_q, 3]` and `[B x G, L, n_q]`. Stacking keeps the
+autograd link to the per-group `nn.Parameter`s, so parameter names, shapes, the
+`state_dict` and the parameter count are unchanged. The broadcast QNode applies
+the native gate list (`RY`, `Rot`, `CNOT` for `reupload`, `RX`, `RY`, `CNOT` for
+`legacy`) with every gate angle broadcast along the `B x G` axis. The QNodes
+are built once per `(ansatz, layers, n_qubits)` in a module-level cache, which
+also makes the block picklable.
 
 The previous path paid a nearly fixed Python cost per QNode call (tape
 construction, transform program, `qml.math` dispatch, one small einsum per
@@ -129,14 +152,16 @@ step made 16 or 128 calls. The single call removes about 87 percent
 
 ### Why the circuit runs on the CPU
 
-The statevector has 16 amplitudes per row. On a GPU every one of the
-thousands of tiny gate operations becomes its own CUDA kernel launch, so the
+At the default `n_qubits=4` width, the statevector has 16 complex amplitudes
+per row ($2^{\text{n\_qubits}}$ amplitudes in general, up to 65,536 at
+`n_qubits=16`). On a GPU every one of the thousands of tiny gate operations
+becomes its own CUDA kernel launch, so at small qubit widths (`n_qubits=4`) the
 same code was about 3x slower on an A100 than on one CPU core (319 ms against
 109 ms for the per-group reupload block). With `q_sim_device='cpu'` the data
 moved per block call is a few kB and the GPU synchronizes four times per
 training step (two block calls in the forward pass, two in the backward pass)
 instead of after every gate. `q_sim_device='model'` exists so the smoke job
-can measure the GPU placement directly.
+and wider-circuit runs can evaluate or run GPU placement directly.
 
 ### Why `CUDA_LAUNCH_BLOCKING` was removed
 

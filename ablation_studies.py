@@ -126,7 +126,8 @@ def _find_matched_torch_config(backend, overrides=None):
 
 def _torch_overrides(args):
     """Config entries from the shared CLI flags (seed, data, quantum model)."""
-    cfg = {'seed': args.seed}
+    cfg = _torch_quantum_config(getattr(args, 'quantum_backend', 'pennylane'))
+    cfg['seed'] = args.seed
     tc.apply_common_args(cfg, args)
     return cfg
 
@@ -227,9 +228,10 @@ def run_centralized_torch(args):
     config['seed'] = args.seed
     tc.apply_common_args(config, args)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
+    qc_suffix = "" if config['quantum_channels'] == 32 else f"_qc{config['quantum_channels']}"
     vtag = tc.variant_tag(config)  # matched quantum variant, e.g. _reupload_L2
     output_dir = tc.resolve_output_dir(
-        f"results/ablation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{vtag}_seed{config['seed']}",
+        f"results/ablation_centralized_torch_bottleneck_matched_{backend}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}",
         config,
         args,
     )
@@ -411,9 +413,13 @@ def run_centralized_torch(args):
         tc.fail_run(output_dir, f"no test set at {test_images_dir}, refusing to write a summary or tracker row")
     final_val = val_metrics[-1] if val_metrics else None
     best_val = best_val_metrics or final_val
+    b_target, b_actual = tc.bottleneck_param_counts(config, 'ablation', model)
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, val_metrics, test_result, mode='centralized',
-                         extra_lines=[f"Validation: global held-out {len(va_idx)} samples "
+                         extra_lines=[f"Quantum channels: {config['quantum_channels']}",
+                                      f"Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}",
+                                      f"Bottleneck parameters (target / actual): {b_target} / {b_actual}",
+                                      f"Validation: global held-out {len(va_idx)} samples "
                                       f"({config['val_fraction']} of the training pool, stratified)",
                                       f"Checkpoint selection metric: {select_metric} (best epoch: {best_epoch})"],
                          provenance=provenance, knockout=knockout,
@@ -436,7 +442,7 @@ def run_centralized_torch(args):
         })
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name=f"Ablation Centralized Torch Bottleneck (vs {backend})",
+        demo_name=f"Ablation Centralized Torch Bottleneck (vs {backend}){qc_suffix}",
         framework="torch", training="centralized",
         variant=f"classical_matched_{config['base_channels']}ch",
         val_metrics=best_val,
@@ -457,8 +463,23 @@ def _torch_params_to_numpy(model):
 
 def _numpy_to_torch_params(model, numpy_params):
     import torch
-    for p, np_p in zip(model.parameters(), numpy_params):
-        p.data = torch.from_numpy(np_p).to(p.device)
+    model_params = list(model.parameters())
+    if len(model_params) != len(numpy_params):
+        raise ValueError(
+            f"Parameter count mismatch: model expects {len(model_params)} tensors, "
+            f"received {len(numpy_params)}"
+        )
+    validated = []
+    for idx, (p, np_p) in enumerate(zip(model_params, numpy_params)):
+        arr = np.asarray(np_p)
+        if tuple(p.shape) != tuple(arr.shape):
+            raise ValueError(
+                f"Parameter shape mismatch at index {idx}: model expects {tuple(p.shape)}, "
+                f"received {tuple(arr.shape)}"
+            )
+        validated.append(arr)
+    for p, arr in zip(model_params, validated):
+        p.data = torch.from_numpy(arr).to(p.device)
 
 
 class _TorchClassicalFlowerClient(fl.client.NumPyClient):
@@ -730,9 +751,10 @@ def run_federated_torch(args):
     tc.apply_common_args(config, args)
     tc.seed_everything(config['seed'], deterministic=False)
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
+    qc_suffix = "" if config['quantum_channels'] == 32 else f"_qc{config['quantum_channels']}"
     vtag = tc.variant_tag(config) + tc.federated_variant_tag(config, quantum=False)  # matched quantum variant, e.g. _reupload_L2
     output_dir = tc.resolve_output_dir(
-        f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{vtag}_seed{config['seed']}",
+        f"results/ablation_federated_torch_bottleneck_matched_{backend}{suffix}{ds_suffix}{qc_suffix}{vtag}_seed{config['seed']}",
         config,
         args,
     )
@@ -871,10 +893,14 @@ def run_federated_torch(args):
         tc.fail_run(output_dir, f"no test evaluation (test set missing at {test_images_dir})")
     final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
     best_val = best_val_metrics or final_val
+    b_target, b_actual = tc.bottleneck_param_counts(config, 'ablation')
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, strategy.round_metrics, test_result,
                          mode='federated',
                          extra_lines=split_info + [
+                             f"Quantum channels: {config['quantum_channels']}",
+                             f"Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}",
+                             f"Bottleneck parameters (target / actual): {b_target} / {b_actual}",
                              f"Clients: {config['num_clients']}, Rounds: {config['fed_rounds']}, "
                              f"Local epochs: {config['local_epochs']}",
                              f"Checkpoint selection metric: {strategy.select_metric} (best round: {best_round})",
@@ -897,7 +923,7 @@ def run_federated_torch(args):
                'resumed_from_round': strategy.resumed_from_round})
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name=f"Ablation Federated Torch Bottleneck (vs {backend})",
+        demo_name=f"Ablation Federated Torch Bottleneck (vs {backend}){qc_suffix}",
         framework="torch", training="federated",
         variant=f"classical_matched_{config['base_channels']}ch",
         val_metrics=best_val,
@@ -1579,6 +1605,11 @@ def _write_summary_jax(output_dir, q_params, base_channels, c_params,
 
 def main():
     args = parse_args()
+    if args.framework == 'jax' and int(getattr(args, 'n_qubits', 4) or 4) != 4:
+        raise ValueError(
+            f"--n-qubits={args.n_qubits} is only supported with --framework torch "
+            f"(JAX bottleneck is fixed at 4 qubits)"
+        )
     dispatch = {
         ('torch', 'centralized'): run_centralized_torch,
         ('torch', 'federated'):   run_federated_torch,

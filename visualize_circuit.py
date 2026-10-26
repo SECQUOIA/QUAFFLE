@@ -174,7 +174,13 @@ def eval_hqunet_dual_expvals(x, params, grid: int = 2, n_layers: int = 2) -> np.
     return np.array(exp_z + exp_x, dtype=float)
 
 
-def _sample_inputs(seed: int = 42, ansatz: str = "legacy", n_layers: int = 2, hqunet_grid: int = 2):
+def _sample_inputs(
+    seed: int = 42,
+    ansatz: str = "legacy",
+    n_layers: int = 2,
+    hqunet_grid: int = 2,
+    n_qubits: int = N_QUBITS,
+):
     """Reasonable example values to show a non-trivial circuit evaluation.
 
     Inputs (x) match the range of spatial averages after upstream
@@ -187,12 +193,13 @@ def _sample_inputs(seed: int = 42, ansatz: str = "legacy", n_layers: int = 2, hq
         x = np.pi * np.tanh(rng.uniform(low=-1.0, high=1.0, size=(n_qubits, 3)))
         params = rng.uniform(low=-np.pi, high=np.pi, size=(n_layers, 2, 4))
         return x.astype(float), params.astype(float)
-    x = rng.uniform(low=-1.0, high=1.0, size=N_QUBITS)
+    n_q = int(n_qubits)
+    x = rng.uniform(low=-1.0, high=1.0, size=n_q)
     if ansatz == "reupload":
         # Reupload init: uniform in [-pi, pi]
-        params = rng.uniform(low=-np.pi, high=np.pi, size=(n_layers, N_QUBITS, 3))
+        params = rng.uniform(low=-np.pi, high=np.pi, size=(n_layers, n_q, 3))
         return x.astype(float), params.astype(float)
-    params = rng.normal(loc=0.0, scale=0.1, size=N_QUBITS)
+    params = rng.normal(loc=0.0, scale=0.1, size=n_q)
     return x.astype(float), params.astype(float)
 
 
@@ -205,11 +212,23 @@ def save_text_diagram(circuit, x, params, path):
 
 def save_mpl_diagram(circuit, x, params, path):
     fig, ax = qml.draw_mpl(circuit, decimals=3, style="pennylane")(x, params)
+    n_wires = int(x.shape[0]) if hasattr(x, "shape") and len(x.shape) >= 1 else N_QUBITS
+    if n_wires > 4:
+        fig.set_size_inches(max(fig.get_figwidth(), 8.0), max(fig.get_figheight(), 0.75 * n_wires))
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
 
 
-def save_expval_barplot(circuit, x, params, path, ansatz: str = "reupload", hqunet_grid: int = 2, n_layers: int = 2):
+def save_expval_barplot(
+    circuit,
+    x,
+    params,
+    path,
+    ansatz: str = "reupload",
+    hqunet_grid: int = 2,
+    n_layers: int = 2,
+    n_qubits: int = N_QUBITS,
+):
     """Bar chart of the per-qubit expectation output for the sample input."""
     if ansatz == "hqunet":
         vals = eval_hqunet_dual_expvals(x, params, grid=hqunet_grid, n_layers=n_layers)
@@ -219,9 +238,11 @@ def save_expval_barplot(circuit, x, params, path, ansatz: str = "reupload", hqun
         fig_w = max(7.0, 0.55 * len(labels))
     else:
         vals = np.array(circuit(x, params), dtype=float)
-        labels = [f"q{i}\n<Z>" for i in range(N_QUBITS)]
-        palette = ["#4C72B0", "#55A868", "#DD8452", "#C44E52"][:N_QUBITS]
-        fig_w = 6.0
+        n_q = int(len(vals)) if len(vals) > 0 else int(n_qubits)
+        labels = [f"q{i}\n<Z>" for i in range(n_q)]
+        base_palette = ["#4C72B0", "#55A868", "#DD8452", "#C44E52"]
+        palette = [base_palette[i % len(base_palette)] for i in range(n_q)]
+        fig_w = max(6.0, 0.65 * n_q)
     fig, ax = plt.subplots(figsize=(fig_w, 4))
     bars = ax.bar(
         labels,
@@ -500,6 +521,8 @@ def parse_args(argv=None):
                         help="Alias for --q-ansatz compare")
     parser.add_argument("--q-layers", type=int, default=2,
                         help="Circuit layers for --q-ansatz reupload/hqunet/compare (default: 2)")
+    parser.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=4,
+                        help="Qubits per group for --q-ansatz reupload/legacy (default: 4)")
     parser.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=2,
                         help="2D patch grid size G in {2, 4} for --q-ansatz hqunet (default: 2 -> 4 qubits)")
     args = parser.parse_args(argv)
@@ -510,28 +533,37 @@ def parse_args(argv=None):
 
 def main(argv=None):
     args = parse_args(argv)
+    n_qubits = int(getattr(args, "n_qubits", N_QUBITS) or N_QUBITS)
 
     os.makedirs(args.out_dir, exist_ok=True)
     if args.q_ansatz == "compare":
+        if n_qubits != 4:
+            raise ValueError(f"--q-ansatz compare only supports --n-qubits 4 (got {n_qubits})")
         png_path, pdf_path = save_comparison_diagram(args.out_dir, n_layers=args.q_layers)
         print(f"Saved: {png_path}")
         print(f"Saved: {pdf_path}")
         return png_path, pdf_path
 
+    nq_tag = "" if n_qubits == 4 else f"_nq{n_qubits}"
     if args.q_ansatz == "reupload":
-        circuit = build_reupload_circuit(N_QUBITS, args.q_layers)
-        suffix = f"_reupload_L{args.q_layers}"
+        circuit = build_reupload_circuit(n_qubits, args.q_layers)
+        suffix = f"_reupload_L{args.q_layers}{nq_tag}"
     elif args.q_ansatz == "hqunet":
+        if n_qubits != 4:
+            raise ValueError(
+                f"--q-ansatz hqunet uses --hqunet-grid {{2, 4}} and does not support --n-qubits={n_qubits}"
+            )
         circuit = build_hqunet_circuit(grid=args.hqunet_grid, n_layers=args.q_layers)
         suffix = f"_hqunet_G{args.hqunet_grid}_L{args.q_layers}"
     else:
-        circuit = build_circuit(N_QUBITS)
-        suffix = ""
+        circuit = build_circuit(n_qubits)
+        suffix = "" if n_qubits == 4 else f"_legacy{nq_tag}"
     x, params = _sample_inputs(
         seed=args.seed,
         ansatz=args.q_ansatz,
         n_layers=args.q_layers,
         hqunet_grid=args.hqunet_grid,
+        n_qubits=n_qubits,
     )
 
     txt_path = os.path.join(args.out_dir, f"quantum_circuit{suffix}.txt")
@@ -548,6 +580,7 @@ def main(argv=None):
         ansatz=args.q_ansatz,
         hqunet_grid=args.hqunet_grid,
         n_layers=args.q_layers,
+        n_qubits=n_qubits,
     )
 
     print(text)

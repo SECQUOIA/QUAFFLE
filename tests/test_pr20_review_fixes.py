@@ -290,6 +290,8 @@ def test_local_mini_sweep_review_fixes_custom_seeds_workdir_and_validation(tmp_p
             "combined_input_mode": in_mode,
             "base_channels": 8,
             "image_size": 16,
+            "loss": "dice_ce",
+            "use_time_emb": False,
             "is_mini_run": True,
             "total_params": 537386,
             "val": {"iou": 0.85, "dice": 0.91, "auc": 0.97, "loss": 0.20, "accuracy": 0.90},

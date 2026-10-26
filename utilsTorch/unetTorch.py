@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint
 import math
 import numpy as np 
 from typing import Optional, Tuple
@@ -281,7 +282,9 @@ class AttnBlock(nn.Module):
         return out + x
 
 # --- Quantum Components ---
-N_QUBITS = 4
+N_QUBITS_CHOICES = (2, 4, 8, 12, 16)
+DEFAULT_N_QUBITS = 4
+N_QUBITS = DEFAULT_N_QUBITS
 Q_ANSATZ_CHOICES = ('legacy', 'reupload', 'hqunet')
 Q_SPATIAL_MODES = ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
 DEFAULT_Q_SPATIAL_MODE = 'global'
@@ -294,6 +297,38 @@ QUANTUM_MODES = ('on', 'zero', 'random')
 # that initialized the trained parameters (e.g. run seed == knockout seed).
 KNOCKOUT_SEED_OFFSET = 1_000_003
 QUANTUM_INIT_SEED_OFFSET = 500_009
+
+
+def _validate_exact_int(val, name):
+    """Validate that `val` is an exact integer (rejects bool and non-integral floats)."""
+    if isinstance(val, bool) or isinstance(val, (float, np.floating)):
+        raise ValueError(f"{name} must be an integer, got {val!r}")
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or (s[0] in '+-' and not s[1:].isdigit()) or (s[0] not in '+-' and not s.isdigit()):
+            raise ValueError(f"{name} must be an integer, got {val!r}")
+    try:
+        iv = int(val)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} must be an integer, got {val!r}") from exc
+    return iv
+
+
+def normalize_n_qubits(n_qubits=None):
+    """Normalize per-group qubit width n_qubits in {2, 4, 8, 12, 16} (default 4)."""
+    if n_qubits is None:
+        return DEFAULT_N_QUBITS
+    try:
+        q = _validate_exact_int(n_qubits, "n_qubits")
+    except ValueError as exc:
+        raise ValueError(
+            f"Unknown n_qubits {n_qubits!r}, expected one of {N_QUBITS_CHOICES}"
+        ) from exc
+    if q not in N_QUBITS_CHOICES:
+        raise ValueError(
+            f"Unknown n_qubits {n_qubits!r}, expected one of {N_QUBITS_CHOICES}"
+        )
+    return q
 
 
 def normalize_q_spatial_mode(mode):
@@ -353,15 +388,15 @@ def hqunet_grid_edges(grid_size: int = DEFAULT_HQUNET_GRID):
 def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None,
                          seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
                          q_sim_device='cpu', q_spatial_mode=DEFAULT_Q_SPATIAL_MODE,
-                         hqunet_grid=DEFAULT_HQUNET_GRID):
+                         hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS):
     """
-    Create a QuantumBlock that processes channels in groups of 4 (or on a GxG grid for hqunet).
+    Create a QuantumBlock that processes channels in groups of n_qubits (or on a GxG grid for hqunet).
     """
     return QuantumBlock(backend=backend, quantum_channels=quantum_channels,
                         ptlayer_config=ptlayer_config, seed=seed,
                         q_ansatz=q_ansatz, q_layers=q_layers, q_backend=q_backend,
                         q_sim_device=q_sim_device, q_spatial_mode=q_spatial_mode,
-                        hqunet_grid=hqunet_grid)
+                        hqunet_grid=hqunet_grid, n_qubits=n_qubits)
 
 
 def pennylane_default_circuit(n_qubits=4):
@@ -495,48 +530,44 @@ def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None):
 
 # --- Exact batched statevector simulator (q_backend='torch') ---
 #
-# Same math as PennyLane default.qubit for the two 4 qubit circuits above,
-# written as plain torch ops so that the batch AND all groups are simulated in
-# one pass on the model's device. Wire 0 is the most significant bit of the
+# Same math as PennyLane default.qubit for the two n_qubits-per-group circuits above,
+# written as plain torch ops so that the batch AND groups are simulated in
+# batched passes on the model's device (chunked automatically when wide circuits
+# exceed _MAX_SIM_STATES). Wire 0 is the most significant bit of the
 # basis index, as in PennyLane. The simulation runs in complex128 because
-# default.qubit returns float64 expectation values for these circuits. The
-# result is cast to float32 by QuantumBlock exactly like the PennyLane path.
+# default.qubit returns float64 expectation values for these circuits.
 #
-# q_backend values: 'pennylane' (default, one broadcast default.qubit QNode
-# call per block forward), 'pennylane_pergroup' (one QNode call per group,
-# legacy: per group and batch item; test reference), 'torch' (this simulator,
-# cross-check reference).
+# q_backend values: 'pennylane' (default, broadcast default.qubit QNode
+# call per chunk), 'pennylane_pergroup' (per-group QNode call per chunk,
+# test reference), 'torch' (this simulator, cross-check reference).
 Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
 Q_SIM_DEVICE_CHOICES = ('cpu', 'model')
 _PENNYLANE_Q_BACKENDS = ('pennylane', 'pennylane_pergroup')
 _SIM_CACHE = {}
+_MAX_SIM_STATES = 1 << 18  # 262,144 complex128 amplitudes per chunk
 
 
 def _cnot_ring_tables(n_qubits, device):
-    """Permutation and <Z> sign tables for a 4 qubit CNOT ring, cached per device.
+    """Permutation index table for an n_qubits CNOT ring, cached per device.
 
     perm: index tensor with psi_after = psi_before[..., perm] for the gate
         sequence CNOT(0,1), CNOT(1,2), ..., CNOT(n-1, 0).
-    zsign: [2**n, n] float64 matrix with zsign[b, j] = +1 if bit j of b is 0
-        else -1, so <Z_j> = sum_b |psi_b|^2 zsign[b, j].
     """
+    n_qubits = normalize_n_qubits(n_qubits)
     key = (n_qubits, str(device))
     if key not in _SIM_CACHE:
-        dim = 2 ** n_qubits
-        perm = [0] * dim
-        for b in range(dim):
-            bits = [(b >> (n_qubits - 1 - k)) & 1 for k in range(n_qubits)]
-            for c in range(n_qubits):
-                t = (c + 1) % n_qubits
-                if bits[c]:
-                    bits[t] ^= 1
-            out = 0
-            for k in range(n_qubits):
-                out = (out << 1) | bits[k]
-            perm[out] = b
-        zsign = torch.tensor([[1.0 - 2.0 * ((b >> (n_qubits - 1 - j)) & 1) for j in range(n_qubits)]
-                              for b in range(dim)], dtype=torch.float64)
-        _SIM_CACHE[key] = (torch.tensor(perm, dtype=torch.long, device=device), zsign.to(device))
+        dim = 1 << n_qubits
+        idx = torch.arange(dim, device=device, dtype=torch.long)
+        bits = [(idx >> (n_qubits - 1 - k)) & 1 for k in range(n_qubits)]
+        for c in range(n_qubits):
+            t = (c + 1) % n_qubits
+            bits[t] = bits[t] ^ bits[c]
+        out = torch.zeros_like(idx)
+        for k in range(n_qubits):
+            out = (out << 1) | bits[k]
+        perm = torch.empty_like(idx)
+        perm[out] = idx
+        _SIM_CACHE[key] = (perm, None)
     return _SIM_CACHE[key]
 
 
@@ -576,7 +607,7 @@ def _rot_mat(phi, theta, omega):
     return torch.stack([row0, row1], -2)
 
 
-def _simulate_layers(layer_gates, n_qubits=N_QUBITS):
+def _simulate_layers(layer_gates, n_qubits=None):
     """Run the circuit |0..0> -> [single qubit gates on every wire, CNOT ring] * L
     and return <Z_j> for every wire.
 
@@ -585,55 +616,72 @@ def _simulate_layers(layer_gates, n_qubits=N_QUBITS):
         that layer (in circuit order, later gates on the left).
     Returns a float64 tensor [..., n_qubits].
     """
-    assert n_qubits == 4, "the batched simulator is written for 4 qubits"
     u0 = layer_gates[0]
-    perm, zsign = _cnot_ring_tables(n_qubits, u0.device)
+    n_qubits = normalize_n_qubits(u0.shape[-3] if n_qubits is None else n_qubits)
+    if u0.shape[-3] != n_qubits:
+        raise ValueError(
+            f"layer_gates wire axis {u0.shape[-3]} does not match n_qubits={n_qubits}"
+        )
     batch = u0.shape[:-3]
-    dim = 2 ** n_qubits
-    psi = None
+    flat_batch = int(math.prod(batch)) if batch else 1
+    if flat_batch == 0:
+        return torch.zeros((*batch, n_qubits), dtype=torch.float64, device=u0.device)
+    perm, _ = _cnot_ring_tables(n_qubits, u0.device)
+    dim = 1 << n_qubits
+    psi = torch.zeros((flat_batch, dim), dtype=u0.dtype, device=u0.device)
+    psi[:, 0] = 1.0 + 0.0j
     for u in layer_gates:
-        a, b, c, d = u[..., 0, :, :], u[..., 1, :, :], u[..., 2, :, :], u[..., 3, :, :]
-        if psi is None:
-            # Input is |0000>, so the first layer gives the product state of the
-            # first columns of the four single qubit gates.
-            psi = torch.einsum('...a,...c,...e,...g->...aceg',
-                               a[..., :, 0], b[..., :, 0], c[..., :, 0], d[..., :, 0])
-        else:
-            psi = psi.reshape(*batch, 2, 2, 2, 2)
-            psi = torch.einsum('...ab,...bdfh->...adfh', a, psi)
-            psi = torch.einsum('...cd,...adfh->...acfh', b, psi)
-            psi = torch.einsum('...ef,...acfh->...aceh', c, psi)
-            psi = torch.einsum('...gh,...aceh->...aceg', d, psi)
-        psi = psi.reshape(*batch, dim)[..., perm]
+        u_flat = u.expand(*batch, n_qubits, 2, 2).reshape(flat_batch, n_qubits, 2, 2)
+        for q in range(n_qubits):
+            s_q = psi.reshape(flat_batch, 1 << q, 2, 1 << (n_qubits - 1 - q))
+            s0 = s_q[:, :, 0, :]
+            s1 = s_q[:, :, 1, :]
+            g = u_flat[:, q]  # [flat_batch, 2, 2]
+            g00 = g[:, 0, 0].view(flat_batch, 1, 1)
+            g01 = g[:, 0, 1].view(flat_batch, 1, 1)
+            g10 = g[:, 1, 0].view(flat_batch, 1, 1)
+            g11 = g[:, 1, 1].view(flat_batch, 1, 1)
+            out0 = g00 * s0 + g01 * s1
+            out1 = g10 * s0 + g11 * s1
+            psi = torch.stack([out0, out1], dim=2).reshape(flat_batch, dim)
+        psi = psi[:, perm]
     probs = psi.real ** 2 + psi.imag ** 2
-    return probs @ zsign
+    exp_z = []
+    for q in range(n_qubits):
+        p_q = probs.reshape(flat_batch, 1 << q, 2, 1 << (n_qubits - 1 - q))
+        p0 = p_q[:, :, 0, :]
+        p1 = p_q[:, :, 1, :]
+        exp_z.append((p0 - p1).sum(dim=(1, 2)))
+    return torch.stack(exp_z, dim=-1).reshape(*batch, n_qubits)
 
 
 def torch_reupload_expvals(x, weights, scales):
     """Exact batched equivalent of pennylane_reupload_circuit.
 
-    x: [B, G, 4] pooled inputs, weights: [G, L, 4, 3], scales: [G, L, 4].
-    Returns float64 <Z_j> shaped [B, G, 4].
+    x: [B, G, n_qubits] pooled inputs, weights: [G, L, n_qubits, 3], scales: [G, L, n_qubits].
+    Returns float64 <Z_j> shaped [B, G, n_qubits].
     """
+    n_qubits = x.shape[-1]
     L = weights.shape[1]
     gates = []
     for l in range(L):
-        enc = math.pi * torch.tanh(x * scales[:, l].unsqueeze(0))        # [B, G, 4]
-        ry = _ry_mat(enc.to(torch.float64))                               # [B, G, 4, 2, 2]
-        w = weights[:, l].to(torch.float64)                               # [G, 4, 3]
-        rot = _rot_mat(w[..., 0], w[..., 1], w[..., 2]).unsqueeze(0)      # [1, G, 4, 2, 2]
+        enc = math.pi * torch.tanh(x * scales[:, l].unsqueeze(0))        # [B, G, n_qubits]
+        ry = _ry_mat(enc.to(torch.float64))                               # [B, G, n_qubits, 2, 2]
+        w = weights[:, l].to(torch.float64)                               # [G, n_qubits, 3]
+        rot = _rot_mat(w[..., 0], w[..., 1], w[..., 2]).unsqueeze(0)      # [1, G, n_qubits, 2, 2]
         gates.append(rot @ ry)
-    return _simulate_layers(gates)
+    return _simulate_layers(gates, n_qubits=n_qubits)
 
 
 def torch_legacy_expvals(x, theta):
     """Exact batched equivalent of pennylane_default_circuit (RX(x) RY(theta), ring).
 
-    x: [B, G, 4] pooled inputs, theta: [G, 4]. Returns float64 [B, G, 4].
+    x: [B, G, n_qubits] pooled inputs, theta: [G, n_qubits]. Returns float64 [B, G, n_qubits].
     """
-    rx = _rx_mat(x.to(torch.float64))                                     # [B, G, 4, 2, 2]
-    ry = _ry_mat(theta.to(torch.float64)).unsqueeze(0)                    # [1, G, 4, 2, 2]
-    return _simulate_layers([ry @ rx])
+    n_qubits = x.shape[-1]
+    rx = _rx_mat(x.to(torch.float64))                                     # [B, G, n_qubits, 2, 2]
+    ry = _ry_mat(theta.to(torch.float64)).unsqueeze(0)                    # [1, G, n_qubits, 2, 2]
+    return _simulate_layers([ry @ rx], n_qubits=n_qubits)
 
 
 def _rz_mat(theta):
@@ -836,13 +884,15 @@ def _uniform(shape, low, high, generator=None):
 
 class QuantumBlock(nn.Module):
     """
-    Quantum processing block that handles channels in groups of 4 (for 'reupload'
+    Quantum processing block that handles channels in groups of n_qubits (for 'reupload'
     and 'legacy') or on a 2D GxG spatial grid (for 'hqunet').
     """
+    _MAX_SIM_STATES = _MAX_SIM_STATES
+
     def __init__(self, backend='pennylane', quantum_channels=8, ptlayer_config=None,
                  seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
                  q_sim_device='cpu', q_spatial_mode=DEFAULT_Q_SPATIAL_MODE,
-                 hqunet_grid=DEFAULT_HQUNET_GRID):
+                 hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS):
         super().__init__()
 
         if q_ansatz not in Q_ANSATZ_CHOICES:
@@ -854,12 +904,30 @@ class QuantumBlock(nn.Module):
         if q_sim_device not in Q_SIM_DEVICE_CHOICES:
             raise ValueError(f"Unknown q_sim_device {q_sim_device!r}, expected one of {Q_SIM_DEVICE_CHOICES}")
 
+        norm_nq = normalize_n_qubits(n_qubits)
+        if q_ansatz == 'hqunet' and norm_nq != DEFAULT_N_QUBITS:
+            raise ValueError(
+                f"n_qubits={norm_nq} is not supported with q_ansatz='hqunet'; "
+                "use hqunet_grid in {2, 4} to control the 2D patch lattice qubit count."
+            )
+        if backend == 'ptlayer' and norm_nq != DEFAULT_N_QUBITS:
+            raise ValueError(
+                f"n_qubits={norm_nq} is not supported with backend='ptlayer' (fixed to 4 modes)."
+            )
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
+
         self.backend = backend
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
         self.q_ansatz = q_ansatz
         self.q_layers = int(q_layers) if q_ansatz in ('reupload', 'hqunet') else 1
         self.q_spatial_mode = normalize_q_spatial_mode(q_spatial_mode)
         self.hqunet_grid = normalize_hqunet_grid(hqunet_grid)
+        self.n_qubits = norm_nq
         self.seed = seed
         self.quantum_mode = 'on'
         self._random_params = None
@@ -868,10 +936,15 @@ class QuantumBlock(nn.Module):
         self.q_backend = q_backend
         self.q_sim_device = q_sim_device
         
-        # Calculate number of 4-channel groups
-        self.num_groups = quantum_channels // 4
-        self.remaining_channels = quantum_channels % 4
-        self.effective_qc = self.num_groups * 4
+        group_w = 4 if (q_ansatz == 'hqunet' or backend == 'ptlayer') else self.n_qubits
+        if 0 < quantum_channels < group_w:
+            raise ValueError(
+                f"quantum_channels={quantum_channels} must be 0 or >= {group_w} "
+                f"(group width for q_ansatz={q_ansatz!r}, n_qubits={self.n_qubits})"
+            )
+        self.num_groups = quantum_channels // group_w
+        self.remaining_channels = quantum_channels % group_w
+        self.effective_qc = self.num_groups * group_w
         self.pre_q_conv = None
         self.post_q_proj = None
         self.hqunet_weights = None
@@ -960,12 +1033,12 @@ class QuantumBlock(nn.Module):
             else:
                 for group_idx in range(self.num_groups):
                     if q_ansatz == 'legacy':
-                        params = nn.Parameter(_randn((N_QUBITS,), generator) * 0.1)
+                        params = nn.Parameter(_randn((self.n_qubits,), generator) * 0.1)
                         self.quantum_params.append(params)
                     else:
-                        weights = nn.Parameter(_uniform((self.q_layers, N_QUBITS, 3), -math.pi, math.pi, generator))
+                        weights = nn.Parameter(_uniform((self.q_layers, self.n_qubits, 3), -math.pi, math.pi, generator))
                         self.quantum_params.append(weights)
-                        self.input_scales.append(nn.Parameter(torch.ones(self.q_layers, N_QUBITS)))
+                        self.input_scales.append(nn.Parameter(torch.ones(self.q_layers, self.n_qubits)))
                 if q_backend == 'pennylane_pergroup':
                     self._build_pennylane_circuits()
                 
@@ -977,10 +1050,20 @@ class QuantumBlock(nn.Module):
         if self.backend != 'pennylane':
             return None
         if self.q_ansatz == 'legacy':
-            return N_QUBITS
+            return self.n_qubits
         if self.q_ansatz == 'hqunet':
             return 8 * self.q_layers
-        return self.q_layers * N_QUBITS * 4  # 3 rotation angles + 1 input scale per qubit per layer
+        return self.q_layers * self.n_qubits * 4  # 3 rotation angles + 1 input scale per qubit per layer
+
+    @property
+    def bottleneck_target_params(self):
+        if self.backend != 'pennylane' or self.q_ansatz == 'hqunet':
+            return sum(p.numel() for p in self.parameters())
+        return self.num_groups * self.n_params_per_group
+
+    @property
+    def bottleneck_actual_params(self):
+        return sum(p.numel() for p in self.parameters())
 
     def _build_pennylane_circuits(self):
         if self.q_ansatz == 'hqunet':
@@ -991,10 +1074,10 @@ class QuantumBlock(nn.Module):
             return
         for _ in range(self.num_groups):
             if self.q_ansatz == 'legacy':
-                self.pennylane_circuits.append(pennylane_default_circuit(n_qubits=N_QUBITS))
+                self.pennylane_circuits.append(pennylane_default_circuit(n_qubits=self.n_qubits))
             else:
                 self.pennylane_circuits.append(
-                    pennylane_reupload_circuit(n_qubits=N_QUBITS, n_layers=self.q_layers))
+                    pennylane_reupload_circuit(n_qubits=self.n_qubits, n_layers=self.q_layers))
 
     def set_q_backend(self, q_backend):
         """Switch the circuit simulator ('pennylane', 'pennylane_pergroup' or
@@ -1024,17 +1107,26 @@ class QuantumBlock(nn.Module):
         metrics.json and provenance)."""
         if self.backend != 'pennylane':
             return {'q_backend': None, 'family': self.backend}
+        circuit_nq = self.hqunet_grid ** 2 if self.q_ansatz == 'hqunet' else self.n_qubits
+        meta = {
+            'n_qubits': circuit_nq,
+            'num_groups': self.num_groups,
+            'quantum_channels': self.quantum_channels,
+            'effective_qc': self.effective_qc,
+            'remaining_channels': self.remaining_channels,
+        }
         if self.q_backend == 'torch':
             return {'q_backend': 'torch', 'device': 'exact torch statevector simulator',
                     'diff_method': 'torch autograd', 'sim_device': 'model',
-                    'q_spatial_mode': self.q_spatial_mode}
+                    'q_spatial_mode': self.q_spatial_mode, **meta}
         return {'q_backend': self.q_backend, 'device': 'default.qubit', 'interface': 'torch',
                 'diff_method': 'backprop',
                 'broadcast': ('batch x groups, one call per block forward'
                               if self.q_backend == 'pennylane' else 'per group (legacy: per item)'),
                 'sim_device': self.q_sim_device if self.q_backend == 'pennylane' else 'model',
                 'q_spatial_mode': self.q_spatial_mode,
-                'pennylane_version': qml.__version__ if HAS_PENNYLANE else None}
+                'pennylane_version': qml.__version__ if HAS_PENNYLANE else None,
+                **meta}
 
     # --- Knockout ---
     def set_quantum_mode(self, mode='on', knockout_seed=0, seed=None):
@@ -1061,10 +1153,10 @@ class QuantumBlock(nn.Module):
                 rand = []
                 for i in range(self.num_groups):
                     if self.q_ansatz == 'legacy':
-                        rand.append((_randn((N_QUBITS,), g) * 0.1, None))
+                        rand.append((_randn((self.n_qubits,), g) * 0.1, None))
                     else:
-                        rand.append((_uniform((self.q_layers, N_QUBITS, 3), -math.pi, math.pi, g),
-                                     torch.ones(self.q_layers, N_QUBITS)))
+                        rand.append((_uniform((self.q_layers, self.n_qubits, 3), -math.pi, math.pi, g),
+                                     torch.ones(self.q_layers, self.n_qubits)))
                 self._random_params = rand
         elif mode == 'random':
             raise NotImplementedError("'random' knockout is implemented for the pennylane backend only")
@@ -1082,7 +1174,7 @@ class QuantumBlock(nn.Module):
 
     def _stacked_params(self, device):
         """All group parameters stacked along a leading group axis:
-        weights [G, L, 4, 3] (legacy: [G, 4]) and scales [G, L, 4] (legacy: None).
+        weights [G, L, n_qubits, 3] (legacy: [G, n_qubits]) and scales [G, L, n_qubits] (legacy: None).
         Stacking keeps the autograd link to the per-group nn.Parameters."""
         if self.quantum_mode == 'random':
             if self._random_stacked is None or self._random_stacked[0].device != torch.device(device):
@@ -1097,62 +1189,189 @@ class QuantumBlock(nn.Module):
         return w, s
 
     def _eval_tokens_torch(self, tokens):
-        """Evaluate 4-qubit groups on `tokens` of shape [N, G * 4] using exact torch statevector."""
+        """Evaluate n_qubits groups on `tokens` of shape [N, G * n_qubits] using exact torch statevector."""
         N = tokens.shape[0]
         G = self.num_groups
-        pooled = tokens.reshape(N, G, N_QUBITS)
+        nq = self.n_qubits
+        out_dtype = torch.float64 if tokens.dtype == torch.float64 else torch.float32
+        if N == 0 or G == 0:
+            return torch.zeros(N, G * nq, dtype=out_dtype, device=tokens.device)
+        pooled = tokens.reshape(N, G, nq)
         w, s = self._stacked_params(tokens.device)
-        if self.q_ansatz == 'legacy':
-            y = torch_legacy_expvals(pooled, w)
-        else:
-            y = torch_reupload_expvals(pooled, w, s)
-        return y.reshape(N, G * N_QUBITS).to(torch.float32)
+        max_sim_states = int(getattr(self, '_MAX_SIM_STATES', _MAX_SIM_STATES))
+        states_per_group = 1 << nq
+        max_groups = max(1, max_sim_states // max(1, states_per_group))
+        max_tokens = max(1, max_sim_states // max(1, G * states_per_group))
+        if N <= max_tokens and G <= max_groups:
+            if self.q_ansatz == 'legacy':
+                y = torch_legacy_expvals(pooled, w)
+            else:
+                y = torch_reupload_expvals(pooled, w, s)
+            return y.reshape(N, G * nq).to(out_dtype)
+
+        use_ckpt = torch.is_grad_enabled() and (
+            pooled.requires_grad
+            or w.requires_grad
+            or (s is not None and s.requires_grad)
+        )
+        chunks = []
+        for start in range(0, N, max_tokens):
+            p_chunk = pooled[start : start + max_tokens]
+            g_chunks = []
+            for g_start in range(0, G, max_groups):
+                g_end = min(G, g_start + max_groups)
+                p_sub = p_chunk[:, g_start:g_end]
+                w_sub = w[g_start:g_end]
+                if self.q_ansatz == 'legacy':
+                    if use_ckpt:
+                        y_sub = torch.utils.checkpoint.checkpoint(
+                            torch_legacy_expvals, p_sub, w_sub, use_reentrant=False
+                        )
+                    else:
+                        y_sub = torch_legacy_expvals(p_sub, w_sub)
+                else:
+                    s_sub = s[g_start:g_end]
+                    if use_ckpt:
+                        y_sub = torch.utils.checkpoint.checkpoint(
+                            torch_reupload_expvals, p_sub, w_sub, s_sub, use_reentrant=False
+                        )
+                    else:
+                        y_sub = torch_reupload_expvals(p_sub, w_sub, s_sub)
+                g_chunks.append(y_sub)
+            y_c = torch.cat(g_chunks, dim=1) if len(g_chunks) > 1 else g_chunks[0]
+            chunks.append(y_c.reshape(p_chunk.shape[0], G * nq).to(out_dtype))
+        return torch.cat(chunks, dim=0)
 
     def _eval_tokens_pennylane_flat(self, tokens):
-        """Evaluate 4-qubit groups on `tokens` of shape [N, G * 4] using broadcast PennyLane QNode."""
+        """Evaluate n_qubits groups on `tokens` of shape [N, G * n_qubits] using broadcast PennyLane QNode."""
         N = tokens.shape[0]
         G = self.num_groups
+        nq = self.n_qubits
+        out_dtype = torch.float64 if tokens.dtype == torch.float64 else torch.float32
+        if N == 0 or G == 0:
+            return torch.zeros(N, G * nq, dtype=out_dtype, device=tokens.device)
         sim = torch.device('cpu') if self.q_sim_device == 'cpu' else tokens.device
-        pooled = tokens.reshape(N * G, N_QUBITS).to(sim)
         w, s = self._stacked_params(sim)
         w = w.to(sim)
-        circuit = pennylane_flat_qnode(self.q_ansatz, self.q_layers)
-        if self.q_ansatz == 'legacy':
-            theta = w.unsqueeze(0).expand(N, G, N_QUBITS).reshape(N * G, N_QUBITS)
-            y = circuit(pooled, theta)
-        else:
-            L = w.shape[1]
+        if s is not None:
             s = s.to(sim)
-            wf = w.unsqueeze(0).expand(N, G, L, N_QUBITS, 3).reshape(N * G, L, N_QUBITS, 3)
-            sf = s.unsqueeze(0).expand(N, G, L, N_QUBITS).reshape(N * G, L, N_QUBITS)
-            y = circuit(pooled, wf, sf)
-        y = torch.stack([torch.as_tensor(v).reshape(-1) for v in y], dim=-1)  # [N*G, 4]
-        return y.reshape(N, G * N_QUBITS).to(device=tokens.device, dtype=torch.float32)
+        circuit = pennylane_flat_qnode(self.q_ansatz, self.q_layers, n_qubits=nq)
+
+        def _run_chunk(p_sub, w_in, s_in=None):
+            nc, gc, _ = p_sub.shape
+            p_flat = p_sub.reshape(nc * gc, nq).to(sim)
+            if self.q_ansatz == 'legacy':
+                theta = w_in.unsqueeze(0).expand(nc, gc, nq).reshape(nc * gc, nq)
+                y_list = circuit(p_flat, theta)
+            else:
+                L = w_in.shape[1]
+                wf = w_in.unsqueeze(0).expand(nc, gc, L, nq, 3).reshape(nc * gc, L, nq, 3)
+                sf = s_in.unsqueeze(0).expand(nc, gc, L, nq).reshape(nc * gc, L, nq)
+                y_list = circuit(p_flat, wf, sf)
+            y_mat = torch.stack([torch.as_tensor(v).reshape(-1) for v in y_list], dim=-1)
+            return y_mat.reshape(nc, gc, nq).to(device=tokens.device, dtype=out_dtype)
+
+        pooled = tokens.reshape(N, G, nq)
+        max_sim_states = int(getattr(self, '_MAX_SIM_STATES', _MAX_SIM_STATES))
+        states_per_group = 1 << nq
+        max_groups = max(1, max_sim_states // max(1, states_per_group))
+        max_tokens = max(1, max_sim_states // max(1, G * states_per_group))
+        if N <= max_tokens and G <= max_groups:
+            return _run_chunk(pooled, w, s).reshape(N, G * nq)
+
+        use_ckpt = torch.is_grad_enabled() and (
+            pooled.requires_grad
+            or w.requires_grad
+            or (s is not None and s.requires_grad)
+        )
+        chunks = []
+        for start in range(0, N, max_tokens):
+            p_chunk = pooled[start : start + max_tokens]
+            g_chunks = []
+            for g_start in range(0, G, max_groups):
+                g_end = min(G, g_start + max_groups)
+                p_sub = p_chunk[:, g_start:g_end]
+                w_sub = w[g_start:g_end]
+                if use_ckpt:
+                    if self.q_ansatz == 'legacy':
+                        y_sub = torch.utils.checkpoint.checkpoint(
+                            _run_chunk, p_sub, w_sub, use_reentrant=False
+                        )
+                    else:
+                        s_sub = s[g_start:g_end]
+                        y_sub = torch.utils.checkpoint.checkpoint(
+                            _run_chunk, p_sub, w_sub, s_sub, use_reentrant=False
+                        )
+                else:
+                    s_sub = s[g_start:g_end] if s is not None else None
+                    y_sub = _run_chunk(p_sub, w_sub, s_sub)
+                g_chunks.append(y_sub)
+            y_c = torch.cat(g_chunks, dim=1) if len(g_chunks) > 1 else g_chunks[0]
+            chunks.append(y_c.reshape(p_chunk.shape[0], G * nq))
+        return torch.cat(chunks, dim=0)
 
     def _eval_tokens_pennylane_pergroup(self, tokens):
-        """Evaluate 4-qubit groups on `tokens` of shape [N, G * 4] using per-group QNodes."""
+        """Evaluate n_qubits groups on `tokens` of shape [N, G * n_qubits] using per-group QNodes."""
         if not self.pennylane_circuits:
             raise ValueError('PennyLane circuits not initialized for PennyLane backend')
         N = tokens.shape[0]
         G = self.num_groups
+        nq = self.n_qubits
+        out_dtype = torch.float64 if tokens.dtype == torch.float64 else torch.float32
+        if N == 0 or G == 0:
+            return torch.zeros(N, G * nq, dtype=out_dtype, device=tokens.device)
+        max_sim_states = int(getattr(self, '_MAX_SIM_STATES', _MAX_SIM_STATES))
+        states_per_group = 1 << nq
+        max_tokens = max(1, max_sim_states // max(1, G * states_per_group))
+        need_chunk_or_ckpt = (N > max_tokens) or (G * states_per_group > max_sim_states)
         outputs = []
         for i in range(G):
-            x_g = tokens[:, i * 4 : (i + 1) * 4]  # [N, 4]
+            x_g = tokens[:, i * nq : (i + 1) * nq]  # [N, n_qubits]
             w, s = self._group_params(i, tokens.device)
-            if self.q_ansatz == 'legacy':
-                group_outputs = []
-                for n in range(N):
-                    x_item = x_g[n:n + 1].unsqueeze(-1).unsqueeze(-1)  # [1, 4, 1, 1]
-                    y_item = self.pennylane_circuits[i](x_item, w)
-                    y_tensor = torch.stack(y_item).unsqueeze(0)  # [1, 4]
-                    group_outputs.append(y_tensor)
-                y_group = torch.cat(group_outputs, dim=0)  # [N, 4]
+            circuit = self.pennylane_circuits[i]
+
+            def _run_group_chunk(xg_chunk, w_in, s_in=None, _circ=circuit):
+                nc = xg_chunk.shape[0]
+                if self.q_ansatz == 'legacy':
+                    group_outputs = []
+                    for n in range(nc):
+                        x_item = xg_chunk[n:n + 1].unsqueeze(-1).unsqueeze(-1)  # [1, n_qubits, 1, 1]
+                        y_item = _circ(x_item, w_in)
+                        y_tensor = torch.stack(y_item).unsqueeze(0)  # [1, n_qubits]
+                        group_outputs.append(y_tensor)
+                    y_grp = torch.cat(group_outputs, dim=0)  # [nc, n_qubits]
+                else:
+                    y_list = _circ(xg_chunk, w_in, s_in)
+                    y_grp = torch.stack([torch.as_tensor(v).reshape(-1) for v in y_list], dim=1)
+                    y_grp = y_grp.reshape(nc, nq)
+                return y_grp.to(device=tokens.device, dtype=out_dtype)
+
+            if not need_chunk_or_ckpt:
+                y_group = _run_group_chunk(x_g, w, s)
             else:
-                y_list = self.pennylane_circuits[i](x_g, w, s)
-                y_group = torch.stack([torch.as_tensor(v).reshape(-1) for v in y_list], dim=1)
-                y_group = y_group.reshape(N, N_QUBITS)
-            outputs.append(y_group.to(torch.float32))
-        return torch.cat(outputs, dim=1) if outputs else torch.zeros(N, 0, dtype=torch.float32, device=tokens.device)
+                use_ckpt = torch.is_grad_enabled() and (
+                    x_g.requires_grad
+                    or w.requires_grad
+                    or (s is not None and s.requires_grad)
+                )
+                chunks = []
+                for start in range(0, N, max_tokens):
+                    xg_c = x_g[start : start + max_tokens]
+                    if use_ckpt:
+                        if self.q_ansatz == 'legacy':
+                            y_c = torch.utils.checkpoint.checkpoint(
+                                _run_group_chunk, xg_c, w, use_reentrant=False
+                            )
+                        else:
+                            y_c = torch.utils.checkpoint.checkpoint(
+                                _run_group_chunk, xg_c, w, s, use_reentrant=False
+                            )
+                    else:
+                        y_c = _run_group_chunk(xg_c, w, s)
+                    chunks.append(y_c)
+                y_group = torch.cat(chunks, dim=0)
+            outputs.append(y_group)
+        return torch.cat(outputs, dim=1)
 
     def _eval_4qubit_tokens(self, tokens):
         if self.q_backend == 'pennylane':
@@ -1163,32 +1382,34 @@ class QuantumBlock(nn.Module):
 
     def _forward_spatial_4qubit(self, x):
         """Apply `q_spatial_mode` ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
-        to 4-qubit group circuits."""
+        to n_qubits group circuits."""
         B, _, H, W = x.shape
         G = self.num_groups
+        nq = self.n_qubits
         if G == 0:
             return torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
-        x_eff = x[:, :G * N_QUBITS]
+        x_eff = x[:, :G * nq]
         mode = self.q_spatial_mode
         if mode == 'global':
-            tokens = x_eff.mean(dim=(2, 3))  # [B, G*4]
-            y_tokens = self._eval_4qubit_tokens(tokens)  # [B, G*4]
+            tokens = x_eff.mean(dim=(2, 3))  # [B, G*nq]
+            y_tokens = self._eval_4qubit_tokens(tokens)  # [B, G*nq]
             return y_tokens.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, H, W)
         if mode == 'se_gate':
-            tokens = x_eff.mean(dim=(2, 3))  # [B, G*4]
-            y_tokens = self._eval_4qubit_tokens(tokens)  # [B, G*4]
+            tokens = x_eff.mean(dim=(2, 3))  # [B, G*nq]
+            y_tokens = self._eval_4qubit_tokens(tokens)  # [B, G*nq]
             gate = torch.sigmoid(y_tokens.unsqueeze(-1).unsqueeze(-1))
-            return x_eff.to(torch.float32) * gate
+            out_dtype = torch.float64 if x_eff.dtype == torch.float64 else torch.float32
+            return x_eff.to(out_dtype) * gate
         if mode == 'pixel':
-            tokens = x_eff.permute(0, 2, 3, 1).reshape(B * H * W, G * N_QUBITS)
+            tokens = x_eff.permute(0, 2, 3, 1).reshape(B * H * W, G * nq)
             y_tokens = self._eval_4qubit_tokens(tokens)
-            return y_tokens.reshape(B, H, W, G * N_QUBITS).permute(0, 3, 1, 2).contiguous()
+            return y_tokens.reshape(B, H, W, G * nq).permute(0, 3, 1, 2).contiguous()
         if mode in ('patch2x2', 'patch4x4'):
             P = 2 if mode == 'patch2x2' else 4
             x_patch = F.adaptive_avg_pool2d(x_eff, (P, P))
-            tokens = x_patch.permute(0, 2, 3, 1).reshape(B * P * P, G * N_QUBITS)
+            tokens = x_patch.permute(0, 2, 3, 1).reshape(B * P * P, G * nq)
             y_tokens = self._eval_4qubit_tokens(tokens)
-            y_patch = y_tokens.reshape(B, P, P, G * N_QUBITS).permute(0, 3, 1, 2).contiguous()
+            y_patch = y_tokens.reshape(B, P, P, G * nq).permute(0, 3, 1, 2).contiguous()
             if (P, P) != (H, W):
                 return F.interpolate(y_patch, size=(H, W), mode='bilinear', align_corners=False)
             return y_patch
@@ -1260,7 +1481,8 @@ class QuantumBlock(nn.Module):
             return self._forward_hqunet(x)
 
         if self.quantum_mode == 'zero':
-            return torch.zeros(B, self.num_groups * 4, H, W, dtype=torch.float32, device=x.device)
+            out_dtype = torch.float64 if x.dtype == torch.float64 else torch.float32
+            return torch.zeros(B, self.effective_qc, H, W, dtype=out_dtype, device=x.device)
         
         if self.backend == 'ptlayer':
             if self.ptlayers is None:
@@ -1346,6 +1568,9 @@ class QResnetBlock(nn.Module):
             quantum_block = q_block
         if quantum_block is None:
             raise ValueError("QResnetBlock requires quantum_block (or q_block)")
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
         self.quantum_block = quantum_block
         self.in_dim = in_dim
@@ -1356,8 +1581,12 @@ class QResnetBlock(nn.Module):
         self.skip_modulation = normalize_skip_modulation(eff_mode)
         self.q_residual_mode = self.skip_modulation
         
-        # Calculate effective quantum channels (must be multiple of 4)
-        self.effective_qc = (quantum_channels // 4) * 4
+        # Calculate effective quantum channels from the bottleneck block (multiple of group width)
+        self.effective_qc = int(getattr(quantum_block, 'effective_qc', (quantum_channels // 4) * 4))
+        if self.effective_qc < 0 or self.effective_qc > min(in_dim, out_dim):
+            raise ValueError(
+                f"effective_qc={self.effective_qc} must satisfy 0 <= effective_qc <= min(in_dim={in_dim}, out_dim={out_dim})"
+            )
         self.classical_channels = out_dim - self.effective_qc
 
         # Classical path for remaining channels
@@ -1715,10 +1944,11 @@ class UpUnet(nn.Module):
         
         return h
     
-def matched_mlp_hidden(params_per_group):
-    """Hidden width h for Linear(4,h)-Tanh-Linear(h,4)-Tanh (9h + 4 params) closest
+def matched_mlp_hidden(params_per_group, n_qubits=DEFAULT_N_QUBITS):
+    """Hidden width h for Linear(q,h)-Tanh-Linear(h,q)-Tanh ((2q + 1)h + q params) closest
     to params_per_group."""
-    return max(1, int(round((params_per_group - 4) / 9.0)))
+    q = normalize_n_qubits(n_qubits)
+    return max(1, int(round((params_per_group - q) / float(2 * q + 1))))
 
 
 def matched_lowrank_dim(effective_qc, target_total_params):
@@ -1750,12 +1980,22 @@ class ClassicalBottleneckBlock(nn.Module):
         ablation_mode=None,
         hqunet_grid=DEFAULT_HQUNET_GRID,
         lowrank_rank=None,
+        n_qubits=DEFAULT_N_QUBITS,
     ):
         super().__init__()
+        norm_nq = normalize_n_qubits(n_qubits)
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         eff_ablation = normalize_ablation_mode(ablation_mode) if ablation_mode is not None else None
         if q_ansatz is not None:
             if q_ansatz not in Q_ANSATZ_CHOICES:
                 raise ValueError(f"Unknown q_ansatz {q_ansatz!r}, expected one of {Q_ANSATZ_CHOICES}")
+            if q_ansatz == 'hqunet' and norm_nq != DEFAULT_N_QUBITS:
+                raise ValueError(
+                    f"n_qubits={norm_nq} is not supported with q_ansatz='hqunet'; "
+                    "use hqunet_grid in {2, 4} to control the 2D patch lattice qubit count."
+                )
             if eff_ablation in (None, 'auto'):
                 if q_ansatz == 'hqunet':
                     kind = 'hqunet_spatial'
@@ -1766,23 +2006,42 @@ class ClassicalBottleneckBlock(nn.Module):
             else:
                 kind = eff_ablation
             if hidden is None:
-                hidden = matched_mlp_hidden(16 * int(q_layers or 2))
+                hidden = matched_mlp_hidden(4 * norm_nq * int(q_layers or 2), n_qubits=norm_nq)
         elif eff_ablation not in (None, 'auto'):
             kind = eff_ablation
 
         if kind not in ('linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial'):
             raise ValueError(f"Unknown classical bottleneck kind {kind!r}")
+        if kind == 'hqunet_spatial' and norm_nq != DEFAULT_N_QUBITS:
+            raise ValueError(
+                f"n_qubits={norm_nq} is not supported with kind='hqunet_spatial'; "
+                "use hqunet_grid in {2, 4} to control the 2D patch lattice qubit count."
+            )
+        self.n_qubits = norm_nq
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
-        self.num_groups = quantum_channels // 4
-        self.remaining_channels = quantum_channels % 4
-        self.effective_qc = self.num_groups * 4
+        group_w = 4 if kind == 'hqunet_spatial' else self.n_qubits
+        if 0 < quantum_channels < group_w:
+            raise ValueError(
+                f"quantum_channels={quantum_channels} must be 0 or >= {group_w} "
+                f"(group width for kind={kind!r}, n_qubits={self.n_qubits})"
+            )
+        self.num_groups = quantum_channels // group_w
+        self.remaining_channels = quantum_channels % group_w
+        self.effective_qc = self.num_groups * group_w
         self.kind = kind
         self.q_ansatz = q_ansatz
         self.q_layers = int(q_layers or 2)
         self.spatial_mode = normalize_q_spatial_mode(spatial_mode)
         self.hqunet_grid = normalize_hqunet_grid(hqunet_grid)
-        self.hidden = hidden if hidden is not None else 3
-        target_per_group = 4 if q_ansatz == 'legacy' else (16 * self.q_layers)
+        self.hidden = (
+            hidden
+            if hidden is not None
+            else matched_mlp_hidden(4 * self.n_qubits * self.q_layers, n_qubits=self.n_qubits)
+        )
+        target_per_group = self.n_qubits if q_ansatz == 'legacy' else (4 * self.n_qubits * self.q_layers)
         self.lowrank_rank = (
             int(lowrank_rank)
             if lowrank_rank is not None
@@ -1821,6 +2080,17 @@ class ClassicalBottleneckBlock(nn.Module):
             else:
                 self.per_group = nn.ModuleList([self._make_group() for _ in range(self.num_groups)])
 
+    @property
+    def bottleneck_target_params(self):
+        if self.kind == 'hqunet_spatial':
+            return sum(p.numel() for p in self.parameters())
+        target_per_group = self.n_qubits if self.q_ansatz == 'legacy' else (4 * self.n_qubits * self.q_layers)
+        return self.num_groups * target_per_group
+
+    @property
+    def bottleneck_actual_params(self):
+        return sum(p.numel() for p in self.parameters())
+
     def _make_lowrank(self):
         r = self.lowrank_rank
         return nn.Sequential(
@@ -1831,25 +2101,26 @@ class ClassicalBottleneckBlock(nn.Module):
         )
 
     def _make_group(self):
+        q = self.n_qubits
         if self.kind == 'linear':
-            return nn.Linear(4, 4)
+            return nn.Linear(q, q)
         if self.kind == 'mlp':
             return nn.Sequential(
-                nn.Linear(4, self.hidden), nn.Tanh(),
-                nn.Linear(self.hidden, 4), nn.Tanh(),
+                nn.Linear(q, self.hidden), nn.Tanh(),
+                nn.Linear(self.hidden, q), nn.Tanh(),
             )
         if self.kind == 'conv1x1':
             if self.q_ansatz == 'legacy':
-                return nn.Conv2d(4, 4, kernel_size=1)
+                return nn.Conv2d(q, q, kernel_size=1)
             return nn.Sequential(
-                nn.Conv2d(4, self.hidden, kernel_size=1), nn.Tanh(),
-                nn.Conv2d(self.hidden, 4, kernel_size=1), nn.Tanh(),
+                nn.Conv2d(q, self.hidden, kernel_size=1), nn.Tanh(),
+                nn.Conv2d(self.hidden, q, kernel_size=1), nn.Tanh(),
             )
         if self.kind == 'depthwise3x3':
             return nn.Sequential(
-                nn.Conv2d(4, 4, kernel_size=3, padding=1, groups=4),
+                nn.Conv2d(q, q, kernel_size=3, padding=1, groups=q),
                 nn.Tanh(),
-                nn.Conv2d(4, 4, kernel_size=1),
+                nn.Conv2d(q, q, kernel_size=1),
                 nn.Tanh(),
             )
         raise ValueError(f"Unsupported per-group kind {self.kind!r}")
@@ -1926,16 +2197,17 @@ class ClassicalBottleneckBlock(nn.Module):
 
     def _eval_tokens_groups(self, tokens, groups):
         """Apply per-group Linear/MLP modules to `tokens` of shape [N, effective_qc]."""
+        q = self.n_qubits
         outputs = []
         for i, layer in enumerate(groups):
-            g = tokens[:, i * 4 : (i + 1) * 4]
+            g = tokens[:, i * q : (i + 1) * q]
             outputs.append(layer(g))
         return torch.cat(outputs, dim=1)
 
     def forward(self, x, params=None):
-        if self.effective_qc == 0:
-            return x
         B, _, H, W = x.shape
+        if self.effective_qc == 0:
+            return torch.zeros(B, 0, H, W, dtype=x.dtype, device=x.device)
         x_eff = x[:, :self.effective_qc]
 
         if self.kind == 'hqunet_spatial':
@@ -1969,9 +2241,10 @@ class ClassicalBottleneckBlock(nn.Module):
             groups = [g.to(x.device) for g in self._random_groups]
 
         if self.kind in ('conv1x1', 'depthwise3x3'):
+            q = self.n_qubits
             outputs = []
             for i, layer in enumerate(groups):
-                g_map = x_eff[:, i * 4 : (i + 1) * 4]
+                g_map = x_eff[:, i * q : (i + 1) * q]
                 outputs.append(layer(g_map))
             return torch.cat(outputs, dim=1)
 
@@ -2017,6 +2290,9 @@ class QVertex(nn.Module):
     ):
         super().__init__()
         self.dim = dim
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
         self.resnet_block_groups = resnet_block_groups
         self.skip_modulation = normalize_skip_modulation(skip_modulation)
@@ -2073,6 +2349,9 @@ class QVUNet(nn.Module):
         self.out_dim = out_dim or 2  # Binary segmentation
         self.dim_mults = dim_mults
         self.resnet_block_groups = resnet_block_groups
+        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
+        if quantum_channels < 0:
+            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
         self.skip_modulation = normalize_skip_modulation(skip_modulation)
         self.use_time_emb = bool(use_time_emb)

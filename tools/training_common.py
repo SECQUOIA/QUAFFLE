@@ -47,6 +47,8 @@ SKIP_MODULATION_CHOICES = ('affine', 'additive')
 DEFAULT_SKIP_MODULATION = 'affine'
 
 # Wave 2 bottleneck, backbone, loss, and augmentation options (#13, #16, #18, #22, #25).
+N_QUBITS_CHOICES = (2, 4, 8, 12, 16)
+DEFAULT_N_QUBITS = 4
 Q_ANSATZ_CHOICES = ('reupload', 'legacy', 'hqunet')
 Q_SPATIAL_MODES = ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
 DEFAULT_Q_SPATIAL_MODE = 'global'
@@ -238,6 +240,13 @@ def add_common_args(parser, quantum=True, federated=False):
         parser.add_argument('--q-layers', type=int, default=None,
                             help='Number of variational layers in the quantum bottleneck '
                                  '(default: model default)')
+        parser.add_argument('--n-qubits', '--n_qubits', dest='n_qubits', type=int,
+                            choices=list(N_QUBITS_CHOICES), default=DEFAULT_N_QUBITS,
+                            help="Per-group qubit width for 'reupload' and 'legacy' ansatze "
+                                 f"(default: {DEFAULT_N_QUBITS}; choices: {N_QUBITS_CHOICES}; #39)")
+        parser.add_argument('--quantum-channels', '--quantum_channels', dest='quantum_channels',
+                            type=int, default=None,
+                            help='Override number of quantum bottleneck channels (default: script config, 32)')
         parser.add_argument('--q-spatial-mode', choices=list(Q_SPATIAL_MODES),
                             default=DEFAULT_Q_SPATIAL_MODE,
                             help="Spatial feature preservation mode for 4-qubit bottleneck groups "
@@ -336,6 +345,12 @@ def apply_common_args(config, args):
         config.setdefault('data_root', None)
     if getattr(args, 'results_dir', None) is not None:
         config['results_dir'] = args.results_dir
+    if getattr(args, 'n_qubits', None) is not None:
+        config['n_qubits'] = effective_n_qubits({'n_qubits': args.n_qubits})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'n_qubits' in config:
+        config['n_qubits'] = effective_n_qubits(config)
+    if getattr(args, 'quantum_channels', None) is not None:
+        config['quantum_channels'] = int(args.quantum_channels)
     if getattr(args, 'base_channels', None) is not None:
         bc = int(args.base_channels)
         config['base_channels'] = bc
@@ -345,8 +360,13 @@ def apply_common_args(config, args):
         if 'quantum_channels' in config and getattr(args, 'quantum_channels', None) is None:
             mults = config.get('dim_mults', (1, 2, 4, 8))
             mid_dim = bc * int(mults[-1]) if mults else bc * 8
+            ans_eff = getattr(args, 'q_ansatz', None) or config.get('q_ansatz', 'reupload')
+            group_w = 4 if ans_eff == 'hqunet' else int(config.get('n_qubits', DEFAULT_N_QUBITS))
             if int(config['quantum_channels']) > mid_dim:
-                config['quantum_channels'] = max(4, (mid_dim // 4) * 4)
+                if mid_dim >= group_w:
+                    config['quantum_channels'] = max(group_w, (mid_dim // group_w) * group_w)
+                else:
+                    config['quantum_channels'] = mid_dim
     if getattr(args, 'image_size', None) is not None:
         config['image_size'] = int(args.image_size)
     if getattr(args, 'batch_size', None) is not None:
@@ -1389,6 +1409,86 @@ def effective_hqunet_grid(config):
     return normalize_hqunet_grid(config.get('hqunet_grid', DEFAULT_HQUNET_GRID))
 
 
+def effective_n_qubits(config):
+    """Resolve and normalize `n_qubits` (4 default, or 2, 8, 12, 16, #39)."""
+    from utilsTorch.unetTorch import normalize_n_qubits
+    if not isinstance(config, dict):
+        return normalize_n_qubits(config)
+    return normalize_n_qubits(config.get('n_qubits', DEFAULT_N_QUBITS))
+
+
+def _effective_fingerprint_n_qubits(config, model_type):
+    """Effective `n_qubits` recorded in fingerprints and `metrics.json` (#39)."""
+    if model_type not in ('quantum', 'ablation'):
+        return None
+    return effective_n_qubits(config)
+
+
+def bottleneck_param_counts(config, model_type, model=None):
+    """Return `(bottleneck_target_params, bottleneck_actual_params)` for quantum/ablation runs (#39).
+
+    Returns `(None, None)` for classical runs.
+    """
+    if model_type not in ('quantum', 'ablation'):
+        return None, None
+    if model is not None:
+        root = getattr(model, 'model', None) or getattr(model, '_model', None) or model
+        if hasattr(root, 'modules'):
+            seen = set()
+            targets, actuals = [], []
+            for m in root.modules():
+                if hasattr(m, 'bottleneck_target_params') and hasattr(m, 'bottleneck_actual_params'):
+                    if id(m) not in seen:
+                        seen.add(id(m))
+                        targets.append(int(m.bottleneck_target_params))
+                        actuals.append(int(m.bottleneck_actual_params))
+            if targets:
+                return sum(targets), sum(actuals)
+    if not isinstance(config, dict):
+        return None, None
+    qc = int(config.get('quantum_channels', 32) if config.get('quantum_channels') is not None else 32)
+    n_blocks = 1 if bool(config.get('q_share_blocks', True)) else 2
+    if qc <= 0:
+        return 0, 0
+    ansatz, layers = effective_q_variant(config)
+    n_q = effective_n_qubits(config)
+    q_sp = effective_q_spatial_mode(config)
+    grid = effective_hqunet_grid(config)
+    if model_type == 'ablation':
+        from utilsTorch.unetTorch import ClassicalBottleneckBlock
+        abl_mode = effective_ablation_mode(config)
+        eff_layers = effective_ablation_q_layers(config)
+        eff_nq = 4 if (ansatz == 'hqunet' or abl_mode == 'hqunet_spatial') else n_q
+        blk = ClassicalBottleneckBlock(
+            quantum_channels=qc,
+            q_ansatz=ansatz,
+            q_layers=eff_layers,
+            spatial_mode=q_sp,
+            ablation_mode=abl_mode,
+            hqunet_grid=grid,
+            n_qubits=eff_nq,
+        )
+        return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
+    q_family = config.get('quantum_backend', 'pennylane')
+    if q_family == 'ptlayer':
+        per_block = (qc // 4) * 144
+        total = int(per_block) * n_blocks
+        return total, total
+    from utilsTorch.unetTorch import QuantumBlock
+    eff_nq = 4 if ansatz == 'hqunet' else n_q
+    blk = QuantumBlock(
+        quantum_channels=qc,
+        backend='pennylane',
+        q_ansatz=ansatz,
+        q_layers=layers or (1 if ansatz == 'legacy' else 2),
+        q_backend='torch',
+        q_spatial_mode=q_sp,
+        hqunet_grid=grid,
+        n_qubits=eff_nq,
+    )
+    return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
+
+
 def effective_ablation_mode(config):
     """Resolve and normalize `ablation_mode` ('auto' default, or 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')."""
     from utilsTorch.unetTorch import normalize_ablation_mode
@@ -1526,16 +1626,29 @@ def circular_mean_angles(arrays, weights):
     """
     if not arrays:
         raise ValueError("circular_mean_angles requires at least one array")
-    orig_dtype = np.asarray(arrays[0]).dtype
+    first = np.asarray(arrays[0])
+    ref_shape = first.shape
+    for idx, arr in enumerate(arrays[1:], start=1):
+        arr_np = np.asarray(arr)
+        if arr_np.shape != ref_shape:
+            raise ValueError(
+                f"circular_mean_angles shape mismatch at index {idx}: "
+                f"expected {ref_shape}, got {arr_np.shape}"
+            )
+    orig_dtype = first.dtype
     w = np.asarray(weights, dtype=np.float64)
+    if w.ndim != 1 or len(w) != len(arrays):
+        raise ValueError(
+            f"circular_mean_angles weights length mismatch: expected {len(arrays)}, got {w.shape}"
+        )
     w_sum = float(w.sum())
     if w_sum <= 0.0:
         w = np.ones(len(arrays), dtype=np.float64) / float(len(arrays))
     else:
         w = w / w_sum
-    sin_sum = np.zeros_like(arrays[0], dtype=np.float64)
-    cos_sum = np.zeros_like(arrays[0], dtype=np.float64)
-    lin_sum = np.zeros_like(arrays[0], dtype=np.float64)
+    sin_sum = np.zeros_like(first, dtype=np.float64)
+    cos_sum = np.zeros_like(first, dtype=np.float64)
+    lin_sum = np.zeros_like(first, dtype=np.float64)
     for arr, wk in zip(arrays, w):
         theta = np.asarray(arr, dtype=np.float64)
         sin_sum += wk * np.sin(theta)
@@ -1560,9 +1673,22 @@ def aggregate_ndarrays_quantum_aware(results, periodic_indices=None, q_angle_agg
     w_sum = float(w_arr.sum())
     w_norm = (w_arr / w_sum) if w_sum > 0.0 else (np.ones(len(results), dtype=np.float64) / float(len(results)))
     num_params = len(results[0][0])
+    for client_idx, (params, _) in enumerate(results[1:], start=1):
+        if len(params) != num_params:
+            raise ValueError(
+                f"Client {client_idx} parameter tensor count mismatch: "
+                f"expected {num_params}, got {len(params)}"
+            )
     out = []
     for idx in range(num_params):
         layer_arrays = [np.asarray(params[idx]) for params, _ in results]
+        ref_shape = layer_arrays[0].shape
+        for client_idx, arr in enumerate(layer_arrays[1:], start=1):
+            if arr.shape != ref_shape:
+                raise ValueError(
+                    f"Client {client_idx} parameter shape mismatch at index {idx}: "
+                    f"expected {ref_shape}, got {arr.shape}"
+                )
         if agg_mode == 'circular' and idx in p_idx and np.issubdtype(layer_arrays[0].dtype, np.floating):
             out.append(circular_mean_angles(layer_arrays, weights))
         else:
@@ -1585,10 +1711,47 @@ def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, mod
         return aggregated_parameters
     from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
     agg_nd = list(parameters_to_ndarrays(aggregated_parameters))
+    ref_shapes = None
+    if isinstance(model_or_keys, dict) and model_or_keys:
+        first_val = next(iter(model_or_keys.values()))
+        if hasattr(first_val, 'shape'):
+            ref_shapes = [tuple(v.shape) for v in model_or_keys.values()]
+        elif isinstance(first_val, (tuple, list)):
+            ref_shapes = [tuple(int(d) for d in v) for v in model_or_keys.values()]
+    elif hasattr(model_or_keys, 'named_parameters'):
+        ref_shapes = [tuple(p.shape) for _, p in model_or_keys.named_parameters()]
+    elif hasattr(model_or_keys, 'state_dict'):
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.state_dict().values()]
+    elif hasattr(model_or_keys, 'model') and hasattr(model_or_keys.model, 'state_dict'):
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.model.state_dict().values()]
+    if ref_shapes is None:
+        ref_shapes = [np.asarray(a).shape for a in agg_nd]
+    if len(agg_nd) != len(ref_shapes):
+        raise ValueError(
+            f"Aggregated parameter tensor count mismatch: expected {len(ref_shapes)}, got {len(agg_nd)}"
+        )
+    for idx, (arr, exp_shape) in enumerate(zip(agg_nd, ref_shapes)):
+        if np.asarray(arr).shape != exp_shape:
+            raise ValueError(
+                f"Aggregated parameter shape mismatch at index {idx}: "
+                f"expected {exp_shape}, got {np.asarray(arr).shape}"
+            )
     client_nd_weights = []
-    for item in results:
+    for client_idx, item in enumerate(results):
         fit_res = item[1] if isinstance(item, tuple) else item
-        client_nd_weights.append((parameters_to_ndarrays(fit_res.parameters), float(fit_res.num_examples)))
+        c_nd = parameters_to_ndarrays(fit_res.parameters)
+        if len(c_nd) != len(ref_shapes):
+            raise ValueError(
+                f"Client {client_idx} parameter tensor count mismatch in circular aggregation: "
+                f"expected {len(ref_shapes)}, got {len(c_nd)}"
+            )
+        for idx, (arr, exp_shape) in enumerate(zip(c_nd, ref_shapes)):
+            if np.asarray(arr).shape != exp_shape:
+                raise ValueError(
+                    f"Client {client_idx} parameter shape mismatch at index {idx}: "
+                    f"expected {exp_shape}, got {np.asarray(arr).shape}"
+                )
+        client_nd_weights.append((c_nd, float(fit_res.num_examples)))
     weights = [w for _, w in client_nd_weights]
     for idx in sorted(p_idx):
         if 0 <= idx < len(agg_nd) and np.issubdtype(agg_nd[idx].dtype, np.floating):
@@ -1636,6 +1799,7 @@ def _normalize_saved_fingerprint(saved, model_type=None):
     uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
     is_fed = 'fed_rounds' in out or 'partition' in out
     defaults = {
+        'n_qubits': DEFAULT_N_QUBITS if quantum else None,
         'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
         'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
         'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
@@ -1755,6 +1919,7 @@ def centralized_fingerprint(config, model_type):
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
@@ -1935,17 +2100,19 @@ def federated_variant_tag(config, quantum=False):
 
 def variant_tag(config):
     """Directory suffix that separates quantum ansatz variants, e.g.
-    '_reupload_L2' or '_legacy' (plus non-default spatial/ablation/backbone/loss/aug tags).
+    '_reupload_L2' or '_legacy' (plus non-default n_qubits/spatial/ablation/backbone/loss/aug tags).
     Used for quantum runs and the ablation (whose classical bottleneck is matched to
     the quantum variant)."""
     ansatz, layers = effective_q_variant(config)
+    n_q = effective_n_qubits(config) if isinstance(config, dict) else DEFAULT_N_QUBITS
+    nq_suffix = f'_nq{n_q}' if (ansatz in ('reupload', 'legacy') and n_q != DEFAULT_N_QUBITS) else ''
     if ansatz == 'legacy':
-        tag = '_legacy'
+        tag = f'_legacy{nq_suffix}'
     elif ansatz == 'hqunet':
         grid = effective_hqunet_grid(config)
         tag = f'_hqunet_G{grid}_L{layers}'
     else:
-        tag = f'_{ansatz}_L{layers}'
+        tag = f'_{ansatz}_L{layers}{nq_suffix}'
     if isinstance(config, dict):
         q_sp = effective_q_spatial_mode(config)
         abl = effective_ablation_mode(config)
@@ -2213,6 +2380,7 @@ def run_fingerprint(config, model_type):
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
@@ -2560,6 +2728,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
     ansatz, layers = effective_q_variant(config)
     quantum = model_type in ('quantum', 'ablation')
     sel_metric = select_metric_name(config)
+    b_target, b_actual = bottleneck_param_counts(config, model_type)
     eff_best_val = best_val_metrics if best_val_metrics is not None else val_metrics
     eff_final_val = final_val_metrics if final_val_metrics is not None else val_metrics
     eff_best_test = best_val_test_metrics if best_val_test_metrics is not None else test_metrics
@@ -2588,6 +2757,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'seed': int(config['seed']),
         'q_ansatz': ansatz if quantum else None,
         'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
@@ -2598,6 +2768,8 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
         'quantum_channels': config.get('quantum_channels') if quantum else None,
+        'bottleneck_target_params': b_target,
+        'bottleneck_actual_params': b_actual,
         # Circuit simulator (quantum runs only). The ablation has no circuit.
         'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
                       if model_type == 'quantum' else None),

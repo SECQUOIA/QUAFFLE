@@ -217,11 +217,11 @@ def assign_method(row):
         qc = int(float(qc)) if pd.notna(qc) else 32
     except (ValueError, TypeError):
         qc = 32
-    qc_suffix = f" QC={qc}" if "quantum" in variant and qc != 32 else ""
+    qc_suffix = f" QC={qc}" if ("quantum" in variant or is_ablation) and qc != 32 else ""
 
     if training == "centralized":
         if is_ablation:
-            return "Ablation Central"
+            return f"Ablation Central{qc_suffix}"
         if "quantum" in variant:
             return f"Quantum Central{qc_suffix}"
         return "Classical Central"
@@ -239,7 +239,7 @@ def assign_method(row):
             part_label = ""
 
         if is_ablation:
-            return f"Ablation Fed {part_label}".strip()
+            return f"Ablation Fed {part_label}{qc_suffix}".strip()
         if "quantum" in variant:
             return f"Quantum Fed {part_label}{qc_suffix}".strip()
         return f"Classical Fed {part_label}".strip()
@@ -284,6 +284,7 @@ _CLASSICAL_MOD_PART = (
 )
 _VTAG_RE = _re_disk.compile(
     r"_((?:legacy|reupload_L\d+|hqunet_G\d+_L\d+)"
+    r"(?:_nq\d+)?"
     r"(?:_(?:pixel|patch2x2|patch4x4|se_gate))?"
     r"(?:_abl-(?:linear|mlp|conv1x1|depthwise3x3|lowrank|hqunet_spatial(?:_G\d+)?(?:_L\d+)?))?"
     r"(?:_additive)?"
@@ -358,6 +359,9 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             layers = int(q_layers) if q_layers is not None else _DEFAULT_Q_LAYERS
             parts.append(f"{q_ansatz}_L{layers}")
         if isinstance(data, dict):
+            n_q = data.get("n_qubits")
+            if q_ansatz in ("legacy", "reupload") and n_q is not None and int(n_q) != 4:
+                parts.append(f"nq{int(n_q)}")
             q_sp = data.get("q_spatial_mode")
             abl = data.get("ablation_mode")
             if q_sp and q_sp != "global" and (q_ansatz != "hqunet" or abl in ("linear", "mlp")):
@@ -425,6 +429,7 @@ def _infer_variant_from_summary(text, quantumish=True):
     cli = m.group(1)
     a = _re_disk.search(r"--q[-_]ansatz[ =](\w+)", cli)
     layers = _re_disk.search(r"--q[-_]layers[ =](\d+)", cli)
+    n_qubits = _re_disk.search(r"--n[-_]qubits[ =](\d+)", cli)
     grid = _re_disk.search(r"--hqunet[-_]grid[ =](\d+)", cli)
     q_sp = _re_disk.search(r"--q[-_]spatial[-_]mode[ =](\w+)", cli)
     abl = _re_disk.search(r"--ablation[-_]mode[ =](\w+)", cli)
@@ -434,6 +439,7 @@ def _infer_variant_from_summary(text, quantumish=True):
     no_time = bool(_re_disk.search(r"--no[-_]time[-_]emb\b", cli))
     aug = bool(_re_disk.search(r"--augment\b", cli))
     data = {
+        "n_qubits": int(n_qubits.group(1)) if n_qubits else None,
         "hqunet_grid": int(grid.group(1)) if grid else None,
         "q_spatial_mode": q_sp.group(1) if q_sp else None,
         "ablation_mode": abl.group(1) if abl else None,
@@ -516,15 +522,15 @@ def _parse_run_dir_full(dirname):
         if "bottleneck" not in base:
             return None  # old base_channels=28 architecture; superseded
         if "centralized" in base:
-            return ("Ablation Central", dataset, seed, 32, "centralized", "centralized", variant)
+            return (f"Ablation Central{qc_suffix}", dataset, seed, qc, "centralized", "centralized", variant)
         if "random" in base:
-            return ("Ablation Fed (Random)", dataset, seed, 32, "federated", "random", variant)
+            return (f"Ablation Fed (Random){qc_suffix}", dataset, seed, qc, "federated", "random", variant)
         if "dirichlet" in base:
-            return ("Ablation Fed (Dirichlet)", dataset, seed, 32, "federated", "dirichlet", variant)
+            return (f"Ablation Fed (Dirichlet){qc_suffix}", dataset, seed, qc, "federated", "dirichlet", variant)
         if "modality" in base:
-            return ("Ablation Fed (Modality)", dataset, seed, 32, "federated", "modality", variant)
+            return (f"Ablation Fed (Modality){qc_suffix}", dataset, seed, qc, "federated", "modality", variant)
         if "geocluster" in base or "geo_cluster" in base:
-            return ("Ablation Fed (GeoCluster)", dataset, seed, 32, "federated", "geo_cluster", variant)
+            return (f"Ablation Fed (GeoCluster){qc_suffix}", dataset, seed, qc, "federated", "geo_cluster", variant)
         return None
 
     if not base.startswith("flood_"):

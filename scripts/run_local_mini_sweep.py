@@ -49,6 +49,7 @@ import centralized_demoTorchQ  # noqa: E402
 import federated_demoTorchClassical  # noqa: E402
 import federated_demoTorchQ  # noqa: E402
 from tools import make_mini_flood_dataset  # noqa: E402
+from tools import training_common as tc  # noqa: E402
 
 
 def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
@@ -62,16 +63,279 @@ def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
     return time.perf_counter() - t0
 
 
-def _find_metrics_json_since(results_dir: str, before_paths: set) -> str:
+_SCHEMA_DEFAULTS: Dict[str, Any] = {
+    "training": "centralized",
+    "dataset": "optical",
+    "base_channels": 32,
+    "image_size": 128,
+    "combined_input_mode": "shared3",
+    "backbone_conv_mode": "ws_conv",
+    "loss": "ce",
+    "use_time_emb": True,
+    "augment": False,
+    "q_ansatz": "reupload",
+    "q_layers": 2,
+    "n_qubits": 4,
+    "quantum_channels": 32,
+    "q_spatial_mode": "global",
+    "hqunet_grid": 2,
+    "skip_modulation": "affine",
+    "ablation_mode": "auto",
+}
+
+
+def _resolve_expected_quantum_channels(
+    requested_qc: int,
+    base_channels: int,
+    n_qubits: int = 4,
+    q_ansatz: str = "reupload",
+    ablation_mode: str = "none",
+    quantum_channels_explicit: bool = False,
+) -> int:
+    if quantum_channels_explicit:
+        return int(requested_qc)
+    mid_dim = int(base_channels) * 8
+    group_w = 4 if (q_ansatz == "hqunet" or ablation_mode == "hqunet_spatial") else int(n_qubits)
+    if int(requested_qc) > mid_dim:
+        if mid_dim >= group_w:
+            return max(group_w, (mid_dim // group_w) * group_w)
+        return mid_dim
+    return int(requested_qc)
+
+
+def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
+    """Resolve complete expected run configuration (including defaults) and explicit keys from argv."""
+    meta: Dict[str, Any] = {}
+    explicit: set = set()
+    if not argv:
+        return meta, explicit
+    script = os.path.basename(str(argv[0]))
+    if "Classical" in script:
+        model_type = "classical"
+    elif "ablation" in script:
+        model_type = "ablation"
+    elif "TorchQ" in script:
+        model_type = "quantum"
+    else:
+        model_type = None
+    if model_type is not None:
+        meta["model_type"] = model_type
+        explicit.add("model_type")
+    meta["training"] = "federated" if "federated" in script.lower() else "centralized"
+    for k in ("dataset", "base_channels", "image_size", "combined_input_mode", "backbone_conv_mode", "loss", "use_time_emb", "augment"):
+        meta[k] = _SCHEMA_DEFAULTS[k]
+    if model_type in ("quantum", "ablation"):
+        for k in ("q_ansatz", "q_layers", "n_qubits", "quantum_channels", "q_spatial_mode", "hqunet_grid", "skip_modulation"):
+            meta[k] = _SCHEMA_DEFAULTS[k]
+    if model_type == "ablation":
+        meta["ablation_mode"] = _SCHEMA_DEFAULTS["ablation_mode"]
+
+    flag_map = {
+        "--mode": ("training", str),
+        "--seed": ("seed", int),
+        "--dataset": ("dataset", str),
+        "--base-channels": ("base_channels", int),
+        "--base_channels": ("base_channels", int),
+        "--image-size": ("image_size", int),
+        "--image_size": ("image_size", int),
+        "--combined-input-mode": ("combined_input_mode", str),
+        "--combined_input_mode": ("combined_input_mode", str),
+        "--backbone-conv-mode": ("backbone_conv_mode", str),
+        "--backbone_conv_mode": ("backbone_conv_mode", str),
+        "--loss": ("loss", str),
+        "--q-ansatz": ("q_ansatz", str),
+        "--q_ansatz": ("q_ansatz", str),
+        "--q-layers": ("q_layers", int),
+        "--q_layers": ("q_layers", int),
+        "--n-qubits": ("n_qubits", int),
+        "--n_qubits": ("n_qubits", int),
+        "--quantum-channels": ("quantum_channels", int),
+        "--quantum_channels": ("quantum_channels", int),
+        "--ablation-mode": ("ablation_mode", str),
+        "--ablation_mode": ("ablation_mode", str),
+        "--hqunet-grid": ("hqunet_grid", int),
+        "--hqunet_grid": ("hqunet_grid", int),
+        "--q-spatial-mode": ("q_spatial_mode", str),
+        "--q_spatial_mode": ("q_spatial_mode", str),
+        "--skip-modulation": ("skip_modulation", str),
+        "--skip_modulation": ("skip_modulation", str),
+        "--partition": ("partition", str),
+        "--alpha": ("dirichlet_alpha", float),
+        "--fl-strategy": ("fl_strategy", str),
+        "--fl_strategy": ("fl_strategy", str),
+        "--fedprox-mu": ("fedprox_mu", float),
+        "--fedprox_mu": ("fedprox_mu", float),
+        "--q-angle-agg": ("q_angle_agg", str),
+        "--q_angle_agg": ("q_angle_agg", str),
+        "--num-clients": ("num_clients", int),
+        "--num_clients": ("num_clients", int),
+        "--clients-per-round": ("clients_per_round", int),
+        "--clients_per_round": ("clients_per_round", int),
+        "--fraction-fit": ("fraction_fit", float),
+        "--fraction_fit": ("fraction_fit", float),
+    }
+    i = 1
+    while i < len(argv):
+        tok = str(argv[i])
+        if tok in ("--no-time-emb", "--no_time_emb"):
+            meta["use_time_emb"] = False
+            explicit.add("use_time_emb")
+            i += 1
+        elif tok == "--augment":
+            meta["augment"] = True
+            explicit.add("augment")
+            i += 1
+        elif "=" in tok and tok.split("=", 1)[0] in flag_map:
+            flag_tok, val_str = tok.split("=", 1)
+            key, cast = flag_map[flag_tok]
+            meta[key] = cast(val_str)
+            explicit.add(key)
+            i += 1
+        elif tok in flag_map and i + 1 < len(argv):
+            key, cast = flag_map[tok]
+            meta[key] = cast(argv[i + 1])
+            explicit.add(key)
+            i += 2
+        else:
+            i += 1
+
+    # Normalize expected configuration from the requested options themselves
+    if model_type in ("quantum", "ablation"):
+        meta["quantum_channels"] = _resolve_expected_quantum_channels(
+            int(meta["quantum_channels"]),
+            int(meta["base_channels"]),
+            n_qubits=int(meta.get("n_qubits", 4)),
+            q_ansatz=str(meta.get("q_ansatz", "reupload")),
+            ablation_mode=str(meta.get("ablation_mode", "auto")) if model_type == "ablation" else "none",
+            quantum_channels_explicit=("quantum_channels" in explicit),
+        )
+        if meta.get("q_ansatz") == "hqunet" or meta.get("ablation_mode") == "hqunet_spatial":
+            meta.pop("n_qubits", None)
+            explicit.discard("n_qubits")
+        else:
+            meta.pop("hqunet_grid", None)
+            explicit.discard("hqunet_grid")
+        if meta.get("q_ansatz") == "legacy" and meta.get("ablation_mode") != "hqunet_spatial":
+            meta["q_layers"] = None
+    return meta, explicit
+
+
+def _matches_expected_metrics(
+    d: Dict[str, Any],
+    expected_seed: Optional[int],
+    expected_meta: Dict[str, Any],
+    explicit_keys: Optional[set] = None,
+) -> bool:
+    explicit_set = set(explicit_keys or ())
+    if expected_seed is not None and int(d.get("seed", -1)) != int(expected_seed):
+        return False
+    cfg = d.get("config") if isinstance(d.get("config"), dict) else {}
+    exp_bc = int(expected_meta.get("base_channels", _SCHEMA_DEFAULTS["base_channels"]))
+    for k, exp_v in expected_meta.items():
+        has_key = (k in d and d.get(k) is not None) or (k in cfg and cfg.get(k) is not None)
+        actual_v = d.get(k) if d.get(k) is not None else cfg.get(k)
+        if k == "model_type" and actual_v is None:
+            actual_v = d.get("variant") or cfg.get("variant")
+            has_key = actual_v is not None
+        if k == "q_layers" and exp_v is None:
+            if actual_v not in (None, 1):
+                return False
+            continue
+        if not has_key:
+            if k in explicit_set:
+                return False
+            # Candidate omitted an unrequested key (e.g., minimal test mock); evaluate against schema default
+            if k == "quantum_channels":
+                actual_v = _resolve_expected_quantum_channels(
+                    int(_SCHEMA_DEFAULTS["quantum_channels"]),
+                    exp_bc,
+                    n_qubits=int(expected_meta.get("n_qubits", 4)),
+                    q_ansatz=str(expected_meta.get("q_ansatz", "reupload")),
+                    ablation_mode=(
+                        str(expected_meta.get("ablation_mode", "auto"))
+                        if expected_meta.get("model_type") == "ablation"
+                        else "none"
+                    ),
+                    quantum_channels_explicit=False,
+                )
+            else:
+                actual_v = _SCHEMA_DEFAULTS.get(k)
+        if actual_v is None:
+            return False
+        if isinstance(exp_v, bool):
+            if bool(actual_v) != bool(exp_v):
+                return False
+        elif isinstance(exp_v, int):
+            if int(actual_v) != int(exp_v):
+                return False
+        elif isinstance(exp_v, float):
+            if abs(float(actual_v) - float(exp_v)) > 1e-9:
+                return False
+        else:
+            if str(actual_v) != str(exp_v):
+                return False
+    return True
+
+
+def _snapshot_metrics_files(results_dir: str) -> Dict[str, Tuple[int, int]]:
     pattern = os.path.join(results_dir, "*", "results", "metrics.json")
-    now_paths = set(glob.glob(pattern))
-    new_paths = sorted(now_paths - before_paths, key=lambda p: os.path.getmtime(p))
-    if new_paths:
-        return new_paths[-1]
-    all_paths = sorted(now_paths, key=lambda p: os.path.getmtime(p))
-    if not all_paths:
-        raise FileNotFoundError(f"No metrics.json found under {results_dir}")
-    return all_paths[-1]
+    snap: Dict[str, Tuple[int, int]] = {}
+    for p in glob.glob(pattern):
+        try:
+            st = os.stat(p)
+            snap[p] = (int(st.st_mtime_ns), int(st.st_size))
+        except OSError:
+            continue
+    return snap
+
+
+def _find_metrics_json_since(
+    results_dir: str,
+    before_paths: Any,
+    expected_seed: Optional[int] = None,
+    expected_argv: Optional[List[str]] = None,
+) -> str:
+    pattern = os.path.join(results_dir, "*", "results", "metrics.json")
+    now_paths = sorted(glob.glob(pattern))
+    if isinstance(before_paths, dict):
+        candidates = []
+        for p in now_paths:
+            try:
+                st = os.stat(p)
+                cur_sig = (int(st.st_mtime_ns), int(st.st_size))
+            except OSError:
+                continue
+            if p not in before_paths or cur_sig != before_paths[p]:
+                candidates.append(p)
+    else:
+        before_set = set(before_paths or ())
+        candidates = [p for p in now_paths if p not in before_set]
+    if not candidates:
+        raise FileNotFoundError(f"No newly written metrics.json found under {results_dir}")
+    expected_meta, explicit_keys = _expected_metadata_from_argv(expected_argv or [])
+    if expected_seed is None and not expected_meta:
+        if len(candidates) > 1:
+            raise RuntimeError(f"Ambiguous metrics.json candidates (no expected_seed/argv provided): {candidates}")
+        return candidates[0]
+    matched = []
+    for p in candidates:
+        try:
+            with open(p, "r") as f:
+                d = json.load(f)
+            if _matches_expected_metrics(d, expected_seed, expected_meta, explicit_keys):
+                matched.append(p)
+        except Exception:
+            continue
+    if not matched:
+        raise FileNotFoundError(
+            f"No metrics.json under {results_dir} matched seed={expected_seed}, meta={expected_meta} "
+            f"(candidates={candidates})"
+        )
+    if len(matched) > 1:
+        raise RuntimeError(
+            f"Ambiguous metrics.json matches for seed={expected_seed}, meta={expected_meta}: {matched}"
+        )
+    return matched[0]
 
 
 def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -202,7 +466,8 @@ def run_mini_sweep(
     if len(set(seed_list)) != len(seed_list):
         raise ValueError(f"Duplicate seeds are not allowed: {seed_list}")
 
-    valid_panel_ids = {1, 2, 3}
+    valid_panel_ids = {1, 2, 3, 4}
+    default_panel_ids = {1, 2, 3}
     if panels_filter is not None:
         panel_list = [int(p) for p in panels_filter]
         if not panel_list or not set(panel_list).issubset(valid_panel_ids):
@@ -213,7 +478,7 @@ def run_mini_sweep(
             raise ValueError(f"Duplicate panel IDs are not allowed: {panel_list}")
         active_panels = set(panel_list)
     else:
-        active_panels = set(valid_panel_ids)
+        active_panels = set(default_panel_ids)
 
     if device not in ("auto", "cpu", "cuda"):
         raise ValueError(f"device must be 'auto', 'cpu', or 'cuda', got {device!r}")
@@ -435,10 +700,138 @@ def run_mini_sweep(
                     ),
                 ],
             ),
+            (
+                4,
+                "Panel 4: Qubit-Width & Quantum-Channel Scaling (Centralized `optical`, `n_qubits` in `{4, 8, 16}`, `qc` in `{16, 32}`)",
+                [
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "4", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, qc=16, 4x4q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "4", "--quantum-channels", "16",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "8", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, qc=16, 2x8q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "8", "--quantum-channels", "16",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "16", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, qc=16, 1x16q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "16", "--quantum-channels", "16",
+                            "--q-backend", "torch", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4, qc=32)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "4", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, qc=32, 8x4q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "4", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8, qc=32)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "8", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, qc=32, 4x8q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "8", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16, qc=32)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "16", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, qc=32, 2x16q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "16", "--quantum-channels", "32",
+                            "--q-backend", "torch", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum HQ-UNet (4x4 QCNN, 16 qubits, L=1)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "hqunet",
+                            "--hqunet-grid", "4", "--q-layers", "1", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                ],
+            ),
         ]
 
         panels_out = []
-        pattern = os.path.join(results_dir, "*", "results", "metrics.json")
 
         for panel_id, panel_title, specs in panel_defs:
             if panel_id not in active_panels:
@@ -447,10 +840,12 @@ def run_mini_sweep(
             for label, entry_fn, base_argv in specs:
                 seed_records = []
                 for s in seed_list:
-                    before = set(glob.glob(pattern))
+                    before = _snapshot_metrics_files(results_dir)
                     argv = [*base_argv, "--seed", str(s)]
                     dt = _invoke_entry(entry_fn, argv)
-                    mpath = _find_metrics_json_since(results_dir, before)
+                    mpath = _find_metrics_json_since(
+                        results_dir, before, expected_seed=int(s), expected_argv=argv
+                    )
                     with open(mpath, "r") as f:
                         mdata = json.load(f)
                     mdata["_elapsed_s"] = dt
@@ -545,7 +940,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--keep-work-dir", action="store_true")
     parser.add_argument("--out-json", type=str, default=None)
     parser.add_argument("--out-md", type=str, default=None)
-    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3], default=None)
+    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3, 4], default=None)
     args = parser.parse_args(argv)
     if len(set(args.seeds)) != len(args.seeds):
         parser.error(f"Duplicate seeds are not allowed: {args.seeds}")
