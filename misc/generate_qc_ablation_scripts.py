@@ -27,8 +27,9 @@ MODES = ["fed-random", "fed-dirichlet"]
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--qc", type=int, nargs="+", default=QC_VALUES)
-    ap.add_argument("--modes", nargs="+", choices=MODES, default=MODES)
+    ap.add_argument("--qc", "--quantum-channels", "--quantum_channels", dest="qc",
+                    type=int, nargs="+", default=QC_VALUES)
+    ap.add_argument("--modes", nargs="+", choices=gg.ALL_MODES, default=MODES)
     ap.add_argument("--datasets", nargs="+", choices=gg.DATASETS, default=gg.DATASETS)
     ap.add_argument("--seeds", type=int, nargs="+", default=gg.ALL_SEEDS)
     ap.add_argument("--alpha", type=float, default=0.5)
@@ -36,23 +37,33 @@ def main(argv=None):
     ap.add_argument("--q-layers", type=int, default=None)
     ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
+    ap.add_argument("--ablation-mode", choices=gg.ABLATION_MODES, default=None)
+    ap.add_argument("--include-ablation", action="store_true", default=False,
+                    help="Also generate parameter-matched classical ablation jobs for each qc")
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
-    ap.add_argument("--backbone-conv-mode", choices=["standard", "depthwise_sep"], default=None)
+    ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
+    ap.add_argument("--combined-input-mode", choices=["shared3", "concat6", "dual_stem"], default=None)
     ap.add_argument("--loss", choices=["ce", "dice_ce", "focal_dice"], default=None)
     ap.add_argument("--no-time-emb", action="store_true", default=False)
     ap.add_argument("--augment", action="store_true", default=False)
     ap.add_argument("--base-channels", type=int, default=None)
+    ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
+                    default=gg.Q_BACKEND)
     ap.add_argument("--no-quantum-knockout-eval", dest="knockout", action="store_false")
     ap.add_argument("--ckpt-every", type=int, default=5)
     ap.add_argument("--out-dir", default=None)
     gg.add_cluster_args(ap)
     args = ap.parse_args(argv)
-    if args.q_ansatz == "hqunet" and args.n_qubits is not None and int(args.n_qubits) != 4:
-        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
+    uses_hqunet = (args.q_ansatz == "hqunet") or (args.include_ablation and args.ablation_mode == "hqunet_spatial")
+    if uses_hqunet and args.n_qubits is not None and int(args.n_qubits) != 4:
+        ap.error(
+            "--n-qubits != 4 is not supported with --q-ansatz hqunet or --ablation-mode hqunet_spatial; "
+            "use --hqunet-grid in {2, 4}"
+        )
     seeds = gg._validate_seeds(ap, args.seeds)
     cluster = gg.resolve_cluster_args(args)
-    group_w = 4 if args.q_ansatz == "hqunet" else int(args.n_qubits or 4)
+    group_w = 4 if uses_hqunet else int(args.n_qubits or 4)
     bad = [q for q in args.qc if q < group_w or q % group_w]
     if bad:
         ap.error("--qc values must be multiples of %d: %s" % (group_w, bad))
@@ -63,23 +74,27 @@ def main(argv=None):
     if args.ckpt_every:
         print("ckpt-every: %s %s" % (script, "supported, passing --ckpt-every %d" % args.ckpt_every
                                      if support else "not found in source, not passed"))
+    methods = ["quantum", "ablation"] if args.include_ablation else ["quantum"]
     jobs = []
     for qc in args.qc:
-        for mode in args.modes:
-            for dataset in args.datasets:
-                for seed in seeds:
-                    jobs.append(gg.build_job(
-                        "quantum", mode, dataset, seed, args.root, python=args.python,
-                        alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
-                        knockout=args.knockout, quantum_channels=qc,
-                        ckpt_every=args.ckpt_every, ckpt_support=support,
-                        safety=args.safety, floor=args.floor_hours,
-                        cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
-                        q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
-                        skip_modulation=args.skip_modulation,
-                        backbone_conv_mode=args.backbone_conv_mode,
-                        loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment,
-                        n_qubits=args.n_qubits))
+        for method in methods:
+            for mode in args.modes:
+                for dataset in args.datasets:
+                    for seed in seeds:
+                        jobs.append(gg.build_job(
+                            method, mode, dataset, seed, args.root, python=args.python,
+                            alpha=args.alpha, q_ansatz=args.q_ansatz, q_layers=args.q_layers,
+                            knockout=args.knockout, quantum_channels=qc,
+                            ckpt_every=args.ckpt_every, ckpt_support=support,
+                            safety=args.safety, floor=args.floor_hours,
+                            q_backend=args.q_backend,
+                            cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
+                            q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
+                            skip_modulation=args.skip_modulation,
+                            backbone_conv_mode=args.backbone_conv_mode,
+                            combined_input_mode=args.combined_input_mode,
+                            loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment,
+                            n_qubits=args.n_qubits, ablation_mode=args.ablation_mode))
     gg.finish(ap, args, jobs, out_dir)
 
 

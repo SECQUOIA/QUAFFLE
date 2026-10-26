@@ -485,15 +485,63 @@ def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
     assert gg.expected_hours("quantum", "centralized", "optical", 32, 2, n_qubits=8) > gg.expected_hours(
         "quantum", "centralized", "optical", 32, 2, n_qubits=4
     )
+    assert gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 2, n_qubits=16, q_backend="torch"
+    ) < gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 2, n_qubits=16, q_backend="pennylane"
+    )
+    assert gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 2, n_qubits=8, q_spatial_mode="patch4x4"
+    ) > gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 2, n_qubits=8, q_spatial_mode="global"
+    )
+    assert gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 1, q_ansatz="hqunet", hqunet_grid=4
+    ) > gg.expected_hours(
+        "quantum", "centralized", "optical", 32, 1, q_ansatz="hqunet", hqunet_grid=2
+    )
+    job_abl = gg.build_job(
+        "ablation", "centralized", "optical", 42, gg.REPO_DIR,
+        q_ansatz="hqunet", hqunet_grid=4, ablation_mode="hqunet_spatial",
+    )
+    assert "--ablation-mode" in job_abl["args"]
+    assert "hqunet_spatial" in job_abl["args"]
+    assert "--hqunet-grid" in job_abl["args"]
+    assert "abl-hqunet_spatial" in job_abl["name"]
+    assert job_abl["n_qubits"] == 16
+
+    # Even with default q_ansatz="reupload", ablation_mode="hqunet_spatial" must forward --hqunet-grid
+    job_abl_reup = gg.build_job(
+        "ablation", "centralized", "optical", 42, gg.REPO_DIR,
+        q_ansatz="reupload", hqunet_grid=4, ablation_mode="hqunet_spatial",
+    )
+    assert "--hqunet-grid" in job_abl_reup["args"]
+    assert "4" in job_abl_reup["args"]
+    assert job_abl_reup["n_qubits"] == 16
+
     with pytest.raises(ValueError, match="hqunet"):
         gg.build_job(
             "quantum", "centralized", "optical", 42, gg.REPO_DIR,
             q_ansatz="hqunet", q_layers=1, n_qubits=8, quantum_channels=32,
         )
+    with pytest.raises(ValueError, match="hqunet"):
+        gg.build_job(
+            "ablation", "centralized", "optical", 42, gg.REPO_DIR,
+            q_ansatz="reupload", n_qubits=16, ablation_mode="hqunet_spatial",
+        )
 
     with tempfile.TemporaryDirectory() as tmpdir:
         out_qc_dir = os.path.join(tmpdir, "qc_nq12")
-        gqc.main(["--qc", "48", "--n-qubits", "12", "--modes", "fed-random", "--datasets", "optical", "--seeds", "42", "--dry-run", "--out-dir", out_qc_dir])
+        gqc.main([
+            "--quantum-channels", "48", "--n-qubits", "12", "--include-ablation",
+            "--ablation-mode", "mlp", "--modes", "centralized", "fed-random",
+            "--datasets", "optical", "--seeds", "42", "--dry-run", "--out-dir", out_qc_dir,
+        ])
+        with pytest.raises(SystemExit):
+            gg.main([
+                "--methods", "ablation", "--ablation-mode", "hqunet_spatial",
+                "--n-qubits", "16", "--seeds", "42", "--dry-run",
+            ])
 
         # visualize_circuit with --n-qubits 8
         out_viz = os.path.join(tmpdir, "plots")
