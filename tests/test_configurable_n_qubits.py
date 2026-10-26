@@ -485,6 +485,14 @@ def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
     assert gg.expected_hours("quantum", "centralized", "optical", 32, 2, n_qubits=8) > gg.expected_hours(
         "quantum", "centralized", "optical", 32, 2, n_qubits=4
     )
+    assert gg.expected_hours("quantum", "centralized", "optical", 32, 2, n_qubits=16) < 1.0
+    job_abl = gg.build_job(
+        "ablation", "centralized", "optical", 42, gg.REPO_DIR,
+        q_ansatz="hqunet", hqunet_grid=4, ablation_mode="hqunet_spatial",
+    )
+    assert "--ablation-mode" in job_abl["args"]
+    assert "hqunet_spatial" in job_abl["args"]
+    assert "abl-hqunet_spatial" in job_abl["name"]
     with pytest.raises(ValueError, match="hqunet"):
         gg.build_job(
             "quantum", "centralized", "optical", 42, gg.REPO_DIR,

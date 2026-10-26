@@ -78,6 +78,11 @@ TRAIN_TILES = {"optical": 200, "sar": 1119, "combined": 1318}
 DATASET_SCALE = {k: v / OPTICAL_TRAIN_TILES for k, v in TRAIN_TILES.items()}
 MEASURED_QC = 32
 MEASURED_Q_LAYERS = 2
+# Empirical circuit-overhead multipliers relative to n_qubits=4 at fixed quantum_channels.
+# At n_qubits=4, the 0.03h centralized overhead is dominated by Python/PennyLane tape dispatch
+# while the number of groups G = qc / n_qubits decreases by 4 / n_qubits as n_qubits widens
+# (measured in Panel 4: 1.9x overhead at n_qubits=8 and 4.7x overhead at n_qubits=16).
+N_QUBITS_OVERHEAD_SCALE = {2: 0.75, 4: 1.0, 8: 2.0, 12: 3.5, 16: 6.0}
 SAFETY_FACTOR = 2.0
 FLOOR_HOURS = 1
 
@@ -85,6 +90,7 @@ METHODS = ["classical", "ablation", "quantum"]
 MODES = ["centralized", "fed-random", "fed-dirichlet"]
 ALL_MODES = ["centralized", "fed-random", "fed-dirichlet", "fed-modality", "fed-geo_cluster"]
 DATASETS = ["optical", "sar", "combined"]
+ABLATION_MODES = ["auto", "mlp", "linear", "conv1x1", "depthwise3x3", "lowrank", "hqunet_spatial"]
 
 SCRIPT = {
     ("classical", "centralized"): "centralized_demoTorchClassical.py",
@@ -107,7 +113,7 @@ def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers
     Runtime scales linearly with the number of training tiles. For the
     quantum method the circuit overhead (quantum minus ablation, which is
     the same network without the circuit) is further scaled by
-    quantum_channels/32, q_layers/2, and 2**(n_qubits - 4) when n_qubits > 4.
+    quantum_channels/32, q_layers/2, and N_QUBITS_OVERHEAD_SCALE[n_qubits].
     """
     kind = mode_kind(mode)
     base = MEASURED_HOURS[(method, kind)]
@@ -117,8 +123,9 @@ def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers
         f = (quantum_channels / MEASURED_QC)
         if q_layers is not None:
             f *= max(q_layers, 1) / MEASURED_Q_LAYERS
-        if n_qubits is not None and int(n_qubits) > 4:
-            f *= float(1 << (int(n_qubits) - 4))
+        if n_qubits is not None and int(n_qubits) != 4:
+            nq = int(n_qubits)
+            f *= float(N_QUBITS_OVERHEAD_SCALE.get(nq, max(1.0, float(1 << max(0, nq - 4)) / (nq / 4.0))))
         base = classical_part + overhead * f
     return base * DATASET_SCALE[dataset]
 
@@ -316,13 +323,15 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False,
               combined_input_mode=None, fl_strategy=None, fedprox_mu=None,
               q_angle_agg=None, num_clients=None, clients_per_round=None,
-              fraction_fit=None, n_qubits=None):
+              fraction_fit=None, n_qubits=None, ablation_mode=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
     args = []
     if method == "ablation":
         args += ["--framework", "torch", "--mode", kind]
+        if ablation_mode is not None:
+            args += ["--ablation-mode", str(ablation_mode)]
     if kind == "federated":
         part_map = {
             "fed-random": "random",
@@ -413,6 +422,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         if n_qubits is not None and q_ansatz != "hqunet" and int(n_qubits) != 4:
             ans_tag += "nq%d" % int(n_qubits)
         parts.append(ans_tag)
+        if method == "ablation" and ablation_mode is not None and ablation_mode != "auto":
+            parts.append("abl-%s" % str(ablation_mode))
         if q_spatial_mode is not None and q_ansatz != "hqunet" and q_spatial_mode != "global":
             parts.append(str(q_spatial_mode))
         if skip_modulation == "additive":
@@ -821,6 +832,7 @@ def main(argv=None):
     ap.add_argument("--q-layers", type=int, default=None)
     ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
+    ap.add_argument("--ablation-mode", choices=ABLATION_MODES, default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
     ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
@@ -900,7 +912,8 @@ def main(argv=None):
                         fl_strategy=args.fl_strategy, fedprox_mu=args.fedprox_mu,
                         q_angle_agg=args.q_angle_agg, num_clients=args.num_clients,
                         clients_per_round=args.clients_per_round,
-                        fraction_fit=args.fraction_fit, n_qubits=args.n_qubits))
+                        fraction_fit=args.fraction_fit, n_qubits=args.n_qubits,
+                        ablation_mode=args.ablation_mode))
     finish(ap, args, jobs, out_dir)
 
 
