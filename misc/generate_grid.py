@@ -78,11 +78,29 @@ TRAIN_TILES = {"optical": 200, "sar": 1119, "combined": 1318}
 DATASET_SCALE = {k: v / OPTICAL_TRAIN_TILES for k, v in TRAIN_TILES.items()}
 MEASURED_QC = 32
 MEASURED_Q_LAYERS = 2
-# Empirical circuit-overhead multipliers relative to n_qubits=4 at fixed quantum_channels.
-# At n_qubits=4, the 0.03h centralized overhead is dominated by Python/PennyLane tape dispatch
-# while the number of groups G = qc / n_qubits decreases by 4 / n_qubits as n_qubits widens
-# (measured in Panel 4: 1.9x overhead at n_qubits=8 and 4.7x overhead at n_qubits=16).
-N_QUBITS_OVERHEAD_SCALE = {2: 0.75, 4: 1.0, 8: 2.0, 12: 3.5, 16: 6.0}
+# Step-benchmarked circuit-overhead multipliers relative to the measured Anvil
+# baseline cell (q_ansatz='reupload', q_layers=2, n_qubits=4, quantum_channels=32,
+# q_spatial_mode='global', q_backend='pennylane', 20.2 ms forward+backward per block).
+# Note: Only the n_qubits=4 global PennyLane cell was measured end-to-end on Anvil
+# (314 s centralized, 428 s federated); wider registers, HQ-UNet grids, spatial token
+# modes, and the Torch statevector backend are step-benchmarked extrapolations.
+PENNYLANE_NQ_OVERHEAD_SCALE = {2: 0.60, 4: 1.00, 8: 2.11, 12: 7.93, 16: 37.20}
+TORCH_NQ_OVERHEAD_SCALE = {2: 0.83, 4: 1.12, 8: 1.73, 12: 3.66, 16: 8.30}
+HQUNET_OVERHEAD_SCALE = {
+    ("pennylane", 2): 1.35,
+    ("pennylane", 4): 67.90,
+    ("pennylane_pergroup", 2): 1.35,
+    ("pennylane_pergroup", 4): 67.90,
+    ("torch", 2): 1.77,
+    ("torch", 4): 12.80,
+}
+Q_SPATIAL_MODE_OVERHEAD_SCALE = {
+    "global": 1.00,
+    "se_gate": 1.00,
+    "patch2x2": 1.18,
+    "patch4x4": 1.54,
+    "pixel": 3.89,
+}
 SAFETY_FACTOR = 2.0
 FLOOR_HOURS = 1
 
@@ -107,33 +125,48 @@ def mode_kind(mode):
     return "centralized" if mode == "centralized" else "federated"
 
 
-def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None, n_qubits=None):
+def expected_hours(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None, n_qubits=None,
+                   q_ansatz="reupload", hqunet_grid=None, q_spatial_mode=None, q_backend=Q_BACKEND):
     """Expected wall-clock hours (1 GPU, so also expected SU).
 
     Runtime scales linearly with the number of training tiles. For the
     quantum method the circuit overhead (quantum minus ablation, which is
-    the same network without the circuit) is further scaled by
-    quantum_channels/32, q_layers/2, and N_QUBITS_OVERHEAD_SCALE[n_qubits].
+    the same network without the circuit) is extrapolated from the measured
+    n_qubits=4, qc=32, q_layers=2, q_spatial_mode='global', q_backend='pennylane'
+    baseline using full-scale (128x128, base_channels=32) step benchmarks across
+    q_ansatz, n_qubits, hqunet_grid, q_spatial_mode, and q_backend.
     """
     kind = mode_kind(mode)
     base = MEASURED_HOURS[(method, kind)]
     if method == "quantum":
         classical_part = MEASURED_HOURS[("ablation", kind)]
         overhead = base - classical_part
-        f = (quantum_channels / MEASURED_QC)
-        if q_layers is not None:
-            f *= max(q_layers, 1) / MEASURED_Q_LAYERS
-        if n_qubits is not None and int(n_qubits) != 4:
-            nq = int(n_qubits)
-            f *= float(N_QUBITS_OVERHEAD_SCALE.get(nq, max(1.0, float(1 << max(0, nq - 4)) / (nq / 4.0))))
+        backend_key = str(q_backend or Q_BACKEND)
+        if q_ansatz == "hqunet":
+            grid = int(hqunet_grid) if hqunet_grid is not None else 2
+            layers = max(int(q_layers), 1) if q_layers is not None else 1
+            f = float(HQUNET_OVERHEAD_SCALE.get((backend_key, grid), 1.35)) * float(layers)
+        else:
+            f = (quantum_channels / MEASURED_QC)
+            if q_layers is not None:
+                f *= max(q_layers, 1) / MEASURED_Q_LAYERS
+            nq = int(n_qubits) if n_qubits is not None else 4
+            nq_table = TORCH_NQ_OVERHEAD_SCALE if backend_key == "torch" else PENNYLANE_NQ_OVERHEAD_SCALE
+            f *= float(nq_table.get(nq, max(1.0, float(1 << max(0, nq - 4)) / (nq / 4.0))))
+            if q_spatial_mode is not None:
+                f *= float(Q_SPATIAL_MODE_OVERHEAD_SCALE.get(str(q_spatial_mode), 1.0))
         base = classical_part + overhead * f
     return base * DATASET_SCALE[dataset]
 
 
 def time_limit(method, mode, dataset, quantum_channels=MEASURED_QC, q_layers=None,
-               safety=SAFETY_FACTOR, floor=FLOOR_HOURS, n_qubits=None):
+               safety=SAFETY_FACTOR, floor=FLOOR_HOURS, n_qubits=None,
+               q_ansatz="reupload", hqunet_grid=None, q_spatial_mode=None, q_backend=Q_BACKEND):
     """Return (expected_hours, limit_hours). limit = ceil(expected * safety), at least floor."""
-    exp = expected_hours(method, mode, dataset, quantum_channels, q_layers, n_qubits=n_qubits)
+    exp = expected_hours(
+        method, mode, dataset, quantum_channels, q_layers, n_qubits=n_qubits,
+        q_ansatz=q_ansatz, hqunet_grid=hqunet_grid, q_spatial_mode=q_spatial_mode, q_backend=q_backend,
+    )
     limit = max(int(floor), int(math.ceil(exp * safety - 1e-9)))
     return exp, limit
 
@@ -369,22 +402,25 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     if augment:
         args += ["--augment"]
     if method in ("quantum", "ablation"):
-        if q_ansatz == "hqunet" and n_qubits is not None and int(n_qubits) != 4:
+        uses_hqunet = (q_ansatz == "hqunet") or (method == "ablation" and ablation_mode == "hqunet_spatial")
+        if uses_hqunet and n_qubits is not None and int(n_qubits) != 4:
             raise ValueError(
-                "--n-qubits != 4 is not supported with --q-ansatz hqunet; "
+                "--n-qubits != 4 is not supported with --q-ansatz hqunet or --ablation-mode hqunet_spatial; "
                 "use --hqunet-grid in {2, 4}"
             )
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
-        if n_qubits is not None and q_ansatz != "hqunet":
+        if n_qubits is not None and not uses_hqunet:
             args += ["--n-qubits", str(n_qubits)]
-        if q_ansatz == "hqunet" and hqunet_grid is not None:
+        if uses_hqunet and hqunet_grid is not None:
             args += ["--hqunet-grid", str(hqunet_grid)]
-        if q_spatial_mode is not None and q_ansatz != "hqunet":
+        if q_spatial_mode is not None and not uses_hqunet:
             args += ["--q-spatial-mode", str(q_spatial_mode)]
         if skip_modulation is not None:
             args += ["--skip-modulation", str(skip_modulation)]
+    else:
+        uses_hqunet = False
     if method == "quantum":
         args += ["--q-backend", q_backend]
     if method == "quantum" and knockout:
@@ -403,9 +439,13 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             args += ["--ckpt-every", str(ckpt_every)]
             ckpt = True
 
-    exp, limit = time_limit(method, mode, dataset, qc,
-                            q_layers if method == "quantum" else None, safety, floor,
-                            n_qubits=(n_qubits if (method == "quantum" and q_ansatz != "hqunet") else None))
+    exp, limit = time_limit(
+        method, mode, dataset, qc,
+        q_layers if method == "quantum" else None, safety, floor,
+        n_qubits=(n_qubits if (method == "quantum" and not uses_hqunet) else None),
+        q_ansatz=q_ansatz, hqunet_grid=hqunet_grid,
+        q_spatial_mode=q_spatial_mode, q_backend=q_backend,
+    )
 
     mtag = {"classical": "classical", "ablation": "ablation", "quantum": "quantum"}[method]
     dtag = {"centralized": "central", "fed-random": "fedrandom",
@@ -415,16 +455,16 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     parts = [mtag, dtag, dataset]
     if method in ("quantum", "ablation"):
         ans_tag = q_ansatz
-        if q_ansatz == "hqunet" and hqunet_grid is not None:
+        if uses_hqunet and hqunet_grid is not None:
             ans_tag += "G%d" % int(hqunet_grid)
         if q_layers is not None:
             ans_tag += "L%d" % q_layers
-        if n_qubits is not None and q_ansatz != "hqunet" and int(n_qubits) != 4:
+        if n_qubits is not None and not uses_hqunet and int(n_qubits) != 4:
             ans_tag += "nq%d" % int(n_qubits)
         parts.append(ans_tag)
         if method == "ablation" and ablation_mode is not None and ablation_mode != "auto":
             parts.append("abl-%s" % str(ablation_mode))
-        if q_spatial_mode is not None and q_ansatz != "hqunet" and q_spatial_mode != "global":
+        if q_spatial_mode is not None and not uses_hqunet and q_spatial_mode != "global":
             parts.append(str(q_spatial_mode))
         if skip_modulation == "additive":
             parts.append("addskip")
@@ -469,9 +509,9 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     short += {"centralized": "C", "fed-random": "R", "fed-dirichlet": "D",
               "fed-modality": "M", "fed-geo_cluster": "G"}[mode]
     ans_short = ""
-    if method != "classical" and q_ansatz != "reupload":
-        ans_short = "_hq" if q_ansatz == "hqunet" else "_leg"
-    if method != "classical" and n_qubits is not None and q_ansatz != "hqunet" and int(n_qubits) != 4:
+    if method != "classical" and (q_ansatz != "reupload" or uses_hqunet):
+        ans_short = "_hq" if uses_hqunet else "_leg"
+    if method != "classical" and n_qubits is not None and not uses_hqunet and int(n_qubits) != 4:
         ans_short += "_nq%d" % int(n_qubits)
     jshort = "%s_%s%s%s_s%d" % (short, dataset[:3], "" if quantum_channels is None else
                                 "_qc%d" % quantum_channels,
@@ -480,7 +520,7 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     eff_nq_meta = (
         ""
         if method == "classical"
-        else (int(hqunet_grid or 2) ** 2 if q_ansatz == "hqunet" else int(n_qubits or 4))
+        else (int(hqunet_grid or 2) ** 2 if uses_hqunet else int(n_qubits or 4))
     )
     command = " ".join([shlex.quote(python), script] + [shlex.quote(a) for a in args])
     return OrderedDict([
@@ -862,12 +902,17 @@ def main(argv=None):
     add_cluster_args(ap)
     args = ap.parse_args(argv)
     if (
-        args.q_ansatz == "hqunet"
-        and args.n_qubits is not None
+        args.n_qubits is not None
         and int(args.n_qubits) != 4
-        and any(m in ("quantum", "ablation") for m in args.methods)
+        and (
+            (args.q_ansatz == "hqunet" and any(m in ("quantum", "ablation") for m in args.methods))
+            or (args.ablation_mode == "hqunet_spatial" and "ablation" in args.methods)
+        )
     ):
-        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
+        ap.error(
+            "--n-qubits != 4 is not supported with --q-ansatz hqunet or --ablation-mode hqunet_spatial; "
+            "use --hqunet-grid in {2, 4}"
+        )
     seeds = _validate_seeds(ap, args.seeds)
     cluster = resolve_cluster_args(args)
     args.root = os.path.abspath(args.root)

@@ -27,7 +27,8 @@ MODES = ["fed-random", "fed-dirichlet"]
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--qc", type=int, nargs="+", default=QC_VALUES)
+    ap.add_argument("--qc", "--quantum-channels", "--quantum_channels", dest="qc",
+                    type=int, nargs="+", default=QC_VALUES)
     ap.add_argument("--modes", nargs="+", choices=gg.ALL_MODES, default=MODES)
     ap.add_argument("--datasets", nargs="+", choices=gg.DATASETS, default=gg.DATASETS)
     ap.add_argument("--seeds", type=int, nargs="+", default=gg.ALL_SEEDS)
@@ -47,16 +48,22 @@ def main(argv=None):
     ap.add_argument("--no-time-emb", action="store_true", default=False)
     ap.add_argument("--augment", action="store_true", default=False)
     ap.add_argument("--base-channels", type=int, default=None)
+    ap.add_argument("--q-backend", choices=["pennylane", "pennylane_pergroup", "torch"],
+                    default=gg.Q_BACKEND)
     ap.add_argument("--no-quantum-knockout-eval", dest="knockout", action="store_false")
     ap.add_argument("--ckpt-every", type=int, default=5)
     ap.add_argument("--out-dir", default=None)
     gg.add_cluster_args(ap)
     args = ap.parse_args(argv)
-    if args.q_ansatz == "hqunet" and args.n_qubits is not None and int(args.n_qubits) != 4:
-        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
+    uses_hqunet = (args.q_ansatz == "hqunet") or (args.include_ablation and args.ablation_mode == "hqunet_spatial")
+    if uses_hqunet and args.n_qubits is not None and int(args.n_qubits) != 4:
+        ap.error(
+            "--n-qubits != 4 is not supported with --q-ansatz hqunet or --ablation-mode hqunet_spatial; "
+            "use --hqunet-grid in {2, 4}"
+        )
     seeds = gg._validate_seeds(ap, args.seeds)
     cluster = gg.resolve_cluster_args(args)
-    group_w = 4 if args.q_ansatz == "hqunet" else int(args.n_qubits or 4)
+    group_w = 4 if uses_hqunet else int(args.n_qubits or 4)
     bad = [q for q in args.qc if q < group_w or q % group_w]
     if bad:
         ap.error("--qc values must be multiples of %d: %s" % (group_w, bad))
@@ -80,6 +87,7 @@ def main(argv=None):
                             knockout=args.knockout, quantum_channels=qc,
                             ckpt_every=args.ckpt_every, ckpt_support=support,
                             safety=args.safety, floor=args.floor_hours,
+                            q_backend=args.q_backend,
                             cpus=cluster["cpus_per_task"], hqunet_grid=args.hqunet_grid,
                             q_spatial_mode=args.q_spatial_mode, base_channels=args.base_channels,
                             skip_modulation=args.skip_modulation,
