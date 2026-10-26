@@ -8,10 +8,14 @@ of every model variant.
 
 The QVUNet bottleneck (`QVertex`) has two `QResnetBlock`s (`AblationResnetBlock`
 is an alias used by the parameter-matched ablation) with attention in
-between. Each block splits the 256 bottleneck channels into 32 quantum channels
-and 224 classical channels. The 32 quantum channels form 8 groups of 4. Each
-group is spatially average pooled to 4 numbers, mapped by a 4 qubit circuit to
-4 `<Z>` values, and broadcast back over (H, W). The quantum output `y_q` is
+between. At the default settings (`base_channels=32`, `quantum_channels=32`,
+`n_qubits=4`), each block splits the 256 bottleneck channels into 32 quantum
+channels and 224 classical channels, and the 32 quantum channels form 8 groups
+of 4 (in general, `quantum_channels` channels form `G = quantum_channels // n_qubits`
+groups of `n_qubits` channels for `n_qubits in {2, 4, 8, 12, 16}`). Under the
+default `q_spatial_mode='global'`, each group is spatially average pooled to
+`n_qubits` numbers (4 numbers by default), mapped by an `n_qubits`-qubit circuit
+to `n_qubits` `<Z>` values, and broadcast back over `(H, W)`. The quantum output `y_q` is
 therefore spatially constant within a group. The classical ablation keeps this
 exact pool, transform, broadcast pattern and only swaps the per-group transform.
 
@@ -148,14 +152,16 @@ step made 16 or 128 calls. The single call removes about 87 percent
 
 ### Why the circuit runs on the CPU
 
-The statevector has 16 amplitudes per row. On a GPU every one of the
-thousands of tiny gate operations becomes its own CUDA kernel launch, so the
+At the default `n_qubits=4` width, the statevector has 16 complex amplitudes
+per row ($2^{\text{n\_qubits}}$ amplitudes in general, up to 65,536 at
+`n_qubits=16`). On a GPU every one of the thousands of tiny gate operations
+becomes its own CUDA kernel launch, so at small qubit widths (`n_qubits=4`) the
 same code was about 3x slower on an A100 than on one CPU core (319 ms against
 109 ms for the per-group reupload block). With `q_sim_device='cpu'` the data
 moved per block call is a few kB and the GPU synchronizes four times per
 training step (two block calls in the forward pass, two in the backward pass)
 instead of after every gate. `q_sim_device='model'` exists so the smoke job
-can measure the GPU placement directly.
+and wider-circuit runs can evaluate or run GPU placement directly.
 
 ### Why `CUDA_LAUNCH_BLOCKING` was removed
 

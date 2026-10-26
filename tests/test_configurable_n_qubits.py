@@ -546,6 +546,36 @@ def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
         with pytest.raises(FileNotFoundError, match="No metrics.json"):
             rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap2, expected_seed=42, expected_argv=argv_dual_bc8)
 
+        # Round 3 B3 regressions:
+        # 1) Explicit --q-spatial-mode pixel must reject a candidate that omits q_spatial_mode and config
+        argv_pixel = [
+            "centralized_demoTorchQ.py", "--q-ansatz", "reupload", "--q-layers", "2",
+            "--n-qubits", "8", "--quantum-channels", "32", "--q-spatial-mode", "pixel", "--seed", "42",
+        ]
+        with pytest.raises(FileNotFoundError, match="No metrics.json"):
+            rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap, expected_seed=42, expected_argv=argv_pixel)
+
+        # 2) --base-channels 2 --n-qubits 12 with default QC resolves quantum_channels=12 (group-width rounded)
+        snap3 = rlms._snapshot_metrics_files(os.path.join(tmpdir, "results"))
+        run_d = os.path.join(tmpdir, "results", "run_d", "results")
+        os.makedirs(run_d, exist_ok=True)
+        path_d = os.path.join(run_d, "metrics.json")
+        with open(path_d, "w") as f:
+            json.dump({
+                "seed": 42, "model_type": "quantum", "dataset": "optical",
+                "q_ansatz": "reupload", "q_layers": 2, "n_qubits": 12,
+                "quantum_channels": 12, "base_channels": 2,
+            }, f)
+        argv_bc2_nq12 = [
+            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+            "--q-layers", "2", "--base-channels", "2", "--n-qubits", "12", "--seed", "42",
+        ]
+        assert rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap3, expected_seed=42, expected_argv=argv_bc2_nq12) == path_d
+
+        # 3) Supported underscore alias --n_qubits 8 matches n_qubits=8
+        argv_nq8_alias = ["centralized_demoTorchQ.py", "--q_ansatz", "reupload", "--q_layers", "2", "--n_qubits", "8", "--quantum_channels", "32", "--seed", "42"]
+        assert rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap, expected_seed=42, expected_argv=argv_nq8_alias) == path_b
+
     # bench_quantum
     b_args = bq.make_block("torch", None, "reupload", 2, quantum_channels=16, n_qubits=8)
     assert b_args.n_qubits == 8

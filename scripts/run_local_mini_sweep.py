@@ -49,6 +49,7 @@ import centralized_demoTorchQ  # noqa: E402
 import federated_demoTorchClassical  # noqa: E402
 import federated_demoTorchQ  # noqa: E402
 from tools import make_mini_flood_dataset  # noqa: E402
+from tools import training_common as tc  # noqa: E402
 
 
 def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
@@ -83,6 +84,25 @@ _SCHEMA_DEFAULTS: Dict[str, Any] = {
 }
 
 
+def _resolve_expected_quantum_channels(
+    requested_qc: int,
+    base_channels: int,
+    n_qubits: int = 4,
+    q_ansatz: str = "reupload",
+    ablation_mode: str = "none",
+    quantum_channels_explicit: bool = False,
+) -> int:
+    if quantum_channels_explicit:
+        return int(requested_qc)
+    mid_dim = int(base_channels) * 8
+    group_w = 4 if (q_ansatz == "hqunet" or ablation_mode == "hqunet_spatial") else int(n_qubits)
+    if int(requested_qc) > mid_dim:
+        if mid_dim >= group_w:
+            return max(group_w, (mid_dim // group_w) * group_w)
+        return mid_dim
+    return int(requested_qc)
+
+
 def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
     """Resolve complete expected run configuration (including defaults) and explicit keys from argv."""
     meta: Dict[str, Any] = {}
@@ -115,38 +135,61 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
         "--seed": ("seed", int),
         "--dataset": ("dataset", str),
         "--base-channels": ("base_channels", int),
+        "--base_channels": ("base_channels", int),
         "--image-size": ("image_size", int),
+        "--image_size": ("image_size", int),
         "--combined-input-mode": ("combined_input_mode", str),
+        "--combined_input_mode": ("combined_input_mode", str),
         "--backbone-conv-mode": ("backbone_conv_mode", str),
+        "--backbone_conv_mode": ("backbone_conv_mode", str),
         "--loss": ("loss", str),
         "--q-ansatz": ("q_ansatz", str),
+        "--q_ansatz": ("q_ansatz", str),
         "--q-layers": ("q_layers", int),
+        "--q_layers": ("q_layers", int),
         "--n-qubits": ("n_qubits", int),
+        "--n_qubits": ("n_qubits", int),
         "--quantum-channels": ("quantum_channels", int),
         "--quantum_channels": ("quantum_channels", int),
         "--ablation-mode": ("ablation_mode", str),
+        "--ablation_mode": ("ablation_mode", str),
         "--hqunet-grid": ("hqunet_grid", int),
+        "--hqunet_grid": ("hqunet_grid", int),
         "--q-spatial-mode": ("q_spatial_mode", str),
+        "--q_spatial_mode": ("q_spatial_mode", str),
         "--skip-modulation": ("skip_modulation", str),
+        "--skip_modulation": ("skip_modulation", str),
         "--partition": ("partition", str),
         "--alpha": ("dirichlet_alpha", float),
         "--fl-strategy": ("fl_strategy", str),
+        "--fl_strategy": ("fl_strategy", str),
         "--fedprox-mu": ("fedprox_mu", float),
+        "--fedprox_mu": ("fedprox_mu", float),
         "--q-angle-agg": ("q_angle_agg", str),
+        "--q_angle_agg": ("q_angle_agg", str),
         "--num-clients": ("num_clients", int),
+        "--num_clients": ("num_clients", int),
         "--clients-per-round": ("clients_per_round", int),
+        "--clients_per_round": ("clients_per_round", int),
         "--fraction-fit": ("fraction_fit", float),
+        "--fraction_fit": ("fraction_fit", float),
     }
     i = 1
     while i < len(argv):
         tok = str(argv[i])
-        if tok == "--no-time-emb":
+        if tok in ("--no-time-emb", "--no_time_emb"):
             meta["use_time_emb"] = False
             explicit.add("use_time_emb")
             i += 1
         elif tok == "--augment":
             meta["augment"] = True
             explicit.add("augment")
+            i += 1
+        elif "=" in tok and tok.split("=", 1)[0] in flag_map:
+            flag_tok, val_str = tok.split("=", 1)
+            key, cast = flag_map[flag_tok]
+            meta[key] = cast(val_str)
+            explicit.add(key)
             i += 1
         elif tok in flag_map and i + 1 < len(argv):
             key, cast = flag_map[tok]
@@ -158,8 +201,14 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
 
     # Normalize expected configuration from the requested options themselves
     if model_type in ("quantum", "ablation"):
-        max_qc = int(meta["base_channels"]) * 8
-        meta["quantum_channels"] = min(int(meta["quantum_channels"]), max_qc)
+        meta["quantum_channels"] = _resolve_expected_quantum_channels(
+            int(meta["quantum_channels"]),
+            int(meta["base_channels"]),
+            n_qubits=int(meta.get("n_qubits", 4)),
+            q_ansatz=str(meta.get("q_ansatz", "reupload")),
+            ablation_mode=str(meta.get("ablation_mode", "auto")) if model_type == "ablation" else "none",
+            quantum_channels_explicit=("quantum_channels" in explicit),
+        )
         if meta.get("q_ansatz") == "hqunet" or meta.get("ablation_mode") == "hqunet_spatial":
             meta.pop("n_qubits", None)
             explicit.discard("n_qubits")
@@ -193,11 +242,22 @@ def _matches_expected_metrics(
                 return False
             continue
         if not has_key:
-            if k in ("loss", "use_time_emb", "augment", "skip_modulation", "backbone_conv_mode", "q_spatial_mode") and "config" not in d:
-                continue
-            # Candidate omitted a key; evaluate against schema default so non-default requests reject omitted keys
+            if k in explicit_set:
+                return False
+            # Candidate omitted an unrequested key (e.g., minimal test mock); evaluate against schema default
             if k == "quantum_channels":
-                actual_v = min(int(_SCHEMA_DEFAULTS["quantum_channels"]), exp_bc * 8)
+                actual_v = _resolve_expected_quantum_channels(
+                    int(_SCHEMA_DEFAULTS["quantum_channels"]),
+                    exp_bc,
+                    n_qubits=int(expected_meta.get("n_qubits", 4)),
+                    q_ansatz=str(expected_meta.get("q_ansatz", "reupload")),
+                    ablation_mode=(
+                        str(expected_meta.get("ablation_mode", "auto"))
+                        if expected_meta.get("model_type") == "ablation"
+                        else "none"
+                    ),
+                    quantum_channels_explicit=False,
+                )
             else:
                 actual_v = _SCHEMA_DEFAULTS.get(k)
         if actual_v is None:
