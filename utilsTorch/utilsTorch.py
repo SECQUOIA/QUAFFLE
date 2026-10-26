@@ -150,6 +150,7 @@ class QVUNetSegmentation(torch.nn.Module):
             q_ansatz, q_layers, share = quantum_model_options(self.config)
             q_spatial_mode = unet.normalize_q_spatial_mode(self.config.get('q_spatial_mode'))
             hqunet_grid = unet.normalize_hqunet_grid(self.config.get('hqunet_grid'))
+            n_qubits = unet.normalize_n_qubits(self.config.get('n_qubits', unet.DEFAULT_N_QUBITS))
             use_time_emb = bool(self.config.get('use_time_emb', True))
             backbone_conv_mode = unet.normalize_backbone_conv_mode(
                 self.config.get('backbone_conv_mode')
@@ -171,6 +172,7 @@ class QVUNetSegmentation(torch.nn.Module):
                         q_sim_device=self.config.get('q_sim_device', 'cpu'),
                         q_spatial_mode=q_spatial_mode,
                         hqunet_grid=hqunet_grid,
+                        n_qubits=n_qubits,
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)
@@ -276,6 +278,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             q_spatial_mode = unet.normalize_q_spatial_mode(self.config.get('q_spatial_mode'))
             ablation_mode = unet.normalize_ablation_mode(self.config.get('ablation_mode'))
             hqunet_grid = unet.normalize_hqunet_grid(self.config.get('hqunet_grid'))
+            n_qubits = unet.normalize_n_qubits(self.config.get('n_qubits', unet.DEFAULT_N_QUBITS))
             use_time_emb = bool(self.config.get('use_time_emb', True))
             backbone_conv_mode = unet.normalize_backbone_conv_mode(
                 self.config.get('backbone_conv_mode')
@@ -286,9 +289,9 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             if q_ansatz == 'legacy':
                 kind, hidden = 'linear', None
             elif q_ansatz == 'hqunet':
-                kind, hidden = 'hqunet_spatial', unet.matched_mlp_hidden(16 * q_layers)
+                kind, hidden = 'hqunet_spatial', unet.matched_mlp_hidden(16 * q_layers, n_qubits=4)
             else:
-                kind, hidden = 'mlp', unet.matched_mlp_hidden(16 * q_layers)
+                kind, hidden = 'mlp', unet.matched_mlp_hidden(4 * n_qubits * q_layers, n_qubits=n_qubits)
             if ablation_mode != 'auto':
                 kind = ablation_mode
 
@@ -304,6 +307,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                         spatial_mode=q_spatial_mode,
                         ablation_mode=ablation_mode,
                         hqunet_grid=hqunet_grid,
+                        n_qubits=n_qubits,
                     )
                 classical_bottleneck = make_block(0)
                 block2 = None if share else make_block(1)

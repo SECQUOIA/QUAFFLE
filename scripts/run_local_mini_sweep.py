@@ -62,16 +62,27 @@ def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
     return time.perf_counter() - t0
 
 
-def _find_metrics_json_since(results_dir: str, before_paths: set) -> str:
+def _find_metrics_json_since(
+    results_dir: str,
+    before_paths: set,
+    expected_seed: Optional[int] = None,
+) -> str:
     pattern = os.path.join(results_dir, "*", "results", "metrics.json")
     now_paths = set(glob.glob(pattern))
     new_paths = sorted(now_paths - before_paths, key=lambda p: os.path.getmtime(p))
-    if new_paths:
-        return new_paths[-1]
-    all_paths = sorted(now_paths, key=lambda p: os.path.getmtime(p))
-    if not all_paths:
+    candidates = new_paths if new_paths else sorted(now_paths, key=lambda p: os.path.getmtime(p))
+    if not candidates:
         raise FileNotFoundError(f"No metrics.json found under {results_dir}")
-    return all_paths[-1]
+    if expected_seed is not None:
+        for p in reversed(candidates):
+            try:
+                with open(p, "r") as f:
+                    d = json.load(f)
+                if int(d.get("seed", -1)) == int(expected_seed):
+                    return p
+            except Exception:
+                continue
+    return candidates[-1]
 
 
 def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -202,7 +213,8 @@ def run_mini_sweep(
     if len(set(seed_list)) != len(seed_list):
         raise ValueError(f"Duplicate seeds are not allowed: {seed_list}")
 
-    valid_panel_ids = {1, 2, 3}
+    valid_panel_ids = {1, 2, 3, 4}
+    default_panel_ids = {1, 2, 3}
     if panels_filter is not None:
         panel_list = [int(p) for p in panels_filter]
         if not panel_list or not set(panel_list).issubset(valid_panel_ids):
@@ -213,7 +225,7 @@ def run_mini_sweep(
             raise ValueError(f"Duplicate panel IDs are not allowed: {panel_list}")
         active_panels = set(panel_list)
     else:
-        active_panels = set(valid_panel_ids)
+        active_panels = set(default_panel_ids)
 
     if device not in ("auto", "cpu", "cuda"):
         raise ValueError(f"device must be 'auto', 'cpu', or 'cuda', got {device!r}")
@@ -435,6 +447,78 @@ def run_mini_sweep(
                     ),
                 ],
             ),
+            (
+                4,
+                "Panel 4: Qubit-Width & Quantum-Channel Scaling (Centralized `optical`, `n_qubits` in `{4, 8, 16}`)",
+                [
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "4", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, 8x4q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "4", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "8", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, 4x8q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "8", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "16", "--quantum-channels", "32",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, 2x16q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "16", "--quantum-channels", "32",
+                            "--q-backend", "torch", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum HQ-UNet (4x4 QCNN, 16 qubits, L=1)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "hqunet",
+                            "--hqunet-grid", "4", "--q-layers", "1", "--quantum-channels", "32",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                ],
+            ),
         ]
 
         panels_out = []
@@ -450,7 +534,7 @@ def run_mini_sweep(
                     before = set(glob.glob(pattern))
                     argv = [*base_argv, "--seed", str(s)]
                     dt = _invoke_entry(entry_fn, argv)
-                    mpath = _find_metrics_json_since(results_dir, before)
+                    mpath = _find_metrics_json_since(results_dir, before, expected_seed=int(s))
                     with open(mpath, "r") as f:
                         mdata = json.load(f)
                     mdata["_elapsed_s"] = dt
@@ -545,7 +629,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--keep-work-dir", action="store_true")
     parser.add_argument("--out-json", type=str, default=None)
     parser.add_argument("--out-md", type=str, default=None)
-    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3], default=None)
+    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3, 4], default=None)
     args = parser.parse_args(argv)
     if len(set(args.seeds)) != len(args.seeds):
         parser.error(f"Duplicate seeds are not allowed: {args.seeds}")

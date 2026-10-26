@@ -26,9 +26,6 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=42, help='Random seed (default: 42)')
     parser.add_argument('--dataset', choices=['optical', 'sar', 'combined'], default='optical',
                         help='Dataset to use (default: optical)')
-    parser.add_argument('--quantum_channels', type=int, default=32,
-                        choices=[32, 64, 128, 256],
-                        help='Number of quantum bottleneck channels (default: 32)')
     tc.add_common_args(parser, quantum=True, federated=True)
     return parser.parse_args()
 
@@ -83,8 +80,20 @@ def torch_params_to_numpy(model) -> List[np.ndarray]:
 
 def numpy_to_torch_params(model, numpy_params: List[np.ndarray]):
     """Load numpy arrays into PyTorch model parameters."""
-    for param, numpy_param in zip(model.parameters(), numpy_params):
-        param.data = torch.from_numpy(numpy_param).to(param.device)
+    model_params = list(model.parameters())
+    if len(model_params) != len(numpy_params):
+        raise ValueError(
+            f"Parameter count mismatch: model expects {len(model_params)} tensors, "
+            f"received {len(numpy_params)}"
+        )
+    for idx, (param, numpy_param) in enumerate(zip(model_params, numpy_params)):
+        arr = np.asarray(numpy_param)
+        if tuple(param.shape) != tuple(arr.shape):
+            raise ValueError(
+                f"Parameter shape mismatch at index {idx}: model expects {tuple(param.shape)}, "
+                f"received {tuple(arr.shape)}"
+            )
+        param.data = torch.from_numpy(arr).to(param.device)
 
 def get_config():
     """Get configuration for federated quantum flood segmentation."""
@@ -467,7 +476,8 @@ def main():
     config = get_config()
     config['seed'] = args.seed
     config['dataset'] = args.dataset
-    config['quantum_channels'] = args.quantum_channels
+    if getattr(args, 'quantum_channels', None) is not None:
+        config['quantum_channels'] = args.quantum_channels
     ds_suffix = "" if args.dataset == "optical" else f"_{args.dataset}"
     print(f"Using QVUNet with PyTorch and {config['quantum_backend']} quantum circuits")
     config['partition'] = args.partition
@@ -503,6 +513,7 @@ def main():
     print(f"Configuration:")
     print(f"  - Base channels: {config['base_channels']}")
     print(f"  - Quantum channels: {config['quantum_channels']}")
+    print(f"  - Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}")
     print(f"  - Quantum family: {config['quantum_backend']}")
     print(f"  - Quantum circuit simulator (q_backend): {config['q_backend']}, "
           f"q_sim_device: {config.get('q_sim_device', tc.DEFAULT_Q_SIM_DEVICE)}")
@@ -716,6 +727,9 @@ def main():
                 f.write(f"Model: QVUNet (quantum family: {config['quantum_backend']})\n")
                 f.write(f"Quantum circuit simulator: {tc.format_quantum_simulator(q_simulator)}\n")
                 f.write(f"Quantum channels: {config['quantum_channels']}\n")
+                f.write(f"Qubits per group (n_qubits): {config.get('n_qubits', tc.DEFAULT_N_QUBITS)}\n")
+                b_target, b_actual = tc.bottleneck_param_counts(config, 'quantum')
+                f.write(f"Bottleneck parameters (target / actual): {b_target} / {b_actual}\n")
                 f.write(f"Skip modulation: {config.get('skip_modulation', tc.DEFAULT_SKIP_MODULATION)}\n")
                 f.write(f"Base channels: {config['base_channels']}\n")
                 f.write(f"Image size: {config['image_size']}\n")
@@ -781,7 +795,7 @@ def main():
     excel_config = {**config, 'total_params': total_params}
     tc.safe_tracker_call(
         save_results_to_excel,
-        demo_name="Federated Quantum Torch",
+        demo_name=f"Federated Quantum Torch{qc_suffix}",
         framework="torch",
         training="federated",
         variant="quantum",

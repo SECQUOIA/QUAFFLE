@@ -114,6 +114,7 @@ def make_block(
     quantum_channels=32,
     q_spatial_mode='global',
     hqunet_grid=2,
+    n_qubits=4,
 ):
     kw = dict(
         backend='pennylane',
@@ -124,6 +125,7 @@ def make_block(
         q_backend=q_backend,
         q_spatial_mode=q_spatial_mode,
         hqunet_grid=hqunet_grid,
+        n_qubits=4 if q_ansatz == 'hqunet' else int(n_qubits),
     )
     if q_sim_device is not None:
         if not _supports_sim_device():
@@ -142,9 +144,11 @@ def bench_block(
     quantum_channels=32,
     q_spatial_mode='global',
     hqunet_grid=2,
+    n_qubits=4,
 ):
     rows = []
     for ans, L in ansatzes:
+        eff_nq = 4 if ans == 'hqunet' else int(n_qubits)
         for B in batches:
             for label, qb, sd in sims:
                 try:
@@ -156,6 +160,7 @@ def bench_block(
                         quantum_channels=quantum_channels,
                         q_spatial_mode=q_spatial_mode,
                         hqunet_grid=hqunet_grid,
+                        n_qubits=eff_nq,
                     ).to(device)
                 except (ValueError, TypeError, ImportError) as e:
                     print(f"block {ans:8s} L={L} B={B:2d} {label:18s}: skipped ({e})", flush=True)
@@ -170,7 +175,7 @@ def bench_block(
                 # The per-group path is slow, time it with fewer repetitions.
                 n = max(1, steps // 4) if qb == 'pennylane_pergroup' else max(1, steps)
                 dt = _time(step, device, n, warmup)
-                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L,
+                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L, n_qubits=eff_nq,
                                  q_spatial_mode=q_spatial_mode, hqunet_grid=hqunet_grid,
                                  quantum_channels=quantum_channels, batch=B,
                                  simulator=label, q_backend=qb, q_sim_device=sd, reps=n,
@@ -186,7 +191,7 @@ def _config(**kw):
     cfg = dict(image_size=128, base_channels=bc, init_dim=bc, out_dim=2,
                dim_mults=(1, 2, 4, 8), resnet_block_groups=groups, quantum_channels=32,
                quantum_backend='pennylane', q_ansatz='reupload', q_layers=2,
-               q_spatial_mode='global', hqunet_grid=2,
+               n_qubits=4, q_spatial_mode='global', hqunet_grid=2,
                q_share_blocks=True)
     cfg.update(kw)
     return cfg
@@ -277,6 +282,9 @@ def main(argv=None):
     ap.add_argument('--q-ansatz', choices=list(getattr(unet, 'Q_ANSATZ_CHOICES', ('reupload', 'legacy', 'hqunet'))),
                     default=None, help='specific ansatz to benchmark (default: all)')
     ap.add_argument('--q-layers', type=int, default=2, help='circuit layers (default: 2)')
+    ap.add_argument('--n-qubits', type=int,
+                    choices=list(getattr(unet, 'N_QUBITS_CHOICES', (2, 4, 8, 12, 16))),
+                    default=4, help='qubits per group for reupload/legacy (default: 4)')
     ap.add_argument('--q-spatial-mode',
                     choices=list(getattr(unet, 'Q_SPATIAL_MODE_CHOICES', ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate'))),
                     default='global', help='spatial bottleneck mode (default: global)')
@@ -338,6 +346,7 @@ def main(argv=None):
             quantum_channels=args.quantum_channels,
             q_spatial_mode=args.q_spatial_mode,
             hqunet_grid=args.hqunet_grid,
+            n_qubits=args.n_qubits,
         )
     ratios = {}
     if not args.skip_model:
@@ -356,6 +365,7 @@ def main(argv=None):
                 quantum_channels=args.quantum_channels,
                 q_ansatz=model_ansatz,
                 q_layers=model_layers,
+                n_qubits=4 if model_ansatz == 'hqunet' else args.n_qubits,
                 q_spatial_mode=args.q_spatial_mode,
                 hqunet_grid=args.hqunet_grid,
                 skip_modulation=args.skip_modulation,

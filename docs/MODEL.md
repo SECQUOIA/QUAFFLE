@@ -64,11 +64,26 @@ the original model.
 
 Measurement is `<Z_j>` on every wire. The inputs are encoded again after each
 entangling layer, so the outputs are no longer products of single qubit
-functions of the inputs. Parameters per group are `16 * q_layers` (12 rotation
-angles and 4 input scales per layer). The circuit runs on `default.qubit` with
+functions of the inputs. Parameters per group are `4 * n_qubits * q_layers`
+(`16 * q_layers` at default `n_qubits=4`: `3 * n_qubits` rotation angles and
+`n_qubits` input scales per layer). The circuit runs on `default.qubit` with
 the torch interface, `diff_method="backprop"` and parameter broadcasting over
-the batch and the 8 groups (one QNode call per block forward pass, see
-`q_backend` below).
+the batch and the `num_groups = quantum_channels // n_qubits` groups (one QNode
+call per block forward pass, see `q_backend` below).
+
+### Configurable per-group qubit width (`--n-qubits {2, 4, 8, 12, 16}`, `#39`)
+
+For `q_ansatz in ('reupload', 'legacy')`, `--n-qubits {2, 4, 8, 12, 16}` (default `4`)
+controls how many channels are entangled within each group:
+- `num_groups = quantum_channels // n_qubits`
+- `effective_qc = num_groups * n_qubits`
+- For `q_ansatz='reupload'`, each group has `4 * q_layers * n_qubits` trainable
+  parameters, so at fixed divisible `quantum_channels` (e.g., `QC = 32` across
+  `n_qubits in {4, 8, 16}`, or `QC = 48` across `{2, 4, 8, 12, 16}`), the total
+  unique quantum parameter count `4 * q_layers * effective_qc` (`256` at `QC=32, L=2`)
+  is **invariant** to `n_qubits`, isolating within-group entanglement width
+  ($2^4 = 16 \to 2^8 = 256 \to 2^{16} = 65{,}536$ Hilbert space per group) from
+  parameter count.
 
 ### `hqunet` (2D spatial patch lattice, `#21`)
 

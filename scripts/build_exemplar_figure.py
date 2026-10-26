@@ -113,6 +113,9 @@ def _apply_variant_to_config(cfg: dict, variant_str: str) -> dict:
     m_hq = re.match(r"^hqunet_G(\d+)_L(\d+)", v)
     if m_hq:
         out["hqunet_grid"] = int(m_hq.group(1))
+    m_nq = re.search(r"(?:^|_)nq(\d+)(?:_|$)", v)
+    if m_nq:
+        out["n_qubits"] = int(m_nq.group(1))
     tokens = set(v.split("_"))
     for sm in ("pixel", "patch2x2", "patch4x4", "se_gate"):
         if sm in tokens or f"_{sm}" in f"_{v}":
@@ -389,9 +392,20 @@ def _load_checkpoint_into_model(model, ckpt):
             if ckpt.get("best_parameters") is not None
             else ckpt.get("parameters")
         )
+        model_params = list(model.parameters())
+        if len(model_params) != len(params_list):
+            raise ValueError(
+                f"Checkpoint parameter count mismatch: model expects {len(model_params)} tensors, "
+                f"checkpoint has {len(params_list)}"
+            )
         with torch.no_grad():
-            for p, arr in zip(model.parameters(), params_list):
+            for idx, (p, arr) in enumerate(zip(model_params, params_list)):
                 t_arr = torch.as_tensor(arr, dtype=p.dtype, device=p.device)
+                if tuple(p.shape) != tuple(t_arr.shape):
+                    raise ValueError(
+                        f"Checkpoint parameter shape mismatch at index {idx}: "
+                        f"model expects {tuple(p.shape)}, checkpoint has {tuple(t_arr.shape)}"
+                    )
                 p.copy_(t_arr)
         state = None
     elif isinstance(ckpt, dict) and "state_dict" in ckpt:
@@ -454,6 +468,7 @@ def _resolve_model_config_for_checkpoint(ckpt, ckpt_path=None, base_config=None)
         "resnet_block_groups",
         "quantum_channels",
         "q_layers",
+        "n_qubits",
         "hqunet_grid",
     )
     str_keys = (
