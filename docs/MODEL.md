@@ -99,8 +99,8 @@ controls how many channels are entangled within each group:
 
 | Ansatz / Bottleneck | Qubits per circuit | Entanglement & Non-commutativity | Classical Simulability & Analytical Form | Scientific Role in QUAFFLE |
 | --- | --- | --- | --- | --- |
-| `legacy` | $4$ ($8$ groups) | Single $\operatorname{RX}(x_j)\operatorname{RY}(\theta_j)$ layer before computational-basis $\operatorname{CNOT}$ ring | **Analytically trivial**: $\operatorname{CNOT}$ acts on a product state right before $Z$-basis measurement, reducing exact $\langle Z_k \rangle$ to closed-form monomials of $c_j = \cos(x_j)\cos(\theta_j)$ (`4` multiplications) | Baseline showing that shallow single-layer computational-basis entanglement collapses to a classical product unit |
-| `reupload` ($L \ge 2$) | $4$ ($8$ groups) | Interleaved $\operatorname{RY}(\pi\tanh(s_{l,j}x_j)) + \operatorname{Rot}(\phi,\theta,\omega) + \operatorname{CNOT}$ rings across $L$ layers | **Non-factorizable trigonometric Fourier series**: intermediate $\operatorname{Rot}$ gates between $\operatorname{CNOT}$ rings mix computational-basis amplitudes so outputs cannot be factored into single-qubit cosines; classically simulable via $2^4 = 16$-dim statevector because $n=4$ | Controlled test of multi-layer data re-uploading inductive bias vs. parameter-matched classical bottleneck |
+| `legacy` | $n_q \in \{2,4,8,12,16\}$ ($\lfloor c_q/n_q\rfloor$ groups; default $n_q=4$) | Single $\operatorname{RX}(x_j)\operatorname{RY}(\theta_j)$ layer before computational-basis $\operatorname{CNOT}$ ring | **Analytically trivial**: $\operatorname{CNOT}$ acts on a product state right before $Z$-basis measurement, reducing exact $\langle Z_k \rangle$ to closed-form monomials of $c_j = \cos(x_j)\cos(\theta_j)$ ($n_q$ multiplications) | Baseline showing that shallow single-layer computational-basis entanglement collapses to a classical product unit |
+| `reupload` ($L \ge 2$) | $n_q \in \{2,4,8,12,16\}$ ($\lfloor c_q/n_q\rfloor$ groups; default $n_q=4$) | Interleaved $\operatorname{RY}(\pi\tanh(s_{l,j}x_j)) + \operatorname{Rot}(\phi,\theta,\omega) + \operatorname{CNOT}$ rings across $L$ layers | **Non-factorizable trigonometric Fourier series**: intermediate $\operatorname{Rot}$ gates between $\operatorname{CNOT}$ rings mix computational-basis amplitudes so outputs cannot be factored into single-qubit cosines; statevector dimension scales as $2^{n_q} \in \{4, 16, 256, 4096, 65536\}$ per group while total quantum parameter count stays invariant at $4 L c_q$ | Controlled test of multi-layer data re-uploading inductive bias and entanglement horizon scaling vs. parameter-matched classical bottleneck |
 | `hqunet` ($G \in \{2,4\}$) | $G^2 \in \{4, 16\}$ | 2D nearest-neighbor horizontal + vertical $\operatorname{CZ}$ lattice across $G \times G$ spatial patches | $G=2$ ($2^4=16$ statevector) or $G=4$ ($2^{16}=65{,}536$ statevector) coupling adjacent spatial patches rather than globally pooled channels | Tests spatially-local quantum entanglement for flood boundary preservation |
 | `ClassicalAblation` (`ablation_studies.py`) | $0$ (classical) | Parameter-matched per-group `Linear`/`MLP`, `conv1x1`, `depthwise3x3`, `lowrank`, or `hqunet_spatial` | Purely classical bottleneck with **100% identical paired-seed U-Net encoder/decoder initialization** (`#5`) | Isolates whether any segmentation gain comes from the PQC mapping vs. the bottleneck parameter budget / channel split |
 
@@ -109,31 +109,35 @@ controls how many channels are entangled within each group:
 `QuantumBlock(q_backend=..., q_sim_device=...)`, the config keys `q_backend`
 and `q_sim_device`, and the training flags `--q-backend` and `--q-sim-device`
 choose how the circuits are evaluated. The math is the same for all three
-simulators. `pennylane` is the default.
+simulators. `pennylane` is the default. When $N_{\text{tokens}} \cdot G \cdot 2^{n_q}$
+exceeds `_MAX_SIM_STATES` ($2^{18}$ complex128 amplitudes), all three backends
+automatically chunk across tokens/groups with non-reentrant activation
+checkpointing.
 
 | `q_backend` | how |
 | --- | --- |
-| `'pennylane'` (default) | one PennyLane `default.qubit` QNode call per block forward, torch interface, `diff_method="backprop"`, broadcast over (batch x groups) including the trainable weights and input scales |
-| `'pennylane_pergroup'` | the previous PennyLane path, one QNode call per 4 qubit group (legacy also loops over batch items). Kept as a test reference and for `visualize_circuit.py` |
-| `'torch'` | exact statevector simulation written in torch, all groups and the whole batch in one pass, on the device of the input. Kept as an independent cross-check |
+| `'pennylane'` (default) | broadcast PennyLane `default.qubit` QNode evaluation (`torch` interface, `diff_method="backprop"`) over `(tokens x groups)` per chunk, including trainable weights and input scales |
+| `'pennylane_pergroup'` | per-group PennyLane QNode evaluation over each $n_q$-qubit group (`legacy` loops over tokens per chunk). Kept as a test reference and for `visualize_circuit.py` |
+| `'torch'` | exact batched statevector simulation written in PyTorch over `(tokens x groups)` per chunk on the input device. Kept as an independent cross-check and fast wide-qubit simulator |
 
 | `q_sim_device` | where the `pennylane` circuit runs |
 | --- | --- |
-| `'cpu'` (default) | the pooled inputs [B x 8, 4] and the stacked parameters are copied to the CPU, the QNode runs there, the [B, 32] output is copied back to the model device |
+| `'cpu'` (default) | the pooled inputs `[N x G, n_q]` and the stacked parameters are copied to the CPU, the QNode runs there, and the `[N, G * n_q]` output is copied back to the model device |
 | `'model'` | the QNode runs on the device of the input (the GPU in a job) |
 
-### How the single call works
+### How the batched call works
 
-`QuantumBlock` pools the 32 quantum channels to [B, 8, 4] and flattens them to
-[B x 8, 4]. The per-group parameters are stacked to [8, L, 4, 3] (rotations)
-and [8, L, 4] (input scales), expanded over the batch and flattened to
-[B x 8, L, 4, 3] and [B x 8, L, 4]. Stacking keeps the autograd link to the
-per-group `nn.Parameter`s, so parameter names, shapes, the state_dict and the
-parameter count are unchanged. One QNode then applies the native gate list
-(`RY`, `Rot`, `CNOT` for reupload, `RX`, `RY`, `CNOT` for legacy) with every
-gate angle broadcast along the B x 8 axis. The QNodes are built once per
-(ansatz, layers) in a module level cache, which also makes the block
-picklable.
+At default $c_q = 32, n_q = 4$ ($G = 8$ groups), `QuantumBlock` pools the 32
+quantum channels to `[B, 8, 4]` (or `[B, G, n_q]` in general) and flattens them
+to `[B x G, n_q]`. The per-group parameters are stacked to `[G, L, n_q, 3]`
+(rotations) and `[G, L, n_q]` (input scales), expanded over the token batch and
+flattened to `[B x G, L, n_q, 3]` and `[B x G, L, n_q]`. Stacking keeps the
+autograd link to the per-group `nn.Parameter`s, so parameter names, shapes, the
+`state_dict` and the parameter count are unchanged. The broadcast QNode applies
+the native gate list (`RY`, `Rot`, `CNOT` for `reupload`, `RX`, `RY`, `CNOT` for
+`legacy`) with every gate angle broadcast along the `B x G` axis. The QNodes
+are built once per `(ansatz, layers, n_qubits)` in a module-level cache, which
+also makes the block picklable.
 
 The previous path paid a nearly fixed Python cost per QNode call (tape
 construction, transform program, `qml.math` dispatch, one small einsum per

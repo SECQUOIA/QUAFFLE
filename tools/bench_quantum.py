@@ -156,6 +156,7 @@ def bench_block(
     rows = []
     for ans, L in ansatzes:
         eff_nq = int(n_qubits)
+        row_nq = (int(hqunet_grid) ** 2) if ans == 'hqunet' else eff_nq
         for B in batches:
             for label, qb, sd in sims:
                 try:
@@ -182,7 +183,7 @@ def bench_block(
                 # The per-group path is slow, time it with fewer repetitions.
                 n = max(1, steps // 4) if qb == 'pennylane_pergroup' else max(1, steps)
                 dt = _time(step, device, n, warmup)
-                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L, n_qubits=eff_nq,
+                rows.append(dict(kind='block', q_ansatz=ans, q_layers=L, n_qubits=row_nq,
                                  q_spatial_mode=q_spatial_mode, hqunet_grid=hqunet_grid,
                                  quantum_channels=quantum_channels, batch=B,
                                  simulator=label, q_backend=qb, q_sim_device=sd, reps=n,
@@ -228,7 +229,12 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
             continue
         info = None
         b_blk = _first_bottleneck_block(model)
-        eff_row_nq = getattr(b_blk, 'n_qubits', int(cfg.get('n_qubits', 4)))
+        is_hq = (cfg.get('q_ansatz') == 'hqunet') or (getattr(b_blk, 'kind', None) == 'hqunet_spatial')
+        eff_row_nq = (
+            int(getattr(b_blk, 'hqunet_grid', cfg.get('hqunet_grid', 2))) ** 2
+            if is_hq
+            else getattr(b_blk, 'n_qubits', int(cfg.get('n_qubits', 4)))
+        )
         if qb is not None:
             blk = _first_quantum_block(model)
             if blk is None or getattr(blk, 'q_backend', None) != qb:
@@ -243,7 +249,7 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
         elif b_blk is not None:
             info = {
                 'kind': getattr(b_blk, 'kind', None),
-                'n_qubits': getattr(b_blk, 'n_qubits', None),
+                'n_qubits': eff_row_nq,
                 'num_groups': getattr(b_blk, 'num_groups', None),
                 'effective_qc': getattr(b_blk, 'effective_qc', None),
                 'bottleneck_target_params': getattr(b_blk, 'bottleneck_target_params', None),

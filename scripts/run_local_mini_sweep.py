@@ -62,21 +62,63 @@ def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
     return time.perf_counter() - t0
 
 
-def _expected_metadata_from_argv(argv: List[str]) -> Dict[str, Any]:
-    """Extract expected run identity fields from an entrypoint argv list."""
+_SCHEMA_DEFAULTS: Dict[str, Any] = {
+    "training": "centralized",
+    "dataset": "optical",
+    "base_channels": 32,
+    "image_size": 128,
+    "combined_input_mode": "shared3",
+    "backbone_conv_mode": "ws_conv",
+    "loss": "ce",
+    "use_time_emb": True,
+    "augment": False,
+    "q_ansatz": "reupload",
+    "q_layers": 2,
+    "n_qubits": 4,
+    "quantum_channels": 32,
+    "q_spatial_mode": "global",
+    "hqunet_grid": 2,
+    "skip_modulation": "affine",
+    "ablation_mode": "auto",
+}
+
+
+def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
+    """Resolve complete expected run configuration (including defaults) and explicit keys from argv."""
     meta: Dict[str, Any] = {}
+    explicit: set = set()
     if not argv:
-        return meta
+        return meta, explicit
     script = os.path.basename(str(argv[0]))
     if "Classical" in script:
-        meta["model_type"] = "classical"
+        model_type = "classical"
     elif "ablation" in script:
-        meta["model_type"] = "ablation"
+        model_type = "ablation"
     elif "TorchQ" in script:
-        meta["model_type"] = "quantum"
+        model_type = "quantum"
+    else:
+        model_type = None
+    if model_type is not None:
+        meta["model_type"] = model_type
+        explicit.add("model_type")
+    meta["training"] = "federated" if "federated" in script.lower() else "centralized"
+    for k in ("dataset", "base_channels", "image_size", "combined_input_mode", "backbone_conv_mode", "loss", "use_time_emb", "augment"):
+        meta[k] = _SCHEMA_DEFAULTS[k]
+    if model_type in ("quantum", "ablation"):
+        for k in ("q_ansatz", "q_layers", "n_qubits", "quantum_channels", "q_spatial_mode", "hqunet_grid", "skip_modulation"):
+            meta[k] = _SCHEMA_DEFAULTS[k]
+    if model_type == "ablation":
+        meta["ablation_mode"] = _SCHEMA_DEFAULTS["ablation_mode"]
+
     flag_map = {
+        "--mode": ("training", str),
         "--seed": ("seed", int),
         "--dataset": ("dataset", str),
+        "--base-channels": ("base_channels", int),
+        "--image-size": ("image_size", int),
+        "--combined-input-mode": ("combined_input_mode", str),
+        "--backbone-conv-mode": ("backbone_conv_mode", str),
+        "--loss": ("loss", str),
         "--q-ansatz": ("q_ansatz", str),
         "--q-layers": ("q_layers", int),
         "--n-qubits": ("n_qubits", int),
@@ -85,38 +127,89 @@ def _expected_metadata_from_argv(argv: List[str]) -> Dict[str, Any]:
         "--ablation-mode": ("ablation_mode", str),
         "--hqunet-grid": ("hqunet_grid", int),
         "--q-spatial-mode": ("q_spatial_mode", str),
+        "--skip-modulation": ("skip_modulation", str),
+        "--partition": ("partition", str),
+        "--alpha": ("dirichlet_alpha", float),
+        "--fl-strategy": ("fl_strategy", str),
+        "--fedprox-mu": ("fedprox_mu", float),
+        "--q-angle-agg": ("q_angle_agg", str),
+        "--num-clients": ("num_clients", int),
+        "--clients-per-round": ("clients_per_round", int),
+        "--fraction-fit": ("fraction_fit", float),
     }
     i = 1
     while i < len(argv):
         tok = str(argv[i])
-        if tok in flag_map and i + 1 < len(argv):
+        if tok == "--no-time-emb":
+            meta["use_time_emb"] = False
+            explicit.add("use_time_emb")
+            i += 1
+        elif tok == "--augment":
+            meta["augment"] = True
+            explicit.add("augment")
+            i += 1
+        elif tok in flag_map and i + 1 < len(argv):
             key, cast = flag_map[tok]
             meta[key] = cast(argv[i + 1])
+            explicit.add(key)
             i += 2
         else:
             i += 1
-    return meta
+
+    # Normalize expected configuration from the requested options themselves
+    if model_type in ("quantum", "ablation"):
+        max_qc = int(meta["base_channels"]) * 8
+        meta["quantum_channels"] = min(int(meta["quantum_channels"]), max_qc)
+        if meta.get("q_ansatz") == "hqunet" or meta.get("ablation_mode") == "hqunet_spatial":
+            meta.pop("n_qubits", None)
+            explicit.discard("n_qubits")
+        else:
+            meta.pop("hqunet_grid", None)
+            explicit.discard("hqunet_grid")
+        if meta.get("q_ansatz") == "legacy" and meta.get("ablation_mode") != "hqunet_spatial":
+            meta["q_layers"] = None
+    return meta, explicit
 
 
-def _matches_expected_metrics(d: Dict[str, Any], expected_seed: Optional[int], expected_meta: Dict[str, Any]) -> bool:
+def _matches_expected_metrics(
+    d: Dict[str, Any],
+    expected_seed: Optional[int],
+    expected_meta: Dict[str, Any],
+    explicit_keys: Optional[set] = None,
+) -> bool:
+    explicit_set = set(explicit_keys or ())
     if expected_seed is not None and int(d.get("seed", -1)) != int(expected_seed):
         return False
     cfg = d.get("config") if isinstance(d.get("config"), dict) else {}
+    exp_bc = int(expected_meta.get("base_channels", _SCHEMA_DEFAULTS["base_channels"]))
     for k, exp_v in expected_meta.items():
+        has_key = (k in d and d.get(k) is not None) or (k in cfg and cfg.get(k) is not None)
         actual_v = d.get(k) if d.get(k) is not None else cfg.get(k)
         if k == "model_type" and actual_v is None:
             actual_v = d.get("variant") or cfg.get("variant")
-        if k == "quantum_channels" and actual_v is not None and "base_channels" in cfg:
-            # Classical/ablation/quantum may clamp quantum_channels to bottleneck_dim = base_channels * 8
-            max_qc = int(cfg["base_channels"]) * 8
-            exp_eff = min(int(exp_v), max_qc)
-            if int(actual_v) != exp_eff and int(actual_v) != int(exp_v):
+            has_key = actual_v is not None
+        if k == "q_layers" and exp_v is None:
+            if actual_v not in (None, 1):
                 return False
             continue
+        if not has_key:
+            if k in ("loss", "use_time_emb", "augment", "skip_modulation", "backbone_conv_mode", "q_spatial_mode") and "config" not in d:
+                continue
+            # Candidate omitted a key; evaluate against schema default so non-default requests reject omitted keys
+            if k == "quantum_channels":
+                actual_v = min(int(_SCHEMA_DEFAULTS["quantum_channels"]), exp_bc * 8)
+            else:
+                actual_v = _SCHEMA_DEFAULTS.get(k)
         if actual_v is None:
             return False
-        if isinstance(exp_v, int):
+        if isinstance(exp_v, bool):
+            if bool(actual_v) != bool(exp_v):
+                return False
+        elif isinstance(exp_v, int):
             if int(actual_v) != int(exp_v):
+                return False
+        elif isinstance(exp_v, float):
+            if abs(float(actual_v) - float(exp_v)) > 1e-9:
                 return False
         else:
             if str(actual_v) != str(exp_v):
@@ -159,7 +252,7 @@ def _find_metrics_json_since(
         candidates = [p for p in now_paths if p not in before_set]
     if not candidates:
         raise FileNotFoundError(f"No newly written metrics.json found under {results_dir}")
-    expected_meta = _expected_metadata_from_argv(expected_argv or [])
+    expected_meta, explicit_keys = _expected_metadata_from_argv(expected_argv or [])
     if expected_seed is None and not expected_meta:
         if len(candidates) > 1:
             raise RuntimeError(f"Ambiguous metrics.json candidates (no expected_seed/argv provided): {candidates}")
@@ -169,7 +262,7 @@ def _find_metrics_json_since(
         try:
             with open(p, "r") as f:
                 d = json.load(f)
-            if _matches_expected_metrics(d, expected_seed, expected_meta):
+            if _matches_expected_metrics(d, expected_seed, expected_meta, explicit_keys):
                 matched.append(p)
         except Exception:
             continue

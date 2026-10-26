@@ -213,6 +213,11 @@ def test_quantum_parameter_count_invariance_and_bottleneck_param_counts_agreemen
         {**base_cfg, "q_ansatz": "reupload", "q_layers": 2, "n_qubits": 8, "q_spatial_mode": "patch2x2", "q_share_blocks": True},
         {**base_cfg, "q_ansatz": "reupload", "q_layers": 2, "n_qubits": 8, "q_spatial_mode": "se_gate", "q_share_blocks": False},
         {**base_cfg, "q_ansatz": "legacy", "q_layers": 1, "n_qubits": 16, "q_spatial_mode": "pixel", "q_share_blocks": True},
+        {**base_cfg, "q_ansatz": "legacy", "ablation_mode": "mlp", "n_qubits": 4, "q_share_blocks": True},
+        {**base_cfg, "q_ansatz": "legacy", "ablation_mode": "mlp", "n_qubits": 8, "q_share_blocks": True},
+        {**base_cfg, "q_ansatz": "legacy", "ablation_mode": "mlp", "n_qubits": 16, "q_share_blocks": True},
+        {**base_cfg, "q_ansatz": "legacy", "ablation_mode": "conv1x1", "n_qubits": 8, "q_share_blocks": False},
+        {**base_cfg, "q_ansatz": "legacy", "ablation_mode": "lowrank", "n_qubits": 8, "q_share_blocks": True},
         {**base_cfg, "q_ansatz": "hqunet", "q_layers": 1, "hqunet_grid": 4, "q_share_blocks": True},
         {**base_cfg, "q_ansatz": "hqunet", "q_layers": 2, "hqunet_grid": 2, "q_share_blocks": False},
     ]
@@ -399,6 +404,17 @@ def test_circular_aggregation_and_atomic_param_loading_reject_shape_mismatches()
     with pytest.raises(ValueError, match="shape mismatch|count mismatch"):
         federated_demoTorchQ.numpy_to_torch_params(m4, params8)
 
+    # Verify apply_circular_q_angle_agg_to_fit_result with {name: shape} spec rejects
+    # identically malformed non-periodic tensors in both aggregate and client
+    from flwr.common import FitRes, Status, Code, ndarrays_to_parameters
+    param_spec = {name: tuple(p.shape) for name, p in m4.named_parameters()}
+    malformed = [p.detach().cpu().numpy().copy() for p in m4.parameters()]
+    malformed[0] = np.zeros((999,), dtype=np.float32)  # non-periodic backbone tensor
+    bad_params = ndarrays_to_parameters(malformed)
+    fit_res = FitRes(status=Status(code=Code.OK, message=""), parameters=bad_params, num_examples=10, metrics={})
+    with pytest.raises(ValueError, match="shape mismatch"):
+        tc.apply_circular_q_angle_agg_to_fit_result(bad_params, [(None, fit_res)], param_spec, {"q_angle_agg": "circular"})
+
 
 def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
     # analyze_results
@@ -504,9 +520,31 @@ def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
 
         argv_nq8 = ["centralized_demoTorchQ.py", "--q-ansatz", "reupload", "--q-layers", "2", "--n-qubits", "8", "--quantum-channels", "32", "--seed", "42"]
         argv_nq16 = ["centralized_demoTorchQ.py", "--q-ansatz", "reupload", "--q-layers", "2", "--n-qubits", "16", "--quantum-channels", "32", "--seed", "42"]
+        argv_default_nq4_qc32 = ["centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2", "--seed", "42"]
         assert rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap, expected_seed=42, expected_argv=argv_nq8) == path_b
         with pytest.raises(FileNotFoundError, match="No metrics.json"):
             rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap, expected_seed=42, expected_argv=argv_nq16)
+        # Default request (n_qubits=4, qc=32) must reject a candidate with n_qubits=8 (or n_qubits=16, qc=16)
+        with pytest.raises(FileNotFoundError, match="No metrics.json"):
+            rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap, expected_seed=42, expected_argv=argv_default_nq4_qc32)
+
+        # Explicit dual_stem + base_channels=8 request must reject a candidate with shared3 + base_channels=32
+        snap2 = rlms._snapshot_metrics_files(os.path.join(tmpdir, "results"))
+        run_c = os.path.join(tmpdir, "results", "run_c", "results")
+        os.makedirs(run_c, exist_ok=True)
+        path_c = os.path.join(run_c, "metrics.json")
+        with open(path_c, "w") as f:
+            json.dump({
+                "seed": 42, "model_type": "quantum", "dataset": "combined",
+                "q_ansatz": "reupload", "q_layers": 2, "n_qubits": 4, "quantum_channels": 32,
+                "combined_input_mode": "shared3", "base_channels": 32,
+            }, f)
+        argv_dual_bc8 = [
+            "centralized_demoTorchQ.py", "--dataset", "combined", "--q-ansatz", "reupload",
+            "--q-layers", "2", "--combined-input-mode", "dual_stem", "--base-channels", "8", "--seed", "42",
+        ]
+        with pytest.raises(FileNotFoundError, match="No metrics.json"):
+            rlms._find_metrics_json_since(os.path.join(tmpdir, "results"), snap2, expected_seed=42, expected_argv=argv_dual_bc8)
 
     # bench_quantum
     b_args = bq.make_block("torch", None, "reupload", 2, quantum_channels=16, n_qubits=8)

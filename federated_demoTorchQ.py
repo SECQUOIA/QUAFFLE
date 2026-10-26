@@ -406,16 +406,22 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
         tc.fed_round_end(self, server_round)
         return aggregated_result
     
+    def _ensure_param_spec(self):
+        if getattr(self, '_param_spec', None) is not None:
+            return self._param_spec
+        if self.template_model is not None:
+            self._param_spec = {name: tuple(p.shape) for name, p in self.template_model.named_parameters()}
+        else:
+            tmp = tc.build_model(QVUNetSegmentation, self.config)
+            self._param_spec = {name: tuple(p.shape) for name, p in tmp.named_parameters()}
+            del tmp
+        self._param_keys = list(self._param_spec.keys())
+        return self._param_spec
+
     def _ensure_param_keys(self):
         if getattr(self, '_param_keys', None) is not None:
             return self._param_keys
-        if self.template_model is not None:
-            self._param_keys = [name for name, _ in self.template_model.named_parameters()]
-            return self._param_keys
-        tmp = tc.build_model(QVUNetSegmentation, self.config)
-        self._param_keys = [name for name, _ in tmp.named_parameters()]
-        del tmp
-        return self._param_keys
+        return list(self._ensure_param_spec().keys())
 
     def aggregate_fit(self, server_round: int, results, failures):
         """Aggregate fit results and store parameters."""
@@ -432,7 +438,7 @@ class QuantumFedAvg(tc.RoundOffsetMixin, FedAvg):
             agg_params, agg_metrics = aggregated_result
             if tc.effective_q_angle_agg(self.config) == 'circular':
                 agg_params = tc.apply_circular_q_angle_agg_to_fit_result(
-                    agg_params, results, self._ensure_param_keys(), self.config
+                    agg_params, results, self._ensure_param_spec(), self.config
                 )
                 aggregated_result = (agg_params, agg_metrics)
             self._current_parameters = aggregated_result[0]

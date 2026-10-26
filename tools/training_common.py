@@ -1457,7 +1457,7 @@ def bottleneck_param_counts(config, model_type, model=None):
     if model_type == 'ablation':
         from utilsTorch.unetTorch import ClassicalBottleneckBlock
         abl_mode = effective_ablation_mode(config)
-        eff_layers = effective_ablation_q_layers(config) if abl_mode == 'hqunet_spatial' else (layers or 1)
+        eff_layers = effective_ablation_q_layers(config)
         eff_nq = 4 if (ansatz == 'hqunet' or abl_mode == 'hqunet_spatial') else n_q
         blk = ClassicalBottleneckBlock(
             quantum_channels=qc,
@@ -1711,19 +1711,21 @@ def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, mod
         return aggregated_parameters
     from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
     agg_nd = list(parameters_to_ndarrays(aggregated_parameters))
-    model_sd = None
-    if isinstance(model_or_keys, dict):
-        if model_or_keys and hasattr(next(iter(model_or_keys.values())), 'shape'):
-            model_sd = model_or_keys
+    ref_shapes = None
+    if isinstance(model_or_keys, dict) and model_or_keys:
+        first_val = next(iter(model_or_keys.values()))
+        if hasattr(first_val, 'shape'):
+            ref_shapes = [tuple(v.shape) for v in model_or_keys.values()]
+        elif isinstance(first_val, (tuple, list)):
+            ref_shapes = [tuple(int(d) for d in v) for v in model_or_keys.values()]
+    elif hasattr(model_or_keys, 'named_parameters'):
+        ref_shapes = [tuple(p.shape) for _, p in model_or_keys.named_parameters()]
     elif hasattr(model_or_keys, 'state_dict'):
-        model_sd = model_or_keys.state_dict()
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.state_dict().values()]
     elif hasattr(model_or_keys, 'model') and hasattr(model_or_keys.model, 'state_dict'):
-        model_sd = model_or_keys.model.state_dict()
-    ref_shapes = (
-        [tuple(v.shape) for v in model_sd.values()]
-        if model_sd is not None
-        else [np.asarray(a).shape for a in agg_nd]
-    )
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.model.state_dict().values()]
+    if ref_shapes is None:
+        ref_shapes = [np.asarray(a).shape for a in agg_nd]
     if len(agg_nd) != len(ref_shapes):
         raise ValueError(
             f"Aggregated parameter tensor count mismatch: expected {len(ref_shapes)}, got {len(agg_nd)}"
