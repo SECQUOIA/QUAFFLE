@@ -398,14 +398,17 @@ def _load_checkpoint_into_model(model, ckpt):
                 f"Checkpoint parameter count mismatch: model expects {len(model_params)} tensors, "
                 f"checkpoint has {len(params_list)}"
             )
+        validated_tensors = []
+        for idx, (p, arr) in enumerate(zip(model_params, params_list)):
+            t_arr = torch.as_tensor(arr, dtype=p.dtype, device=p.device)
+            if tuple(p.shape) != tuple(t_arr.shape):
+                raise ValueError(
+                    f"Checkpoint parameter shape mismatch at index {idx}: "
+                    f"model expects {tuple(p.shape)}, checkpoint has {tuple(t_arr.shape)}"
+                )
+            validated_tensors.append(t_arr)
         with torch.no_grad():
-            for idx, (p, arr) in enumerate(zip(model_params, params_list)):
-                t_arr = torch.as_tensor(arr, dtype=p.dtype, device=p.device)
-                if tuple(p.shape) != tuple(t_arr.shape):
-                    raise ValueError(
-                        f"Checkpoint parameter shape mismatch at index {idx}: "
-                        f"model expects {tuple(p.shape)}, checkpoint has {tuple(t_arr.shape)}"
-                    )
+            for p, t_arr in zip(model_params, validated_tensors):
                 p.copy_(t_arr)
         state = None
     elif isinstance(ckpt, dict) and "state_dict" in ckpt:

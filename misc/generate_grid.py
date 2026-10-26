@@ -360,6 +360,11 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     if augment:
         args += ["--augment"]
     if method in ("quantum", "ablation"):
+        if q_ansatz == "hqunet" and n_qubits is not None and int(n_qubits) != 4:
+            raise ValueError(
+                "--n-qubits != 4 is not supported with --q-ansatz hqunet; "
+                "use --hqunet-grid in {2, 4}"
+            )
         args += ["--q-ansatz", q_ansatz]
         if q_layers is not None:
             args += ["--q-layers", str(q_layers)]
@@ -461,11 +466,17 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
                                 "_qc%d" % quantum_channels,
                                 ans_short,
                                 seed)
+    eff_nq_meta = (
+        ""
+        if method == "classical"
+        else (int(hqunet_grid or 2) ** 2 if q_ansatz == "hqunet" else int(n_qubits or 4))
+    )
     command = " ".join([shlex.quote(python), script] + [shlex.quote(a) for a in args])
     return OrderedDict([
         ("name", name), ("job_name", jshort), ("method", method), ("mode", mode),
         ("dataset", dataset), ("seed", seed),
         ("ansatz", q_ansatz if method != "classical" else ""),
+        ("n_qubits", eff_nq_meta),
         ("script", script), ("args", args), ("command", command),
         ("exp_h", exp), ("limit_h", limit), ("cpus", cpus if kind == "federated" else None),
         ("ckpt", ckpt),
@@ -531,11 +542,11 @@ def write_jobs(jobs, out_dir, root, cluster, stagger=0, max_concurrent=0, overwr
     with open(os.path.join(out_dir, "manifest.csv"), "w", newline="") as f:
         w = csv.writer(f, lineterminator="\n")
         w.writerow(["script", "job_name", "method", "mode", "dataset", "seed", "ansatz",
-                    "time_limit", "est_su", "limit_su", "ckpt_every", "command"])
+                    "n_qubits", "time_limit", "est_su", "limit_su", "ckpt_every", "command"])
         for j, fname in zip(jobs, names):
             w.writerow([fname, j["job_name"], j["method"], j["mode"], j["dataset"], j["seed"],
-                        j["ansatz"], fmt_hms(j["limit_h"]), "%.2f" % j["exp_h"], j["limit_h"],
-                        int(j["ckpt"]), j["command"]])
+                        j["ansatz"], j.get("n_qubits", ""), fmt_hms(j["limit_h"]), "%.2f" % j["exp_h"],
+                        j["limit_h"], int(j["ckpt"]), j["command"]])
     return names
 
 
@@ -838,6 +849,13 @@ def main(argv=None):
                     help="Folder for the generated scripts (default <root>/misc/grid/<timestamp>)")
     add_cluster_args(ap)
     args = ap.parse_args(argv)
+    if (
+        args.q_ansatz == "hqunet"
+        and args.n_qubits is not None
+        and int(args.n_qubits) != 4
+        and any(m in ("quantum", "ablation") for m in args.methods)
+    ):
+        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
     seeds = _validate_seeds(ap, args.seeds)
     cluster = resolve_cluster_args(args)
     args.root = os.path.abspath(args.root)

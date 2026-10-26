@@ -126,7 +126,8 @@ def _find_matched_torch_config(backend, overrides=None):
 
 def _torch_overrides(args):
     """Config entries from the shared CLI flags (seed, data, quantum model)."""
-    cfg = {'seed': args.seed}
+    cfg = _torch_quantum_config(getattr(args, 'quantum_backend', 'pennylane'))
+    cfg['seed'] = args.seed
     tc.apply_common_args(cfg, args)
     return cfg
 
@@ -468,6 +469,7 @@ def _numpy_to_torch_params(model, numpy_params):
             f"Parameter count mismatch: model expects {len(model_params)} tensors, "
             f"received {len(numpy_params)}"
         )
+    validated = []
     for idx, (p, np_p) in enumerate(zip(model_params, numpy_params)):
         arr = np.asarray(np_p)
         if tuple(p.shape) != tuple(arr.shape):
@@ -475,6 +477,8 @@ def _numpy_to_torch_params(model, numpy_params):
                 f"Parameter shape mismatch at index {idx}: model expects {tuple(p.shape)}, "
                 f"received {tuple(arr.shape)}"
             )
+        validated.append(arr)
+    for p, arr in zip(model_params, validated):
         p.data = torch.from_numpy(arr).to(p.device)
 
 

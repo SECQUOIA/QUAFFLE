@@ -1458,6 +1458,7 @@ def bottleneck_param_counts(config, model_type, model=None):
         from utilsTorch.unetTorch import ClassicalBottleneckBlock
         abl_mode = effective_ablation_mode(config)
         eff_layers = effective_ablation_q_layers(config) if abl_mode == 'hqunet_spatial' else (layers or 1)
+        eff_nq = 4 if (ansatz == 'hqunet' or abl_mode == 'hqunet_spatial') else n_q
         blk = ClassicalBottleneckBlock(
             quantum_channels=qc,
             q_ansatz=ansatz,
@@ -1465,24 +1466,27 @@ def bottleneck_param_counts(config, model_type, model=None):
             spatial_mode=q_sp,
             ablation_mode=abl_mode,
             hqunet_grid=grid,
-            n_qubits=n_q,
+            n_qubits=eff_nq,
         )
         return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
     q_family = config.get('quantum_backend', 'pennylane')
     if q_family == 'ptlayer':
-        per_block = (qc // 4) * 24
-    elif ansatz == 'hqunet':
-        n_q_grid = grid * grid
-        n_filters = qc // 4
-        per_block = n_filters * ((layers or 2) * (n_q_grid + 2 * (n_q_grid - 1)) + 5)
-    else:
-        num_groups = qc // n_q
-        n_params_per_group = n_q if ansatz == 'legacy' else ((layers or 2) * n_q * 4)
-        eff_qc = num_groups * n_q
-        extra = (eff_qc * 4 + eff_qc * 4) if q_sp != 'global' else 0
-        per_block = num_groups * n_params_per_group + extra
-    total = int(per_block) * n_blocks
-    return total, total
+        per_block = (qc // 4) * 144
+        total = int(per_block) * n_blocks
+        return total, total
+    from utilsTorch.unetTorch import QuantumBlock
+    eff_nq = 4 if ansatz == 'hqunet' else n_q
+    blk = QuantumBlock(
+        quantum_channels=qc,
+        backend='pennylane',
+        q_ansatz=ansatz,
+        q_layers=layers or (1 if ansatz == 'legacy' else 2),
+        q_backend='torch',
+        q_spatial_mode=q_sp,
+        hqunet_grid=grid,
+        n_qubits=eff_nq,
+    )
+    return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
 
 
 def effective_ablation_mode(config):
@@ -1633,6 +1637,10 @@ def circular_mean_angles(arrays, weights):
             )
     orig_dtype = first.dtype
     w = np.asarray(weights, dtype=np.float64)
+    if w.ndim != 1 or len(w) != len(arrays):
+        raise ValueError(
+            f"circular_mean_angles weights length mismatch: expected {len(arrays)}, got {w.shape}"
+        )
     w_sum = float(w.sum())
     if w_sum <= 0.0:
         w = np.ones(len(arrays), dtype=np.float64) / float(len(arrays))
@@ -1703,15 +1711,44 @@ def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, mod
         return aggregated_parameters
     from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
     agg_nd = list(parameters_to_ndarrays(aggregated_parameters))
+    model_sd = None
+    if isinstance(model_or_keys, dict):
+        if model_or_keys and hasattr(next(iter(model_or_keys.values())), 'shape'):
+            model_sd = model_or_keys
+    elif hasattr(model_or_keys, 'state_dict'):
+        model_sd = model_or_keys.state_dict()
+    elif hasattr(model_or_keys, 'model') and hasattr(model_or_keys.model, 'state_dict'):
+        model_sd = model_or_keys.model.state_dict()
+    ref_shapes = (
+        [tuple(v.shape) for v in model_sd.values()]
+        if model_sd is not None
+        else [np.asarray(a).shape for a in agg_nd]
+    )
+    if len(agg_nd) != len(ref_shapes):
+        raise ValueError(
+            f"Aggregated parameter tensor count mismatch: expected {len(ref_shapes)}, got {len(agg_nd)}"
+        )
+    for idx, (arr, exp_shape) in enumerate(zip(agg_nd, ref_shapes)):
+        if np.asarray(arr).shape != exp_shape:
+            raise ValueError(
+                f"Aggregated parameter shape mismatch at index {idx}: "
+                f"expected {exp_shape}, got {np.asarray(arr).shape}"
+            )
     client_nd_weights = []
     for client_idx, item in enumerate(results):
         fit_res = item[1] if isinstance(item, tuple) else item
         c_nd = parameters_to_ndarrays(fit_res.parameters)
-        if len(c_nd) != len(agg_nd):
+        if len(c_nd) != len(ref_shapes):
             raise ValueError(
                 f"Client {client_idx} parameter tensor count mismatch in circular aggregation: "
-                f"expected {len(agg_nd)}, got {len(c_nd)}"
+                f"expected {len(ref_shapes)}, got {len(c_nd)}"
             )
+        for idx, (arr, exp_shape) in enumerate(zip(c_nd, ref_shapes)):
+            if np.asarray(arr).shape != exp_shape:
+                raise ValueError(
+                    f"Client {client_idx} parameter shape mismatch at index {idx}: "
+                    f"expected {exp_shape}, got {np.asarray(arr).shape}"
+                )
         client_nd_weights.append((c_nd, float(fit_res.num_examples)))
     weights = [w for _, w in client_nd_weights]
     for idx in sorted(p_idx):

@@ -79,13 +79,14 @@ def torch_params_to_numpy(model) -> List[np.ndarray]:
     return [param.detach().cpu().numpy() for param in model.parameters()]
 
 def numpy_to_torch_params(model, numpy_params: List[np.ndarray]):
-    """Load numpy arrays into PyTorch model parameters."""
+    """Load numpy arrays into PyTorch model parameters atomically."""
     model_params = list(model.parameters())
     if len(model_params) != len(numpy_params):
         raise ValueError(
             f"Parameter count mismatch: model expects {len(model_params)} tensors, "
             f"received {len(numpy_params)}"
         )
+    validated = []
     for idx, (param, numpy_param) in enumerate(zip(model_params, numpy_params)):
         arr = np.asarray(numpy_param)
         if tuple(param.shape) != tuple(arr.shape):
@@ -93,6 +94,8 @@ def numpy_to_torch_params(model, numpy_params: List[np.ndarray]):
                 f"Parameter shape mismatch at index {idx}: model expects {tuple(param.shape)}, "
                 f"received {tuple(arr.shape)}"
             )
+        validated.append(arr)
+    for param, arr in zip(model_params, validated):
         param.data = torch.from_numpy(arr).to(param.device)
 
 def get_config():

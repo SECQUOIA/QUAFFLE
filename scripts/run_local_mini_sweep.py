@@ -62,27 +62,127 @@ def _invoke_entry(entry_fn: Callable[[], Any], argv: List[str]) -> float:
     return time.perf_counter() - t0
 
 
+def _expected_metadata_from_argv(argv: List[str]) -> Dict[str, Any]:
+    """Extract expected run identity fields from an entrypoint argv list."""
+    meta: Dict[str, Any] = {}
+    if not argv:
+        return meta
+    script = os.path.basename(str(argv[0]))
+    if "Classical" in script:
+        meta["model_type"] = "classical"
+    elif "ablation" in script:
+        meta["model_type"] = "ablation"
+    elif "TorchQ" in script:
+        meta["model_type"] = "quantum"
+    flag_map = {
+        "--seed": ("seed", int),
+        "--dataset": ("dataset", str),
+        "--q-ansatz": ("q_ansatz", str),
+        "--q-layers": ("q_layers", int),
+        "--n-qubits": ("n_qubits", int),
+        "--quantum-channels": ("quantum_channels", int),
+        "--quantum_channels": ("quantum_channels", int),
+        "--ablation-mode": ("ablation_mode", str),
+        "--hqunet-grid": ("hqunet_grid", int),
+        "--q-spatial-mode": ("q_spatial_mode", str),
+    }
+    i = 1
+    while i < len(argv):
+        tok = str(argv[i])
+        if tok in flag_map and i + 1 < len(argv):
+            key, cast = flag_map[tok]
+            meta[key] = cast(argv[i + 1])
+            i += 2
+        else:
+            i += 1
+    return meta
+
+
+def _matches_expected_metrics(d: Dict[str, Any], expected_seed: Optional[int], expected_meta: Dict[str, Any]) -> bool:
+    if expected_seed is not None and int(d.get("seed", -1)) != int(expected_seed):
+        return False
+    cfg = d.get("config") if isinstance(d.get("config"), dict) else {}
+    for k, exp_v in expected_meta.items():
+        actual_v = d.get(k) if d.get(k) is not None else cfg.get(k)
+        if k == "model_type" and actual_v is None:
+            actual_v = d.get("variant") or cfg.get("variant")
+        if k == "quantum_channels" and actual_v is not None and "base_channels" in cfg:
+            # Classical/ablation/quantum may clamp quantum_channels to bottleneck_dim = base_channels * 8
+            max_qc = int(cfg["base_channels"]) * 8
+            exp_eff = min(int(exp_v), max_qc)
+            if int(actual_v) != exp_eff and int(actual_v) != int(exp_v):
+                return False
+            continue
+        if actual_v is None:
+            return False
+        if isinstance(exp_v, int):
+            if int(actual_v) != int(exp_v):
+                return False
+        else:
+            if str(actual_v) != str(exp_v):
+                return False
+    return True
+
+
+def _snapshot_metrics_files(results_dir: str) -> Dict[str, Tuple[int, int]]:
+    pattern = os.path.join(results_dir, "*", "results", "metrics.json")
+    snap: Dict[str, Tuple[int, int]] = {}
+    for p in glob.glob(pattern):
+        try:
+            st = os.stat(p)
+            snap[p] = (int(st.st_mtime_ns), int(st.st_size))
+        except OSError:
+            continue
+    return snap
+
+
 def _find_metrics_json_since(
     results_dir: str,
-    before_paths: set,
+    before_paths: Any,
     expected_seed: Optional[int] = None,
+    expected_argv: Optional[List[str]] = None,
 ) -> str:
     pattern = os.path.join(results_dir, "*", "results", "metrics.json")
-    now_paths = set(glob.glob(pattern))
-    new_paths = sorted(now_paths - before_paths, key=lambda p: os.path.getmtime(p))
-    candidates = new_paths if new_paths else sorted(now_paths, key=lambda p: os.path.getmtime(p))
-    if not candidates:
-        raise FileNotFoundError(f"No metrics.json found under {results_dir}")
-    if expected_seed is not None:
-        for p in reversed(candidates):
+    now_paths = sorted(glob.glob(pattern))
+    if isinstance(before_paths, dict):
+        candidates = []
+        for p in now_paths:
             try:
-                with open(p, "r") as f:
-                    d = json.load(f)
-                if int(d.get("seed", -1)) == int(expected_seed):
-                    return p
-            except Exception:
+                st = os.stat(p)
+                cur_sig = (int(st.st_mtime_ns), int(st.st_size))
+            except OSError:
                 continue
-    return candidates[-1]
+            if p not in before_paths or cur_sig != before_paths[p]:
+                candidates.append(p)
+    else:
+        before_set = set(before_paths or ())
+        candidates = [p for p in now_paths if p not in before_set]
+    if not candidates:
+        raise FileNotFoundError(f"No newly written metrics.json found under {results_dir}")
+    expected_meta = _expected_metadata_from_argv(expected_argv or [])
+    if expected_seed is None and not expected_meta:
+        if len(candidates) > 1:
+            raise RuntimeError(f"Ambiguous metrics.json candidates (no expected_seed/argv provided): {candidates}")
+        return candidates[0]
+    matched = []
+    for p in candidates:
+        try:
+            with open(p, "r") as f:
+                d = json.load(f)
+            if _matches_expected_metrics(d, expected_seed, expected_meta):
+                matched.append(p)
+        except Exception:
+            continue
+    if not matched:
+        raise FileNotFoundError(
+            f"No metrics.json under {results_dir} matched seed={expected_seed}, meta={expected_meta} "
+            f"(candidates={candidates})"
+        )
+    if len(matched) > 1:
+        raise RuntimeError(
+            f"Ambiguous metrics.json matches for seed={expected_seed}, meta={expected_meta}: {matched}"
+        )
+    return matched[0]
 
 
 def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -449,10 +549,67 @@ def run_mini_sweep(
             ),
             (
                 4,
-                "Panel 4: Qubit-Width & Quantum-Channel Scaling (Centralized `optical`, `n_qubits` in `{4, 8, 16}`)",
+                "Panel 4: Qubit-Width & Quantum-Channel Scaling (Centralized `optical`, `n_qubits` in `{4, 8, 16}`, `qc` in `{16, 32}`)",
                 [
                     (
-                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4)",
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "4", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, qc=16, 4x4q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "4", "--quantum-channels", "16",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "8", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, qc=16, 2x8q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "8", "--quantum-channels", "16",
+                            "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16, qc=16)",
+                        ablation_studies.main,
+                        [
+                            "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                            "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                            "--n-qubits", "16", "--quantum-channels", "16",
+                            "--ablation-mode", "mlp", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, qc=16, 1x16q)",
+                        centralized_demoTorchQ.main,
+                        [
+                            "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
+                            "--q-layers", "2", "--n-qubits", "16", "--quantum-channels", "16",
+                            "--q-backend", "torch", "--quantum-knockout-eval", *common_c,
+                        ],
+                    ),
+                    (
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=4, qc=32)",
                         ablation_studies.main,
                         [
                             "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
@@ -462,7 +619,7 @@ def run_mini_sweep(
                         ],
                     ),
                     (
-                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, 8x4q)",
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=4, qc=32, 8x4q)",
                         centralized_demoTorchQ.main,
                         [
                             "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
@@ -471,7 +628,7 @@ def run_mini_sweep(
                         ],
                     ),
                     (
-                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8)",
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=8, qc=32)",
                         ablation_studies.main,
                         [
                             "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
@@ -481,7 +638,7 @@ def run_mini_sweep(
                         ],
                     ),
                     (
-                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, 4x8q)",
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=8, qc=32, 4x8q)",
                         centralized_demoTorchQ.main,
                         [
                             "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
@@ -490,7 +647,7 @@ def run_mini_sweep(
                         ],
                     ),
                     (
-                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16)",
+                        "Ablation (MLP, matched to Reupload L=2, n_qubits=16, qc=32)",
                         ablation_studies.main,
                         [
                             "ablation_studies.py", "--framework", "torch", "--mode", "centralized",
@@ -500,7 +657,7 @@ def run_mini_sweep(
                         ],
                     ),
                     (
-                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, 2x16q)",
+                        "Quantum QUAFFLE (Reupload L=2, n_qubits=16, qc=32, 2x16q)",
                         centralized_demoTorchQ.main,
                         [
                             "centralized_demoTorchQ.py", "--dataset", "optical", "--q-ansatz", "reupload",
@@ -522,7 +679,6 @@ def run_mini_sweep(
         ]
 
         panels_out = []
-        pattern = os.path.join(results_dir, "*", "results", "metrics.json")
 
         for panel_id, panel_title, specs in panel_defs:
             if panel_id not in active_panels:
@@ -531,10 +687,12 @@ def run_mini_sweep(
             for label, entry_fn, base_argv in specs:
                 seed_records = []
                 for s in seed_list:
-                    before = set(glob.glob(pattern))
+                    before = _snapshot_metrics_files(results_dir)
                     argv = [*base_argv, "--seed", str(s)]
                     dt = _invoke_entry(entry_fn, argv)
-                    mpath = _find_metrics_json_since(results_dir, before, expected_seed=int(s))
+                    mpath = _find_metrics_json_since(
+                        results_dir, before, expected_seed=int(s), expected_argv=argv
+                    )
                     with open(mpath, "r") as f:
                         mdata = json.load(f)
                     mdata["_elapsed_s"] = dt

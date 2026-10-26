@@ -7,7 +7,7 @@ config/seeds.py (or a --seeds subset). qc=32 is the main grid
 (misc/generate_grid.py --methods quantum).
 
 Time limits, the script header and the cluster settings (see
-config/cluster.example.json) come from misc/generate_grid.py. The circuit runs once per 4-channel group, so the
+config/cluster.example.json) come from misc/generate_grid.py. The circuit runs once per n_qubits-channel group (default 4), so the
 quantum overhead in the measured qc=32 runtime is scaled by qc/32. That is
 an extrapolation, not a measurement. Run one seed first and check sacct.
 
@@ -48,6 +48,8 @@ def main(argv=None):
     ap.add_argument("--out-dir", default=None)
     gg.add_cluster_args(ap)
     args = ap.parse_args(argv)
+    if args.q_ansatz == "hqunet" and args.n_qubits is not None and int(args.n_qubits) != 4:
+        ap.error("--n-qubits != 4 is not supported with --q-ansatz hqunet; use --hqunet-grid in {2, 4}")
     seeds = gg._validate_seeds(ap, args.seeds)
     cluster = gg.resolve_cluster_args(args)
     group_w = 4 if args.q_ansatz == "hqunet" else int(args.n_qubits or 4)

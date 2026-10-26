@@ -106,6 +106,13 @@ def _first_quantum_block(model):
     return None
 
 
+def _first_bottleneck_block(model):
+    for m in model.modules():
+        if isinstance(m, (unet.QuantumBlock, unet.ClassicalBottleneckBlock)):
+            return m
+    return None
+
+
 def make_block(
     q_backend,
     q_sim_device,
@@ -125,7 +132,7 @@ def make_block(
         q_backend=q_backend,
         q_spatial_mode=q_spatial_mode,
         hqunet_grid=hqunet_grid,
-        n_qubits=4 if q_ansatz == 'hqunet' else int(n_qubits),
+        n_qubits=int(n_qubits),
     )
     if q_sim_device is not None:
         if not _supports_sim_device():
@@ -148,7 +155,7 @@ def bench_block(
 ):
     rows = []
     for ans, L in ansatzes:
-        eff_nq = 4 if ans == 'hqunet' else int(n_qubits)
+        eff_nq = int(n_qubits)
         for B in batches:
             for label, qb, sd in sims:
                 try:
@@ -220,6 +227,8 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
             print(f"train step {name:28s}: skipped ({e})", flush=True)
             continue
         info = None
+        b_blk = _first_bottleneck_block(model)
+        eff_row_nq = getattr(b_blk, 'n_qubits', int(cfg.get('n_qubits', 4)))
         if qb is not None:
             blk = _first_quantum_block(model)
             if blk is None or getattr(blk, 'q_backend', None) != qb:
@@ -231,6 +240,15 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
                       f"checkout)", flush=True)
                 continue
             info = _block_info(blk)
+        elif b_blk is not None:
+            info = {
+                'kind': getattr(b_blk, 'kind', None),
+                'n_qubits': getattr(b_blk, 'n_qubits', None),
+                'num_groups': getattr(b_blk, 'num_groups', None),
+                'effective_qc': getattr(b_blk, 'effective_qc', None),
+                'bottleneck_target_params': getattr(b_blk, 'bottleneck_target_params', None),
+                'bottleneck_actual_params': getattr(b_blk, 'bottleneck_actual_params', None),
+            }
         model.train()
         opt = torch.optim.Adam(model.parameters(), lr=1e-4)
         gen = torch.Generator().manual_seed(0)
@@ -249,7 +267,7 @@ def bench_train_step(device, steps, warmup, batch, image, variants):
         n = max(2, steps // 4) if qb == 'pennylane_pergroup' else steps
         dt = _time(step, device, n, warmup)
         rows.append(dict(kind='train_step', model=name, q_backend=qb, q_sim_device=sd,
-                         batch=batch, image=image, reps=n, s_per_step=dt,
+                         n_qubits=eff_row_nq, batch=batch, image=image, reps=n, s_per_step=dt,
                          batches_per_s=1.0 / dt, info=info))
         print(f"train step {name:28s}: {dt * 1e3:9.1f} ms  {1.0 / dt:7.2f} batches/s", flush=True)
         del model, opt
@@ -306,6 +324,11 @@ def main(argv=None):
     ap.add_argument('--threads', type=int, default=None, help='torch.set_num_threads(N)')
     ap.add_argument('--json', default=None)
     args = ap.parse_args(argv)
+    if args.q_ansatz == 'hqunet' and args.n_qubits != 4:
+        raise ValueError(
+            f"n_qubits={args.n_qubits} is not supported with q_ansatz='hqunet'; "
+            "use --hqunet-grid in {2, 4} to control the 2D patch lattice qubit count."
+        )
 
     if args.threads:
         torch.set_num_threads(args.threads)
@@ -365,7 +388,7 @@ def main(argv=None):
                 quantum_channels=args.quantum_channels,
                 q_ansatz=model_ansatz,
                 q_layers=model_layers,
-                n_qubits=4 if model_ansatz == 'hqunet' else args.n_qubits,
+                n_qubits=args.n_qubits,
                 q_spatial_mode=args.q_spatial_mode,
                 hqunet_grid=args.hqunet_grid,
                 skip_modulation=args.skip_modulation,
