@@ -5,7 +5,7 @@
 The synthetic mini-sweep has two opt-in panels for the post-audit controls:
 
 ```bash
-python scripts/run_local_mini_sweep.py --panels 5 6 --seeds 42 77 123 \
+QUAFFLE_INPROCESS_FED=1 python scripts/run_local_mini_sweep.py --panels 5 6 --seeds 42 77 123 \
   --device cuda --work-dir /tmp/quaffle-wave4-local --keep-work-dir \
   --out-json /tmp/quaffle-wave4-summary.json --out-md /tmp/quaffle-wave4-report.md
 ```
@@ -18,6 +18,8 @@ embeddings disabled. Panel 6 separately compares `none`, `fp16`, `int8`, and
 `topk10` update compression for classical, MLP, and quantum FedAvg models on
 combined modality silos. Together these panels run 78 training jobs across three seeds.
 Without `--panels`, the original panels 1–3 remain the default.
+`QUAFFLE_INPROCESS_FED=1` selects the existing sequential in-process Flower server
+so the local comparison does not require Ray. Cluster runs can use the normal Ray executor.
 
 Reports retain per-seed settings, validation/test metrics, both zero and random
 knockout outcomes, and modeled upload sizes. Compression still uses dense Flower

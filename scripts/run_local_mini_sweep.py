@@ -429,7 +429,7 @@ def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         "ko_random_delta_iou": _stat(ko_random_delta_iou),
         "upload_mib_per_client_round": _stat(_vals(lambda r: r.get("upload_mib_per_client_round"))),
         "compression_ratio": _stat(_vals(lambda r: r.get("compression_ratio"))),
-        "mean_elapsed_s": float(np.mean(elapsed)) if elapsed else 0.0,
+        "mean_elapsed_s": float(np.mean(elapsed)) if elapsed else None,
     }
 
 
@@ -444,6 +444,8 @@ def _fmt_ms(stat_dict: Dict[str, Any], signed: bool = False) -> str:
 
 
 def _format_markdown_report(summary: Dict[str, Any]) -> str:
+    elapsed = summary.get("total_elapsed_s")
+    elapsed_text = f"{elapsed:.1f}s" if elapsed is not None else "unavailable"
     lines = [
         "# Local Multi-Seed Mini-Benchmark Exploration Report",
         "",
@@ -452,7 +454,7 @@ def _format_markdown_report(summary: Dict[str, Any]) -> str:
         f"`epochs={summary['epochs']}`, `fed_rounds={summary['rounds']}`, `local_epochs={summary['local_epochs']}`",
         f"- **Mini Dataset**: `{summary['n_train']}` training + `{summary['n_test']}` test tiles per sensor "
         f"(`{2 * summary['n_train']}` training + `{2 * summary['n_test']}` test in `flood_combined`)",
-        f"- **Device**: `{summary['device']}` | **Total Wall Time**: `{summary['total_elapsed_s']:.1f}s`",
+        f"- **Device**: `{summary['device']}` | **Total Wall Time**: `{elapsed_text}`",
         "",
     ]
     for panel in summary["panels"]:
@@ -465,13 +467,15 @@ def _format_markdown_report(summary: Dict[str, Any]) -> str:
         for row in panel["rows"]:
             st = row["stats"]
             p_str = f"{st['total_params']:,}" if st.get("total_params") is not None else "—"
+            duration = st.get("mean_elapsed_s")
+            duration_text = f"{duration:.2f}s" if duration is not None else "—"
             lines.append(
                 f"| {row['label']} | {p_str} | {_fmt_ms(st['val_iou'])} | "
                 f"**{_fmt_ms(st['test_iou'])}** | {_fmt_ms(st['test_dice'])} | "
                 f"{_fmt_ms(st['test_auc'])} | {_fmt_ms(st['test_loss'])} | "
                 f"{_fmt_ms(st['ko_zero_delta_iou'], signed=True)} | "
                 f"{_fmt_ms(st['ko_random_delta_iou'], signed=True)} | "
-                f"{_fmt_ms(st['upload_mib_per_client_round'])} | {st['mean_elapsed_s']:.2f}s |"
+                f"{_fmt_ms(st['upload_mib_per_client_round'])} | {duration_text} |"
             )
         lines.append("")
     return "\n".join(lines)

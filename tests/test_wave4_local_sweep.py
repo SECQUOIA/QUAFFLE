@@ -47,3 +47,18 @@ def test_retained_evidence_preserves_knockouts_and_payloads_without_private_path
     assert abs(stats["ko_random_delta_iou"]["mean"] + 0.1) < 1e-12
     assert stats["upload_mib_per_client_round"]["mean"] == 0.002
     assert stats["compression_ratio"]["mean"] == 0.5
+
+
+def test_missing_timings_are_reported_as_unavailable():
+    record = {"seed": 42, "val": {"iou": 0.6}, "test": {"iou": 0.7}}
+    stats = sweep._summarize_seed_runs([record])
+    assert stats["mean_elapsed_s"] is None
+    summary = {
+        "seeds": [42], "base_channels": 8, "image_size": 32, "epochs": 4,
+        "rounds": 3, "local_epochs": 2, "n_train": 16, "n_test": 6,
+        "device": "cuda", "total_elapsed_s": None,
+        "panels": [{"title": "Recovered metrics", "rows": [{"label": "model", "stats": stats}]}],
+    }
+    report = sweep._format_markdown_report(summary)
+    assert "unavailable" in report
+    assert "0.00s" not in report
