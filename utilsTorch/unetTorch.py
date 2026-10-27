@@ -2690,4 +2690,3 @@ class UNet(nn.Module):
         h, time_emb = self.vertex(h, time_emb)
         h = self.up(x, h, hs, time_emb)
         return h
- 
