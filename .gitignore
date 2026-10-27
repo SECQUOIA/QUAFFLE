@@ -42,4 +42,6 @@ config/cluster.local.*
 # Internal handoff notes, archives and planning documents
 HANDOFF.md
 *handoff*.zip
+QUAFFLE_*.zip
+papers/
 plans/
