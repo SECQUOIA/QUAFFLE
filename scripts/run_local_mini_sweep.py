@@ -214,6 +214,11 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
             i += 1
 
     # Normalize expected configuration from the requested options themselves
+    if meta.get("training") == "federated":
+        meta.setdefault("comm_compression", _SCHEMA_DEFAULTS["comm_compression"])
+    else:
+        meta.pop("comm_compression", None)
+        explicit.discard("comm_compression")
     if model_type in ("quantum", "ablation"):
         meta["quantum_channels"] = _resolve_expected_quantum_channels(
             int(meta["quantum_channels"]),

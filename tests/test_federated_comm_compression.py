@@ -56,6 +56,7 @@ def test_table3_byte_size_accounting_across_all_modes():
     n_params = 9_327_970
 
     t_none = tc.compute_comm_compression_telemetry(n_params, "none")
+    assert t_none["telemetry_is_exact_per_tensor"] is False
     assert t_none["uncompressed_bytes_per_client_round"] == 37_311_880
     assert t_none["upload_bytes_per_client_round"] == 37_311_880
     assert round(t_none["upload_mib_per_client_round"], 2) == 35.58
@@ -63,18 +64,21 @@ def test_table3_byte_size_accounting_across_all_modes():
     assert t_none["reduction_fraction"] == pytest.approx(0.0)
 
     t_fp16 = tc.compute_comm_compression_telemetry(n_params, "fp16")
+    assert t_fp16["telemetry_is_exact_per_tensor"] is False
     assert t_fp16["upload_bytes_per_client_round"] == 18_655_940
     assert round(t_fp16["upload_mib_per_client_round"], 2) == 17.79
     assert t_fp16["compression_ratio"] == pytest.approx(0.5)
     assert t_fp16["reduction_fraction"] == pytest.approx(0.5)
 
     t_int8 = tc.compute_comm_compression_telemetry(n_params, "int8")
+    assert t_int8["telemetry_is_exact_per_tensor"] is False
     assert t_int8["upload_bytes_per_client_round"] == 9_327_970
     assert round(t_int8["upload_mib_per_client_round"], 2) == 8.90
     assert t_int8["compression_ratio"] == pytest.approx(0.25)
     assert t_int8["reduction_fraction"] == pytest.approx(0.75)
 
     t_topk = tc.compute_comm_compression_telemetry(n_params, "topk10")
+    assert t_topk["telemetry_is_exact_per_tensor"] is False
     assert t_topk["retained_elements_per_client_round"] == 932_797
     assert t_topk["upload_bytes_per_client_round"] == 8 * 932_797  # 7,462,376
     assert round(t_topk["upload_mib_per_client_round"], 2) == 7.12
@@ -89,6 +93,7 @@ def test_table3_byte_size_accounting_across_all_modes():
     n_tensors = len(list(m_small.parameters()))
     n_small_params = sum(p.numel() for p in m_small.parameters())
     t_model_int8 = tc.compute_comm_compression_telemetry(m_small, "int8")
+    assert t_model_int8["telemetry_is_exact_per_tensor"] is True
     assert t_model_int8["uncompressed_bytes_per_client_round"] == 4 * n_small_params
     assert t_model_int8["scale_metadata_bytes_per_client_round"] == 4 * n_tensors
     assert t_model_int8["upload_bytes_per_client_round"] == n_small_params + 4 * n_tensors
@@ -142,11 +147,27 @@ def test_tensor_and_client_update_compression_mathematics():
     out_list = tc.compress_decompress_client_update([client_w, int_arr], [global_w, int_arr], "int8")
     assert np.array_equal(out_list[1], int_arr)
 
+    # Non-finite (NaN / Inf) values must raise ValueError across all compressed modes (B1)
+    for bad_val in (np.nan, np.inf, -np.inf):
+        bad_client = client_w.copy()
+        bad_client[0, 0] = bad_val
+        bad_global = global_w.copy()
+        bad_global[0, 0] = bad_val
+        for mode in ("fp16", "int8", "topk10"):
+            with pytest.raises(ValueError, match="Non-finite"):
+                tc.compress_decompress_tensor_update(bad_client, global_w, mode)
+            with pytest.raises(ValueError, match="Non-finite"):
+                tc.compress_decompress_tensor_update(client_w, bad_global, mode)
+            with pytest.raises(ValueError, match="Non-finite"):
+                tc.compress_decompress_tensor_update(bad_client, None, mode)
+
 
 def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
     """Verify RoundOffsetMixin / ClassicalFedAvg, QuantumFedAvg (including circular angle agg),
-    and _TorchAblationFedAvg apply --comm-compression during aggregate_fit."""
+    and _TorchAblationFedAvg apply --comm-compression during aggregate_fit, including
+    multi-round configure_fit baseline refresh and weighted circular aggregation across ±pi."""
     from flwr.common import Code, FitRes, Status, ndarrays_to_parameters, parameters_to_ndarrays
+    from flwr.server.client_manager import SimpleClientManager
     from flwr.server.client_proxy import ClientProxy
 
     import ablation_studies
@@ -172,7 +193,11 @@ def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
         def reconnect(self, ins, timeout, group_id):
             raise NotImplementedError
 
-    # 1. ClassicalFedAvg round-trip across all 4 modes
+    cm = SimpleClientManager()
+    cm.register(_DummyProxy("0"))
+    cm.register(_DummyProxy("1"))
+
+    # 1. ClassicalFedAvg 2-round configure_fit -> aggregate_fit across all 4 modes
     cfg_cls = _base_fed_config(seed=42)
     cls_model = tc.build_model(UNetSegmentation, cfg_cls)
     global_nd = [p.detach().cpu().numpy().copy() for p in cls_model.parameters()]
@@ -182,14 +207,14 @@ def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
     c1_nd = [arr + rng.normal(0.0, 0.2, size=arr.shape).astype(arr.dtype) for arr in global_nd]
     c2_nd = [arr + rng.normal(0.0, 0.2, size=arr.shape).astype(arr.dtype) for arr in global_nd]
 
-    def _make_results(nd1, nd2):
+    def _make_results(nd1, nd2, n1=10, n2=10):
         return [
             (
                 _DummyProxy("0"),
                 FitRes(
                     status=Status(code=Code.OK, message=""),
                     parameters=ndarrays_to_parameters(nd1),
-                    num_examples=10,
+                    num_examples=int(n1),
                     metrics={},
                 ),
             ),
@@ -198,7 +223,7 @@ def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
                 FitRes(
                     status=Status(code=Code.OK, message=""),
                     parameters=ndarrays_to_parameters(nd2),
-                    num_examples=10,
+                    num_examples=int(n2),
                     metrics={},
                 ),
             ),
@@ -214,43 +239,91 @@ def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
             output_dir=str(tmp_path / f"cls_{mode}"),
             initial_parameters=global_params,
         )
-        strat._round_start_parameters = global_params
+        # Round 1: configure_fit populates _round_start_parameters automatically
+        fit_ins_r1 = strat.configure_fit(1, global_params, cm)
+        assert len(fit_ins_r1) == 2
+        assert strat._round_start_parameters is global_params
         res_in = _make_results(c1_nd, c2_nd)
-        agg_params, _ = strat.aggregate_fit(1, res_in, [])
-        agg_nd = parameters_to_ndarrays(agg_params)
-        agg_by_mode[mode] = agg_nd
+        agg_params_r1, _ = strat.aggregate_fit(1, res_in, [])
+        agg_nd_r1 = parameters_to_ndarrays(agg_params_r1)
+        agg_by_mode[mode] = agg_nd_r1
 
-        # Verify strategy aggregation matches manual average of compressed client updates
+        # Verify Round 1 strategy aggregation matches manual average of compressed client updates
         exp_c1 = tc.compress_decompress_client_update(c1_nd, global_nd, mode)
         exp_c2 = tc.compress_decompress_client_update(c2_nd, global_nd, mode)
-        for a, e1, e2 in zip(agg_nd, exp_c1, exp_c2):
+        for a, e1, e2 in zip(agg_nd_r1, exp_c1, exp_c2):
             assert np.allclose(a, 0.5 * (e1 + e2), atol=1e-6)
+
+        # Round 2: configure_fit refreshes _round_start_parameters to agg_params_r1
+        strat.configure_fit(2, agg_params_r1, cm)
+        assert strat._round_start_parameters is agg_params_r1
+        c1_r2_nd = [arr + np.float32(0.15) for arr in agg_nd_r1]
+        c2_r2_nd = [arr - np.float32(0.05) for arr in agg_nd_r1]
+        agg_params_r2, _ = strat.aggregate_fit(2, _make_results(c1_r2_nd, c2_r2_nd), [])
+        agg_nd_r2 = parameters_to_ndarrays(agg_params_r2)
+        exp_c1_r2 = tc.compress_decompress_client_update(c1_r2_nd, agg_nd_r1, mode)
+        exp_c2_r2 = tc.compress_decompress_client_update(c2_r2_nd, agg_nd_r1, mode)
+        for a2, e1_r2, e2_r2 in zip(agg_nd_r2, exp_c1_r2, exp_c2_r2):
+            assert np.allclose(a2, 0.5 * (e1_r2 + e2_r2), atol=1e-6)
 
     assert not tc.ndarrays_equal(agg_by_mode["none"], agg_by_mode["topk10"])
     assert not tc.ndarrays_equal(agg_by_mode["none"], agg_by_mode["int8"])
 
-    # 2. QuantumFedAvg with circular angle aggregation + topk10 compression
+    # 2. QuantumFedAvg with circular angle aggregation + topk10 compression across ±pi with unequal weights
     cfg_q = _base_fed_config(comm_compression="topk10", q_angle_agg="circular")
     q_model = tc.build_model(QVUNetSegmentation, cfg_q)
     q_global_nd = [p.detach().cpu().numpy().copy() for p in q_model.parameters()]
-    q_global_params = ndarrays_to_parameters(q_global_nd)
-    qc1_nd = [arr + rng.normal(0.0, 0.3, size=arr.shape).astype(arr.dtype) for arr in q_global_nd]
-    qc2_nd = [arr + rng.normal(0.0, 0.3, size=arr.shape).astype(arr.dtype) for arr in q_global_nd]
-
     q_strat = federated_demoTorchQ.QuantumFedAvg(
         val_loader=None,
         config=cfg_q,
         device_str="cpu",
         output_dir=str(tmp_path / "q_topk10"),
-        initial_parameters=q_global_params,
+        initial_parameters=ndarrays_to_parameters(q_global_nd),
     )
     q_strat.template_model = q_model
-    q_strat._round_start_parameters = q_global_params
-    q_agg_params, _ = q_strat.aggregate_fit(1, _make_results(qc1_nd, qc2_nd), [])
+    param_keys = q_strat._ensure_param_keys()
+    periodic_idx = tc.quantum_periodic_param_indices(param_keys)
+    assert len(periodic_idx) > 0
+
+    # Set periodic quantum parameters to 0.0 at round start and craft client updates straddling ±pi
+    for idx in periodic_idx:
+        q_global_nd[idx] = np.zeros_like(q_global_nd[idx], dtype=np.float32)
+    q_global_params = ndarrays_to_parameters(q_global_nd)
+
+    qc1_nd = []
+    qc2_nd = []
+    for idx, arr in enumerate(q_global_nd):
+        if idx in periodic_idx:
+            # Make entry 0 dominant so topk10 deterministically retains it on both clients,
+            # with client 1 near +pi (pi - 0.1) and client 2 near -pi (-pi + 0.2)
+            u1 = np.zeros_like(arr, dtype=np.float32).reshape(-1)
+            u2 = np.zeros_like(arr, dtype=np.float32).reshape(-1)
+            u1[0] = np.float32(np.pi - 0.1)
+            u2[0] = np.float32(-np.pi + 0.2)
+            qc1_nd.append(u1.reshape(arr.shape))
+            qc2_nd.append(u2.reshape(arr.shape))
+        else:
+            qc1_nd.append(arr + rng.normal(0.0, 0.3, size=arr.shape).astype(arr.dtype))
+            qc2_nd.append(arr + rng.normal(0.0, 0.3, size=arr.shape).astype(arr.dtype))
+
+    q_strat.configure_fit(1, q_global_params, cm)
+    q_agg_params, _ = q_strat.aggregate_fit(1, _make_results(qc1_nd, qc2_nd, n1=10, n2=30), [])
     q_agg_nd = parameters_to_ndarrays(q_agg_params)
     assert len(q_agg_nd) == len(q_global_nd)
 
-    # 3. _TorchAblationFedAvg with int8 compression
+    exp_qc1 = tc.compress_decompress_client_update(qc1_nd, q_global_nd, "topk10")
+    exp_qc2 = tc.compress_decompress_client_update(qc2_nd, q_global_nd, "topk10")
+    for idx, (agg_arr, e1, e2) in enumerate(zip(q_agg_nd, exp_qc1, exp_qc2)):
+        euclid_weighted = (10.0 * e1 + 30.0 * e2) / 40.0
+        if idx in periodic_idx:
+            circ_weighted = tc.circular_mean_angles([e1, e2], [10.0, 30.0])
+            assert np.allclose(agg_arr, circ_weighted, atol=1e-6)
+            # Entry 0 straddles ±pi, so circular mean (~ -pi + 0.125) differs sharply from Euclidean mean (~ -1.52)
+            assert abs(float(agg_arr.reshape(-1)[0]) - float(euclid_weighted.reshape(-1)[0])) > 1.0
+        elif np.issubdtype(agg_arr.dtype, np.floating):
+            assert np.allclose(agg_arr, euclid_weighted, atol=1e-6)
+
+    # 3. _TorchAblationFedAvg with int8 compression via configure_fit
     cfg_abl = _base_fed_config(comm_compression="int8", ablation_mode="mlp")
     abl_model = tc.build_model(ClassicalAblationUNetSegmentation, cfg_abl)
     abl_global_nd = [p.detach().cpu().numpy().copy() for p in abl_model.parameters()]
@@ -265,7 +338,7 @@ def test_flower_strategy_round_trip_aggregation_all_modes(tmp_path):
         output_dir=str(tmp_path / "abl_int8"),
         initial_parameters=abl_global_params,
     )
-    abl_strat._round_start_parameters = abl_global_params
+    abl_strat.configure_fit(1, abl_global_params, cm)
     abl_agg_params, _ = abl_strat.aggregate_fit(1, _make_results(ac1_nd, ac2_nd), [])
     abl_agg_nd = parameters_to_ndarrays(abl_agg_params)
     exp_ac1 = tc.compress_decompress_client_update(ac1_nd, abl_global_nd, "int8")
@@ -355,7 +428,7 @@ def test_comm_compression_cli_fingerprints_metrics_and_parsers(tmp_path):
     assert "--comm-compression topk10" in job["command"]
     assert "comm-topk10" in job["name"]
 
-    # run_local_mini_sweep
+    # run_local_mini_sweep (explicit and default federated comm_compression validation, N3)
     meta, explicit = rlms._expected_metadata_from_argv(
         [
             "federated_demoTorchClassical.py",
@@ -367,4 +440,19 @@ def test_comm_compression_cli_fingerprints_metrics_and_parsers(tmp_path):
     )
     assert meta["comm_compression"] == "int8"
     assert "comm_compression" in explicit
+
+    meta_def, explicit_def = rlms._expected_metadata_from_argv(
+        ["federated_demoTorchClassical.py", "--seed", "42"]
+    )
+    assert meta_def["comm_compression"] == "none"
+    assert "comm_compression" not in explicit_def
+    cand_base = dict(meta_def, seed=42)
+    assert rlms._matches_expected_metrics(dict(cand_base, comm_compression="none"), 42, meta_def, explicit_def)
+    assert not rlms._matches_expected_metrics(dict(cand_base, comm_compression="topk10"), 42, meta_def, explicit_def)
+
+    meta_cent, _ = rlms._expected_metadata_from_argv(
+        ["ablation_studies.py", "--mode", "centralized", "--seed", "42"]
+    )
+    assert "comm_compression" not in meta_cent
+
 

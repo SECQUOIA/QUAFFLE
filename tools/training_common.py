@@ -1903,20 +1903,32 @@ def compute_comm_compression_telemetry(
     *,
     num_tensors=None,
 ):
-    """Compute exact per-client per-round upload payload telemetry under `comm_compression` (#48).
+    """Compute modeled per-client per-round upload payload telemetry under `comm_compression` (#48).
+
+    Reports modeled raw parameter/update payload sizes (excluding Flower/protobuf RPC wire
+    framing), paired with the in-memory pre-aggregation compression simulation in
+    `apply_comm_compression_to_fit_results`. When `params_or_count` is a `torch.nn.Module`,
+    a list/tuple of tensors/ndarrays, or Flower `Parameters`, per-tensor sizes are known
+    (`telemetry_is_exact_per_tensor = True`), so `'int8'` includes exact `4 * num_float_tensors`
+    scale metadata bytes and `'topk10'` sums `max(1, ceil(0.10 * n_i))` per tensor. When
+    `params_or_count` is a scalar parameter count `int`, `telemetry_is_exact_per_tensor = False`
+    and the returned values represent a single-tensor analytical estimate (omitting per-tensor
+    `'int8'` scale metadata unless `num_tensors` is explicitly given, and computing a single
+    global `max(1, ceil(0.10 * N))` for `'topk10'`).
 
     Returns a dictionary containing:
       - `comm_compression`: `'none' | 'fp16' | 'int8' | 'topk10'`
-      - `uncompressed_bytes_per_client_round`: exact uncompressed `float32` upload bytes
-      - `upload_bytes_per_client_round`: compressed upload bytes per client per round
+      - `telemetry_is_exact_per_tensor`: `True` when computed from a model or tensor list, `False` for scalar count estimates
+      - `uncompressed_bytes_per_client_round`: modeled uncompressed `float32` upload bytes
+      - `upload_bytes_per_client_round`: modeled compressed upload bytes per client per round
       - `uncompressed_mib_per_client_round`: `uncompressed_bytes_per_client_round / 2**20`
       - `upload_mib_per_client_round`: `upload_bytes_per_client_round / 2**20`
       - `compression_ratio`: `upload_bytes_per_client_round / uncompressed_bytes_per_client_round`
       - `reduction_fraction`: `1.0 - compression_ratio`
       - `scale_metadata_bytes_per_client_round`: `int8` per-tensor `float32` scale bytes (`0` for other modes)
       - `retained_elements_per_client_round`: number of transmitted elements per client per round
-      - `upload_bytes_per_client_round_int16_idx`: `topk10` payload bytes with 16-bit delta indices (`None` for other modes)
-      - `upload_mib_per_client_round_int16_idx`: `topk10` MiB with 16-bit delta indices (`None` for other modes)
+      - `upload_bytes_per_client_round_int16_idx`: theoretical lower-bound `topk10` payload bytes assuming delta-encoded index gaps fit in 16-bit integers (`None` for other modes)
+      - `upload_mib_per_client_round_int16_idx`: theoretical lower-bound `topk10` MiB assuming 16-bit delta indices (`None` for other modes)
     """
     mode = effective_comm_compression(comm_compression)
     float_sizes, non_float_bytes, is_tensor_list = _extract_tensor_specs_for_comm(
@@ -1948,7 +1960,7 @@ def compute_comm_compression_telemetry(
         retained_elems = int(sum(max(1, int(math.ceil(0.10 * n))) for n in float_sizes))
         # 4-byte float32 value + 4-byte int32 index = 8 bytes per retained entry
         upload_bytes = 8 * retained_elems + non_float_bytes
-        # 4-byte float32 value + 2-byte int16 delta index = 6 bytes per retained entry
+        # Theoretical lower bound: 4-byte float32 value + 2-byte int16 delta index = 6 bytes per retained entry
         int16_idx_bytes = 6 * retained_elems + non_float_bytes
         int16_idx_mib = float(int16_idx_bytes) / float(1024 * 1024)
     else:
@@ -1958,6 +1970,7 @@ def compute_comm_compression_telemetry(
     ratio = (float(upload_bytes) / float(uncompressed_bytes)) if uncompressed_bytes > 0 else 1.0
     return {
         'comm_compression': mode,
+        'telemetry_is_exact_per_tensor': bool(is_tensor_list),
         'uncompressed_bytes_per_client_round': int(uncompressed_bytes),
         'upload_bytes_per_client_round': int(upload_bytes),
         'uncompressed_mib_per_client_round': float(uncompressed_bytes) / mib_denom,
@@ -1981,7 +1994,8 @@ def compress_decompress_tensor_update(
     When `global_arr` is provided, compresses the update delta
     `delta = client_arr.astype(float32) - global_arr.astype(float32)` and reconstructs
     `global_arr.astype(float32) + C(delta)`. When `global_arr` is None, applies `C` directly
-    to `client_arr`.
+    to `client_arr`. Raises `ValueError` if any input parameter or update delta contains
+    non-finite (`NaN` or `Inf`) values when compression is active.
     """
     mode = effective_comm_compression(comm_compression)
     c_np = np.asarray(client_arr)
@@ -1996,12 +2010,24 @@ def compress_decompress_tensor_update(
         return np.array(c_np, copy=True)
 
     c_f32 = c_np.astype(np.float32, copy=False)
+    if not np.all(np.isfinite(c_f32)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) client parameter values encountered in compress_decompress_tensor_update"
+        )
     if global_arr is not None:
         base_f32 = np.asarray(global_arr).astype(np.float32, copy=False)
+        if not np.all(np.isfinite(base_f32)):
+            raise ValueError(
+                "Non-finite (NaN or Inf) global parameter values encountered in compress_decompress_tensor_update"
+            )
         delta = c_f32 - base_f32
     else:
         base_f32 = None
         delta = np.array(c_f32, copy=True)
+    if not np.all(np.isfinite(delta)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) update delta encountered in compress_decompress_tensor_update"
+        )
 
     if mode == 'fp16':
         f16_max = float(np.finfo(np.float16).max)
@@ -2073,10 +2099,13 @@ def apply_comm_compression_to_fit_results(
     global_parameters=None,
     comm_compression=DEFAULT_COMM_COMPRESSION,
 ):
-    """Compress each client's `FitRes.parameters` in `results` before server aggregation (#48).
+    """Simulate client-to-server update compression on `FitRes.parameters` before server aggregation (#48).
 
-    When `effective_comm_compression(comm_compression) == 'none'` or `results` is empty,
-    returns `results` unchanged. Otherwise returns a new list of `(ClientProxy, FitRes)`
+    Compression and reconstruction are applied in-memory after Flower delivers dense
+    `FitRes.parameters` and before `aggregate_fit` averages client updates, enabling
+    controlled accuracy/IoU retention ablations without altering Flower's protobuf wire
+    transport. When `effective_comm_compression(comm_compression) == 'none'` or `results`
+    is empty, returns `results` unchanged. Otherwise returns a new list of `(ClientProxy, FitRes)`
     (or `FitRes`) objects with compressed-and-reconstructed `FitRes.parameters`.
     """
     mode = effective_comm_compression(comm_compression)
@@ -3191,7 +3220,10 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'written_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
     if training == 'federated' and total_params is not None:
+        # Count-only analytical fallback; federated entrypoints override this with exact
+        # per-tensor telemetry via `extra=comm_telemetry`.
         comm_tel = compute_comm_compression_telemetry(total_params, config)
+        payload['telemetry_is_exact_per_tensor'] = comm_tel['telemetry_is_exact_per_tensor']
         payload['upload_bytes_per_client_round'] = comm_tel['upload_bytes_per_client_round']
         payload['uncompressed_bytes_per_client_round'] = comm_tel['uncompressed_bytes_per_client_round']
         payload['upload_mib_per_client_round'] = comm_tel['upload_mib_per_client_round']
