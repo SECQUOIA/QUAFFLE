@@ -47,6 +47,7 @@ def main(argv=None):
     ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
     ap.add_argument("--combined-input-mode", choices=["shared3", "concat6", "dual_stem"], default=None)
     ap.add_argument("--decoder-skip-gate", choices=gg.DECODER_SKIP_GATES, default=None)
+    ap.add_argument("--comm-compression", choices=gg.COMM_COMPRESSION_MODES, default=None)
     ap.add_argument("--loss", choices=["ce", "dice_ce", "focal_dice"], default=None)
     ap.add_argument("--no-time-emb", action="store_true", default=False)
     ap.add_argument("--augment", action="store_true", default=False)
@@ -100,7 +101,8 @@ def main(argv=None):
                             n_qubits=args.n_qubits, ablation_mode=args.ablation_mode,
                             ablation_mlp_mode=args.ablation_mlp_mode,
                             ablation_mlp_hidden=args.ablation_mlp_hidden,
-                            decoder_skip_gate=args.decoder_skip_gate))
+                            decoder_skip_gate=args.decoder_skip_gate,
+                            comm_compression=args.comm_compression))
     gg.finish(ap, args, jobs, out_dir)
 
 

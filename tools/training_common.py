@@ -22,6 +22,7 @@ import copy
 import hashlib
 import inspect
 import json
+import math
 import os
 import random
 import re
@@ -75,6 +76,8 @@ DEFAULT_FL_STRATEGY = 'fedavg'
 DEFAULT_FEDPROX_MU = 0.01
 Q_ANGLE_AGG_CHOICES = ('linear', 'circular')
 DEFAULT_Q_ANGLE_AGG = 'linear'
+COMM_COMPRESSION_CHOICES = ('none', 'fp16', 'int8', 'topk10')
+DEFAULT_COMM_COMPRESSION = 'none'
 
 # Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
 Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
@@ -319,6 +322,14 @@ def add_common_args(parser, quantum=True, federated=False):
         parser.add_argument('--fedprox-mu', type=float, default=None,
                             help="FedProx proximal penalty coefficient mu >= 0 "
                                  f"(default: {DEFAULT_FEDPROX_MU} when --fl-strategy=fedprox, else 0.0; #15)")
+        parser.add_argument('--comm-compression', '--comm_compression',
+                            dest='comm_compression',
+                            choices=list(COMM_COMPRESSION_CHOICES),
+                            default=None,
+                            help="Client-to-server federated update compression baseline (#48): "
+                                 f"'{DEFAULT_COMM_COMPRESSION}' (default, uncompressed float32), "
+                                 "'fp16' (float16 cast), 'int8' (symmetric per-tensor absmax int8 + float32 scale), "
+                                 "or 'topk10' (top-10%% magnitude sparsification of client deltas)")
         if quantum:
             parser.add_argument('--q-angle-agg', choices=list(Q_ANGLE_AGG_CHOICES),
                                 default=DEFAULT_Q_ANGLE_AGG,
@@ -521,6 +532,10 @@ def apply_common_args(config, args):
         config['q_angle_agg'] = effective_q_angle_agg({'q_angle_agg': args.q_angle_agg})
     elif hasattr(args, 'q_angle_agg') or 'q_angle_agg' in config:
         config['q_angle_agg'] = effective_q_angle_agg(config)
+    if getattr(args, 'comm_compression', None) is not None:
+        config['comm_compression'] = effective_comm_compression({'comm_compression': args.comm_compression})
+    elif hasattr(args, 'comm_compression') or 'comm_compression' in config:
+        config['comm_compression'] = effective_comm_compression(config)
     if hasattr(args, 'ckpt_every'):
         config['ckpt_every'] = max(1, int(args.ckpt_every))
         config['resume'] = not bool(getattr(args, 'no_resume', False))
@@ -1822,6 +1837,302 @@ def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, mod
     return ndarrays_to_parameters(agg_nd)
 
 
+def normalize_comm_compression(mode):
+    """Normalize and validate federated client-to-server update compression mode (#48)."""
+    if mode is None:
+        return DEFAULT_COMM_COMPRESSION
+    m = str(mode).strip().lower()
+    if m not in COMM_COMPRESSION_CHOICES:
+        raise ValueError(
+            f"Unknown comm_compression={mode!r}; expected one of {COMM_COMPRESSION_CHOICES}"
+        )
+    return m
+
+
+def effective_comm_compression(config):
+    """Resolve federated communication compression mode ('none', 'fp16', 'int8', 'topk10'; #48)."""
+    if not isinstance(config, dict):
+        return normalize_comm_compression(config)
+    return normalize_comm_compression(config.get('comm_compression', DEFAULT_COMM_COMPRESSION))
+
+
+def _extract_tensor_specs_for_comm(params_or_count, num_tensors=None):
+    """Return `(float_tensor_sizes, non_float_bytes, explicit_tensor_list)` from a parameter count,
+    sequence of tensors/ndarrays, Flower `Parameters`, or `nn.Module` / model wrapper."""
+    if params_or_count is None:
+        return [], 0, False
+    if isinstance(params_or_count, (int, np.integer)):
+        n_total = int(params_or_count)
+        if n_total < 0:
+            raise ValueError(f"total_params={n_total} must be >= 0")
+        return ([n_total] if n_total > 0 else []), 0, False
+    if hasattr(params_or_count, 'tensors') and hasattr(params_or_count, 'tensor_type'):
+        from flwr.common import parameters_to_ndarrays
+        seq = list(parameters_to_ndarrays(params_or_count))
+    elif hasattr(params_or_count, 'parameters') and callable(params_or_count.parameters):
+        seq = list(params_or_count.parameters())
+    elif hasattr(params_or_count, 'model') and hasattr(params_or_count.model, 'parameters'):
+        seq = list(params_or_count.model.parameters())
+    elif isinstance(params_or_count, dict):
+        seq = list(params_or_count.values())
+    else:
+        seq = list(params_or_count)
+    float_sizes = []
+    non_float_bytes = 0
+    for item in seq:
+        if hasattr(item, 'detach') and hasattr(item, 'numel'):
+            is_flt = bool(item.is_floating_point())
+            nel = int(item.numel())
+            el_sz = int(item.element_size())
+        else:
+            arr = np.asarray(item)
+            is_flt = bool(np.issubdtype(arr.dtype, np.floating))
+            nel = int(arr.size)
+            el_sz = int(arr.dtype.itemsize)
+        if is_flt:
+            if nel > 0:
+                float_sizes.append(nel)
+        else:
+            non_float_bytes += nel * el_sz
+    return float_sizes, int(non_float_bytes), True
+
+
+def compute_comm_compression_telemetry(
+    params_or_count,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+    *,
+    num_tensors=None,
+):
+    """Compute modeled per-client per-round upload payload telemetry under `comm_compression` (#48).
+
+    Reports modeled raw parameter/update payload sizes (excluding Flower/protobuf RPC wire
+    framing), paired with the in-memory pre-aggregation compression simulation in
+    `apply_comm_compression_to_fit_results`. When `params_or_count` is a `torch.nn.Module`,
+    a list/tuple of tensors/ndarrays, or Flower `Parameters`, per-tensor sizes are known
+    (`telemetry_is_exact_per_tensor = True`), so `'int8'` includes exact `4 * num_float_tensors`
+    scale metadata bytes and `'topk10'` sums `max(1, ceil(0.10 * n_i))` per tensor. When
+    `params_or_count` is a scalar parameter count `int`, `telemetry_is_exact_per_tensor = False`
+    and the returned values represent a single-tensor analytical estimate (omitting per-tensor
+    `'int8'` scale metadata unless `num_tensors` is explicitly given, and computing a single
+    global `max(1, ceil(0.10 * N))` for `'topk10'`).
+
+    Returns a dictionary containing:
+      - `comm_compression`: `'none' | 'fp16' | 'int8' | 'topk10'`
+      - `telemetry_is_exact_per_tensor`: `True` when computed from a model or tensor list, `False` for scalar count estimates
+      - `uncompressed_bytes_per_client_round`: modeled uncompressed `float32` upload bytes
+      - `upload_bytes_per_client_round`: modeled compressed upload bytes per client per round
+      - `uncompressed_mib_per_client_round`: `uncompressed_bytes_per_client_round / 2**20`
+      - `upload_mib_per_client_round`: `upload_bytes_per_client_round / 2**20`
+      - `compression_ratio`: `upload_bytes_per_client_round / uncompressed_bytes_per_client_round`
+      - `reduction_fraction`: `1.0 - compression_ratio`
+      - `scale_metadata_bytes_per_client_round`: `int8` per-tensor `float32` scale bytes (`0` for other modes)
+      - `retained_elements_per_client_round`: number of transmitted elements per client per round
+      - `upload_bytes_per_client_round_int16_idx`: theoretical lower-bound `topk10` payload bytes assuming delta-encoded index gaps fit in 16-bit integers (`None` for other modes)
+      - `upload_mib_per_client_round_int16_idx`: theoretical lower-bound `topk10` MiB assuming 16-bit delta indices (`None` for other modes)
+    """
+    mode = effective_comm_compression(comm_compression)
+    float_sizes, non_float_bytes, is_tensor_list = _extract_tensor_specs_for_comm(
+        params_or_count, num_tensors=num_tensors
+    )
+    total_float_elems = int(sum(float_sizes))
+    uncompressed_bytes = 4 * total_float_elems + non_float_bytes
+    scale_meta_bytes = 0
+    int16_idx_bytes = None
+    int16_idx_mib = None
+
+    if mode == 'none':
+        upload_bytes = uncompressed_bytes
+        retained_elems = total_float_elems
+    elif mode == 'fp16':
+        upload_bytes = 2 * total_float_elems + non_float_bytes
+        retained_elems = total_float_elems
+    elif mode == 'int8':
+        if num_tensors is not None:
+            n_scales = max(0, int(num_tensors))
+        elif is_tensor_list:
+            n_scales = len(float_sizes)
+        else:
+            n_scales = 0
+        scale_meta_bytes = 4 * n_scales
+        upload_bytes = total_float_elems + scale_meta_bytes + non_float_bytes
+        retained_elems = total_float_elems
+    elif mode == 'topk10':
+        retained_elems = int(sum(max(1, int(math.ceil(0.10 * n))) for n in float_sizes))
+        # 4-byte float32 value + 4-byte int32 index = 8 bytes per retained entry
+        upload_bytes = 8 * retained_elems + non_float_bytes
+        # Theoretical lower bound: 4-byte float32 value + 2-byte int16 delta index = 6 bytes per retained entry
+        int16_idx_bytes = 6 * retained_elems + non_float_bytes
+        int16_idx_mib = float(int16_idx_bytes) / float(1024 * 1024)
+    else:
+        raise ValueError(f"Unsupported comm_compression={mode!r}")
+
+    mib_denom = float(1024 * 1024)
+    ratio = (float(upload_bytes) / float(uncompressed_bytes)) if uncompressed_bytes > 0 else 1.0
+    return {
+        'comm_compression': mode,
+        'telemetry_is_exact_per_tensor': bool(is_tensor_list),
+        'uncompressed_bytes_per_client_round': int(uncompressed_bytes),
+        'upload_bytes_per_client_round': int(upload_bytes),
+        'uncompressed_mib_per_client_round': float(uncompressed_bytes) / mib_denom,
+        'upload_mib_per_client_round': float(upload_bytes) / mib_denom,
+        'compression_ratio': float(ratio),
+        'reduction_fraction': float(1.0 - ratio),
+        'scale_metadata_bytes_per_client_round': int(scale_meta_bytes),
+        'retained_elements_per_client_round': int(retained_elems),
+        'upload_bytes_per_client_round_int16_idx': int16_idx_bytes,
+        'upload_mib_per_client_round_int16_idx': int16_idx_mib,
+    }
+
+
+def compress_decompress_tensor_update(
+    client_arr,
+    global_arr=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Simulate client-to-server compressed transmission of a single parameter tensor (#48).
+
+    When `global_arr` is provided, compresses the update delta
+    `delta = client_arr.astype(float32) - global_arr.astype(float32)` and reconstructs
+    `global_arr.astype(float32) + C(delta)`. When `global_arr` is None, applies `C` directly
+    to `client_arr`. Raises `ValueError` if any input parameter or update delta contains
+    non-finite (`NaN` or `Inf`) values when compression is active.
+    """
+    mode = effective_comm_compression(comm_compression)
+    c_np = np.asarray(client_arr)
+    if global_arr is not None:
+        g_np = np.asarray(global_arr)
+        if g_np.shape != c_np.shape:
+            raise ValueError(
+                f"Shape mismatch in compress_decompress_tensor_update: "
+                f"client shape {c_np.shape} != global shape {g_np.shape}"
+            )
+    if mode == 'none' or not np.issubdtype(c_np.dtype, np.floating) or c_np.size == 0:
+        return np.array(c_np, copy=True)
+
+    c_f32 = c_np.astype(np.float32, copy=False)
+    if not np.all(np.isfinite(c_f32)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) client parameter values encountered in compress_decompress_tensor_update"
+        )
+    if global_arr is not None:
+        base_f32 = np.asarray(global_arr).astype(np.float32, copy=False)
+        if not np.all(np.isfinite(base_f32)):
+            raise ValueError(
+                "Non-finite (NaN or Inf) global parameter values encountered in compress_decompress_tensor_update"
+            )
+        delta = c_f32 - base_f32
+    else:
+        base_f32 = None
+        delta = np.array(c_f32, copy=True)
+    if not np.all(np.isfinite(delta)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) update delta encountered in compress_decompress_tensor_update"
+        )
+
+    if mode == 'fp16':
+        f16_max = float(np.finfo(np.float16).max)
+        comp_delta = np.clip(delta, -f16_max, f16_max).astype(np.float16).astype(np.float32)
+    elif mode == 'int8':
+        amax = float(np.max(np.abs(delta)))
+        if amax > 0.0 and np.isfinite(amax):
+            scale = np.float32(amax / 127.0)
+            if float(scale) > 0.0:
+                q = np.clip(np.rint(delta / scale), -127.0, 127.0).astype(np.int8)
+                comp_delta = q.astype(np.float32) * scale
+            else:
+                comp_delta = np.zeros_like(delta, dtype=np.float32)
+        else:
+            comp_delta = np.zeros_like(delta, dtype=np.float32)
+    elif mode == 'topk10':
+        flat = delta.reshape(-1)
+        n = int(flat.size)
+        k = max(1, int(math.ceil(0.10 * n)))
+        if k >= n:
+            comp_delta = delta.copy()
+        else:
+            abs_flat = np.abs(flat)
+            tau = float(np.partition(abs_flat, n - k)[n - k])
+            strict_mask = abs_flat > tau
+            n_strict = int(np.count_nonzero(strict_mask))
+            out_flat = np.where(strict_mask, flat, np.float32(0.0))
+            if n_strict < k:
+                rem = k - n_strict
+                tie_idx = np.flatnonzero(abs_flat == tau)[:rem]
+                out_flat[tie_idx] = flat[tie_idx]
+            comp_delta = out_flat.reshape(delta.shape)
+    else:
+        raise ValueError(f"Unsupported comm_compression={mode!r}")
+
+    if base_f32 is not None:
+        recon = base_f32 + comp_delta
+    else:
+        recon = comp_delta
+    return np.array(recon.astype(c_np.dtype, copy=False), copy=True)
+
+
+def compress_decompress_client_update(
+    client_ndarrays,
+    global_ndarrays=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Apply `compress_decompress_tensor_update` across a full client parameter tensor list (#48)."""
+    mode = effective_comm_compression(comm_compression)
+    c_list = parameters_to_ndarrays_safe(client_ndarrays)
+    if c_list is None:
+        return []
+    g_list = parameters_to_ndarrays_safe(global_ndarrays) if global_ndarrays is not None else None
+    if g_list is not None:
+        if len(c_list) != len(g_list):
+            raise ValueError(
+                f"Parameter tensor count mismatch in compress_decompress_client_update: "
+                f"client has {len(c_list)}, global has {len(g_list)}"
+            )
+        return [
+            compress_decompress_tensor_update(c_arr, g_arr, mode)
+            for c_arr, g_arr in zip(c_list, g_list)
+        ]
+    return [compress_decompress_tensor_update(c_arr, None, mode) for c_arr in c_list]
+
+
+def apply_comm_compression_to_fit_results(
+    results,
+    global_parameters=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Simulate client-to-server update compression on `FitRes.parameters` before server aggregation (#48).
+
+    Compression and reconstruction are applied in-memory after Flower delivers dense
+    `FitRes.parameters` and before `aggregate_fit` averages client updates, enabling
+    controlled accuracy/IoU retention ablations without altering Flower's protobuf wire
+    transport. When `effective_comm_compression(comm_compression) == 'none'` or `results`
+    is empty, returns `results` unchanged. Otherwise returns a new list of `(ClientProxy, FitRes)`
+    (or `FitRes`) objects with compressed-and-reconstructed `FitRes.parameters`.
+    """
+    mode = effective_comm_compression(comm_compression)
+    if not results or mode == 'none':
+        return results
+    from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
+    g_nd = parameters_to_ndarrays_safe(global_parameters) if global_parameters is not None else None
+    compressed_results = []
+    for item in results:
+        if isinstance(item, tuple) and len(item) == 2:
+            proxy, fit_res = item
+            is_tuple = True
+        else:
+            proxy, fit_res = None, item
+            is_tuple = False
+        c_nd = parameters_to_ndarrays(fit_res.parameters)
+        comp_nd = compress_decompress_client_update(c_nd, g_nd, mode)
+        new_fit_res = FitRes(
+            status=fit_res.status,
+            parameters=ndarrays_to_parameters(comp_nd),
+            num_examples=fit_res.num_examples,
+            metrics=dict(fit_res.metrics) if fit_res.metrics is not None else {},
+        )
+        compressed_results.append((proxy, new_fit_res) if is_tuple else new_fit_res)
+    return compressed_results
+
+
 def _uses_hqunet_grid(config, model_type=None):
     """Return True when `hqunet_grid` affects the model architecture for `(config, model_type)`."""
     ansatz, _ = effective_q_variant(config)
@@ -1879,6 +2190,7 @@ def _normalize_saved_fingerprint(saved, model_type=None):
             'fl_strategy': DEFAULT_FL_STRATEGY,
             'fedprox_mu': 0.0,
             'q_angle_agg': DEFAULT_Q_ANGLE_AGG if eff_model_type == 'quantum' else None,
+            'comm_compression': DEFAULT_COMM_COMPRESSION,
         })
     for k, default_val in defaults.items():
         if k not in out:
@@ -2162,6 +2474,9 @@ def federated_variant_tag(config, quantum=False):
         q_agg = effective_q_angle_agg(config)
         if q_agg != DEFAULT_Q_ANGLE_AGG:
             parts.append(f"qagg-{q_agg}")
+    comm_comp = effective_comm_compression(config)
+    if comm_comp != DEFAULT_COMM_COMPRESSION:
+        parts.append(f"comm-{comm_comp}")
     nc = int(config.get('num_clients', 4))
     cpr = int(config.get('clients_per_round', nc))
     if nc != 4 or cpr != nc:
@@ -2481,6 +2796,7 @@ def run_fingerprint(config, model_type):
         'fedprox_mu': effective_fedprox_mu(config),
         'q_angle_agg': (effective_q_angle_agg(config)
                         if model_type == 'quantum' else None),
+        'comm_compression': effective_comm_compression(config),
         'fed_rounds': int(config['fed_rounds']),
         'local_epochs': int(config['local_epochs']),
         'num_clients': int(config['num_clients']),
@@ -2736,6 +3052,9 @@ class RoundOffsetMixin:
     round_offset = 0
 
     def configure_fit(self, server_round, parameters, client_manager):
+        self._round_start_parameters = parameters
+        if getattr(self, '_current_parameters', None) is None:
+            self._current_parameters = parameters
         global_round = int(server_round) + int(self.round_offset)
         all_clients = client_manager.all() if hasattr(client_manager, 'all') else None
         if isinstance(all_clients, dict) and hasattr(self, 'num_fit_clients'):
@@ -2862,6 +3181,11 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'fedprox_mu': effective_fedprox_mu(config) if training == 'federated' else None,
         'q_angle_agg': (effective_q_angle_agg(config)
                         if (training == 'federated' and model_type == 'quantum') else None),
+        'comm_compression': effective_comm_compression(config) if training == 'federated' else None,
+        'upload_bytes_per_client_round': None,
+        'uncompressed_bytes_per_client_round': None,
+        'upload_mib_per_client_round': None,
+        'compression_ratio': None,
         'best_val_score': best_val_score,
         'best_epoch': best_epoch,
         'best_step': best_step if best_step is not None else best_epoch,
@@ -2895,6 +3219,15 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'provenance': provenance,
         'written_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
+    if training == 'federated' and total_params is not None:
+        # Count-only analytical fallback; federated entrypoints override this with exact
+        # per-tensor telemetry via `extra=comm_telemetry`.
+        comm_tel = compute_comm_compression_telemetry(total_params, config)
+        payload['telemetry_is_exact_per_tensor'] = comm_tel['telemetry_is_exact_per_tensor']
+        payload['upload_bytes_per_client_round'] = comm_tel['upload_bytes_per_client_round']
+        payload['uncompressed_bytes_per_client_round'] = comm_tel['uncompressed_bytes_per_client_round']
+        payload['upload_mib_per_client_round'] = comm_tel['upload_mib_per_client_round']
+        payload['compression_ratio'] = comm_tel['compression_ratio']
     if extra:
         payload.update(extra)
     path = os.path.join(output_dir, 'results', 'metrics.json')

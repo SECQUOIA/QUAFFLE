@@ -399,6 +399,7 @@ Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
 | `fl_strategy` | `'fedavg'` | `'fedavg'`, `'fedprox'` (`#15`, federated only) |
 | `fedprox_mu` | `0.0` | float >= 0.0 (`#15`, defaults to `0.01` when `fl_strategy='fedprox'`) |
 | `q_angle_agg` | `'linear'` | `'linear'`, `'circular'` (`#15`, federated quantum only) |
+| `comm_compression` | `'none'` | `'none'`, `'fp16'`, `'int8'`, `'topk10'` (`#48`, federated client-to-server update compression) |
 | `select_metric` | `'iou'` | `'iou'`, `'dice'`, `'auc'`, `'loss'` (validation metric for best-checkpoint restoration) |
 
 The training scripts set these keys from `--q-ansatz`, `--q-layers`,
@@ -447,3 +448,22 @@ The parameter reduction relative to the classical FedU-Net (about 570k) comes
 from the 32 quantum channels removing classical convolutions in both bottleneck
 blocks. The circuit itself holds at most a few hundred parameters, so the
 reduction is a property of the channel split and is shared with the ablation.
+
+### Federated client-to-server update compression baselines (`--comm-compression`, `#48`)
+
+For federated runs (`federated_demoTorchClassical.py`, `federated_demoTorchQ.py`,
+and `ablation_studies.py --mode federated`), `--comm-compression {none,fp16,int8,topk10}`
+simulates client-to-server update compression $\Delta\theta_k = \theta_k^{(t+1)} - \theta^{(t)}$
+in-memory before server aggregation (`tc.apply_comm_compression_to_fit_results`) to evaluate
+compressed-update accuracy/IoU retention without altering Flower's underlying dense RPC
+wire transport. `tc.compute_comm_compression_telemetry` records the corresponding modeled raw
+payload sizes (excluding Flower/protobuf transport framing) in `results/metrics.json`
+and `results/summary.txt` (`upload_bytes_per_client_round`, `uncompressed_bytes_per_client_round`,
+`upload_mib_per_client_round`, `compression_ratio`, and `telemetry_is_exact_per_tensor`,
+which is `True` when computed from a live `torch.nn.Module`/tensor list and `False` when
+evaluated as a single-tensor analytical estimate from a scalar parameter count `int`):
+
+* `'none'` (default): uncompressed `float32` updates (`37,311,880` bytes = `35.58 MiB` for the `9,327,970`-parameter classical U-Net, `compression_ratio = 1.0`).
+* `'fp16'`: `float16` cast of $\Delta\theta_k$ (`18,655,940` bytes = `17.79 MiB`, `compression_ratio = 0.50`, `50%` reduction).
+* `'int8'`: symmetric per-tensor absmax 8-bit quantization of $\Delta\theta_k$ with one `float32` scale factor per tensor (`~8.90 MiB`, `compression_ratio ≈ 0.25`, `75%` reduction).
+* `'topk10'`: top-$10\%$ largest-magnitude entries of $\Delta\theta_k$ per tensor (`4`-byte `float32` value + `4`-byte `int32` index per retained entry, `~7.12 MiB`, `compression_ratio ≈ 0.20`, `80%` reduction; `5.34 MiB` / `85%` reduction as a theoretical lower bound assuming delta-encoded index gaps fit in 16-bit integers).

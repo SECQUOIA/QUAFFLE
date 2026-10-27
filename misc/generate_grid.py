@@ -111,6 +111,7 @@ DATASETS = ["optical", "sar", "combined"]
 ABLATION_MODES = ["auto", "mlp", "linear", "conv1x1", "depthwise3x3", "lowrank", "hqunet_spatial"]
 ABLATION_MLP_MODES = ["param_matched", "full_rank"]
 DECODER_SKIP_GATES = ["none", "se", "affine"]
+COMM_COMPRESSION_MODES = ["none", "fp16", "int8", "topk10"]
 
 SCRIPT = {
     ("classical", "centralized"): "centralized_demoTorchClassical.py",
@@ -360,7 +361,7 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               q_angle_agg=None, num_clients=None, clients_per_round=None,
               fraction_fit=None, n_qubits=None, ablation_mode=None,
               ablation_mlp_mode=None, ablation_mlp_hidden=None,
-              decoder_skip_gate=None):
+              decoder_skip_gate=None, comm_compression=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -390,6 +391,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             args += ["--fedprox-mu", str(fedprox_mu)]
         if method == "quantum" and q_angle_agg is not None:
             args += ["--q-angle-agg", str(q_angle_agg)]
+        if comm_compression is not None:
+            args += ["--comm-compression", str(comm_compression)]
         if num_clients is not None:
             args += ["--num-clients", str(num_clients)]
         if clients_per_round is not None:
@@ -505,6 +508,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             parts.append("fedprox%g" % mu_val)
         if method == "quantum" and q_angle_agg == "circular":
             parts.append("qagg-circular")
+        if comm_compression is not None and comm_compression != "none":
+            parts.append("comm-%s" % str(comm_compression))
         if num_clients is not None or clients_per_round is not None or fraction_fit is not None:
             nc = int(num_clients) if num_clients is not None else 4
             if fraction_fit is not None:
@@ -899,6 +904,7 @@ def main(argv=None):
     ap.add_argument("--fl-strategy", choices=["fedavg", "fedprox"], default=None)
     ap.add_argument("--fedprox-mu", type=float, default=None)
     ap.add_argument("--q-angle-agg", choices=["linear", "circular"], default=None)
+    ap.add_argument("--comm-compression", choices=COMM_COMPRESSION_MODES, default=None)
     ap.add_argument("--num-clients", type=int, default=None)
     ap.add_argument("--clients-per-round", type=int, default=None)
     ap.add_argument("--fraction-fit", type=float, default=None)
@@ -980,7 +986,8 @@ def main(argv=None):
                         ablation_mode=args.ablation_mode,
                         ablation_mlp_mode=args.ablation_mlp_mode,
                         ablation_mlp_hidden=args.ablation_mlp_hidden,
-                        decoder_skip_gate=args.decoder_skip_gate))
+                        decoder_skip_gate=args.decoder_skip_gate,
+                        comm_compression=args.comm_compression))
     finish(ap, args, jobs, out_dir)
 
 
