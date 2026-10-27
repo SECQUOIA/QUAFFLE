@@ -1,0 +1,32 @@
+{
+  "unet_width7": {
+    "learning_rate": 0.001,
+    "val_iou": 0.6390948697430426,
+    "best_epoch": 46
+  },
+  "unet_width8": {
+    "learning_rate": 0.003,
+    "val_iou": 0.6347391393557292,
+    "best_epoch": 48
+  },
+  "mlp_global": {
+    "learning_rate": 0.001,
+    "val_iou": 0.6218704171599201,
+    "best_epoch": 48
+  },
+  "mlp_patch4x4": {
+    "learning_rate": 0.003,
+    "val_iou": 0.6321166842002033,
+    "best_epoch": 60
+  },
+  "quantum_global": {
+    "learning_rate": 0.001,
+    "val_iou": 0.6338950374216782,
+    "best_epoch": 60
+  },
+  "quantum_patch4x4": {
+    "learning_rate": 0.003,
+    "val_iou": 0.6311350766388969,
+    "best_epoch": 48
+  }
+}

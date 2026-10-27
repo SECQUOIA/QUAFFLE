@@ -1,0 +1,30 @@
+{
+  "started_utc": "2026-10-27T18:23:38.778712+00:00",
+  "source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+  "source_hashes": {
+    "scripts/run_real_spatial_pilot.py": "badc7270454526c530d79c73563b60e9a991da7cf81c45185159bc50a5e97691",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+    "utilsTorch/utilsTorch.py": "0c7d06b4091bdf046736fd97d2ae81506462ee4f26c1203af7c7f9c2eb612b26",
+    "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+    "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+  },
+  "launcher_sha256": "bd555f92b17582f16448caf9c0a83466cd8448b58e34d9414d27bd7690a07311",
+  "model_id": "quantum_patch4x4",
+  "seed": 123,
+  "learning_rate": 0.003,
+  "status": "complete",
+  "target": "replication/quantum_patch4x4/seed123",
+  "threads": 2,
+  "memory_max": "4G",
+  "memory_swap_max": 0,
+  "gpu_allocator_fraction": 0.12,
+  "purpose": "Overlap one independent replication; main driver later reuses identical completed fit; no test replay in this process",
+  "limitations": "Fit durations overlap other models and are not controlled timing benchmarks",
+  "ended_utc": "2026-10-27T18:31:56.360529+00:00",
+  "best_epoch": 60,
+  "metrics_sha256": "c6bfd6ba4b26d91647f18eafcbac66592b23e8ac800d8525114017c34fe3c668",
+  "checkpoint_sha256": "265f610f95e69085e2a3fa7123fe2151b0b60693e7dd837a5c6cbbc99115c77c"
+}

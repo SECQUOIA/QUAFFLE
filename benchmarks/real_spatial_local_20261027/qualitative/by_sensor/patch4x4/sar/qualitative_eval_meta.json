@@ -1,0 +1,5134 @@
+{
+  "selection_rule": "Per-sensor classical lower median/worst IoU among >=5% flood tiles; original dataset index breaks ties",
+  "scope": "Sensor test subsets of combined-trained checkpoints",
+  "empty_union_iou": 0,
+  "datasets": [
+    {
+      "id": "SAR; patch4x4; seed 42",
+      "dataset": "combined",
+      "seed": 42,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 42,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 42,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "f291b8c2d396cbc3",
+        "stats_sha256": "d94231cc31e7c2e1"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "db970e00c29d2ed464a9094861c231a79ece246ecc99df994b51a78317612a35",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "6b2fa3a2aeeba0e3ffea8de03f43318012f82ec63c256c41c5dd60f63d052867",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "458d80f228ef575b76a5ebab1fe6538f1e77788028fe1a181fc8a199be4c6f01",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 1
+        },
+        {
+          "index": 1,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 3
+        },
+        {
+          "index": 2,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.5149425287356322,
+            "ablation": 0.43908045977011495,
+            "quantum": 0.49770642201834864
+          },
+          "dataset_index": 5
+        },
+        {
+          "index": 3,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.3392226148409894,
+            "ablation": 0.3541147132169576,
+            "quantum": 0.3405684754521964
+          },
+          "dataset_index": 7
+        },
+        {
+          "index": 4,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.4166666666666667,
+            "ablation": 0.4117647058823529,
+            "quantum": 0.46875
+          },
+          "dataset_index": 9
+        },
+        {
+          "index": 5,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 13
+        },
+        {
+          "index": 6,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 15
+        },
+        {
+          "index": 7,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5092592592592593,
+            "ablation": 0.5345622119815668,
+            "quantum": 0.5671641791044776
+          },
+          "dataset_index": 18
+        },
+        {
+          "index": 8,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 20
+        },
+        {
+          "index": 9,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 22
+        },
+        {
+          "index": 10,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.45080091533180777,
+            "ablation": 0.3864077669902913,
+            "quantum": 0.39363817097415504
+          },
+          "dataset_index": 24
+        },
+        {
+          "index": 11,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5754437869822485,
+            "ablation": 0.5842026825633383,
+            "quantum": 0.5970588235294118
+          },
+          "dataset_index": 26
+        },
+        {
+          "index": 12,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.06896551724137931,
+            "ablation": 0.046511627906976744,
+            "quantum": 0.034482758620689655
+          },
+          "dataset_index": 29
+        },
+        {
+          "index": 13,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 31
+        },
+        {
+          "index": 14,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 34
+        },
+        {
+          "index": 15,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 36
+        },
+        {
+          "index": 16,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.5997458703939009,
+            "ablation": 0.5840938722294654,
+            "quantum": 0.5777202072538861
+          },
+          "dataset_index": 38
+        },
+        {
+          "index": 17,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.7564402810304449,
+            "ablation": 0.7785888077858881,
+            "quantum": 0.7649880095923262
+          },
+          "dataset_index": 40
+        },
+        {
+          "index": 18,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 42
+        },
+        {
+          "index": 19,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 44
+        },
+        {
+          "index": 20,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5789473684210527,
+            "ablation": 0.6097560975609756,
+            "quantum": 0.6097560975609756
+          },
+          "dataset_index": 47
+        },
+        {
+          "index": 21,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.21252796420581654,
+            "ablation": 0.359375,
+            "quantum": 0.2870159453302961
+          },
+          "dataset_index": 49
+        },
+        {
+          "index": 22,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.27764127764127766,
+            "ablation": 0.32709251101321585,
+            "quantum": 0.2921615201900237
+          },
+          "dataset_index": 51
+        },
+        {
+          "index": 23,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.6021314387211367,
+            "ablation": 0.5994599459945995,
+            "quantum": 0.6085376930063578
+          },
+          "dataset_index": 56
+        },
+        {
+          "index": 24,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.1724137931034483,
+            "ablation": 0.19230769230769232,
+            "quantum": 0.18518518518518517
+          },
+          "dataset_index": 58
+        },
+        {
+          "index": 25,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 60
+        },
+        {
+          "index": 26,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 62
+        },
+        {
+          "index": 27,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.2169811320754717,
+            "quantum": 0.21635883905013192
+          },
+          "dataset_index": 65
+        },
+        {
+          "index": 28,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.4318181818181818,
+            "ablation": 0.3953488372093023,
+            "quantum": 0.41743119266055045
+          },
+          "dataset_index": 67
+        },
+        {
+          "index": 29,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 69
+        },
+        {
+          "index": 30,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 71
+        },
+        {
+          "index": 31,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.19090909090909092,
+            "ablation": 0.15492957746478872,
+            "quantum": 0.19117647058823528
+          },
+          "dataset_index": 74
+        },
+        {
+          "index": 32,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 76
+        },
+        {
+          "index": 33,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 78
+        },
+        {
+          "index": 34,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6608996539792388,
+            "ablation": 0.6891025641025641,
+            "quantum": 0.6982456140350877
+          },
+          "dataset_index": 80
+        },
+        {
+          "index": 35,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.7437774524158126,
+            "ablation": 0.9493487698986975,
+            "quantum": 0.8847858197932054
+          },
+          "dataset_index": 82
+        },
+        {
+          "index": 36,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.06666666666666667,
+            "ablation": 0.07352941176470588,
+            "quantum": 0.08064516129032258
+          },
+          "dataset_index": 84
+        },
+        {
+          "index": 37,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 86
+        },
+        {
+          "index": 38,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 88
+        },
+        {
+          "index": 39,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 90
+        },
+        {
+          "index": 40,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.3958333333333333,
+            "ablation": 0.46808510638297873,
+            "quantum": 0.2558139534883721
+          },
+          "dataset_index": 93
+        },
+        {
+          "index": 41,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 96
+        },
+        {
+          "index": 42,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 98
+        },
+        {
+          "index": 43,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 100
+        },
+        {
+          "index": 44,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 102
+        },
+        {
+          "index": 45,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 104
+        },
+        {
+          "index": 46,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 106
+        },
+        {
+          "index": 47,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 108
+        },
+        {
+          "index": 48,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.26991150442477874,
+            "ablation": 0.2,
+            "quantum": 0.21929824561403508
+          },
+          "dataset_index": 111
+        },
+        {
+          "index": 49,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.4256410256410256,
+            "ablation": 0.4166666666666667,
+            "quantum": 0.4725274725274725
+          },
+          "dataset_index": 113
+        },
+        {
+          "index": 50,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3118279569892473,
+            "ablation": 0.31179775280898875,
+            "quantum": 0.31444759206798867
+          },
+          "dataset_index": 115
+        },
+        {
+          "index": 51,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.2125,
+            "ablation": 0.027777777777777776,
+            "quantum": 0.14864864864864866
+          },
+          "dataset_index": 117
+        },
+        {
+          "index": 52,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.24805339265850945,
+            "ablation": 0.3782894736842105,
+            "quantum": 0.34980566352026654
+          },
+          "dataset_index": 120
+        },
+        {
+          "index": 53,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.012,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 122
+        },
+        {
+          "index": 54,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 125
+        },
+        {
+          "index": 55,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.6486486486486487,
+            "ablation": 0.59375,
+            "quantum": 0.5
+          },
+          "dataset_index": 126
+        },
+        {
+          "index": 56,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.43478260869565216,
+            "ablation": 0.3333333333333333,
+            "quantum": 0.5454545454545454
+          },
+          "dataset_index": 127
+        },
+        {
+          "index": 57,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 128
+        },
+        {
+          "index": 58,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 129
+        },
+        {
+          "index": 59,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 130
+        },
+        {
+          "index": 60,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.30448717948717946,
+            "ablation": 0.32298136645962733,
+            "quantum": 0.3377926421404682
+          },
+          "dataset_index": 131
+        },
+        {
+          "index": 61,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6381578947368421,
+            "ablation": 0.6044776119402985,
+            "quantum": 0.5602836879432624
+          },
+          "dataset_index": 132
+        },
+        {
+          "index": 62,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.44933920704845814,
+            "ablation": 0.49038461538461536,
+            "quantum": 0.505
+          },
+          "dataset_index": 133
+        },
+        {
+          "index": 63,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 134
+        },
+        {
+          "index": 64,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 135
+        },
+        {
+          "index": 65,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 136
+        },
+        {
+          "index": 66,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.652542372881356,
+            "ablation": 0.6961451247165533,
+            "quantum": 0.6993166287015945
+          },
+          "dataset_index": 137
+        },
+        {
+          "index": 67,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.39344262295081966,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 138
+        },
+        {
+          "index": 68,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.050314465408805034,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 139
+        },
+        {
+          "index": 69,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 140
+        },
+        {
+          "index": 70,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.3656957928802589,
+            "ablation": 0.3885350318471338,
+            "quantum": 0.4231974921630094
+          },
+          "dataset_index": 141
+        },
+        {
+          "index": 71,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 142
+        },
+        {
+          "index": 72,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.32038834951456313,
+            "ablation": 0.38095238095238093,
+            "quantum": 0.3173076923076923
+          },
+          "dataset_index": 143
+        },
+        {
+          "index": 73,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 144
+        },
+        {
+          "index": 74,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5987179487179487,
+            "ablation": 0.5957446808510638,
+            "quantum": 0.5897097625329816
+          },
+          "dataset_index": 145
+        },
+        {
+          "index": 75,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.6304347826086957,
+            "ablation": 0.5668202764976958,
+            "quantum": 0.4788732394366197
+          },
+          "dataset_index": 146
+        },
+        {
+          "index": 76,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.19827586206896552,
+            "ablation": 0.18023255813953487,
+            "quantum": 0.20461095100864554
+          },
+          "dataset_index": 147
+        },
+        {
+          "index": 77,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.7124600638977636,
+            "ablation": 0.697452229299363,
+            "quantum": 0.6537216828478964
+          },
+          "dataset_index": 148
+        },
+        {
+          "index": 78,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3018867924528302,
+            "ablation": 0.16666666666666666,
+            "quantum": 0.3793103448275862
+          },
+          "dataset_index": 149
+        },
+        {
+          "index": 79,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 150
+        },
+        {
+          "index": 80,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.808,
+            "ablation": 0.6578674948240165,
+            "quantum": 0.7184409540430483
+          },
+          "dataset_index": 151
+        },
+        {
+          "index": 81,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.1388888888888889,
+            "ablation": 0.21739130434782608,
+            "quantum": 0.2
+          },
+          "dataset_index": 152
+        },
+        {
+          "index": 82,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.8893740902474527,
+            "ablation": 0.9417613636363636,
+            "quantum": 0.9041297935103245
+          },
+          "dataset_index": 153
+        },
+        {
+          "index": 83,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.2141863699582754,
+            "ablation": 0.12831241283124128,
+            "quantum": 0.17891816920943135
+          },
+          "dataset_index": 154
+        },
+        {
+          "index": 84,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 155
+        },
+        {
+          "index": 85,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 156
+        },
+        {
+          "index": 86,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 157
+        },
+        {
+          "index": 87,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 158
+        },
+        {
+          "index": 88,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.5064377682403434,
+            "ablation": 0.5190476190476191,
+            "quantum": 0.5023923444976076
+          },
+          "dataset_index": 159
+        },
+        {
+          "index": 89,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.49074074074074076,
+            "ablation": 0.4784688995215311,
+            "quantum": 0.4852941176470588
+          },
+          "dataset_index": 160
+        },
+        {
+          "index": 90,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 161
+        },
+        {
+          "index": 91,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.44692737430167595,
+            "ablation": 0.38396624472573837,
+            "quantum": 0.4036697247706422
+          },
+          "dataset_index": 162
+        },
+        {
+          "index": 92,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.004273504273504274,
+            "ablation": 0.0051813471502590676,
+            "quantum": 0.005025125628140704
+          },
+          "dataset_index": 163
+        },
+        {
+          "index": 93,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 164
+        },
+        {
+          "index": 94,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.2838709677419355,
+            "ablation": 0.1643835616438356,
+            "quantum": 0.23129251700680273
+          },
+          "dataset_index": 165
+        },
+        {
+          "index": 95,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.047619047619047616,
+            "ablation": 0.10714285714285714,
+            "quantum": 0.15294117647058825
+          },
+          "dataset_index": 166
+        },
+        {
+          "index": 96,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5142857142857142,
+            "ablation": 0.5059523809523809,
+            "quantum": 0.5028571428571429
+          },
+          "dataset_index": 167
+        },
+        {
+          "index": 97,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5454545454545454,
+            "ablation": 0.5833333333333334,
+            "quantum": 0.5714285714285714
+          },
+          "dataset_index": 168
+        },
+        {
+          "index": 98,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.6091245376078915,
+            "ablation": 0.6091954022988506,
+            "quantum": 0.6
+          },
+          "dataset_index": 169
+        },
+        {
+          "index": 99,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 170
+        },
+        {
+          "index": 100,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.17391304347826086,
+            "ablation": 0.11363636363636363,
+            "quantum": 0.11627906976744186
+          },
+          "dataset_index": 171
+        },
+        {
+          "index": 101,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 172
+        },
+        {
+          "index": 102,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 173
+        },
+        {
+          "index": 103,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.54375,
+            "ablation": 0.5130434782608696,
+            "quantum": 0.5460122699386503
+          },
+          "dataset_index": 174
+        },
+        {
+          "index": 104,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 175
+        },
+        {
+          "index": 105,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 176
+        },
+        {
+          "index": 106,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 177
+        },
+        {
+          "index": 107,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.13333333333333333,
+            "ablation": 0.04,
+            "quantum": 0.0
+          },
+          "dataset_index": 178
+        },
+        {
+          "index": 108,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 179
+        },
+        {
+          "index": 109,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.38154613466334164,
+            "ablation": 0.4653679653679654,
+            "quantum": 0.43414634146341463
+          },
+          "dataset_index": 180
+        },
+        {
+          "index": 110,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 181
+        },
+        {
+          "index": 111,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 182
+        },
+        {
+          "index": 112,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 183
+        },
+        {
+          "index": 113,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.655421686746988,
+            "ablation": 0.6624843161856964,
+            "quantum": 0.6628787878787878
+          },
+          "dataset_index": 184
+        },
+        {
+          "index": 114,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.011494252873563218,
+            "ablation": 0.0,
+            "quantum": 0.029411764705882353
+          },
+          "dataset_index": 185
+        },
+        {
+          "index": 115,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.2741046831955923,
+            "ablation": 0.30137931034482757,
+            "quantum": 0.2630844382414515
+          },
+          "dataset_index": 186
+        },
+        {
+          "index": 116,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 187
+        },
+        {
+          "index": 117,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 188
+        },
+        {
+          "index": 118,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 189
+        },
+        {
+          "index": 119,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5893089960886571,
+            "ablation": 0.5997248968363136,
+            "quantum": 0.5891156462585034
+          },
+          "dataset_index": 190
+        },
+        {
+          "index": 120,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 191
+        },
+        {
+          "index": 121,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 192
+        },
+        {
+          "index": 122,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.46551724137931033,
+            "ablation": 0.43137254901960786,
+            "quantum": 0.3508771929824561
+          },
+          "dataset_index": 193
+        },
+        {
+          "index": 123,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 194
+        },
+        {
+          "index": 124,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.09931506849315068,
+            "ablation": 0.08680555555555555,
+            "quantum": 0.10921501706484642
+          },
+          "dataset_index": 195
+        },
+        {
+          "index": 125,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 196
+        },
+        {
+          "index": 126,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 197
+        },
+        {
+          "index": 127,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 198
+        },
+        {
+          "index": 128,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.617363344051447,
+            "ablation": 0.6044657097288676,
+            "quantum": 0.6217532467532467
+          },
+          "dataset_index": 199
+        },
+        {
+          "index": 129,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.20833333333333334,
+            "ablation": 0.2702702702702703,
+            "quantum": 0.2987012987012987
+          },
+          "dataset_index": 200
+        },
+        {
+          "index": 130,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.034482758620689655,
+            "ablation": 0.07142857142857142,
+            "quantum": 0.05555555555555555
+          },
+          "dataset_index": 201
+        },
+        {
+          "index": 131,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 202
+        },
+        {
+          "index": 132,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.5154639175257731,
+            "ablation": 0.5291005291005291,
+            "quantum": 0.546448087431694
+          },
+          "dataset_index": 203
+        },
+        {
+          "index": 133,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.5864453665283541,
+            "ablation": 0.5969101123595506,
+            "quantum": 0.32673267326732675
+          },
+          "dataset_index": 204
+        }
+      ],
+      "selected": {
+        "worst": 27,
+        "median": 11
+      },
+      "example_modality": "sar"
+    },
+    {
+      "id": "SAR; patch4x4; seed 77",
+      "dataset": "combined",
+      "seed": 77,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 77,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 77,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "4040a209ab34cda8",
+        "stats_sha256": "7e7eafec5129b4b2"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "e76d00ca49881f4c11aa1da036241fa9c8edb01e9f9e5d5839bf766abb640edd",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "309920b1e1d438688704e1a70c01e67a6545c620e85f8b977b94ac334314cae4",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "85b14f0eae967e363e387dd19acca3fe131e3284ab9d843853ab872d51beeefd",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 1
+        },
+        {
+          "index": 1,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 3
+        },
+        {
+          "index": 2,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.28935185185185186,
+            "ablation": 0.42725173210161665,
+            "quantum": 0.41435185185185186
+          },
+          "dataset_index": 5
+        },
+        {
+          "index": 3,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.34908005967180505,
+            "ablation": 0.36185819070904646,
+            "quantum": 0.3537803138373752
+          },
+          "dataset_index": 7
+        },
+        {
+          "index": 4,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.36666666666666664,
+            "ablation": 0.39285714285714285,
+            "quantum": 0.3793103448275862
+          },
+          "dataset_index": 9
+        },
+        {
+          "index": 5,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 13
+        },
+        {
+          "index": 6,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 15
+        },
+        {
+          "index": 7,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5631067961165048,
+            "ablation": 0.6105263157894737,
+            "quantum": 0.5918367346938775
+          },
+          "dataset_index": 18
+        },
+        {
+          "index": 8,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 20
+        },
+        {
+          "index": 9,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 22
+        },
+        {
+          "index": 10,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.4195519348268839,
+            "ablation": 0.4361948955916473,
+            "quantum": 0.4222222222222222
+          },
+          "dataset_index": 24
+        },
+        {
+          "index": 11,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5768688293370945,
+            "ablation": 0.6492537313432836,
+            "quantum": 0.6282051282051282
+          },
+          "dataset_index": 26
+        },
+        {
+          "index": 12,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.03488372093023256,
+            "quantum": 0.0
+          },
+          "dataset_index": 29
+        },
+        {
+          "index": 13,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 31
+        },
+        {
+          "index": 14,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 34
+        },
+        {
+          "index": 15,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 36
+        },
+        {
+          "index": 16,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.583883751651255,
+            "ablation": 0.5802631578947368,
+            "quantum": 0.5905612244897959
+          },
+          "dataset_index": 38
+        },
+        {
+          "index": 17,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.6742738589211619,
+            "ablation": 0.7487562189054726,
+            "quantum": 0.7570754716981132
+          },
+          "dataset_index": 40
+        },
+        {
+          "index": 18,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 42
+        },
+        {
+          "index": 19,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 44
+        },
+        {
+          "index": 20,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5277777777777778,
+            "ablation": 0.5945945945945946,
+            "quantum": 0.6111111111111112
+          },
+          "dataset_index": 47
+        },
+        {
+          "index": 21,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.43844492440604754,
+            "ablation": 0.3995433789954338,
+            "quantum": 0.39414414414414417
+          },
+          "dataset_index": 49
+        },
+        {
+          "index": 22,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.314385150812065,
+            "ablation": 0.3353658536585366,
+            "quantum": 0.3212192262602579
+          },
+          "dataset_index": 51
+        },
+        {
+          "index": 23,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.5915492957746479,
+            "ablation": 0.5952813067150635,
+            "quantum": 0.5806451612903226
+          },
+          "dataset_index": 56
+        },
+        {
+          "index": 24,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.2,
+            "ablation": 0.19230769230769232,
+            "quantum": 0.15384615384615385
+          },
+          "dataset_index": 58
+        },
+        {
+          "index": 25,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 60
+        },
+        {
+          "index": 26,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 62
+        },
+        {
+          "index": 27,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.06906077348066299,
+            "ablation": 0.25077399380804954,
+            "quantum": 0.15757575757575756
+          },
+          "dataset_index": 65
+        },
+        {
+          "index": 28,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.37383177570093457,
+            "ablation": 0.3592233009708738,
+            "quantum": 0.3640776699029126
+          },
+          "dataset_index": 67
+        },
+        {
+          "index": 29,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 69
+        },
+        {
+          "index": 30,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 71
+        },
+        {
+          "index": 31,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.12376237623762376,
+            "ablation": 0.12195121951219512,
+            "quantum": 0.12682926829268293
+          },
+          "dataset_index": 74
+        },
+        {
+          "index": 32,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 76
+        },
+        {
+          "index": 33,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 78
+        },
+        {
+          "index": 34,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6595744680851063,
+            "ablation": 0.7227722772277227,
+            "quantum": 0.7142857142857143
+          },
+          "dataset_index": 80
+        },
+        {
+          "index": 35,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.8292079207920792,
+            "ablation": 0.8727272727272727,
+            "quantum": 0.7995226730310262
+          },
+          "dataset_index": 82
+        },
+        {
+          "index": 36,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.08196721311475409,
+            "ablation": 0.078125,
+            "quantum": 0.08333333333333333
+          },
+          "dataset_index": 84
+        },
+        {
+          "index": 37,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 86
+        },
+        {
+          "index": 38,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 88
+        },
+        {
+          "index": 39,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 90
+        },
+        {
+          "index": 40,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.275,
+            "ablation": 0.25,
+            "quantum": 0.25
+          },
+          "dataset_index": 93
+        },
+        {
+          "index": 41,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 96
+        },
+        {
+          "index": 42,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 98
+        },
+        {
+          "index": 43,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 100
+        },
+        {
+          "index": 44,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 102
+        },
+        {
+          "index": 45,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 104
+        },
+        {
+          "index": 46,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 106
+        },
+        {
+          "index": 47,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 108
+        },
+        {
+          "index": 48,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.23348017621145375,
+            "ablation": 0.27391304347826084,
+            "quantum": 0.16444444444444445
+          },
+          "dataset_index": 111
+        },
+        {
+          "index": 49,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.42771084337349397,
+            "ablation": 0.46987951807228917,
+            "quantum": 0.5031446540880503
+          },
+          "dataset_index": 113
+        },
+        {
+          "index": 50,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3023952095808383,
+            "ablation": 0.31384615384615383,
+            "quantum": 0.32047477744807124
+          },
+          "dataset_index": 115
+        },
+        {
+          "index": 51,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.16,
+            "ablation": 0.17567567567567569,
+            "quantum": 0.136986301369863
+          },
+          "dataset_index": 117
+        },
+        {
+          "index": 52,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.4212152420185376,
+            "ablation": 0.42528735632183906,
+            "quantum": 0.43139190523198423
+          },
+          "dataset_index": 120
+        },
+        {
+          "index": 53,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 122
+        },
+        {
+          "index": 54,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 125
+        },
+        {
+          "index": 55,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5,
+            "ablation": 0.5,
+            "quantum": 0.5666666666666667
+          },
+          "dataset_index": 126
+        },
+        {
+          "index": 56,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.3,
+            "ablation": 0.5238095238095238,
+            "quantum": 0.47619047619047616
+          },
+          "dataset_index": 127
+        },
+        {
+          "index": 57,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 128
+        },
+        {
+          "index": 58,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 129
+        },
+        {
+          "index": 59,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 130
+        },
+        {
+          "index": 60,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.336734693877551,
+            "ablation": 0.3591549295774648,
+            "quantum": 0.35815602836879434
+          },
+          "dataset_index": 131
+        },
+        {
+          "index": 61,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6326530612244898,
+            "ablation": 0.6592592592592592,
+            "quantum": 0.6691176470588235
+          },
+          "dataset_index": 132
+        },
+        {
+          "index": 62,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.5049019607843137,
+            "ablation": 0.5077720207253886,
+            "quantum": 0.5210526315789473
+          },
+          "dataset_index": 133
+        },
+        {
+          "index": 63,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 134
+        },
+        {
+          "index": 64,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 135
+        },
+        {
+          "index": 65,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 136
+        },
+        {
+          "index": 66,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.6845637583892618,
+            "ablation": 0.7203791469194313,
+            "quantum": 0.6900452488687783
+          },
+          "dataset_index": 137
+        },
+        {
+          "index": 67,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 138
+        },
+        {
+          "index": 68,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.014814814814814815,
+            "quantum": 0.0
+          },
+          "dataset_index": 139
+        },
+        {
+          "index": 69,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 140
+        },
+        {
+          "index": 70,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.3618421052631579,
+            "ablation": 0.40584415584415584,
+            "quantum": 0.39344262295081966
+          },
+          "dataset_index": 141
+        },
+        {
+          "index": 71,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 142
+        },
+        {
+          "index": 72,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.34579439252336447,
+            "ablation": 0.25252525252525254,
+            "quantum": 0.26
+          },
+          "dataset_index": 143
+        },
+        {
+          "index": 73,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 144
+        },
+        {
+          "index": 74,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5837837837837838,
+            "ablation": 0.594885598923284,
+            "quantum": 0.5968992248062015
+          },
+          "dataset_index": 145
+        },
+        {
+          "index": 75,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.5900900900900901,
+            "ablation": 0.45754716981132076,
+            "quantum": 0.5
+          },
+          "dataset_index": 146
+        },
+        {
+          "index": 76,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.12280701754385964,
+            "ablation": 0.12609970674486803,
+            "quantum": 0.10850439882697947
+          },
+          "dataset_index": 147
+        },
+        {
+          "index": 77,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.6871345029239766,
+            "ablation": 0.7064516129032258,
+            "quantum": 0.707641196013289
+          },
+          "dataset_index": 148
+        },
+        {
+          "index": 78,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3333333333333333,
+            "ablation": 0.34,
+            "quantum": 0.39215686274509803
+          },
+          "dataset_index": 149
+        },
+        {
+          "index": 79,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 150
+        },
+        {
+          "index": 80,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.5166320166320166,
+            "ablation": 0.5174094707520891,
+            "quantum": 0.5144827586206897
+          },
+          "dataset_index": 151
+        },
+        {
+          "index": 81,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.23809523809523808,
+            "ablation": 0.22727272727272727,
+            "quantum": 0.22727272727272727
+          },
+          "dataset_index": 152
+        },
+        {
+          "index": 82,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.7653061224489796,
+            "ablation": 0.8553299492385786,
+            "quantum": 0.7019730010384216
+          },
+          "dataset_index": 153
+        },
+        {
+          "index": 83,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.011188811188811189,
+            "ablation": 0.08786610878661087,
+            "quantum": 0.026573426573426574
+          },
+          "dataset_index": 154
+        },
+        {
+          "index": 84,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 155
+        },
+        {
+          "index": 85,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 156
+        },
+        {
+          "index": 86,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 157
+        },
+        {
+          "index": 87,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 158
+        },
+        {
+          "index": 88,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.4472361809045226,
+            "ablation": 0.4090909090909091,
+            "quantum": 0.4393939393939394
+          },
+          "dataset_index": 159
+        },
+        {
+          "index": 89,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.5323383084577115,
+            "ablation": 0.5396825396825397,
+            "quantum": 0.544973544973545
+          },
+          "dataset_index": 160
+        },
+        {
+          "index": 90,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 161
+        },
+        {
+          "index": 91,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.44041450777202074,
+            "ablation": 0.4307692307692308,
+            "quantum": 0.4540229885057471
+          },
+          "dataset_index": 162
+        },
+        {
+          "index": 92,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.00510204081632653,
+            "ablation": 0.00546448087431694,
+            "quantum": 0.0051813471502590676
+          },
+          "dataset_index": 163
+        },
+        {
+          "index": 93,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 164
+        },
+        {
+          "index": 94,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.23809523809523808,
+            "ablation": 0.22758620689655173,
+            "quantum": 0.19310344827586207
+          },
+          "dataset_index": 165
+        },
+        {
+          "index": 95,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.08235294117647059,
+            "ablation": 0.09523809523809523,
+            "quantum": 0.08333333333333333
+          },
+          "dataset_index": 166
+        },
+        {
+          "index": 96,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5620915032679739,
+            "ablation": 0.5405405405405406,
+            "quantum": 0.5369127516778524
+          },
+          "dataset_index": 167
+        },
+        {
+          "index": 97,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5625,
+            "ablation": 0.5806451612903226,
+            "quantum": 0.59375
+          },
+          "dataset_index": 168
+        },
+        {
+          "index": 98,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.5888888888888889,
+            "ablation": 0.6152796725784447,
+            "quantum": 0.6136950904392765
+          },
+          "dataset_index": 169
+        },
+        {
+          "index": 99,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 170
+        },
+        {
+          "index": 100,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.2222222222222222,
+            "ablation": 0.06976744186046512,
+            "quantum": 0.09302325581395349
+          },
+          "dataset_index": 171
+        },
+        {
+          "index": 101,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 172
+        },
+        {
+          "index": 102,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 173
+        },
+        {
+          "index": 103,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.49577464788732395,
+            "ablation": 0.5492063492063493,
+            "quantum": 0.5315315315315315
+          },
+          "dataset_index": 174
+        },
+        {
+          "index": 104,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 175
+        },
+        {
+          "index": 105,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 176
+        },
+        {
+          "index": 106,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 177
+        },
+        {
+          "index": 107,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 178
+        },
+        {
+          "index": 108,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 179
+        },
+        {
+          "index": 109,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.46008403361344535,
+            "ablation": 0.475,
+            "quantum": 0.4114713216957606
+          },
+          "dataset_index": 180
+        },
+        {
+          "index": 110,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 181
+        },
+        {
+          "index": 111,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 182
+        },
+        {
+          "index": 112,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 183
+        },
+        {
+          "index": 113,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.660759493670886,
+            "ablation": 0.6504481434058899,
+            "quantum": 0.6695437731196054
+          },
+          "dataset_index": 184
+        },
+        {
+          "index": 114,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 185
+        },
+        {
+          "index": 115,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.4073333333333333,
+            "ablation": 0.38790760869565216,
+            "quantum": 0.40053763440860213
+          },
+          "dataset_index": 186
+        },
+        {
+          "index": 116,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 187
+        },
+        {
+          "index": 117,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 188
+        },
+        {
+          "index": 118,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 189
+        },
+        {
+          "index": 119,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5893854748603352,
+            "ablation": 0.5988779803646563,
+            "quantum": 0.6
+          },
+          "dataset_index": 190
+        },
+        {
+          "index": 120,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 191
+        },
+        {
+          "index": 121,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 192
+        },
+        {
+          "index": 122,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.18,
+            "ablation": 0.24074074074074073,
+            "quantum": 0.23529411764705882
+          },
+          "dataset_index": 193
+        },
+        {
+          "index": 123,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 194
+        },
+        {
+          "index": 124,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.08247422680412371,
+            "ablation": 0.10689655172413794,
+            "quantum": 0.0763888888888889
+          },
+          "dataset_index": 195
+        },
+        {
+          "index": 125,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 196
+        },
+        {
+          "index": 126,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 197
+        },
+        {
+          "index": 127,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 198
+        },
+        {
+          "index": 128,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.5782414307004471,
+            "ablation": 0.628140703517588,
+            "quantum": 0.6101426307448494
+          },
+          "dataset_index": 199
+        },
+        {
+          "index": 129,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.28378378378378377,
+            "ablation": 0.25,
+            "quantum": 0.25
+          },
+          "dataset_index": 200
+        },
+        {
+          "index": 130,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.02857142857142857,
+            "quantum": 0.0
+          },
+          "dataset_index": 201
+        },
+        {
+          "index": 131,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 202
+        },
+        {
+          "index": 132,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.5802469135802469,
+            "ablation": 0.5341614906832298,
+            "quantum": 0.5432098765432098
+          },
+          "dataset_index": 203
+        },
+        {
+          "index": 133,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.6666666666666666,
+            "ablation": 0.6639676113360324,
+            "quantum": 0.6679946879150066
+          },
+          "dataset_index": 204
+        }
+      ],
+      "selected": {
+        "worst": 83,
+        "median": 80
+      },
+      "example_modality": "sar"
+    },
+    {
+      "id": "SAR; patch4x4; seed 123",
+      "dataset": "combined",
+      "seed": 123,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 123,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 123,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "5ebcecad4c596348",
+        "stats_sha256": "1ae22a113d342e97"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "86214506eae00cb0c36001d4ef1575e54637aafb2ea3ffa393eb355a51db9078",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "c520bf90a2dc0d483e9eff95a9d9016cac829caaf70ae53d2cdb7d975d682b37",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "265f610f95e69085e2a3fa7123fe2151b0b60693e7dd837a5c6cbbc99115c77c",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 1
+        },
+        {
+          "index": 1,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 3
+        },
+        {
+          "index": 2,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.39351851851851855,
+            "ablation": 0.2958715596330275,
+            "quantum": 0.3912037037037037
+          },
+          "dataset_index": 5
+        },
+        {
+          "index": 3,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.3451100870455709,
+            "ablation": 0.3465447154471545,
+            "quantum": 0.3570750237416904
+          },
+          "dataset_index": 7
+        },
+        {
+          "index": 4,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.3235294117647059,
+            "ablation": 0.38461538461538464,
+            "quantum": 0.3684210526315789
+          },
+          "dataset_index": 9
+        },
+        {
+          "index": 5,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 13
+        },
+        {
+          "index": 6,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 15
+        },
+        {
+          "index": 7,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5463414634146342,
+            "ablation": 0.5228426395939086,
+            "quantum": 0.5209302325581395
+          },
+          "dataset_index": 18
+        },
+        {
+          "index": 8,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 20
+        },
+        {
+          "index": 9,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 22
+        },
+        {
+          "index": 10,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.43187066974595845,
+            "ablation": 0.45073891625615764,
+            "quantum": 0.38537549407114624
+          },
+          "dataset_index": 24
+        },
+        {
+          "index": 11,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5464231354642314,
+            "ablation": 0.5679389312977099,
+            "quantum": 0.6260869565217392
+          },
+          "dataset_index": 26
+        },
+        {
+          "index": 12,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.0594059405940594,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 29
+        },
+        {
+          "index": 13,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 31
+        },
+        {
+          "index": 14,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 34
+        },
+        {
+          "index": 15,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 36
+        },
+        {
+          "index": 16,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.5634715025906736,
+            "ablation": 0.5960526315789474,
+            "quantum": 0.5677749360613811
+          },
+          "dataset_index": 38
+        },
+        {
+          "index": 17,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.5198776758409785,
+            "ablation": 0.7115839243498818,
+            "quantum": 0.7431818181818182
+          },
+          "dataset_index": 40
+        },
+        {
+          "index": 18,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 42
+        },
+        {
+          "index": 19,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 44
+        },
+        {
+          "index": 20,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5897435897435898,
+            "ablation": 0.3684210526315789,
+            "quantum": 0.4864864864864865
+          },
+          "dataset_index": 47
+        },
+        {
+          "index": 21,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.42616033755274263,
+            "ablation": 0.2866666666666667,
+            "quantum": 0.3244444444444444
+          },
+          "dataset_index": 49
+        },
+        {
+          "index": 22,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.3333333333333333,
+            "ablation": 0.27064803049555275,
+            "quantum": 0.3445867287543655
+          },
+          "dataset_index": 51
+        },
+        {
+          "index": 23,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.5636523266022827,
+            "ablation": 0.5873873873873874,
+            "quantum": 0.586472602739726
+          },
+          "dataset_index": 56
+        },
+        {
+          "index": 24,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.1724137931034483,
+            "ablation": 0.16,
+            "quantum": 0.16
+          },
+          "dataset_index": 58
+        },
+        {
+          "index": 25,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 60
+        },
+        {
+          "index": 26,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 62
+        },
+        {
+          "index": 27,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.003367003367003367,
+            "ablation": 0.15451895043731778,
+            "quantum": 0.21786833855799373
+          },
+          "dataset_index": 65
+        },
+        {
+          "index": 28,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.37735849056603776,
+            "ablation": 0.37799043062200954,
+            "quantum": 0.39712918660287083
+          },
+          "dataset_index": 67
+        },
+        {
+          "index": 29,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 69
+        },
+        {
+          "index": 30,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 71
+        },
+        {
+          "index": 31,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.15458937198067632,
+            "ablation": 0.10152284263959391,
+            "quantum": 0.1111111111111111
+          },
+          "dataset_index": 74
+        },
+        {
+          "index": 32,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.058823529411764705,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 76
+        },
+        {
+          "index": 33,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 78
+        },
+        {
+          "index": 34,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6635802469135802,
+            "ablation": 0.6452830188679245,
+            "quantum": 0.6741935483870968
+          },
+          "dataset_index": 80
+        },
+        {
+          "index": 35,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.9277777777777778,
+            "ablation": 0.9082191780821918,
+            "quantum": 0.8302354399008675
+          },
+          "dataset_index": 82
+        },
+        {
+          "index": 36,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.06493506493506493,
+            "ablation": 0.06557377049180328,
+            "quantum": 0.07352941176470588
+          },
+          "dataset_index": 84
+        },
+        {
+          "index": 37,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 86
+        },
+        {
+          "index": 38,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 88
+        },
+        {
+          "index": 39,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 90
+        },
+        {
+          "index": 40,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.2391304347826087,
+            "ablation": 0.4,
+            "quantum": 0.46
+          },
+          "dataset_index": 93
+        },
+        {
+          "index": 41,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 96
+        },
+        {
+          "index": 42,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 98
+        },
+        {
+          "index": 43,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 100
+        },
+        {
+          "index": 44,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          },
+          "dataset_index": 102
+        },
+        {
+          "index": 45,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 104
+        },
+        {
+          "index": 46,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 106
+        },
+        {
+          "index": 47,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 108
+        },
+        {
+          "index": 48,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.375,
+            "ablation": 0.07555555555555556,
+            "quantum": 0.13333333333333333
+          },
+          "dataset_index": 111
+        },
+        {
+          "index": 49,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.5114155251141552,
+            "ablation": 0.4591194968553459,
+            "quantum": 0.46195652173913043
+          },
+          "dataset_index": 113
+        },
+        {
+          "index": 50,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3142857142857143,
+            "ablation": 0.25,
+            "quantum": 0.2976878612716763
+          },
+          "dataset_index": 115
+        },
+        {
+          "index": 51,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.23376623376623376,
+            "ablation": 0.1891891891891892,
+            "quantum": 0.1095890410958904
+          },
+          "dataset_index": 117
+        },
+        {
+          "index": 52,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.4079575596816976,
+            "ablation": 0.3969957081545064,
+            "quantum": 0.4477317554240631
+          },
+          "dataset_index": 120
+        },
+        {
+          "index": 53,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 122
+        },
+        {
+          "index": 54,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 125
+        },
+        {
+          "index": 55,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5757575757575758,
+            "ablation": 0.6666666666666666,
+            "quantum": 0.6451612903225806
+          },
+          "dataset_index": 126
+        },
+        {
+          "index": 56,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.2413793103448276,
+            "ablation": 0.45454545454545453,
+            "quantum": 0.3
+          },
+          "dataset_index": 127
+        },
+        {
+          "index": 57,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 128
+        },
+        {
+          "index": 58,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 129
+        },
+        {
+          "index": 59,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 130
+        },
+        {
+          "index": 60,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.3396825396825397,
+            "ablation": 0.3111111111111111,
+            "quantum": 0.34563758389261745
+          },
+          "dataset_index": 131
+        },
+        {
+          "index": 61,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6287425149700598,
+            "ablation": 0.6214285714285714,
+            "quantum": 0.5785714285714286
+          },
+          "dataset_index": 132
+        },
+        {
+          "index": 62,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.4364406779661017,
+            "ablation": 0.4,
+            "quantum": 0.45454545454545453
+          },
+          "dataset_index": 133
+        },
+        {
+          "index": 63,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 134
+        },
+        {
+          "index": 64,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 135
+        },
+        {
+          "index": 65,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 136
+        },
+        {
+          "index": 66,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.6883408071748879,
+            "ablation": 0.6703056768558951,
+            "quantum": 0.6442105263157895
+          },
+          "dataset_index": 137
+        },
+        {
+          "index": 67,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 138
+        },
+        {
+          "index": 68,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.05263157894736842,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 139
+        },
+        {
+          "index": 69,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 140
+        },
+        {
+          "index": 70,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.44776119402985076,
+            "ablation": 0.33112582781456956,
+            "quantum": 0.3442622950819672
+          },
+          "dataset_index": 141
+        },
+        {
+          "index": 71,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 142
+        },
+        {
+          "index": 72,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.3790322580645161,
+            "ablation": 0.3235294117647059,
+            "quantum": 0.38317757009345793
+          },
+          "dataset_index": 143
+        },
+        {
+          "index": 73,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 144
+        },
+        {
+          "index": 74,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5737265415549598,
+            "ablation": 0.5952063914780293,
+            "quantum": 0.5825747724317295
+          },
+          "dataset_index": 145
+        },
+        {
+          "index": 75,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.5753424657534246,
+            "ablation": 0.6681614349775785,
+            "quantum": 0.5694444444444444
+          },
+          "dataset_index": 146
+        },
+        {
+          "index": 76,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.3137254901960784,
+            "ablation": 0.10818713450292397,
+            "quantum": 0.18208092485549132
+          },
+          "dataset_index": 147
+        },
+        {
+          "index": 77,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.2944507361268403,
+            "ablation": 0.6615384615384615,
+            "quantum": 0.6893491124260355
+          },
+          "dataset_index": 148
+        },
+        {
+          "index": 78,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3559322033898305,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 149
+        },
+        {
+          "index": 79,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 150
+        },
+        {
+          "index": 80,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.6806853582554517,
+            "ablation": 0.8511166253101737,
+            "quantum": 0.7321052631578947
+          },
+          "dataset_index": 151
+        },
+        {
+          "index": 81,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.17857142857142858,
+            "ablation": 0.19047619047619047,
+            "quantum": 0.14285714285714285
+          },
+          "dataset_index": 152
+        },
+        {
+          "index": 82,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.7950530035335689,
+            "ablation": 0.8985313751668892,
+            "quantum": 0.7581552305961755
+          },
+          "dataset_index": 153
+        },
+        {
+          "index": 83,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.08356545961002786,
+            "ablation": 0.13668061366806136,
+            "quantum": 0.09344490934449093
+          },
+          "dataset_index": 154
+        },
+        {
+          "index": 84,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 155
+        },
+        {
+          "index": 85,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 156
+        },
+        {
+          "index": 86,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 157
+        },
+        {
+          "index": 87,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 158
+        },
+        {
+          "index": 88,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.45226130653266333,
+            "ablation": 0.4392523364485981,
+            "quantum": 0.47738693467336685
+          },
+          "dataset_index": 159
+        },
+        {
+          "index": 89,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.4533898305084746,
+            "ablation": 0.44324324324324327,
+            "quantum": 0.45739910313901344
+          },
+          "dataset_index": 160
+        },
+        {
+          "index": 90,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 161
+        },
+        {
+          "index": 91,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.4641350210970464,
+            "ablation": 0.4624277456647399,
+            "quantum": 0.39166666666666666
+          },
+          "dataset_index": 162
+        },
+        {
+          "index": 92,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.005,
+            "ablation": 0.004424778761061947,
+            "quantum": 0.004608294930875576
+          },
+          "dataset_index": 163
+        },
+        {
+          "index": 93,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 164
+        },
+        {
+          "index": 94,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.30434782608695654,
+            "ablation": 0.16083916083916083,
+            "quantum": 0.2054794520547945
+          },
+          "dataset_index": 165
+        },
+        {
+          "index": 95,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.16091954022988506,
+            "ablation": 0.047619047619047616,
+            "quantum": 0.0
+          },
+          "dataset_index": 166
+        },
+        {
+          "index": 96,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5656565656565656,
+            "ablation": 0.5793103448275863,
+            "quantum": 0.5460526315789473
+          },
+          "dataset_index": 167
+        },
+        {
+          "index": 97,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.6052631578947368,
+            "ablation": 0.6176470588235294,
+            "quantum": 0.6176470588235294
+          },
+          "dataset_index": 168
+        },
+        {
+          "index": 98,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.5946704067321178,
+            "ablation": 0.6011080332409973,
+            "quantum": 0.5981675392670157
+          },
+          "dataset_index": 169
+        },
+        {
+          "index": 99,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 170
+        },
+        {
+          "index": 100,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.11627906976744186,
+            "ablation": 0.11363636363636363,
+            "quantum": 0.09090909090909091
+          },
+          "dataset_index": 171
+        },
+        {
+          "index": 101,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.07692307692307693,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 172
+        },
+        {
+          "index": 102,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 173
+        },
+        {
+          "index": 103,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.504297994269341,
+            "ablation": 0.5419354838709678,
+            "quantum": 0.4971751412429379
+          },
+          "dataset_index": 174
+        },
+        {
+          "index": 104,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 175
+        },
+        {
+          "index": 105,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 176
+        },
+        {
+          "index": 106,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 177
+        },
+        {
+          "index": 107,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.058823529411764705
+          },
+          "dataset_index": 178
+        },
+        {
+          "index": 108,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 179
+        },
+        {
+          "index": 109,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.4916317991631799,
+            "ablation": 0.48036951501154734,
+            "quantum": 0.48156182212581344
+          },
+          "dataset_index": 180
+        },
+        {
+          "index": 110,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 181
+        },
+        {
+          "index": 111,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 182
+        },
+        {
+          "index": 112,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 183
+        },
+        {
+          "index": 113,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.6630565583634176,
+            "ablation": 0.645398773006135,
+            "quantum": 0.6658446362515413
+          },
+          "dataset_index": 184
+        },
+        {
+          "index": 114,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.02531645569620253,
+            "ablation": 0.038461538461538464,
+            "quantum": 0.013888888888888888
+          },
+          "dataset_index": 185
+        },
+        {
+          "index": 115,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.5308056872037915,
+            "ablation": 0.2987012987012987,
+            "quantum": 0.3868116927260367
+          },
+          "dataset_index": 186
+        },
+        {
+          "index": 116,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 187
+        },
+        {
+          "index": 117,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 188
+        },
+        {
+          "index": 118,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 189
+        },
+        {
+          "index": 119,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5825105782792666,
+            "ablation": 0.5898491083676269,
+            "quantum": 0.574468085106383
+          },
+          "dataset_index": 190
+        },
+        {
+          "index": 120,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 191
+        },
+        {
+          "index": 121,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 192
+        },
+        {
+          "index": 122,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.32142857142857145,
+            "ablation": 0.4,
+            "quantum": 0.2
+          },
+          "dataset_index": 193
+        },
+        {
+          "index": 123,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 194
+        },
+        {
+          "index": 124,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.22549019607843138,
+            "ablation": 0.05536332179930796,
+            "quantum": 0.07612456747404844
+          },
+          "dataset_index": 195
+        },
+        {
+          "index": 125,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 196
+        },
+        {
+          "index": 126,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 197
+        },
+        {
+          "index": 127,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 198
+        },
+        {
+          "index": 128,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.6363636363636364,
+            "ablation": 0.6183986371379898,
+            "quantum": 0.6182108626198083
+          },
+          "dataset_index": 199
+        },
+        {
+          "index": 129,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.28,
+            "ablation": 0.20833333333333334,
+            "quantum": 0.2361111111111111
+          },
+          "dataset_index": 200
+        },
+        {
+          "index": 130,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.036585365853658534,
+            "ablation": 0.08,
+            "quantum": 0.027777777777777776
+          },
+          "dataset_index": 201
+        },
+        {
+          "index": 131,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 202
+        },
+        {
+          "index": 132,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.6350710900473934,
+            "ablation": 0.5094339622641509,
+            "quantum": 0.5798816568047337
+          },
+          "dataset_index": 203
+        },
+        {
+          "index": 133,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.660377358490566,
+            "ablation": 0.6394557823129252,
+            "quantum": 0.6440443213296398
+          },
+          "dataset_index": 204
+        }
+      ],
+      "selected": {
+        "worst": 27,
+        "median": 17
+      },
+      "example_modality": "sar"
+    }
+  ]
+}

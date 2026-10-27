@@ -1,0 +1,51 @@
+{
+  "source_revision": "9cdf9f07a28f0d4e6455768aa431befc3b2fb08a",
+  "source_hashes": {
+    "misc/build_qualitative_error_figure.py": "90e391d587f3d05a2e33f0af1dc2be8bf52fa759a21e20c7708165eb7ac92176",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+    "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+    "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53"
+  },
+  "launcher_sha256": "6c2838359d5098b860c8efedf84dcce61c6ff377c4f23369ecfc2192b3a2db91",
+  "audit": [
+    {
+      "mode": "global",
+      "sensor": "optical",
+      "groups": 3,
+      "tiles_per_group": 71,
+      "original_prediction_parity": true,
+      "selection_checked": true
+    },
+    {
+      "mode": "global",
+      "sensor": "sar",
+      "groups": 3,
+      "tiles_per_group": 134,
+      "original_prediction_parity": true,
+      "selection_checked": true
+    },
+    {
+      "mode": "patch4x4",
+      "sensor": "optical",
+      "groups": 3,
+      "tiles_per_group": 71,
+      "original_prediction_parity": true,
+      "selection_checked": true
+    },
+    {
+      "mode": "patch4x4",
+      "sensor": "sar",
+      "groups": 3,
+      "tiles_per_group": 134,
+      "original_prediction_parity": true,
+      "selection_checked": true
+    }
+  ],
+  "device": "cuda",
+  "batch_size": 8,
+  "memory_max": "3G",
+  "memory_swap_max": 0,
+  "note": "Original pooled figures retained separately; every per-tile IoU and checkpoint fingerprint matched the original before subset selection"
+}

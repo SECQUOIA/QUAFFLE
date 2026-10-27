@@ -1,0 +1,20 @@
+{
+  "tuning/unet_width7/0.001/seed42/checkpoint.pt": "db970e00c29d2ed464a9094861c231a79ece246ecc99df994b51a78317612a35",
+  "replication/unet_width7/seed77/checkpoint.pt": "e76d00ca49881f4c11aa1da036241fa9c8edb01e9f9e5d5839bf766abb640edd",
+  "replication/unet_width7/seed123/checkpoint.pt": "86214506eae00cb0c36001d4ef1575e54637aafb2ea3ffa393eb355a51db9078",
+  "tuning/unet_width8/0.003/seed42/checkpoint.pt": "0dfaf21e4726142a237768a11745d55e956eb6ab43588e87bdcf99b801abb69b",
+  "replication/unet_width8/seed77/checkpoint.pt": "1b0f37623611ec607215deade0ccbcb065613737ece3ae235e045b2ae2a2d504",
+  "replication/unet_width8/seed123/checkpoint.pt": "e5745403ad96082792cfa52a029ddb3db4ec9a8f8d4f9b2e280bff2e515e42e3",
+  "tuning/mlp_global/0.001/seed42/checkpoint.pt": "3d29a210246d256dda622d113cac8ce48ec4b59beeaf5b03870c61076ff8614d",
+  "replication/mlp_global/seed77/checkpoint.pt": "9a8208734fd0a6a9aadbfa075fd7c0844464f571abf858affd62b80ec40760ca",
+  "replication/mlp_global/seed123/checkpoint.pt": "483aacd5e48b84f35e8dbb1adc30a0804300bbaf274ec7b72b11e54f4668db2f",
+  "tuning/mlp_patch4x4/0.003/seed42/checkpoint.pt": "6b2fa3a2aeeba0e3ffea8de03f43318012f82ec63c256c41c5dd60f63d052867",
+  "replication/mlp_patch4x4/seed77/checkpoint.pt": "309920b1e1d438688704e1a70c01e67a6545c620e85f8b977b94ac334314cae4",
+  "replication/mlp_patch4x4/seed123/checkpoint.pt": "c520bf90a2dc0d483e9eff95a9d9016cac829caaf70ae53d2cdb7d975d682b37",
+  "tuning/quantum_global/0.001/seed42/checkpoint.pt": "70943401d173a68b0dcff8c9c403c37b4c66e5d8d983027e019a402c6f24ab29",
+  "replication/quantum_global/seed77/checkpoint.pt": "dfaebcb3812c9d7bff2f62d3903e95ff58e5fbd18b475f55ec95047e2863e524",
+  "replication/quantum_global/seed123/checkpoint.pt": "47254834101ac221bc0338e905197069f44a73f99fbb2210b9c3289326574b97",
+  "tuning/quantum_patch4x4/0.003/seed42/checkpoint.pt": "458d80f228ef575b76a5ebab1fe6538f1e77788028fe1a181fc8a199be4c6f01",
+  "replication/quantum_patch4x4/seed77/checkpoint.pt": "85b14f0eae967e363e387dd19acca3fe131e3284ab9d843853ab872d51beeefd",
+  "replication/quantum_patch4x4/seed123/checkpoint.pt": "265f610f95e69085e2a3fa7123fe2151b0b60693e7dd837a5c6cbbc99115c77c"
+}

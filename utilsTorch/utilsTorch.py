@@ -176,6 +176,7 @@ class QVUNetSegmentation(torch.nn.Module):
                         q_spatial_mode=q_spatial_mode,
                         hqunet_grid=hqunet_grid,
                         n_qubits=n_qubits,
+                        q_training_control=self.config.get('q_training_control', 'trainable'),
                     )
                 quantum_block = make_block(0)
                 quantum_block2 = None if share else make_block(1)

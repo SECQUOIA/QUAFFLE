@@ -1,0 +1,19 @@
+{
+  "pilot_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+  "retention_source_revision": "33b67bf2f17841f70bd5f3b5a082f9ad64a20689",
+  "source_policy": "Original executable hashes matched at collection. Later control support changes those files; reproduce this historical collection from the retention revision, not a new executable snapshot.",
+  "raw_run": "/tmp/quaffle-real-spatial-runs-60ep-20261027",
+  "raw_log": "/tmp/quaffle-real-spatial-runs-60ep-20261027.log",
+  "raw_log_sha256": "0d4a777e0e06ade883c6d5d8b18d7f93f84a24ad34ea122b6aa5b63fd9284dce",
+  "actual_command": "python scripts/run_real_spatial_pilot.py --data-root /tmp/quaffle-dfc24-real --work-dir /tmp/quaffle-real-spatial-runs-60ep-20261027 --device cuda --epochs 60",
+  "limits": "6G RAM, no swap, 2 threads, 0.12 GPU allocator fraction",
+  "parallel_fit": "One seed123 patchwise Q replication overlapped the main process, with unchanged fit_one/source/settings and a separate4G cap. Main reused the finished checkpoint; no race or duplicate training.",
+  "original_exit_code": 0,
+  "collection_exit_code": 0,
+  "strict_restores": 24,
+  "selected_test_replays": 18,
+  "qualitative": "Both modes/all3seeds/full205tiles,71optical134SAR; all checkpoint and normalization identities verified. PNGs visually inspected separately.",
+  "scope": "Local centralized capped-optimization pilot; Anvil execution belongs to Alan and was not performed here",
+  "postprocessing": "CSV line endings normalized to LF after collection; parsed rows verified unchanged. Interpretation and supplementary provenance added separately.",
+  "sensor_views": "12Optical/SARsubsetgroups(2modes x2sensors x3seeds);71/134tiles;allper-tilevaluesandcheckpointidentitiesmatchpooledexport. Representativeoverlay/scatterPNGsandnative-resolutiontitlecropinspected. Source9cdf9f0;noadditionaltraining."
+}

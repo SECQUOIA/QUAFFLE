@@ -1,0 +1,8 @@
+{
+  "tuning/quantum_frozen_global/0.001/seed42/checkpoint.pt": "57ec203dc900edc86c682da74445313f5c1a3a1403ff0e2c1e1f1affd96fa74b",
+  "replication/quantum_frozen_global/seed77/checkpoint.pt": "44ae64de47885abab32c118ef503a3dd289b6eb7b64f75e0e4802c79545fd84f",
+  "replication/quantum_frozen_global/seed123/checkpoint.pt": "79811cf0720fc7c6ae2f7e3883162cb7ef6de1c15c0dc20480dde7f185768240",
+  "tuning/quantum_no_entanglement_global/0.003/seed42/checkpoint.pt": "7eb9267577367b00483aebc223feaf554a68030e17328a982d4086f9f325b14c",
+  "replication/quantum_no_entanglement_global/seed77/checkpoint.pt": "e01086bfc34904b6d48175161aeaac638260c4dd4daca9618023b40b43606b12",
+  "replication/quantum_no_entanglement_global/seed123/checkpoint.pt": "6c8e340473c54498e7c5a9a0f4961d69709f2d1649121eee0b1f3e953e6e8d3d"
+}

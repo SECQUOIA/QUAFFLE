@@ -2172,6 +2172,7 @@ def _normalize_saved_fingerprint(saved, model_type=None):
     uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
     is_fed = 'fed_rounds' in out or 'partition' in out
     defaults = {
+        'q_training_control': 'trainable' if eff_model_type == 'quantum' else None,
         'n_qubits': DEFAULT_N_QUBITS if quantum else None,
         'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
         'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
@@ -2277,6 +2278,11 @@ def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
         raise SystemExit(75)
 
 
+def effective_q_training_control(config):
+    from utilsTorch.unetTorch import normalize_q_training_control
+    return normalize_q_training_control(config.get('q_training_control'))
+
+
 def centralized_fingerprint(config, model_type):
     """Settings that must match for a centralized checkpoint to be resumed."""
     ansatz, layers = effective_q_variant(config)
@@ -2291,6 +2297,7 @@ def centralized_fingerprint(config, model_type):
     skip_mod = effective_skip_modulation(config) if quantum else None
     return {
         'model_type': model_type,
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
         'dataset': config.get('dataset', 'optical'),
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'seed': int(config['seed']),
@@ -2764,6 +2771,7 @@ def run_fingerprint(config, model_type):
     skip_mod = effective_skip_modulation(config) if quantum else None
     fp = {
         'model_type': model_type,
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
         'dataset': config.get('dataset', 'optical'),
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'partition': config.get('partition', 'random'),
@@ -3144,6 +3152,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
             best_val_score = None
     payload = {
         'schema': 'quaffle-metrics-v1',
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
         'run_dir': os.path.basename(os.path.normpath(output_dir)),
         'script': script,
         'training': training,

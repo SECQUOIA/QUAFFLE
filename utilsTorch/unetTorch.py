@@ -287,6 +287,16 @@ N_QUBITS_CHOICES = (2, 4, 8, 12, 16)
 DEFAULT_N_QUBITS = 4
 N_QUBITS = DEFAULT_N_QUBITS
 Q_ANSATZ_CHOICES = ('legacy', 'reupload', 'hqunet')
+Q_TRAINING_CONTROL_CHOICES = ('trainable', 'frozen', 'no_entanglement')
+
+
+def normalize_q_training_control(value=None):
+    value = 'trainable' if value is None else str(value).strip().lower()
+    if value not in Q_TRAINING_CONTROL_CHOICES:
+        raise ValueError(f'Unknown q_training_control {value!r}; expected {Q_TRAINING_CONTROL_CHOICES}')
+    return value
+
+
 Q_SPATIAL_MODES = ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
 DEFAULT_Q_SPATIAL_MODE = 'global'
 HQUNET_GRID_CHOICES = (2, 4)
@@ -423,7 +433,8 @@ def hqunet_grid_edges(grid_size: int = DEFAULT_HQUNET_GRID):
 def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=None,
                          seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
                          q_sim_device='cpu', q_spatial_mode=DEFAULT_Q_SPATIAL_MODE,
-                         hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS):
+                         hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS,
+                         q_training_control='trainable'):
     """
     Create a QuantumBlock that processes channels in groups of n_qubits (or on a GxG grid for hqunet).
     """
@@ -431,7 +442,8 @@ def create_quantum_block(backend='ptlayer', quantum_channels=8, ptlayer_config=N
                         ptlayer_config=ptlayer_config, seed=seed,
                         q_ansatz=q_ansatz, q_layers=q_layers, q_backend=q_backend,
                         q_sim_device=q_sim_device, q_spatial_mode=q_spatial_mode,
-                        hqunet_grid=hqunet_grid, n_qubits=n_qubits)
+                        hqunet_grid=hqunet_grid, n_qubits=n_qubits,
+                        q_training_control=q_training_control)
 
 
 def pennylane_default_circuit(n_qubits=4):
@@ -477,7 +489,7 @@ def pennylane_default_circuit(n_qubits=4):
     return circuit
 
 
-def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
+def pennylane_reupload_circuit(n_qubits=4, n_layers=2, entangle=True):
     """Data re-uploading circuit (q_ansatz='reupload').
 
     For each layer l = 0..n_layers-1:
@@ -503,8 +515,9 @@ def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
                 qml.RY(enc[:, j], wires=j)
             for j in range(n_qubits):
                 qml.Rot(weights[l, j, 0], weights[l, j, 1], weights[l, j, 2], wires=j)
-            for j in range(n_qubits):
-                qml.CNOT(wires=[j, (j + 1) % n_qubits])
+            if entangle:
+                for j in range(n_qubits):
+                    qml.CNOT(wires=[j, (j + 1) % n_qubits])
         return [qml.expval(qml.PauliZ(j)) for j in range(n_qubits)]
 
     return circuit
@@ -516,7 +529,7 @@ def pennylane_reupload_circuit(n_qubits=4, n_layers=2):
 _FLAT_QNODES = {}
 
 
-def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None):
+def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None, entangle=True):
     """One default.qubit QNode that evaluates all groups and batch items at once.
 
     Inputs are broadcast along a leading axis K = B * G:
@@ -528,7 +541,7 @@ def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None):
     """
     if n_qubits is None:
         n_qubits = N_QUBITS
-    key = (q_ansatz, int(n_layers), int(n_qubits))
+    key = (q_ansatz, int(n_layers), int(n_qubits), bool(entangle))
     if key in _FLAT_QNODES:
         return _FLAT_QNODES[key]
     if not HAS_PENNYLANE:
@@ -554,8 +567,9 @@ def pennylane_flat_qnode(q_ansatz, n_layers=1, n_qubits=None):
                     qml.RY(enc[:, j], wires=j)
                 for j in range(n_qubits):
                     qml.Rot(weights[:, l, j, 0], weights[:, l, j, 1], weights[:, l, j, 2], wires=j)
-                for j in range(n_qubits):
-                    qml.CNOT(wires=[j, (j + 1) % n_qubits])
+                if entangle:
+                    for j in range(n_qubits):
+                        qml.CNOT(wires=[j, (j + 1) % n_qubits])
             return [qml.expval(qml.PauliZ(j)) for j in range(n_qubits)]
     else:
         raise ValueError(f"Unknown q_ansatz {q_ansatz!r}")
@@ -927,8 +941,16 @@ class QuantumBlock(nn.Module):
     def __init__(self, backend='pennylane', quantum_channels=8, ptlayer_config=None,
                  seed=None, q_ansatz='reupload', q_layers=2, q_backend='pennylane',
                  q_sim_device='cpu', q_spatial_mode=DEFAULT_Q_SPATIAL_MODE,
-                 hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS):
+                 hqunet_grid=DEFAULT_HQUNET_GRID, n_qubits=DEFAULT_N_QUBITS,
+                 q_training_control='trainable'):
         super().__init__()
+
+        self.q_training_control = normalize_q_training_control(q_training_control)
+        if self.q_training_control != 'trainable' and (
+                backend != 'pennylane' or q_ansatz != 'reupload'
+                or q_backend not in ('pennylane', 'pennylane_pergroup')):
+            raise ValueError('Quantum training controls require the reupload ansatz and a PennyLane backend')
+        self.q_entangle = self.q_training_control != 'no_entanglement'
 
         if q_ansatz not in Q_ANSATZ_CHOICES:
             raise ValueError(f"Unknown q_ansatz {q_ansatz!r}, expected one of {Q_ANSATZ_CHOICES}")
@@ -1094,6 +1116,10 @@ class QuantumBlock(nn.Module):
         else:
             raise ValueError(f'Unknown quantum backend: {backend}')
 
+        if self.q_training_control == 'frozen':
+            for parameter in self.parameters():
+                parameter.requires_grad_(False)
+
     @property
     def n_params_per_group(self):
         if self.backend != 'pennylane':
@@ -1126,13 +1152,16 @@ class QuantumBlock(nn.Module):
                 self.pennylane_circuits.append(pennylane_default_circuit(n_qubits=self.n_qubits))
             else:
                 self.pennylane_circuits.append(
-                    pennylane_reupload_circuit(n_qubits=self.n_qubits, n_layers=self.q_layers))
+                    pennylane_reupload_circuit(n_qubits=self.n_qubits, n_layers=self.q_layers,
+                                              entangle=self.q_entangle))
 
     def set_q_backend(self, q_backend):
         """Switch the circuit simulator ('pennylane', 'pennylane_pergroup' or
         'torch') in place. Parameters are untouched."""
         if q_backend not in Q_BACKEND_CHOICES:
             raise ValueError(f"Unknown q_backend {q_backend!r}, expected one of {Q_BACKEND_CHOICES}")
+        if self.q_training_control != 'trainable' and q_backend == 'torch':
+            raise ValueError('Quantum training controls require a PennyLane backend')
         if self.backend == 'pennylane':
             if q_backend == 'pennylane_pergroup':
                 self._build_pennylane_circuits()
@@ -1158,6 +1187,7 @@ class QuantumBlock(nn.Module):
             return {'q_backend': None, 'family': self.backend}
         circuit_nq = self.hqunet_grid ** 2 if self.q_ansatz == 'hqunet' else self.n_qubits
         meta = {
+            'q_training_control': self.q_training_control,
             'n_qubits': circuit_nq,
             'num_groups': self.num_groups,
             'quantum_channels': self.quantum_channels,
@@ -1304,7 +1334,8 @@ class QuantumBlock(nn.Module):
         w = w.to(sim)
         if s is not None:
             s = s.to(sim)
-        circuit = pennylane_flat_qnode(self.q_ansatz, self.q_layers, n_qubits=nq)
+        circuit = pennylane_flat_qnode(self.q_ansatz, self.q_layers, n_qubits=nq,
+                                      entangle=self.q_entangle)
 
         def _run_chunk(p_sub, w_in, s_in=None):
             nc, gc, _ = p_sub.shape
@@ -2659,4 +2690,3 @@ class UNet(nn.Module):
         h, time_emb = self.vertex(h, time_emb)
         h = self.up(x, h, hs, time_emb)
         return h
- 

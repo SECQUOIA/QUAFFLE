@@ -30,6 +30,130 @@ An absent sensor is identified by `*_subset_n_samples = 0`; its AUC uses the
 existing single-class fallback. Datasets without metadata retain the existing
 five-field evaluation result.
 
+## Bounded real-data spatial pilot
+
+Keep the input's manifest/cache snapshot under the supplied data root so the
+byte-identity check and loader use the same committed files:
+
+```bash
+PILOT_DATA_ROOT=/path/to/data
+mkdir -p "$PILOT_DATA_ROOT/splits"
+cp splits/flood_optical.json splits/flood_SAR.json splits/flood_combined.json \
+  splits/norm_stats.json "$PILOT_DATA_ROOT/splits/"
+```
+
+```bash
+python scripts/run_real_spatial_pilot.py --data-root /path/to/data \
+  --work-dir /tmp/real-spatial-pilot --device cuda
+```
+
+This centralized screen compares full quantum and classical MLP bottlenecks in
+global and shared 4×4 modes, an ordinary width-8 U-Net, and the nearest ordinary
+U-Net parameter budget (width 7). All use one-group normalization, full
+bottleneck processing, no decoder skip gate, and the same paired data choices.
+
+Defaults are 64-pixel inputs, 128 optimization fit tiles per seed, batch size 16,
+30 epochs, validation every two epochs, and seeds 42/77/123. The global validation
+partition and test set are uncapped. Normalization excludes validation but uses
+all global fit images, including unused optimization tiles; this is not a pure
+few-image learning experiment. Raw kept files are checked against the committed
+drop manifest before fitting, and saved normalization is checked at test replay.
+
+Seed 42 selects the learning rate (0.001 or 0.003) separately for each model using
+validation IoU. The remaining seeds use that selected rate. All candidate runs
+receive the same epoch/checkpoint budget. Test data are evaluated only after
+every tuning and replication fit has finished. The output retains all candidate
+histories, selections, checkpoints, per-sensor test scores, paired contrasts,
+gradient norms, parameter movement, bottleneck output variation, and zero/random
+knockouts. `report.md` summarizes results and flags selections near the run limit.
+
+Use `--resume` only with identical settings, input identities and executable
+source hashes, Python/package versions, device/GPU and thread/allocator settings.
+Completed fit records are reused; incomplete attempts are
+preserved separately. Resumed summaries retain the original frozen producing
+plan even when an unrelated Git revision has changed, so subsequent collection
+remains consistent with `plan.json`. An Anvil follow-up should repeat the
+comparison with the
+full optimization fit partition and adequate convergence before drawing a final
+ranking or a federated-performance conclusion.
+
+After the run finishes, retain the audited JSON/CSV records and learning curves:
+
+```bash
+python scripts/collect_real_spatial_results.py --run-dir /tmp/real-spatial-pilot \
+  --out-dir /tmp/real-spatial-evidence
+```
+
+An optional `--screen-dir` retains a preceding validation-only screen with its
+`screen_disposition.json` stopping record. Checkpoints stay in the run directory;
+their hashes are retained with the smaller review artifacts. The local pilot
+does not establish Anvil or federated performance.
+
+The 2026-10-27 local campaign increased the common budget to `--epochs 60`
+after a validation-only 30-epoch screen showed continued improvement. Both
+campaigns and the stopping reason are retained; neither screen's test scores
+were used to choose that change.
+
+For this three-seed campaign, inspect the fixed rule for additional controls
+without reading any trained-model test scores:
+
+```bash
+python scripts/check_spatial_control_trigger.py \
+  --run-dir /tmp/real-spatial-pilot --out /tmp/spatial-control-decision.json
+```
+
+The rule waits for both quantum/MLP modes at seeds 42, 77 and 123. A mode
+qualifies for frozen-circuit and no-entanglement training controls when its
+mean paired validation IoU gain is at least 0.005, it wins in at least two
+seeds, and its selected circuit angles moved in every seed. If both qualify,
+the larger mean gain takes priority. This criterion was recorded in local task
+state when the 60-epoch run started; its executable helper was added later.
+It is an exploratory screening rule, not a significance test.
+
+When that rule qualifies a mode, run the additional controls in a new directory:
+
+```bash
+python scripts/run_quantum_training_controls.py \
+  --baseline-run /tmp/real-spatial-pilot --data-root /path/to/data \
+  --work-dir /tmp/real-spatial-controls
+```
+
+The launcher reads validation-only fit records, chooses the qualifying mode by
+the recorded rule, and inherits the baseline's seeds, rate grid, fit cap, image
+size, batch size, epoch budget and evaluation schedule. It refuses incomplete
+or nonqualifying comparisons and checks the original input byte identity. The
+two new models receive independent rate selection with the same tuning budget;
+their test replay follows all control fits. The launcher and decision helper
+are included in the new run's source hashes.
+
+The `q_training_control` configuration field defaults to `trainable`. `frozen`
+keeps circuit angles and input scales at their original initialization while
+training the classical model around them. `no_entanglement` removes every CNOT
+ring while retaining and training the same single-qubit rotations, input
+scales and classical model. These two controls currently require the reupload
+ansatz and a PennyLane backend. They preserve total parameter counts; the
+frozen model has fewer trainable parameters. Checkpoint settings, simulator
+metadata and centralized/federated resume fingerprints record the choice.
+
+After every control fit and test replay finishes, retain its artifacts and
+generate the paired comparison against the original retained pilot:
+
+```bash
+python scripts/collect_real_spatial_results.py \
+  --run-dir /tmp/real-spatial-controls --out-dir /tmp/control-evidence
+python scripts/summarize_quantum_training_controls.py \
+  --baseline-dir /tmp/real-spatial-evidence --control-run /tmp/real-spatial-controls \
+  --out-dir /tmp/control-evidence
+```
+
+The comparison verifies initialization, cohorts, normalization, configuration,
+budgets and recorded runtime settings across the two campaigns. It checks the
+frozen circuit stayed fixed and distinguishes total from trainable parameters.
+Each model independently selects its rate from the same grid; the report
+includes those selected-rate differences. It retains every original model and
+both controls, together with seed-paired differences and sample standard
+deviations. The three-seed comparison is descriptive.
+
 ## Compare typical and failure examples from saved checkpoints
 
 ```bash

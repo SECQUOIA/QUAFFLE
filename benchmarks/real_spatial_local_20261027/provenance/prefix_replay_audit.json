@@ -1,0 +1,8 @@
+{
+  "model": "unet_width7",
+  "seed": 42,
+  "learning_rate": 0.001,
+  "common_prefix_epochs": 30,
+  "max_training_loss_difference": 1.4901161193847656e-08,
+  "max_validation_iou_difference": 0.0
+}

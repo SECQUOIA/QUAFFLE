@@ -1,0 +1,22 @@
+{
+  "producing_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+  "collection_source_revision": "d5f11ad19c00229654278faf06187424d60b3102",
+  "full_suite": "282 passed, 21 warnings in 263.02s; final producer differs only by removal of trailing whitespace; executable AST equality verified",
+  "comparison_checks": "9 passed in 0.07s at source9cdf9f0; all producing executable hashes also match the integrated results branch",
+  "raw_run": "/tmp/quaffle-real-quantum-controls-20261027",
+  "raw_log": "/tmp/quaffle-real-quantum-controls-20261027.log",
+  "raw_log_sha256": "c8019b2cecfb3f51fb6aa0a09e86f272fadba586e752479c2f6e194bcfdf7063",
+  "command": "python scripts/run_quantum_training_controls.py --baseline-run /tmp/quaffle-real-spatial-runs-60ep-20261027 --data-root /tmp/quaffle-dfc24-real --work-dir /tmp/quaffle-real-quantum-controls-20261027",
+  "limits": "6G RAM/no swap;2threads;0.12GPUallocatorfraction",
+  "exits": {
+    "training": 0,
+    "collection": 0,
+    "strict_restore": 0,
+    "paired_comparison": 0
+  },
+  "completed_fits": 8,
+  "selected_test_replays": 6,
+  "strict_checkpoints": 8,
+  "normalized_input_scope": "128 optimization tiles per seed; all global fit tiles contribute normalization, validation excluded; full205testtiles",
+  "review_budget": "Source preflight round1 retained with original pilot; results review remains round2 of shared3; no verification passes yet"
+}

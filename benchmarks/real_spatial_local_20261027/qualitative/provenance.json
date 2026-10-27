@@ -1,0 +1,16 @@
+{
+  "source_revision": "33b67bf2f17841f70bd5f3b5a082f9ad64a20689",
+  "figure_source_sha256": "90e391d587f3d05a2e33f0af1dc2be8bf52fa759a21e20c7708165eb7ac92176",
+  "launcher_sha256": "e4a3b748aac86e309c42eeca7961b42035c8f7fde8ef2956f4f1f485df35659a",
+  "checkpoint_root": "/tmp/quaffle-real-spatial-runs-60ep-20261027",
+  "data_root": "/tmp/quaffle-dfc24-real",
+  "device": "cuda",
+  "batch_size": 8,
+  "classical_baseline": "unet_width7; nearest ordinary U-Net count, +2.05% vs quantum",
+  "selection": "All three seeds, both spatial modes; median/worst selected by fixed classical rule; no best-test-seed selection",
+  "all_groups_tiles": 205,
+  "optical_tiles": 71,
+  "sar_tiles": 134,
+  "normalization_verified": true,
+  "note": "Per-tile empty-union IoU is zero; pooled test IoU is calculated from pixel totals, not the average of tile IoUs"
+}

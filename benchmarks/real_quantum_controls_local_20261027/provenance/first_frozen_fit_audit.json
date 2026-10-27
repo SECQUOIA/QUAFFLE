@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "same full initial parameter hash",
+    "same fit/validation cohorts and normalization",
+    "same total count",
+    "512 core parameters frozen",
+    "classical backbone trained on all480steps"
+  ],
+  "total_params": 500394,
+  "trainable_params": 499882,
+  "selected_epoch": 58,
+  "validation_iou": 0.6267035890753109,
+  "circuit_movement_l2": 0,
+  "input_scale_movement_l2": 0,
+  "backbone_movement_l2": 14.391738356085503
+}
