@@ -158,11 +158,20 @@ class LocalSpatialBottleneckBlock(nn.Module):
         return self
 
     def simulator_info(self):
-        return dict(backend='pennylane' if self.kind == 'quantum' else 'classical',
-            device='cpu' if self.kind == 'quantum' else 'model', n_qubits=4 if self.kind == 'quantum' else None,
+        quantum = self.kind == 'quantum'
+        info = dict(backend='pennylane' if quantum else 'classical',
+            q_backend='pennylane' if quantum else None,
+            family='pennylane' if quantum else 'classical',
+            device='default.qubit' if quantum else None,
+            sim_device='cpu' if quantum else 'model', n_qubits=4 if quantum else None,
             local_spatial_kernel=self.kind, local_spatial_readout=self.readout,
             local_spatial_channels=self.feature_channels, q_training_control=self.q_training_control,
             core_shared_over='locations and projected channels', max_tokens=self._MAX_TOKENS)
+        if quantum:
+            info.update(interface='torch', diff_method='backprop',
+                broadcast='batch of local 2x2 windows',
+                readout_method='exact expectations derived from the statevector')
+        return info
 
     def _tokens(self, x):
         projected = self.pre_q_conv(x)
