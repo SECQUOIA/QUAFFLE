@@ -287,6 +287,54 @@ def duration_comparison(matched, longer):
     return results
 
 
+def stability_summaries(matched, longer):
+    """Describe loss trajectories without classifying normal warmup as a defect."""
+    rows = []
+    for phase, artifact in (('matched60', matched), ('long120', longer)):
+        for record in artifact['summary']['records']:
+            losses = [point for point in record['history'] if point['train_loss'] is not None]
+            initial = losses[0]
+            maximum = max(losses, key=lambda point: (point['train_loss'], -point['epoch']))
+            after10 = max((point for point in losses if point['epoch'] > 10),
+                          key=lambda point: (point['train_loss'], -point['epoch']))
+            jumps = [(later['train_loss'] - earlier['train_loss'], later['epoch'])
+                     for earlier, later in zip(losses, losses[1:])
+                     if later['epoch'] == earlier['epoch'] + 1]
+            positive = [(jump, epoch) for jump, epoch in jumps if jump > 0]
+            largest = max(positive, key=lambda item: (item[0], -item[1])) if positive else (0.0, None)
+            rows.append(dict(phase=phase, id=record['id'], seed=record['seed'],
+                learning_rate=record['learning_rate'], epochs=artifact['plan']['epochs'],
+                initial_train_loss=initial['train_loss'], initial_train_loss_epoch=initial['epoch'],
+                max_train_loss=maximum['train_loss'], max_train_loss_epoch=maximum['epoch'],
+                max_train_loss_after_epoch10=after10['train_loss'],
+                max_train_loss_after_epoch10_epoch=after10['epoch'],
+                max_positive_adjacent_loss_jump=largest[0], max_positive_adjacent_loss_jump_epoch=largest[1],
+                selected_checkpoint_epoch=record['best_epoch'],
+                selected_checkpoint_late=record['best_epoch'] >= artifact['plan']['epochs'] - artifact['plan']['eval_every']))
+    return rows
+
+
+def stability_report(rows):
+    lines = ['# Descriptive training stability summaries', '',
+        'Every loss is the recorded per-epoch optimization Dice plus cross-entropy loss. '
+        'An initially high loss is not automatically instability. The maximum strictly after epoch 10 is a specified descriptive summary, '
+        'not a diagnostic threshold or a criterion for selecting models.',
+        'Adjacent-epoch jumps use later minus earlier loss; zero with no epoch means no positive increase occurred. '
+        'Ties select the earliest epoch. A late checkpoint was selected in the final evaluation window (last two epochs).', '',
+        '| Budget | Model | Seed | Fixed LR | Initial loss | Maximum loss (epoch) | Maximum after epoch 10 (epoch) | Largest positive adjacent jump (epoch) | Selected epoch; late |',
+        '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |']
+    for row in rows:
+        jump_epoch = row['max_positive_adjacent_loss_jump_epoch']
+        jump_label = 'none' if jump_epoch is None else str(jump_epoch)
+        lines.append(f"| {row['epochs']} | {row['id']} | {row['seed']} | {row['learning_rate']:g} | "
+                     f"{row['initial_train_loss']:.4f} | {row['max_train_loss']:.4f} ({row['max_train_loss_epoch']}) | "
+                     f"{row['max_train_loss_after_epoch10']:.4f} ({row['max_train_loss_after_epoch10_epoch']}) | "
+                     f"{row['max_positive_adjacent_loss_jump']:.4f} ({jump_label}) | "
+                     f"{row['selected_checkpoint_epoch']}; {'yes' if row['selected_checkpoint_late'] else 'no'} |")
+    lines += ['', 'These summaries describe observed trajectories; they do not establish significance, an optimization mechanism or a causal quantum benefit.', '']
+    return '\n'.join(lines)
+
+
 def save_figure(fig, out, stem, title):
     timestamp = datetime(2026, 10, 27, tzinfo=timezone.utc)
     fig.savefig(out / (stem + '.png'), dpi=150, bbox_inches='tight', metadata={'Software': 'QUAFFLE local rate study'})
@@ -322,6 +370,36 @@ def plot_curves(summary, out):
     fig.suptitle('Full 120-epoch validation trajectories; dashed line marks epoch 60', fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     save_figure(fig, out, 'validation_curves_120ep', 'Full 120-epoch validation trajectories')
+    plt.close(fig)
+
+
+def plot_training_curves(summary, out):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    names = (*study.QUANTUM, 'mlp_patch4x4')
+    labels = ('Entangled global circuit', 'Separable global circuit', 'Patchwise classical MLP')
+    colors = ('#0072B2', '#D55E00', '#009E73')
+    fig, axes = plt.subplots(3, 2, figsize=(11, 9), sharex=True, sharey=False)
+    for index, (name, label) in enumerate(zip(names, labels)):
+        for column, rate in enumerate(study.RATES):
+            axis = axes[index, column]
+            for seed, color in zip(study.SEEDS, colors):
+                row = next(row for row in summary['records'] if study.cell_key(row) == (name, seed, rate))
+                points = [point for point in row['history'] if point['train_loss'] is not None]
+                axis.plot([point['epoch'] for point in points], [point['train_loss'] for point in points],
+                          color=color, label='Seed ' + str(seed), linewidth=1.4)
+            axis.axvline(60, color='0.4', linestyle='--', linewidth=1)
+            axis.set(title=label + f'\nLR {rate:g}', xlim=(0, 120), yscale='linear')
+            axis.grid(alpha=0.2)
+            if column == 0:
+                axis.set_ylabel('Training loss (Dice + cross-entropy)')
+            if index == 2:
+                axis.set_xlabel('Epoch')
+    axes[0, 0].legend(loc='best', fontsize=9)
+    fig.suptitle('Full 120-epoch training loss; linear axes with independent panel scales', fontsize=12)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    save_figure(fig, out, 'training_loss_curves_120ep', 'Full 120-epoch training loss; independent linear panel scales')
     plt.close(fig)
 
 
@@ -382,6 +460,10 @@ def combined_report(matched, longer, duration, prefix_checks):
         lines += ['The independently rerun prefixes differ. Duration contrasts therefore include that observed trajectory variation; '
                   'they must not be attributed solely to extra epochs.']
     lines += ['', '![Full validation trajectories](validation_curves_120ep.png)', '',
+        '![Full training-loss trajectories](training_loss_curves_120ep.png)', '',
+        '[Descriptive loss and checkpoint summaries](STABILITY.md) retain every cell. '
+        'The training-loss panels use independent linear y scales. An initially high loss is not automatically instability; '
+        'the maximum after epoch 10 is a specified summary, not a diagnostic threshold.', '',
         '![Paired entanglement contrasts](paired_entanglement_60_120.png)', '',
         'Points show every paired seed; black diamonds show paired means. Connecting lines link the same seed/rate across training budgets.',
         'The full 120-epoch best-validation score includes the first 60 epochs by construction; that within-trajectory increase alone is not independent replication.',
@@ -395,6 +477,7 @@ def collect(matched_run, long_run, out_dir):
     matched, longer = audit_run(matched_run, 'matched60'), audit_run(long_run, 'long120')
     prefix_checks = audit_pair(matched, longer)
     duration = duration_comparison(matched, longer)
+    stability = stability_summaries(matched, longer)
     out.mkdir(parents=True, exist_ok=True)
     for phase, artifact in (('matched60', matched), ('long120', longer)):
         target = out / phase
@@ -417,10 +500,17 @@ def collect(matched_run, long_run, out_dir):
         writer.writeheader()
         writer.writerows(flat)
     study.pilot.write_json(out / 'duration_comparison.json', duration)
+    study.pilot.write_json(out / 'stability.json', stability)
+    with (out / 'stability.csv').open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(stability[0]), lineterminator='\n')
+        writer.writeheader()
+        writer.writerows(stability)
+    (out / 'STABILITY.md').write_text(stability_report(stability))
     study.pilot.write_json(out / 'prefix60_comparison.json', prefix_checks)
     study.pilot.write_json(out / 'checkpoint_sha256.json', dict(matched['checkpoints'], **longer['checkpoints']))
     (out / 'README.md').write_text(combined_report(matched, longer, duration, prefix_checks))
     plot_curves(longer['summary'], out)
+    plot_training_curves(longer['summary'], out)
     plot_entanglement(matched, longer, out)
     study.pilot.write_json(out / 'audit.json', dict(
         collector_source_sha256=study.digest(Path(__file__)),

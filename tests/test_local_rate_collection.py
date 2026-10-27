@@ -144,7 +144,16 @@ def test_complete_collection_regenerates_every_artifact_byte_for_byte(tmp_path, 
     assert all(row['exact_prefix_history_equal'] for row in audit['prefix60_checks'])
     assert len(list((first / 'historical_producers').glob('*.json'))) == 2
     assert (first / 'validation_curves_120ep.png').stat().st_size > 1000
+    assert (first / 'training_loss_curves_120ep.png').stat().st_size > 1000
+    assert (first / 'training_loss_curves_120ep.pdf').read_bytes().startswith(b'%PDF')
     assert (first / 'paired_entanglement_60_120.pdf').read_bytes().startswith(b'%PDF')
+    stability = collect.read(first / 'stability.json')
+    assert len(stability) == len(list(csv.DictReader((first / 'stability.csv').open()))) == 30
+    assert all(row['max_positive_adjacent_loss_jump'] == 0 and row['max_positive_adjacent_loss_jump_epoch'] is None
+               for row in stability)
+    assert all(row['initial_train_loss_epoch'] == row['max_train_loss_epoch'] == 1
+               and row['max_train_loss_after_epoch10_epoch'] == 11 for row in stability)
+    assert 'not a diagnostic threshold' in (first / 'STABILITY.md').read_text()
     with pytest.raises(ValueError, match='new or empty'):
         collect.collect(matched, longer, first)
 
@@ -237,3 +246,51 @@ def test_prefix_audit_exposes_every_changed_count_and_loss_without_tolerance(tmp
     assert changed['validation_metric_differences'][0]['differences']['optical_subset_tp'] == 1
     report = collect.combined_report(early, late, collect.duration_comparison(early, late), result)
     assert 'must not be attributed solely to extra epochs' in report
+
+
+def test_stability_summaries_keep_spike_epoch_ties_and_warmup_definition():
+    losses = [5, 4, 3, 2, 2, 3, 2, 1, 2, 1, 2, 2]
+    record = dict(id=study.QUANTUM[0], seed=42, learning_rate=0.001, best_epoch=57,
+                  history=[dict(epoch=0, train_loss=None)] +
+                          [dict(epoch=index, train_loss=loss) for index, loss in enumerate(losses, start=1)])
+    matched = dict(plan={'epochs': 60, 'eval_every': 2}, summary={'records': [record]})
+    later_record = copy.deepcopy(record)
+    later_record['best_epoch'] = 118
+    longer = dict(plan={'epochs': 120, 'eval_every': 2}, summary={'records': [later_record]})
+    rows = collect.stability_summaries(matched, longer)
+    first, second = rows
+    assert first['initial_train_loss'] == first['max_train_loss'] == 5
+    assert first['initial_train_loss_epoch'] == first['max_train_loss_epoch'] == 1
+    assert first['max_train_loss_after_epoch10'] == 2
+    assert first['max_train_loss_after_epoch10_epoch'] == 11
+    assert first['max_positive_adjacent_loss_jump'] == 1
+    assert first['max_positive_adjacent_loss_jump_epoch'] == 6
+    assert first['selected_checkpoint_late'] is False
+    assert second['selected_checkpoint_late'] is True
+    report = collect.stability_report(rows)
+    assert 'An initially high loss is not automatically instability' in report
+    assert 'strictly after epoch 10' in report and 'not a diagnostic threshold' in report
+
+
+def test_training_loss_figure_uses_every_epoch_seed_and_independent_linear_scales(tmp_path, monkeypatch):
+    _, longer = build_runs(tmp_path, monkeypatch)
+    summary = collect.read(longer / 'summary.json')
+    inspected = []
+
+    def inspect_figure(fig, out, stem, title):
+        inspected.append(stem)
+        assert stem == 'training_loss_curves_120ep'
+        assert len(fig.axes) == 6
+        for axis in fig.axes:
+            assert axis.get_yscale() == 'linear'
+            assert len(axis.get_shared_y_axes().get_siblings(axis)) == 1
+            assert len(axis.lines) == 4  # Three complete seeds and the epoch60 boundary.
+            for line in axis.lines[:3]:
+                assert list(line.get_xdata()) == list(range(1, 121))
+                assert len(line.get_ydata()) == 120
+            assert list(axis.lines[-1].get_xdata()) == [60, 60]
+        assert 'independent panel scales' in fig._suptitle.get_text()
+
+    monkeypatch.setattr(collect, 'save_figure', inspect_figure)
+    collect.plot_training_curves(summary, tmp_path)
+    assert inspected == ['training_loss_curves_120ep']
