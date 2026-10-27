@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import math
+import warnings
 import numpy as np 
 from typing import Optional, Tuple
 
@@ -292,6 +293,18 @@ HQUNET_GRID_CHOICES = (2, 4)
 DEFAULT_HQUNET_GRID = 2
 ABLATION_MODE_CHOICES = ('auto', 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')
 DEFAULT_ABLATION_MODE = 'auto'
+ABLATION_MLP_MODE_CHOICES = ('param_matched', 'full_rank')
+DEFAULT_ABLATION_MLP_MODE = 'param_matched'
+_ABLATION_MLP_MODE_ALIASES = {
+    'param_matched': 'param_matched',
+    'param-matched': 'param_matched',
+    'matched': 'param_matched',
+    'default': 'param_matched',
+    'full_rank': 'full_rank',
+    'full-rank': 'full_rank',
+    'rank_matched': 'full_rank',
+    'rank-matched': 'full_rank',
+}
 QUANTUM_MODES = ('on', 'zero', 'random')
 # Added to knockout_seed so the 'random' knockout never reuses the exact stream
 # that initialized the trained parameters (e.g. run seed == knockout seed).
@@ -365,6 +378,28 @@ def normalize_ablation_mode(mode):
             f"Unknown ablation_mode {mode!r}, expected one of {ABLATION_MODE_CHOICES}"
         )
     return key
+
+
+def normalize_ablation_mlp_mode(mode=None):
+    """Normalize classical MLP control hidden-width mode ('param_matched' default, or 'full_rank'; #44)."""
+    if mode is None:
+        return DEFAULT_ABLATION_MLP_MODE
+    key = str(mode).strip().lower()
+    if key not in _ABLATION_MLP_MODE_ALIASES:
+        raise ValueError(
+            f"Unknown ablation_mlp_mode {mode!r}, expected one of {ABLATION_MLP_MODE_CHOICES}"
+        )
+    return _ABLATION_MLP_MODE_ALIASES[key]
+
+
+def normalize_ablation_mlp_hidden(hidden=None):
+    """Normalize optional explicit MLP hidden width (--ablation-mlp-hidden >= 1; #44)."""
+    if hidden is None:
+        return None
+    h = _validate_exact_int(hidden, "ablation_mlp_hidden")
+    if h < 1:
+        raise ValueError(f"ablation_mlp_hidden must be >= 1, got {hidden!r}")
+    return h
 
 
 def hqunet_grid_edges(grid_size: int = DEFAULT_HQUNET_GRID):
@@ -945,6 +980,20 @@ class QuantumBlock(nn.Module):
         self.num_groups = quantum_channels // group_w
         self.remaining_channels = quantum_channels % group_w
         self.effective_qc = self.num_groups * group_w
+        self.active_channels = self.effective_qc
+        if self.remaining_channels > 0:
+            lower_qc = self.effective_qc
+            upper_qc = (self.num_groups + 1) * group_w
+            warnings.warn(
+                f"quantum_channels={quantum_channels} is not divisible by group width "
+                f"n_qubits={group_w}: only {self.num_groups} groups "
+                f"(effective_qc={self.effective_qc} channels) are processed while "
+                f"remaining_channels={self.remaining_channels} are excluded from circuit/control "
+                f"processing (and routed through the surrounding classical path in QResnetBlock). "
+                f"Consider a divisible --quantum-channels value such as {lower_qc} or {upper_qc}.",
+                UserWarning,
+                stacklevel=2,
+            )
         self.pre_q_conv = None
         self.post_q_proj = None
         self.hqunet_weights = None
@@ -1978,6 +2027,8 @@ class ClassicalBottleneckBlock(nn.Module):
         q_layers=None,
         spatial_mode=DEFAULT_Q_SPATIAL_MODE,
         ablation_mode=None,
+        ablation_mlp_mode=DEFAULT_ABLATION_MLP_MODE,
+        ablation_mlp_hidden=None,
         hqunet_grid=DEFAULT_HQUNET_GRID,
         lowrank_rank=None,
         n_qubits=DEFAULT_N_QUBITS,
@@ -1988,6 +2039,14 @@ class ClassicalBottleneckBlock(nn.Module):
         if quantum_channels < 0:
             raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         eff_ablation = normalize_ablation_mode(ablation_mode) if ablation_mode is not None else None
+        norm_mlp_mode = normalize_ablation_mlp_mode(ablation_mlp_mode)
+        norm_mlp_hidden = normalize_ablation_mlp_hidden(ablation_mlp_hidden)
+        norm_hidden = normalize_ablation_mlp_hidden(hidden)
+        if norm_mlp_hidden is not None and norm_hidden is not None and norm_mlp_hidden != norm_hidden:
+            raise ValueError(
+                f"Conflicting hidden={norm_hidden} and ablation_mlp_hidden={norm_mlp_hidden}"
+            )
+        explicit_hidden = norm_mlp_hidden if norm_mlp_hidden is not None else norm_hidden
         if q_ansatz is not None:
             if q_ansatz not in Q_ANSATZ_CHOICES:
                 raise ValueError(f"Unknown q_ansatz {q_ansatz!r}, expected one of {Q_ANSATZ_CHOICES}")
@@ -2005,8 +2064,6 @@ class ClassicalBottleneckBlock(nn.Module):
                     kind = 'linear'
             else:
                 kind = eff_ablation
-            if hidden is None:
-                hidden = matched_mlp_hidden(4 * norm_nq * int(q_layers or 2), n_qubits=norm_nq)
         elif eff_ablation not in (None, 'auto'):
             kind = eff_ablation
 
@@ -2018,9 +2075,6 @@ class ClassicalBottleneckBlock(nn.Module):
                 "use hqunet_grid in {2, 4} to control the 2D patch lattice qubit count."
             )
         self.n_qubits = norm_nq
-        quantum_channels = _validate_exact_int(quantum_channels, "quantum_channels")
-        if quantum_channels < 0:
-            raise ValueError(f"quantum_channels must be >= 0, got {quantum_channels!r}")
         self.quantum_channels = quantum_channels
         group_w = 4 if kind == 'hqunet_spatial' else self.n_qubits
         if 0 < quantum_channels < group_w:
@@ -2031,16 +2085,33 @@ class ClassicalBottleneckBlock(nn.Module):
         self.num_groups = quantum_channels // group_w
         self.remaining_channels = quantum_channels % group_w
         self.effective_qc = self.num_groups * group_w
+        self.active_channels = self.effective_qc
+        if self.remaining_channels > 0:
+            lower_qc = self.effective_qc
+            upper_qc = (self.num_groups + 1) * group_w
+            warnings.warn(
+                f"quantum_channels={quantum_channels} is not divisible by group width "
+                f"n_qubits={group_w}: only {self.num_groups} groups "
+                f"(effective_qc={self.effective_qc} channels) are processed while "
+                f"remaining_channels={self.remaining_channels} are excluded from circuit/control "
+                f"processing (and routed through the surrounding classical path in QResnetBlock). "
+                f"Consider a divisible --quantum-channels value such as {lower_qc} or {upper_qc}.",
+                UserWarning,
+                stacklevel=2,
+            )
         self.kind = kind
         self.q_ansatz = q_ansatz
         self.q_layers = int(q_layers or 2)
         self.spatial_mode = normalize_q_spatial_mode(spatial_mode)
+        self.ablation_mlp_mode = norm_mlp_mode
+        self.ablation_mlp_hidden = explicit_hidden
         self.hqunet_grid = normalize_hqunet_grid(hqunet_grid)
-        self.hidden = (
-            hidden
-            if hidden is not None
-            else matched_mlp_hidden(4 * self.n_qubits * self.q_layers, n_qubits=self.n_qubits)
-        )
+        if explicit_hidden is not None:
+            self.hidden = explicit_hidden
+        elif norm_mlp_mode == 'full_rank':
+            self.hidden = self.n_qubits
+        else:
+            self.hidden = matched_mlp_hidden(4 * self.n_qubits * self.q_layers, n_qubits=self.n_qubits)
         target_per_group = self.n_qubits if q_ansatz == 'legacy' else (4 * self.n_qubits * self.q_layers)
         self.lowrank_rank = (
             int(lowrank_rank)

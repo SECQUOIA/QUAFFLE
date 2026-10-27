@@ -56,6 +56,8 @@ HQUNET_GRID_CHOICES = (2, 4)
 DEFAULT_HQUNET_GRID = 2
 ABLATION_MODE_CHOICES = ('auto', 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')
 DEFAULT_ABLATION_MODE = 'auto'
+ABLATION_MLP_MODE_CHOICES = ('param_matched', 'full_rank')
+DEFAULT_ABLATION_MLP_MODE = 'param_matched'
 BACKBONE_CONV_CHOICES = ('ws_conv', 'standard', 'depthwise_sep')
 DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
 LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
@@ -259,6 +261,18 @@ def add_common_args(parser, quantum=True, federated=False):
                             default=DEFAULT_ABLATION_MODE,
                             help="Classical bottleneck architecture for parameter-matched ablation "
                                  f"(default: {DEFAULT_ABLATION_MODE}; choices: {ABLATION_MODE_CHOICES})")
+        parser.add_argument('--ablation-mlp-mode', '--ablation_mlp_mode',
+                            dest='ablation_mlp_mode',
+                            choices=list(ABLATION_MLP_MODE_CHOICES),
+                            default=DEFAULT_ABLATION_MLP_MODE,
+                            help="Hidden-width sizing mode for the classical MLP bottleneck control "
+                                 f"(default: {DEFAULT_ABLATION_MLP_MODE}, h=matched_mlp_hidden(4*L*n_q, n_q); "
+                                 "'full_rank' sets h=n_qubits to remove the hidden-width rank ceiling and permit full Jacobian rank; #44)")
+        parser.add_argument('--ablation-mlp-hidden', '--ablation_mlp_hidden',
+                            dest='ablation_mlp_hidden',
+                            type=int, default=None,
+                            help='Explicit hidden dimension h >= 1 for ClassicalBottleneckBlock '
+                                 "(overrides --ablation-mlp-mode when set; #44)")
         parser.add_argument('--skip-modulation', choices=list(SKIP_MODULATION_CHOICES),
                             default=DEFAULT_SKIP_MODULATION,
                             help="How QResnetBlock / AblationResnetBlock combines the spatially "
@@ -419,6 +433,14 @@ def apply_common_args(config, args):
         config['ablation_mode'] = effective_ablation_mode({'ablation_mode': args.ablation_mode})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'ablation_mode' in config:
         config['ablation_mode'] = effective_ablation_mode(config)
+    if getattr(args, 'ablation_mlp_mode', None) is not None:
+        config['ablation_mlp_mode'] = effective_ablation_mlp_mode({'ablation_mlp_mode': args.ablation_mlp_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'ablation_mlp_mode' in config:
+        config['ablation_mlp_mode'] = effective_ablation_mlp_mode(config)
+    if getattr(args, 'ablation_mlp_hidden', None) is not None:
+        config['ablation_mlp_hidden'] = effective_ablation_mlp_hidden({'ablation_mlp_hidden': args.ablation_mlp_hidden})
+    elif 'ablation_mlp_hidden' in config:
+        config['ablation_mlp_hidden'] = effective_ablation_mlp_hidden(config)
     if hasattr(args, 'quantum_knockout_eval'):
         config['quantum_knockout_eval'] = bool(args.quantum_knockout_eval)
     if hasattr(args, 'q_backend'):
@@ -1465,6 +1487,8 @@ def bottleneck_param_counts(config, model_type, model=None):
             q_layers=eff_layers,
             spatial_mode=q_sp,
             ablation_mode=abl_mode,
+            ablation_mlp_mode=effective_ablation_mlp_mode(config),
+            ablation_mlp_hidden=effective_ablation_mlp_hidden(config),
             hqunet_grid=grid,
             n_qubits=eff_nq,
         )
@@ -1495,6 +1519,22 @@ def effective_ablation_mode(config):
     if not isinstance(config, dict):
         return normalize_ablation_mode(config)
     return normalize_ablation_mode(config.get('ablation_mode', DEFAULT_ABLATION_MODE))
+
+
+def effective_ablation_mlp_mode(config):
+    """Resolve and normalize `ablation_mlp_mode` ('param_matched' default, or 'full_rank', #44)."""
+    from utilsTorch.unetTorch import normalize_ablation_mlp_mode
+    if not isinstance(config, dict):
+        return normalize_ablation_mlp_mode(config)
+    return normalize_ablation_mlp_mode(config.get('ablation_mlp_mode', DEFAULT_ABLATION_MLP_MODE))
+
+
+def effective_ablation_mlp_hidden(config):
+    """Resolve and normalize optional `ablation_mlp_hidden` (None default, or int >= 1, #44)."""
+    from utilsTorch.unetTorch import normalize_ablation_mlp_hidden
+    if not isinstance(config, dict):
+        return normalize_ablation_mlp_hidden(config)
+    return normalize_ablation_mlp_hidden(config.get('ablation_mlp_hidden'))
 
 
 def effective_backbone_conv_mode(config):
@@ -1803,6 +1843,8 @@ def _normalize_saved_fingerprint(saved, model_type=None):
         'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
         'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
         'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
+        'ablation_mlp_mode': DEFAULT_ABLATION_MLP_MODE if eff_model_type == 'ablation' else None,
+        'ablation_mlp_hidden': None,
         'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
         'combined_input_mode': DEFAULT_COMBINED_INPUT_MODE,
         'loss': DEFAULT_LOSS_MODE,
@@ -1923,6 +1965,8 @@ def centralized_fingerprint(config, model_type):
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
@@ -2126,6 +2170,12 @@ def variant_tag(config):
                     tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
             else:
                 tag += f'_abl-{abl}'
+        mlp_h = effective_ablation_mlp_hidden(config)
+        mlp_mode = effective_ablation_mlp_mode(config)
+        if mlp_h is not None:
+            tag += f'_mlph{mlp_h}'
+        elif mlp_mode != DEFAULT_ABLATION_MLP_MODE:
+            tag += f'_mlp-{mlp_mode}'
         tag += classical_variant_tag(config)
     return tag
 
@@ -2384,6 +2434,8 @@ def run_fingerprint(config, model_type):
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
@@ -2761,6 +2813,8 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
         'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
         'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
         'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
