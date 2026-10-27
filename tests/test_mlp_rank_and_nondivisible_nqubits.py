@@ -37,7 +37,7 @@ def test_nondivisible_nqubits_emits_warning_on_quantum_and_classical_blocks():
     (effective_qc=24) and must emit a UserWarning alerting the caller."""
     assert os.path.abspath(unetTorch.__file__) == UNET_PATH
 
-    with pytest.warns(UserWarning, match=r"quantum_channels=32.*n_qubits=12"):
+    with pytest.warns(UserWarning, match=r"quantum_channels=32.*n_qubits=12.*excluded from circuit/control"):
         qb = QuantumBlock(
             backend="pennylane",
             quantum_channels=32,
@@ -51,7 +51,7 @@ def test_nondivisible_nqubits_emits_warning_on_quantum_and_classical_blocks():
     assert qb.effective_qc == 24
     assert qb.remaining_channels == 8
 
-    with pytest.warns(UserWarning, match=r"quantum_channels=32.*n_qubits=12"):
+    with pytest.warns(UserWarning, match=r"quantum_channels=32.*n_qubits=12.*excluded from circuit/control"):
         cb = ClassicalBottleneckBlock(
             quantum_channels=32,
             q_ansatz="reupload",
@@ -307,5 +307,3 @@ def test_downstream_parsers_and_generators_support_ablation_mlp_flags():
     assert meta["ablation_mlp_mode"] == "full_rank"
     assert meta["ablation_mlp_hidden"] is None
     assert "ablation_mlp_mode" in explicit
-
-

@@ -267,7 +267,7 @@ def add_common_args(parser, quantum=True, federated=False):
                             default=DEFAULT_ABLATION_MLP_MODE,
                             help="Hidden-width sizing mode for the classical MLP bottleneck control "
                                  f"(default: {DEFAULT_ABLATION_MLP_MODE}, h=matched_mlp_hidden(4*L*n_q, n_q); "
-                                 "'full_rank' sets h=n_qubits to match full Jacobian rank; #44)")
+                                 "'full_rank' sets h=n_qubits to remove the hidden-width rank ceiling and permit full Jacobian rank; #44)")
         parser.add_argument('--ablation-mlp-hidden', '--ablation_mlp_hidden',
                             dest='ablation_mlp_hidden',
                             type=int, default=None,

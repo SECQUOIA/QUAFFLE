@@ -365,7 +365,7 @@ Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
 | `hqunet_grid` | `2` | `2`, `4` (`hqunet` 2D spatial patch grid size) |
 | `q_spatial_mode` | `'global'` | `'global'`, `'pixel'`, `'patch2x2'`, `'patch4x4'`, `'se_gate'` |
 | `ablation_mode` | `'auto'` | `'auto'`, `'linear'`, `'mlp'`, `'conv1x1'`, `'depthwise3x3'`, `'lowrank'`, `'hqunet_spatial'` |
-| `ablation_mlp_mode` | `'param_matched'` | `'param_matched'` ($h = \operatorname{round}((4 L n_q - n_q)/(2 n_q + 1))$), `'full_rank'` ($h = n_q$, full $n_q \times n_q$ Jacobian rank; `#44`) |
+| `ablation_mlp_mode` | `'param_matched'` | `'param_matched'` ($h = \operatorname{round}((4 L n_q - n_q)/(2 n_q + 1))$), `'full_rank'` ($h = n_q$, removes the hidden-width rank ceiling to permit full $n_q \times n_q$ input–output Jacobian rank; `#44`) |
 | `ablation_mlp_hidden` | `None` | `None` or int >= 1 (explicit MLP hidden dimension override; `#44`) |
 | `q_share_blocks` | `True` | bool |
 | `skip_modulation` | `'affine'` | `'affine'`, `'additive'` (`QResnetBlock` / `AblationResnetBlock` skip modulation) |

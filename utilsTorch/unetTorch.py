@@ -988,7 +988,8 @@ class QuantumBlock(nn.Module):
                 f"quantum_channels={quantum_channels} is not divisible by group width "
                 f"n_qubits={group_w}: only {self.num_groups} groups "
                 f"(effective_qc={self.effective_qc} channels) are processed while "
-                f"remaining_channels={self.remaining_channels} bypass the bottleneck unmodified. "
+                f"remaining_channels={self.remaining_channels} are excluded from circuit/control "
+                f"processing (and routed through the surrounding classical path in QResnetBlock). "
                 f"Consider a divisible --quantum-channels value such as {lower_qc} or {upper_qc}.",
                 UserWarning,
                 stacklevel=2,
@@ -2092,7 +2093,8 @@ class ClassicalBottleneckBlock(nn.Module):
                 f"quantum_channels={quantum_channels} is not divisible by group width "
                 f"n_qubits={group_w}: only {self.num_groups} groups "
                 f"(effective_qc={self.effective_qc} channels) are processed while "
-                f"remaining_channels={self.remaining_channels} bypass the bottleneck unmodified. "
+                f"remaining_channels={self.remaining_channels} are excluded from circuit/control "
+                f"processing (and routed through the surrounding classical path in QResnetBlock). "
                 f"Consider a divisible --quantum-channels value such as {lower_qc} or {upper_qc}.",
                 UserWarning,
                 stacklevel=2,
