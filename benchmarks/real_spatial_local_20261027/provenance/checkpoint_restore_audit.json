@@ -1,0 +1,170 @@
+[
+  {
+    "path": "tuning/unet_width7/0.001/seed42/metrics.json",
+    "best_epoch": 46,
+    "params": 510631,
+    "checkpoint_sha256": "db970e00c29d2ed464a9094861c231a79ece246ecc99df994b51a78317612a35",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/unet_width7/0.003/seed42/metrics.json",
+    "best_epoch": 58,
+    "params": 510631,
+    "checkpoint_sha256": "5b1b7bb2162fdb2b988008fe5557fb48cd880352e0d71db57e52a37990d766ae",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/unet_width8/0.001/seed42/metrics.json",
+    "best_epoch": 60,
+    "params": 648106,
+    "checkpoint_sha256": "72f7760635d7d0d045405bdcc91d7cd9d5ab4af95a5e605965ca6c1d8d1b485b",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/unet_width8/0.003/seed42/metrics.json",
+    "best_epoch": 48,
+    "params": 648106,
+    "checkpoint_sha256": "0dfaf21e4726142a237768a11745d55e956eb6ab43588e87bdcf99b801abb69b",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/mlp_global/0.001/seed42/metrics.json",
+    "best_epoch": 48,
+    "params": 500522,
+    "checkpoint_sha256": "3d29a210246d256dda622d113cac8ce48ec4b59beeaf5b03870c61076ff8614d",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/mlp_global/0.003/seed42/metrics.json",
+    "best_epoch": 52,
+    "params": 500522,
+    "checkpoint_sha256": "224b74b8873d29828a58aee8256358dc2f6d7642749881983eaf7b8c9749e9ad",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/mlp_patch4x4/0.001/seed42/metrics.json",
+    "best_epoch": 48,
+    "params": 500522,
+    "checkpoint_sha256": "8948e2f1db85e687358ad8f94e74799bbf02c76236362f5770a1fed07bf6570b",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/mlp_patch4x4/0.003/seed42/metrics.json",
+    "best_epoch": 60,
+    "params": 500522,
+    "checkpoint_sha256": "6b2fa3a2aeeba0e3ffea8de03f43318012f82ec63c256c41c5dd60f63d052867",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/quantum_global/0.001/seed42/metrics.json",
+    "best_epoch": 60,
+    "params": 500394,
+    "checkpoint_sha256": "70943401d173a68b0dcff8c9c403c37b4c66e5d8d983027e019a402c6f24ab29",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/quantum_global/0.003/seed42/metrics.json",
+    "best_epoch": 24,
+    "params": 500394,
+    "checkpoint_sha256": "5e66db9c264ee69cdc23cdb00898a10722ef5cce9faf6a47864380e97921bdbf",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/quantum_patch4x4/0.001/seed42/metrics.json",
+    "best_epoch": 48,
+    "params": 500394,
+    "checkpoint_sha256": "7c76d43563a90e6b17866edadab19ce3d71d6be44365b87a7903d4c36085cebe",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "tuning/quantum_patch4x4/0.003/seed42/metrics.json",
+    "best_epoch": 48,
+    "params": 500394,
+    "checkpoint_sha256": "458d80f228ef575b76a5ebab1fe6538f1e77788028fe1a181fc8a199be4c6f01",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/unet_width7/seed77/metrics.json",
+    "best_epoch": 60,
+    "params": 510631,
+    "checkpoint_sha256": "e76d00ca49881f4c11aa1da036241fa9c8edb01e9f9e5d5839bf766abb640edd",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/mlp_global/seed123/metrics.json",
+    "best_epoch": 56,
+    "params": 500522,
+    "checkpoint_sha256": "483aacd5e48b84f35e8dbb1adc30a0804300bbaf274ec7b72b11e54f4668db2f",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/mlp_global/seed77/metrics.json",
+    "best_epoch": 44,
+    "params": 500522,
+    "checkpoint_sha256": "9a8208734fd0a6a9aadbfa075fd7c0844464f571abf858affd62b80ec40760ca",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/mlp_patch4x4/seed123/metrics.json",
+    "best_epoch": 60,
+    "params": 500522,
+    "checkpoint_sha256": "c520bf90a2dc0d483e9eff95a9d9016cac829caaf70ae53d2cdb7d975d682b37",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/mlp_patch4x4/seed77/metrics.json",
+    "best_epoch": 56,
+    "params": 500522,
+    "checkpoint_sha256": "309920b1e1d438688704e1a70c01e67a6545c620e85f8b977b94ac334314cae4",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/quantum_global/seed123/metrics.json",
+    "best_epoch": 48,
+    "params": 500394,
+    "checkpoint_sha256": "47254834101ac221bc0338e905197069f44a73f99fbb2210b9c3289326574b97",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/quantum_global/seed77/metrics.json",
+    "best_epoch": 52,
+    "params": 500394,
+    "checkpoint_sha256": "dfaebcb3812c9d7bff2f62d3903e95ff58e5fbd18b475f55ec95047e2863e524",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/quantum_patch4x4/seed123/metrics.json",
+    "best_epoch": 60,
+    "params": 500394,
+    "checkpoint_sha256": "265f610f95e69085e2a3fa7123fe2151b0b60693e7dd837a5c6cbbc99115c77c",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/quantum_patch4x4/seed77/metrics.json",
+    "best_epoch": 50,
+    "params": 500394,
+    "checkpoint_sha256": "85b14f0eae967e363e387dd19acca3fe131e3284ab9d843853ab872d51beeefd",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/unet_width7/seed123/metrics.json",
+    "best_epoch": 46,
+    "params": 510631,
+    "checkpoint_sha256": "86214506eae00cb0c36001d4ef1575e54637aafb2ea3ffa393eb355a51db9078",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/unet_width8/seed123/metrics.json",
+    "best_epoch": 40,
+    "params": 648106,
+    "checkpoint_sha256": "e5745403ad96082792cfa52a029ddb3db4ec9a8f8d4f9b2e280bff2e515e42e3",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  },
+  {
+    "path": "replication/unet_width8/seed77/metrics.json",
+    "best_epoch": 56,
+    "params": 648106,
+    "checkpoint_sha256": "1b0f37623611ec607215deade0ccbcb065613737ece3ae235e045b2ae2a2d504",
+    "checks": "strict selected-weight replay, validation selection, disjoint fit/validation, full normalization identity"
+  }
+]

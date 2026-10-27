@@ -130,7 +130,7 @@ def main(argv=None):
     (args.out_dir / 'all_fits.json').write_text(json.dumps(fits, indent=2, allow_nan=False) + '\n')
     (args.out_dir / 'checkpoint_sha256.json').write_text(json.dumps(checkpoints, indent=2) + '\n')
     with (args.out_dir / 'per_seed.csv').open('w', newline='') as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(flat[0]))
+        writer = csv.DictWriter(stream, fieldnames=list(flat[0]), lineterminator='\n')
         writer.writeheader()
         writer.writerows(flat)
     shutil.copy2(args.run_dir / 'report.md', args.out_dir / 'README.md')

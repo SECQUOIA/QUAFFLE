@@ -1,0 +1,31 @@
+{
+  "ready": true,
+  "selected_mode": "global",
+  "modes": {
+    "global": {
+      "ready": true,
+      "differences": {
+        "42": 0.012024620261758101,
+        "77": 0.0003247228758085363,
+        "123": 0.01124497653847012
+      },
+      "mean": 0.007864773225345586,
+      "wins": 3,
+      "all_circuits_moved": true,
+      "qualifies": true
+    },
+    "patch4x4": {
+      "ready": true,
+      "differences": {
+        "42": -0.0009816075613063857,
+        "77": 0.000769631801650128,
+        "123": 0.011633430685965562
+      },
+      "mean": 0.0038071516421031015,
+      "wins": 2,
+      "all_circuits_moved": true,
+      "qualifies": false
+    }
+  },
+  "rule": "Mean paired validation gain >=0.005; wins in >=2/3 seeds; nonzero selected circuit movement in every seed; prioritize largest mean gain"
+}

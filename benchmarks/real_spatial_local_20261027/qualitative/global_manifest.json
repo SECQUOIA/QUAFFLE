@@ -1,0 +1,28 @@
+{
+  "datasets": [
+    {
+      "id": "global; seed 42; width-7 U-Net",
+      "checkpoints": {
+        "classical": "tuning/unet_width7/0.001/seed42/checkpoint.pt",
+        "ablation": "tuning/mlp_global/0.001/seed42/checkpoint.pt",
+        "quantum": "tuning/quantum_global/0.001/seed42/checkpoint.pt"
+      }
+    },
+    {
+      "id": "global; seed 77; width-7 U-Net",
+      "checkpoints": {
+        "classical": "replication/unet_width7/seed77/checkpoint.pt",
+        "ablation": "replication/mlp_global/seed77/checkpoint.pt",
+        "quantum": "replication/quantum_global/seed77/checkpoint.pt"
+      }
+    },
+    {
+      "id": "global; seed 123; width-7 U-Net",
+      "checkpoints": {
+        "classical": "replication/unet_width7/seed123/checkpoint.pt",
+        "ablation": "replication/mlp_global/seed123/checkpoint.pt",
+        "quantum": "replication/quantum_global/seed123/checkpoint.pt"
+      }
+    }
+  ]
+}
