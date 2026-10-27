@@ -277,6 +277,12 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             q_ansatz, q_layers, share = quantum_model_options(self.config)
             q_spatial_mode = unet.normalize_q_spatial_mode(self.config.get('q_spatial_mode'))
             ablation_mode = unet.normalize_ablation_mode(self.config.get('ablation_mode'))
+            ablation_mlp_mode = unet.normalize_ablation_mlp_mode(
+                self.config.get('ablation_mlp_mode')
+            )
+            ablation_mlp_hidden = unet.normalize_ablation_mlp_hidden(
+                self.config.get('ablation_mlp_hidden')
+            )
             hqunet_grid = unet.normalize_hqunet_grid(self.config.get('hqunet_grid'))
             n_qubits = unet.normalize_n_qubits(self.config.get('n_qubits', unet.DEFAULT_N_QUBITS))
             use_time_emb = bool(self.config.get('use_time_emb', True))
@@ -287,11 +293,11 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                 self.config.get('combined_input_mode')
             )
             if q_ansatz == 'legacy':
-                kind, hidden = 'linear', None
+                kind = 'linear'
             elif q_ansatz == 'hqunet':
-                kind, hidden = 'hqunet_spatial', unet.matched_mlp_hidden(16 * q_layers, n_qubits=4)
+                kind = 'hqunet_spatial'
             else:
-                kind, hidden = 'mlp', unet.matched_mlp_hidden(4 * n_qubits * q_layers, n_qubits=n_qubits)
+                kind = 'mlp'
             if ablation_mode != 'auto':
                 kind = ablation_mode
 
@@ -300,12 +306,14 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     return unet.ClassicalBottleneckBlock(
                         quantum_channels=quantum_channels,
                         kind=kind,
-                        hidden=hidden,
+                        hidden=ablation_mlp_hidden,
                         seed=None if self.seed is None else int(self.seed) + offset,
                         q_ansatz=q_ansatz,
                         q_layers=q_layers,
                         spatial_mode=q_spatial_mode,
                         ablation_mode=ablation_mode,
+                        ablation_mlp_mode=ablation_mlp_mode,
+                        ablation_mlp_hidden=ablation_mlp_hidden,
                         hqunet_grid=hqunet_grid,
                         n_qubits=n_qubits,
                     )

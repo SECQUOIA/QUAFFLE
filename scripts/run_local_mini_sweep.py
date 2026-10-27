@@ -81,6 +81,8 @@ _SCHEMA_DEFAULTS: Dict[str, Any] = {
     "hqunet_grid": 2,
     "skip_modulation": "affine",
     "ablation_mode": "auto",
+    "ablation_mlp_mode": "param_matched",
+    "ablation_mlp_hidden": None,
 }
 
 
@@ -129,6 +131,8 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
             meta[k] = _SCHEMA_DEFAULTS[k]
     if model_type == "ablation":
         meta["ablation_mode"] = _SCHEMA_DEFAULTS["ablation_mode"]
+        meta["ablation_mlp_mode"] = _SCHEMA_DEFAULTS["ablation_mlp_mode"]
+        meta["ablation_mlp_hidden"] = _SCHEMA_DEFAULTS["ablation_mlp_hidden"]
 
     flag_map = {
         "--mode": ("training", str),
@@ -153,6 +157,10 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
         "--quantum_channels": ("quantum_channels", int),
         "--ablation-mode": ("ablation_mode", str),
         "--ablation_mode": ("ablation_mode", str),
+        "--ablation-mlp-mode": ("ablation_mlp_mode", str),
+        "--ablation_mlp_mode": ("ablation_mlp_mode", str),
+        "--ablation-mlp-hidden": ("ablation_mlp_hidden", int),
+        "--ablation_mlp_hidden": ("ablation_mlp_hidden", int),
         "--hqunet-grid": ("hqunet_grid", int),
         "--hqunet_grid": ("hqunet_grid", int),
         "--q-spatial-mode": ("q_spatial_mode", str),
@@ -239,6 +247,10 @@ def _matches_expected_metrics(
             has_key = actual_v is not None
         if k == "q_layers" and exp_v is None:
             if actual_v not in (None, 1):
+                return False
+            continue
+        if exp_v is None:
+            if actual_v is not None:
                 return False
             continue
         if not has_key:

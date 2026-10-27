@@ -109,6 +109,7 @@ MODES = ["centralized", "fed-random", "fed-dirichlet"]
 ALL_MODES = ["centralized", "fed-random", "fed-dirichlet", "fed-modality", "fed-geo_cluster"]
 DATASETS = ["optical", "sar", "combined"]
 ABLATION_MODES = ["auto", "mlp", "linear", "conv1x1", "depthwise3x3", "lowrank", "hqunet_spatial"]
+ABLATION_MLP_MODES = ["param_matched", "full_rank"]
 
 SCRIPT = {
     ("classical", "centralized"): "centralized_demoTorchClassical.py",
@@ -356,7 +357,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               backbone_conv_mode=None, loss=None, no_time_emb=False, augment=False,
               combined_input_mode=None, fl_strategy=None, fedprox_mu=None,
               q_angle_agg=None, num_clients=None, clients_per_round=None,
-              fraction_fit=None, n_qubits=None, ablation_mode=None):
+              fraction_fit=None, n_qubits=None, ablation_mode=None,
+              ablation_mlp_mode=None, ablation_mlp_hidden=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -365,6 +367,10 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         args += ["--framework", "torch", "--mode", kind]
         if ablation_mode is not None:
             args += ["--ablation-mode", str(ablation_mode)]
+        if ablation_mlp_mode is not None:
+            args += ["--ablation-mlp-mode", str(ablation_mlp_mode)]
+        if ablation_mlp_hidden is not None:
+            args += ["--ablation-mlp-hidden", str(int(ablation_mlp_hidden))]
     if kind == "federated":
         part_map = {
             "fed-random": "random",
@@ -464,6 +470,10 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
         parts.append(ans_tag)
         if method == "ablation" and ablation_mode is not None and ablation_mode != "auto":
             parts.append("abl-%s" % str(ablation_mode))
+        if method == "ablation" and ablation_mlp_hidden is not None:
+            parts.append("mlph%d" % int(ablation_mlp_hidden))
+        elif method == "ablation" and ablation_mlp_mode is not None and ablation_mlp_mode != "param_matched":
+            parts.append("mlp-%s" % str(ablation_mlp_mode))
         if q_spatial_mode is not None and not uses_hqunet and q_spatial_mode != "global":
             parts.append(str(q_spatial_mode))
         if skip_modulation == "additive":
@@ -873,6 +883,8 @@ def main(argv=None):
     ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--ablation-mode", choices=ABLATION_MODES, default=None)
+    ap.add_argument("--ablation-mlp-mode", choices=ABLATION_MLP_MODES, default=None)
+    ap.add_argument("--ablation-mlp-hidden", type=int, default=None)
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
     ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
@@ -958,7 +970,9 @@ def main(argv=None):
                         q_angle_agg=args.q_angle_agg, num_clients=args.num_clients,
                         clients_per_round=args.clients_per_round,
                         fraction_fit=args.fraction_fit, n_qubits=args.n_qubits,
-                        ablation_mode=args.ablation_mode))
+                        ablation_mode=args.ablation_mode,
+                        ablation_mlp_mode=args.ablation_mlp_mode,
+                        ablation_mlp_hidden=args.ablation_mlp_hidden))
     finish(ap, args, jobs, out_dir)
 
 

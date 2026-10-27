@@ -287,6 +287,7 @@ _VTAG_RE = _re_disk.compile(
     r"(?:_nq\d+)?"
     r"(?:_(?:pixel|patch2x2|patch4x4|se_gate))?"
     r"(?:_abl-(?:linear|mlp|conv1x1|depthwise3x3|lowrank|hqunet_spatial(?:_G\d+)?(?:_L\d+)?))?"
+    r"(?:_(?:mlph\d+|mlp-full_rank))?"
     r"(?:_additive)?"
     + _CLASSICAL_MOD_PART
     + r")$"
@@ -376,6 +377,12 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
                         parts.append(f"abl-{abl}_G{grid}")
                 else:
                     parts.append(f"abl-{abl}")
+            mlp_h = data.get("ablation_mlp_hidden")
+            mlp_mode = data.get("ablation_mlp_mode")
+            if mlp_h is not None:
+                parts.append(f"mlph{int(mlp_h)}")
+            elif mlp_mode and mlp_mode != "param_matched":
+                parts.append(f"mlp-{mlp_mode}")
             skip_mod = data.get("skip_modulation")
             if skip_mod and skip_mod != "affine":
                 parts.append(str(skip_mod))
@@ -433,6 +440,8 @@ def _infer_variant_from_summary(text, quantumish=True):
     grid = _re_disk.search(r"--hqunet[-_]grid[ =](\d+)", cli)
     q_sp = _re_disk.search(r"--q[-_]spatial[-_]mode[ =](\w+)", cli)
     abl = _re_disk.search(r"--ablation[-_]mode[ =](\w+)", cli)
+    mlp_mode = _re_disk.search(r"--ablation[-_]mlp[-_]mode[ =](\w+)", cli)
+    mlp_h = _re_disk.search(r"--ablation[-_]mlp[-_]hidden[ =](\d+)", cli)
     skip_m = _re_disk.search(r"--skip[-_]modulation[ =](\w+)", cli)
     bb = _re_disk.search(r"--backbone[-_]conv[-_]mode[ =](\w+)", cli)
     loss_m = _re_disk.search(r"--loss[ =](\w+)", cli)
@@ -443,6 +452,8 @@ def _infer_variant_from_summary(text, quantumish=True):
         "hqunet_grid": int(grid.group(1)) if grid else None,
         "q_spatial_mode": q_sp.group(1) if q_sp else None,
         "ablation_mode": abl.group(1) if abl else None,
+        "ablation_mlp_mode": mlp_mode.group(1) if mlp_mode else None,
+        "ablation_mlp_hidden": int(mlp_h.group(1)) if mlp_h else None,
         "skip_modulation": skip_m.group(1) if skip_m else None,
         "backbone_conv_mode": bb.group(1) if bb else None,
         "loss": loss_m.group(1) if loss_m else None,

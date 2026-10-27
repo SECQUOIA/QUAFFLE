@@ -38,6 +38,8 @@ def main(argv=None):
     ap.add_argument("--n-qubits", type=int, choices=[2, 4, 8, 12, 16], default=None)
     ap.add_argument("--hqunet-grid", type=int, choices=[2, 4], default=None)
     ap.add_argument("--ablation-mode", choices=gg.ABLATION_MODES, default=None)
+    ap.add_argument("--ablation-mlp-mode", choices=gg.ABLATION_MLP_MODES, default=None)
+    ap.add_argument("--ablation-mlp-hidden", type=int, default=None)
     ap.add_argument("--include-ablation", action="store_true", default=False,
                     help="Also generate parameter-matched classical ablation jobs for each qc")
     ap.add_argument("--q-spatial-mode", choices=["global", "pixel", "patch2x2", "patch4x4", "se_gate"], default=None)
@@ -94,7 +96,9 @@ def main(argv=None):
                             backbone_conv_mode=args.backbone_conv_mode,
                             combined_input_mode=args.combined_input_mode,
                             loss=args.loss, no_time_emb=args.no_time_emb, augment=args.augment,
-                            n_qubits=args.n_qubits, ablation_mode=args.ablation_mode))
+                            n_qubits=args.n_qubits, ablation_mode=args.ablation_mode,
+                            ablation_mlp_mode=args.ablation_mlp_mode,
+                            ablation_mlp_hidden=args.ablation_mlp_hidden))
     gg.finish(ap, args, jobs, out_dir)
 
 
