@@ -5,6 +5,7 @@ outputs/
 misc/*
 !misc/generate_*.py
 !misc/smoke_pennylane_fast.sh
+!misc/build_qualitative_error_figure.py
 __pycache__/
 *.py[cod]
 .pytest_cache/
