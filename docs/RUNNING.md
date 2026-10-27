@@ -58,6 +58,8 @@ reloaded data. A mismatch requires an explicit checkpoint configuration with the
 original matching `stats_path`. Metadata retains each saved identity and marks
 whether it was verified; older checkpoints without a resolved fingerprint are
 marked unverified rather than claiming their training bounds were reproduced.
+For legacy per-image preprocessing, the verified identity comes from the active
+legacy policy, rather than an unused global-statistics cache.
 
 For each group, examples are selected by Classical U-Net IoU among test tiles
 with at least 5% ground-truth flood: the worst and the lower median. Exact IoU

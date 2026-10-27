@@ -66,7 +66,7 @@ def test_checkpoint_comparison_smoke_exports_all_tiles_and_fixed_examples(tmp_pa
         figure.main(['--manifest', str(manifest_path), '--data-root', str(data_root), '--out-dir', str(output)])
 
 
-@pytest.mark.parametrize('policy', ['mixed', 'full', 'fit'])
+@pytest.mark.parametrize('policy', ['mixed', 'full', 'fit', 'legacy_fresh', 'legacy_cached'])
 def test_saved_normalization_must_agree_with_models_and_reloaded_data(tmp_path, policy):
     from tools.make_mini_flood_dataset import generate_mini_flood_dataset
     from tools.compute_norm_stats import build_norm_stats
@@ -85,6 +85,11 @@ def test_saved_normalization_must_agree_with_models_and_reloaded_data(tmp_path, 
         q_share_blocks=True, skip_modulation='affine', quantum_backend='pennylane',
         q_backend='pennylane', q_sim_device='cpu', ablation_mode='mlp', ablation_mlp_mode='full_rank',
         batch_size=2, learning_rate=0.001, data_root=str(data))
+    if policy == 'legacy_cached':
+        _, _, _, images, masks = tc.resolve_data_dirs('combined', str(data))
+        assert tc.load_dataset(images, masks, cfg).norm_provenance['fit_only'] is True
+    if policy.startswith('legacy_'):
+        cfg['legacy_data'] = True
     classes = dict(classical=UNetSegmentation, ablation=ClassicalAblationUNetSegmentation, quantum=QVUNetSegmentation)
     for kind, cls in classes.items():
         full = policy == 'full' or (policy == 'mixed' and kind == 'ablation')
@@ -96,11 +101,16 @@ def test_saved_normalization_must_agree_with_models_and_reloaded_data(tmp_path, 
         assert 'fit_only_norm' not in fingerprint and 'stats_path' not in fingerprint
         tc.atomic_torch_save(dict(fingerprint=fingerprint, model_state_dict=model.state_dict()), str(tmp_path / (kind + '.pt')))
     group = dict(id='Pooled', checkpoints={kind: kind + '.pt' for kind in classes})
-    if policy == 'fit':
+    if policy == 'fit' or policy.startswith('legacy_'):
         meta, _, _, _ = figure.evaluate_group(group, data, tmp_path, torch.device('cpu'), 2)
         assert all(record['normalization_verified'] for record in meta['checkpoints'].values())
-        assert all(record['saved_normalization']['stats_sha256'] == meta['normalization']['stats_sha256']
-                   for record in meta['checkpoints'].values())
+        if policy == 'fit':
+            assert all(record['saved_normalization']['stats_sha256'] == meta['normalization']['stats_sha256']
+                       for record in meta['checkpoints'].values())
+        else:
+            assert meta['normalization']['mode'] == 'legacy_per_image_p2_p98'
+            assert meta['normalization']['fit_only'] is False
+            assert len(meta['tiles']) == 6
     else:
         with pytest.raises(ValueError, match='normalization'):
             figure.evaluate_group(group, data, tmp_path, torch.device('cpu'), 2)

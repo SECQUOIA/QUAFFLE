@@ -102,7 +102,8 @@ def evaluate_group(group, data_root, checkpoint_root, device, batch_size):
     cfg = configs['classical']
     _, _, _, images, masks = tc.resolve_data_dirs(cfg['dataset'], str(data_root))
     dataset = tc.load_dataset(images, masks, cfg)
-    actual_normalization = dataset.norm_provenance or {}
+    actual_normalization = (tc.normalization_provenance(cfg) if cfg.get('legacy_data')
+                            else dataset.norm_provenance or {})
     for kind, identity in saved_normalization.items():
         if identity is not None and any(actual_normalization.get(key) != value for key, value in identity.items()):
             raise ValueError('Saved normalization differs from reloaded data; supply a matching config with the original stats_path')
@@ -133,7 +134,7 @@ def evaluate_group(group, data_root, checkpoint_root, device, batch_size):
             flood_fraction=float(target.mean()),
             iou={kind: pixel_iou(predictions[kind][index], target) for kind in KINDS}))
     return dict(id=group['id'], dataset=cfg['dataset'], seed=cfg['seed'],
-                preprocessing=signatures[0], normalization=dataset.norm_provenance,
+                preprocessing=signatures[0], normalization=actual_normalization,
                 checkpoints=checkpoint_meta, tiles=records,
                 selected=select_examples(records)), display, targets, predictions
 
