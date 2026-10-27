@@ -23,6 +23,9 @@ in ordinary training `metrics.json` files. Metadata follows the sampled items,
 including through shuffled batches and nested subsets; shared three-channel
 inputs do not require guessing a sensor from image brightness. Pooled IoU is
 computed from combined pixel counts, rather than averaging the sensor IoUs.
+Sensor-aware evaluation requires PyTorch's default collator; custom collators
+are rejected because they can reorder samples independently of sensor tags.
+Datasets without sensor metadata keep their original collation behavior.
 An absent sensor is identified by `*_subset_n_samples = 0`; its AUC uses the
 existing single-class fallback. Datasets without metadata retain the existing
 five-field evaluation result.

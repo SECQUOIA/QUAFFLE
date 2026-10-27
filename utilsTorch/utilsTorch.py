@@ -6,11 +6,10 @@ Contains common training, testing, and visualization functions.
 
 import os
 import glob
-from functools import partial
 from typing import Optional
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, default_collate
 from PIL import Image
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -610,21 +609,23 @@ class _SensorEvaluationDataset(torch.utils.data.Dataset):
         return self.dataset[index], self.modalities[index]
 
 
-def _collate_sensor_samples(samples, collate_fn):
+def _collate_sensor_samples(samples):
     data, modalities = zip(*samples)
-    return collate_fn(list(data)), list(modalities)
+    return default_collate(list(data)), list(modalities)
 
 
 def _sensor_evaluation_loader(dataloader, modalities):
     """Attach tags before sampling so shuffled batches keep their sensor identities.
 
     Reuse the original batch sampler and generator exactly once, together with its
-    collator and worker settings. Never infer sensor identity from image brightness.
+    worker settings. Custom collators may reorder samples independently of tags.
     """
+    if dataloader.collate_fn is not default_collate:
+        raise ValueError('Evaluation with sensor metadata requires the default collate function')
     kwargs = dict(
         dataset=_SensorEvaluationDataset(dataloader.dataset, modalities),
         batch_sampler=dataloader.batch_sampler,
-        collate_fn=partial(_collate_sensor_samples, collate_fn=dataloader.collate_fn),
+        collate_fn=_collate_sensor_samples,
         num_workers=dataloader.num_workers, pin_memory=dataloader.pin_memory,
         timeout=dataloader.timeout, worker_init_fn=dataloader.worker_init_fn,
         generator=dataloader.generator, persistent_workers=dataloader.persistent_workers,

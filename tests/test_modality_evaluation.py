@@ -74,20 +74,31 @@ def test_subset_metrics_persist_and_absent_or_invalid_sensors_are_explicit(tmp_p
     assert set(result) == {'loss', 'accuracy', 'auc', 'iou', 'dice'}
 
 
-def test_attaching_sensor_metadata_preserves_pooled_metrics_and_custom_collation():
-    def collate(items):
-        images, masks = zip(*items)
-        return torch.stack(images), torch.stack(masks)
-
+def test_attaching_sensor_metadata_preserves_pooled_metrics():
     tagged = _SensorTiles()
     bare = TensorDataset(torch.stack([tagged[i][0] for i in range(4)]),
                          torch.stack([tagged[i][1] for i in range(4)]))
     loaders = [DataLoader(dataset, batch_size=3, shuffle=True,
-                          generator=torch.Generator().manual_seed(22), collate_fn=collate)
+                          generator=torch.Generator().manual_seed(22))
                for dataset in (tagged, bare)]
     with_tags = evaluate_model(_LookupModel(), loaders[0], 'cpu')
     without_tags = evaluate_model(_LookupModel(), loaders[1], 'cpu')
     assert {key: with_tags[key] for key in without_tags} == without_tags
+
+
+def test_tagged_evaluation_rejects_reordering_collator_but_untagged_keeps_it():
+    def reverse_collate(items):
+        images, masks = zip(*reversed(items))
+        return torch.stack(images), torch.stack(masks)
+
+    tagged = _SensorTiles()
+    with pytest.raises(ValueError, match='sensor.*default collate'):
+        evaluate_model(_LookupModel(), DataLoader(tagged, batch_size=4, collate_fn=reverse_collate), 'cpu')
+    bare = TensorDataset(torch.stack([tagged[i][0] for i in range(4)]),
+                         torch.stack([tagged[i][1] for i in range(4)]))
+    result = evaluate_model(_LookupModel(), DataLoader(bare, batch_size=4, collate_fn=reverse_collate), 'cpu')
+    assert result['iou'] == pytest.approx(5 / 9)
+    assert set(result) == {'loss', 'accuracy', 'auc', 'iou', 'dice'}
 
 
 @pytest.mark.parametrize('federated', [False, True])
