@@ -20,6 +20,8 @@ Full-size settings are base width 32, 256 active bottleneck channels, GroupNorm 
 
 The circuit contributes 16 core parameters. Almost all stored parameters remain classical, and the spatial classical controls provide almost the same compression. Z-only also has inactive projection columns; equal stored counts do not mean equal active capacity.
 
+The [local federated mechanics check](../benchmarks/local_spatial_study_20261027/provenance/federated_compatibility_fixed.md) also ran all seven configurations through the production in-process Flower server, two synthetic clients, one local update per client, aggregation, resume and both strict checkpoint readers. It caught and verified a repair for an unused null quantum-control field in classical checkpoint reconstruction. These checks use six synthetic 32-pixel images and shared blocks; they provide no federated accuracy, multi-round convergence, unshared-block or Anvil result.
+
 ## Production entrypoints
 
 The audit JSON retains every parsed command as an argument array. These two examples use the richer quantum readout and the full-rank spatial MLP. Replace `DATA_ROOT` and the results directory for the actual job. The shown learning rate is an example, not a full-size tuning result.
