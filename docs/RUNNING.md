@@ -32,6 +32,16 @@ five-field evaluation result.
 
 ## Bounded real-data spatial pilot
 
+Keep the input's manifest/cache snapshot under the supplied data root so the
+byte-identity check and loader use the same committed files:
+
+```bash
+PILOT_DATA_ROOT=/path/to/data
+mkdir -p "$PILOT_DATA_ROOT/splits"
+cp splits/flood_optical.json splits/flood_SAR.json splits/flood_combined.json \
+  splits/norm_stats.json "$PILOT_DATA_ROOT/splits/"
+```
+
 ```bash
 python scripts/run_real_spatial_pilot.py --data-root /path/to/data \
   --work-dir /tmp/real-spatial-pilot --device cuda
@@ -62,6 +72,18 @@ source hashes. Completed fit records are reused; incomplete attempts are
 preserved separately. An Anvil follow-up should repeat the comparison with the
 full optimization fit partition and adequate convergence before drawing a final
 ranking or a federated-performance conclusion.
+
+After the run finishes, retain the audited JSON/CSV records and learning curves:
+
+```bash
+python scripts/collect_real_spatial_results.py --run-dir /tmp/real-spatial-pilot \
+  --out-dir /tmp/real-spatial-evidence
+```
+
+An optional `--screen-dir` retains a preceding validation-only screen and its
+stopping reason. Checkpoints stay in the run directory; their hashes are retained
+with the smaller review artifacts. Cluster execution belongs to Alan; the local
+pilot and its conclusions do not establish Anvil or federated performance.
 
 ## Compare typical and failure examples from saved checkpoints
 
