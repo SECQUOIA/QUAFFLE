@@ -1,0 +1,25 @@
+{
+  "source_revision": "6d9f2808b3d015b509df2d59dac1a317c3dee2ae",
+  "source_status": "",
+  "python": "3.11.14",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "rasterio": "1.4.3"
+  },
+  "source_hashes": {
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+    "utilsTorch/utilsTorch.py": "f22ce4aa002bc040d1236293ba8901f0b9af7cd6122692e3f7a77037ed1f511d",
+    "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+    "tools/make_mini_flood_dataset.py": "a92e24f51abac4e6105abf190ad0604849b3526ff385e3e79d81ec71a7134efa",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53"
+  },
+  "device": "cuda",
+  "gpu": "NVIDIA RTX A1000",
+  "torch_threads": 2,
+  "torch_interop_threads": 2,
+  "gpu_allocator_fraction": 0.12
+}

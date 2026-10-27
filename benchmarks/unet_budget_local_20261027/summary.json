@@ -1,0 +1,3923 @@
+{
+  "plan": {
+    "target_params": 500394,
+    "candidate_params": {
+      "4": 194998,
+      "5": 284077,
+      "6": 389288,
+      "7": 510631,
+      "8": 648106
+    },
+    "selected_width": 7,
+    "selected_params": 510631,
+    "relative_parameter_gap": 0.020457879191197337,
+    "specs": [
+      {
+        "id": "classical_bc7_g1",
+        "model_type": "classical",
+        "config": {
+          "base_channels": 7,
+          "init_dim": 7,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 1,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "classical_bc8_g1",
+        "model_type": "classical",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 1,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "quantum_bc8_g1",
+        "model_type": "quantum",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 1,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "ablation_bc8_g1",
+        "model_type": "ablation",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 1,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "classical_bc8_g4",
+        "model_type": "classical",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 4,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "quantum_bc8_g4",
+        "model_type": "quantum",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 4,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      },
+      {
+        "id": "ablation_bc8_g4",
+        "model_type": "ablation",
+        "config": {
+          "base_channels": 8,
+          "init_dim": 8,
+          "dim_mults": [
+            1,
+            2,
+            4,
+            8
+          ],
+          "out_dim": 2,
+          "resnet_block_groups": 4,
+          "quantum_channels": 64,
+          "quantum_backend": "pennylane",
+          "q_ansatz": "reupload",
+          "q_layers": 2,
+          "n_qubits": 4,
+          "q_backend": "pennylane",
+          "q_sim_device": "cpu",
+          "q_share_blocks": true,
+          "q_spatial_mode": "global",
+          "skip_modulation": "affine",
+          "decoder_skip_gate": "none",
+          "use_time_emb": false,
+          "backbone_conv_mode": "ws_conv",
+          "combined_input_mode": "shared3",
+          "ablation_mode": "mlp",
+          "ablation_mlp_mode": "full_rank",
+          "loss": "dice_ce",
+          "dataset": "optical",
+          "val_fraction": 0.15,
+          "fit_only_norm": true,
+          "augment": false,
+          "select_metric": "iou",
+          "max_samples": null,
+          "legacy_data": false
+        }
+      }
+    ]
+  },
+  "seeds": [
+    42,
+    77,
+    123
+  ],
+  "data_seed": 42,
+  "protocol": {
+    "seeds": [
+      42,
+      77,
+      123
+    ],
+    "data_seed": 42,
+    "epochs": 4,
+    "image_size": 32,
+    "batch_size": 4,
+    "learning_rate": 0.005,
+    "n_train": 16,
+    "n_test": 6,
+    "device": "cuda"
+  },
+  "records": [
+    {
+      "id": "classical_bc7_g1",
+      "seed": 42,
+      "model_type": "classical",
+      "total_params": 510631,
+      "settings": {
+        "base_channels": 7,
+        "init_dim": 7,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.17218326032161713,
+        "accuracy": 0.98388671875,
+        "auc": 0.9875380824372759,
+        "iou": 0.8695652173913043,
+        "dice": 0.9302325581395349
+      },
+      "test": {
+        "loss": 0.18340646227200827,
+        "accuracy": 0.9763997395833334,
+        "auc": 0.9894249117271429,
+        "iou": 0.8620361560418649,
+        "dice": 0.9259070005109862
+      },
+      "knockout": null,
+      "best_epoch": 3,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.0922706127166748,
+          "accuracy": 0.91064453125,
+          "auc": 0.8951097670250896,
+          "iou": 0.47262247838616717,
+          "dice": 0.6418786692759295
+        },
+        {
+          "epoch": 1,
+          "loss": 0.2611646354198456,
+          "accuracy": 0.97216796875,
+          "auc": 0.9726724910394264,
+          "iou": 0.797153024911032,
+          "dice": 0.8871287128712871
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2335265427827835,
+          "accuracy": 0.97314453125,
+          "auc": 0.9738284050179211,
+          "iou": 0.8028673835125448,
+          "dice": 0.8906560636182903
+        },
+        {
+          "epoch": 3,
+          "loss": 0.17218326032161713,
+          "accuracy": 0.98388671875,
+          "auc": 0.9875380824372759,
+          "iou": 0.8695652173913043,
+          "dice": 0.9302325581395349
+        },
+        {
+          "epoch": 4,
+          "loss": 0.20426779985427856,
+          "accuracy": 0.9716796875,
+          "auc": 0.9925089605734767,
+          "iou": 0.7943262411347518,
+          "dice": 0.8853754940711462
+        }
+      ],
+      "elapsed_s": 11.491012527956627
+    },
+    {
+      "id": "classical_bc7_g1",
+      "seed": 77,
+      "model_type": "classical",
+      "total_params": 510631,
+      "settings": {
+        "base_channels": 7,
+        "init_dim": 7,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.25702574849128723,
+        "accuracy": 0.97509765625,
+        "auc": 0.9809089611118609,
+        "iou": 0.8247422680412371,
+        "dice": 0.903954802259887
+      },
+      "test": {
+        "loss": 0.20382619897524515,
+        "accuracy": 0.9806315104166666,
+        "auc": 0.9786212530989408,
+        "iou": 0.8894052044609665,
+        "dice": 0.94146581406788
+      },
+      "knockout": null,
+      "best_epoch": 3,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.6354382038116455,
+          "accuracy": 0.24951171875,
+          "auc": 0.4255946268925281,
+          "iou": 0.11463133640552996,
+          "dice": 0.20568475452196383
+        },
+        {
+          "epoch": 1,
+          "loss": 0.7212492823600769,
+          "accuracy": 0.93408203125,
+          "auc": 0.9650509400786642,
+          "iou": 0.5360824742268041,
+          "dice": 0.697986577181208
+        },
+        {
+          "epoch": 2,
+          "loss": 0.30591341853141785,
+          "accuracy": 0.9697265625,
+          "auc": 0.9772437007003895,
+          "iou": 0.7869415807560137,
+          "dice": 0.8807692307692307
+        },
+        {
+          "epoch": 3,
+          "loss": 0.25702574849128723,
+          "accuracy": 0.97509765625,
+          "auc": 0.9809089611118609,
+          "iou": 0.8247422680412371,
+          "dice": 0.903954802259887
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2669091820716858,
+          "accuracy": 0.9619140625,
+          "auc": 0.9852098723417573,
+          "iou": 0.7732558139534884,
+          "dice": 0.8721311475409836
+        }
+      ],
+      "elapsed_s": 3.430954365991056
+    },
+    {
+      "id": "classical_bc7_g1",
+      "seed": 123,
+      "model_type": "classical",
+      "total_params": 510631,
+      "settings": {
+        "base_channels": 7,
+        "init_dim": 7,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.2500452697277069,
+        "accuracy": 0.9765625,
+        "auc": 0.9731607357057178,
+        "iou": 0.8235294117647058,
+        "dice": 0.9032258064516129
+      },
+      "test": {
+        "loss": 0.22690763076146445,
+        "accuracy": 0.9793294270833334,
+        "auc": 0.9784700623544437,
+        "iou": 0.8834862385321101,
+        "dice": 0.9381393083292743
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.6496167182922363,
+          "accuracy": 0.11279296875,
+          "auc": 0.13981225691541566,
+          "iou": 0.04669464847848898,
+          "dice": 0.08922305764411027
+        },
+        {
+          "epoch": 1,
+          "loss": 0.7798655033111572,
+          "accuracy": 0.953125,
+          "auc": 0.9692850132674202,
+          "iou": 0.6065573770491803,
+          "dice": 0.7551020408163265
+        },
+        {
+          "epoch": 2,
+          "loss": 0.32207417488098145,
+          "accuracy": 0.96435546875,
+          "auc": 0.9755915815491986,
+          "iou": 0.7542087542087542,
+          "dice": 0.8598848368522073
+        },
+        {
+          "epoch": 3,
+          "loss": 0.23317867517471313,
+          "accuracy": 0.970703125,
+          "auc": 0.9825751517574788,
+          "iou": 0.7887323943661971,
+          "dice": 0.8818897637795275
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2500452697277069,
+          "accuracy": 0.9765625,
+          "auc": 0.9731607357057178,
+          "iou": 0.8235294117647058,
+          "dice": 0.9032258064516129
+        }
+      ],
+      "elapsed_s": 3.4159725190256722
+    },
+    {
+      "id": "classical_bc8_g1",
+      "seed": 42,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.21905960142612457,
+        "accuracy": 0.982421875,
+        "auc": 0.9804189068100359,
+        "iou": 0.859375,
+        "dice": 0.9243697478991597
+      },
+      "test": {
+        "loss": 0.20403782526652017,
+        "accuracy": 0.98193359375,
+        "auc": 0.984099429043648,
+        "iou": 0.8947867298578199,
+        "dice": 0.9444722361180591
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.5498991012573242,
+          "accuracy": 0.474609375,
+          "auc": 0.3120575716845878,
+          "iou": 0.051982378854625554,
+          "dice": 0.09882747068676717
+        },
+        {
+          "epoch": 1,
+          "loss": 0.5145746469497681,
+          "accuracy": 0.97607421875,
+          "auc": 0.9772871863799284,
+          "iou": 0.8171641791044776,
+          "dice": 0.8993839835728953
+        },
+        {
+          "epoch": 2,
+          "loss": 0.36622321605682373,
+          "accuracy": 0.951171875,
+          "auc": 0.9744758064516129,
+          "iou": 0.691358024691358,
+          "dice": 0.8175182481751825
+        },
+        {
+          "epoch": 3,
+          "loss": 0.24209868907928467,
+          "accuracy": 0.9775390625,
+          "auc": 0.9785461469534049,
+          "iou": 0.8270676691729323,
+          "dice": 0.9053497942386831
+        },
+        {
+          "epoch": 4,
+          "loss": 0.21905960142612457,
+          "accuracy": 0.982421875,
+          "auc": 0.9804189068100359,
+          "iou": 0.859375,
+          "dice": 0.9243697478991597
+        }
+      ],
+      "elapsed_s": 4.164678473956883
+    },
+    {
+      "id": "classical_bc8_g1",
+      "seed": 77,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.26735734939575195,
+        "accuracy": 0.97412109375,
+        "auc": 0.9806957736066045,
+        "iou": 0.8191126279863481,
+        "dice": 0.900562851782364
+      },
+      "test": {
+        "loss": 0.21774539351463318,
+        "accuracy": 0.9793294270833334,
+        "auc": 0.9761832319134551,
+        "iou": 0.8841240875912408,
+        "dice": 0.938498789346247
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.672676682472229,
+          "accuracy": 0.1513671875,
+          "auc": 0.5119101404886102,
+          "iou": 0.13917781079742447,
+          "dice": 0.24434782608695652
+        },
+        {
+          "epoch": 1,
+          "loss": 0.5587366819381714,
+          "accuracy": 0.9482421875,
+          "auc": 0.9752115739301018,
+          "iou": 0.6357388316151202,
+          "dice": 0.7773109243697479
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2860108017921448,
+          "accuracy": 0.96826171875,
+          "auc": 0.976696063072208,
+          "iou": 0.7781569965870307,
+          "dice": 0.8752399232245681
+        },
+        {
+          "epoch": 3,
+          "loss": 0.29584595561027527,
+          "accuracy": 0.9677734375,
+          "auc": 0.9778656605781098,
+          "iou": 0.7731958762886598,
+          "dice": 0.872093023255814
+        },
+        {
+          "epoch": 4,
+          "loss": 0.26735734939575195,
+          "accuracy": 0.97412109375,
+          "auc": 0.9806957736066045,
+          "iou": 0.8191126279863481,
+          "dice": 0.900562851782364
+        }
+      ],
+      "elapsed_s": 4.623439334041905
+    },
+    {
+      "id": "classical_bc8_g1",
+      "seed": 123,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.1997896432876587,
+        "accuracy": 0.982421875,
+        "auc": 0.9718067318527134,
+        "iou": 0.8615384615384616,
+        "dice": 0.9256198347107438
+      },
+      "test": {
+        "loss": 0.1873010198275248,
+        "accuracy": 0.9801432291666666,
+        "auc": 0.9787546014574411,
+        "iou": 0.8872458410351202,
+        "dice": 0.940254652301665
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.2757209539413452,
+          "accuracy": 0.880859375,
+          "auc": 0.4404874413870815,
+          "iou": 0.0,
+          "dice": 0.0
+        },
+        {
+          "epoch": 1,
+          "loss": 0.6439769268035889,
+          "accuracy": 0.9755859375,
+          "auc": 0.9713659990549235,
+          "iou": 0.8,
+          "dice": 0.8888888888888888
+        },
+        {
+          "epoch": 2,
+          "loss": 0.22843986749649048,
+          "accuracy": 0.98095703125,
+          "auc": 0.9750826941950492,
+          "iou": 0.8494208494208494,
+          "dice": 0.918580375782881
+        },
+        {
+          "epoch": 3,
+          "loss": 0.2633858919143677,
+          "accuracy": 0.97265625,
+          "auc": 0.963264694122351,
+          "iou": 0.8,
+          "dice": 0.8888888888888888
+        },
+        {
+          "epoch": 4,
+          "loss": 0.1997896432876587,
+          "accuracy": 0.982421875,
+          "auc": 0.9718067318527134,
+          "iou": 0.8615384615384616,
+          "dice": 0.9256198347107438
+        }
+      ],
+      "elapsed_s": 3.750217137974687
+    },
+    {
+      "id": "quantum_bc8_g1",
+      "seed": 42,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.19423428177833557,
+        "accuracy": 0.9794921875,
+        "auc": 0.9840008960573478,
+        "iou": 0.8421052631578947,
+        "dice": 0.9142857142857143
+      },
+      "test": {
+        "loss": 0.16516205668449402,
+        "accuracy": 0.9816080729166666,
+        "auc": 0.9867429193899783,
+        "iou": 0.8959484346224678,
+        "dice": 0.9451189898008742
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.16574927667776743,
+          "accuracy": 0.9814453125,
+          "auc": 0.986681879648411,
+          "iou": 0.8951241950321988,
+          "dice": 0.9446601941747573
+        },
+        "random": {
+          "loss": 0.1663004457950592,
+          "accuracy": 0.9812825520833334,
+          "auc": 0.9866046878521523,
+          "iou": 0.8943014705882353,
+          "dice": 0.9442018437651626
+        }
+      },
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.2556846141815186,
+          "accuracy": 0.86962890625,
+          "auc": 0.8121393369175627,
+          "iou": 0.13870967741935483,
+          "dice": 0.24362606232294617
+        },
+        {
+          "epoch": 1,
+          "loss": 0.3741893768310547,
+          "accuracy": 0.96923828125,
+          "auc": 0.9748252688172043,
+          "iou": 0.7789473684210526,
+          "dice": 0.8757396449704142
+        },
+        {
+          "epoch": 2,
+          "loss": 0.24602781236171722,
+          "accuracy": 0.970703125,
+          "auc": 0.9745945340501793,
+          "iou": 0.7887323943661971,
+          "dice": 0.8818897637795275
+        },
+        {
+          "epoch": 3,
+          "loss": 0.23036712408065796,
+          "accuracy": 0.9755859375,
+          "auc": 0.9773700716845879,
+          "iou": 0.8175182481751825,
+          "dice": 0.8995983935742972
+        },
+        {
+          "epoch": 4,
+          "loss": 0.19423428177833557,
+          "accuracy": 0.9794921875,
+          "auc": 0.9840008960573478,
+          "iou": 0.8421052631578947,
+          "dice": 0.9142857142857143
+        }
+      ],
+      "elapsed_s": 6.609030549007002
+    },
+    {
+      "id": "quantum_bc8_g1",
+      "seed": 77,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.27745842933654785,
+        "accuracy": 0.97021484375,
+        "auc": 0.9832833613997619,
+        "iou": 0.7903780068728522,
+        "dice": 0.8829174664107485
+      },
+      "test": {
+        "loss": 0.21322558323542276,
+        "accuracy": 0.9796549479166666,
+        "auc": 0.9792819848245811,
+        "iou": 0.8843663274745606,
+        "dice": 0.9386352479135984
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.21317289272944132,
+          "accuracy": 0.9796549479166666,
+          "auc": 0.9793105326421757,
+          "iou": 0.8843663274745606,
+          "dice": 0.9386352479135984
+        },
+        "random": {
+          "loss": 0.2131553292274475,
+          "accuracy": 0.9796549479166666,
+          "auc": 0.979290060851927,
+          "iou": 0.8843663274745606,
+          "dice": 0.9386352479135984
+        }
+      },
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.2893743515014648,
+          "accuracy": 0.796875,
+          "auc": 0.807953263040132,
+          "iou": 0.3268608414239482,
+          "dice": 0.4926829268292683
+        },
+        {
+          "epoch": 1,
+          "loss": 0.3482452630996704,
+          "accuracy": 0.966796875,
+          "auc": 0.9764946106589841,
+          "iou": 0.7755775577557755,
+          "dice": 0.8736059479553904
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2817472815513611,
+          "accuracy": 0.96533203125,
+          "auc": 0.9793423263255275,
+          "iou": 0.7609427609427609,
+          "dice": 0.864244741873805
+        },
+        {
+          "epoch": 3,
+          "loss": 0.2929617762565613,
+          "accuracy": 0.96435546875,
+          "auc": 0.9822956578203632,
+          "iou": 0.75,
+          "dice": 0.8571428571428571
+        },
+        {
+          "epoch": 4,
+          "loss": 0.27745842933654785,
+          "accuracy": 0.97021484375,
+          "auc": 0.9832833613997619,
+          "iou": 0.7903780068728522,
+          "dice": 0.8829174664107485
+        }
+      ],
+      "elapsed_s": 6.621642638987396
+    },
+    {
+      "id": "quantum_bc8_g1",
+      "seed": 123,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.47977736592292786,
+        "accuracy": 0.98388671875,
+        "auc": 0.9728903892988259,
+        "iou": 0.8690476190476191,
+        "dice": 0.9299363057324841
+      },
+      "test": {
+        "loss": 0.4147643446922302,
+        "accuracy": 0.97705078125,
+        "auc": 0.978504995868079,
+        "iou": 0.8684701492537313,
+        "dice": 0.9296055916125812
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.41469599803288776,
+          "accuracy": 0.9768880208333334,
+          "auc": 0.9784971076553227,
+          "iou": 0.8676607642124884,
+          "dice": 0.9291417165668663
+        },
+        "random": {
+          "loss": 0.41469768683115643,
+          "accuracy": 0.9768880208333334,
+          "auc": 0.9784984223574487,
+          "iou": 0.8676607642124884,
+          "dice": 0.9291417165668663
+        }
+      },
+      "best_epoch": 1,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.7690786123275757,
+          "accuracy": 0.12158203125,
+          "auc": 0.6716540656464687,
+          "iou": 0.11900097943192949,
+          "dice": 0.21269146608315098
+        },
+        {
+          "epoch": 1,
+          "loss": 0.47977736592292786,
+          "accuracy": 0.98388671875,
+          "auc": 0.9728903892988259,
+          "iou": 0.8690476190476191,
+          "dice": 0.9299363057324841
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2226988822221756,
+          "accuracy": 0.98388671875,
+          "auc": 0.9720861655337865,
+          "iou": 0.8690476190476191,
+          "dice": 0.9299363057324841
+        },
+        {
+          "epoch": 3,
+          "loss": 0.22022469341754913,
+          "accuracy": 0.97900390625,
+          "auc": 0.9719135073243429,
+          "iou": 0.8383458646616542,
+          "dice": 0.9120654396728016
+        },
+        {
+          "epoch": 4,
+          "loss": 0.1763032078742981,
+          "accuracy": 0.98291015625,
+          "auc": 0.9850150848751409,
+          "iou": 0.8648648648648649,
+          "dice": 0.927536231884058
+        }
+      ],
+      "elapsed_s": 6.406506800965872
+    },
+    {
+      "id": "ablation_bc8_g1",
+      "seed": 42,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.19333013892173767,
+        "accuracy": 0.98193359375,
+        "auc": 0.9832392473118279,
+        "iou": 0.8582375478927203,
+        "dice": 0.9237113402061856
+      },
+      "test": {
+        "loss": 0.16775917510191599,
+        "accuracy": 0.984375,
+        "auc": 0.9864337765757645,
+        "iou": 0.9101123595505618,
+        "dice": 0.9529411764705882
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.16769398748874664,
+          "accuracy": 0.9842122395833334,
+          "auc": 0.9864157463751784,
+          "iou": 0.9091760299625468,
+          "dice": 0.9524276606179499
+        },
+        "random": {
+          "loss": 0.16763576865196228,
+          "accuracy": 0.9845377604166666,
+          "auc": 0.9863840057095636,
+          "iou": 0.9108818011257036,
+          "dice": 0.9533627884143349
+        }
+      },
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.2555748224258423,
+          "accuracy": 0.87060546875,
+          "auc": 0.8119623655913979,
+          "iou": 0.14516129032258066,
+          "dice": 0.2535211267605634
+        },
+        {
+          "epoch": 1,
+          "loss": 0.4338719844818115,
+          "accuracy": 0.95947265625,
+          "auc": 0.9781989247311828,
+          "iou": 0.7296416938110749,
+          "dice": 0.8436911487758946
+        },
+        {
+          "epoch": 2,
+          "loss": 0.22945630550384521,
+          "accuracy": 0.97607421875,
+          "auc": 0.9727464157706093,
+          "iou": 0.8198529411764706,
+          "dice": 0.901010101010101
+        },
+        {
+          "epoch": 3,
+          "loss": 0.20303326845169067,
+          "accuracy": 0.97900390625,
+          "auc": 0.9834655017921147,
+          "iou": 0.8389513108614233,
+          "dice": 0.9124236252545825
+        },
+        {
+          "epoch": 4,
+          "loss": 0.19333013892173767,
+          "accuracy": 0.98193359375,
+          "auc": 0.9832392473118279,
+          "iou": 0.8582375478927203,
+          "dice": 0.9237113402061856
+        }
+      ],
+      "elapsed_s": 5.086899017042015
+    },
+    {
+      "id": "ablation_bc8_g1",
+      "seed": 77,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.25973188877105713,
+        "accuracy": 0.9736328125,
+        "auc": 0.9822584966955937,
+        "iou": 0.8156996587030717,
+        "dice": 0.8984962406015038
+      },
+      "test": {
+        "loss": 0.20946282148361206,
+        "accuracy": 0.9793294270833334,
+        "auc": 0.9781633611298926,
+        "iou": 0.8840182648401826,
+        "dice": 0.9384391662627242
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.209553062915802,
+          "accuracy": 0.9791666666666666,
+          "auc": 0.9781374427165502,
+          "iou": 0.8832116788321168,
+          "dice": 0.937984496124031
+        },
+        "random": {
+          "loss": 0.20935781796773276,
+          "accuracy": 0.9791666666666666,
+          "auc": 0.9781659905341447,
+          "iou": 0.8832116788321168,
+          "dice": 0.937984496124031
+        }
+      },
+      "best_epoch": 3,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.2894287109375,
+          "accuracy": 0.79833984375,
+          "auc": 0.8078143977844147,
+          "iou": 0.3284552845528455,
+          "dice": 0.4944920440636475
+        },
+        {
+          "epoch": 1,
+          "loss": 0.3452357351779938,
+          "accuracy": 0.96826171875,
+          "auc": 0.9762892465484161,
+          "iou": 0.7854785478547854,
+          "dice": 0.8798521256931608
+        },
+        {
+          "epoch": 2,
+          "loss": 0.33548077940940857,
+          "accuracy": 0.9609375,
+          "auc": 0.9799525511112155,
+          "iou": 0.7288135593220338,
+          "dice": 0.8431372549019608
+        },
+        {
+          "epoch": 3,
+          "loss": 0.25973188877105713,
+          "accuracy": 0.9736328125,
+          "auc": 0.9822584966955937,
+          "iou": 0.8156996587030717,
+          "dice": 0.8984962406015038
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2631128132343292,
+          "accuracy": 0.97119140625,
+          "auc": 0.985565836800075,
+          "iou": 0.7972508591065293,
+          "dice": 0.887189292543021
+        }
+      ],
+      "elapsed_s": 4.839268188981805
+    },
+    {
+      "id": "ablation_bc8_g1",
+      "seed": 123,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.22247445583343506,
+        "accuracy": 0.98486328125,
+        "auc": 0.9735492166769656,
+        "iou": 0.8744939271255061,
+        "dice": 0.9330453563714903
+      },
+      "test": {
+        "loss": 0.21222742398579916,
+        "accuracy": 0.9806315104166666,
+        "auc": 0.9791916460070618,
+        "iou": 0.8873106060606061,
+        "dice": 0.9402910185649774
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.21220991015434265,
+          "accuracy": 0.98046875,
+          "auc": 0.9791893922319886,
+          "iou": 0.8864711447492905,
+          "dice": 0.9398194583751254
+        },
+        "random": {
+          "loss": 0.2122541069984436,
+          "accuracy": 0.98046875,
+          "auc": 0.9791931485237773,
+          "iou": 0.8864711447492905,
+          "dice": 0.9398194583751254
+        }
+      },
+      "best_epoch": 2,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.7690178155899048,
+          "accuracy": 0.12158203125,
+          "auc": 0.6721879430046163,
+          "iou": 0.11900097943192949,
+          "dice": 0.21269146608315098
+        },
+        {
+          "epoch": 1,
+          "loss": 0.47885507345199585,
+          "accuracy": 0.9833984375,
+          "auc": 0.9730562320526335,
+          "iou": 0.8650793650793651,
+          "dice": 0.9276595744680851
+        },
+        {
+          "epoch": 2,
+          "loss": 0.22247445583343506,
+          "accuracy": 0.98486328125,
+          "auc": 0.9735492166769656,
+          "iou": 0.8744939271255061,
+          "dice": 0.9330453563714903
+        },
+        {
+          "epoch": 3,
+          "loss": 0.21813276410102844,
+          "accuracy": 0.9814453125,
+          "auc": 0.9711887972083895,
+          "iou": 0.8544061302681992,
+          "dice": 0.9214876033057852
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2204435169696808,
+          "accuracy": 0.97802734375,
+          "auc": 0.9755097960815674,
+          "iou": 0.8327137546468402,
+          "dice": 0.9087221095334685
+        }
+      ],
+      "elapsed_s": 5.092359290982131
+    },
+    {
+      "id": "classical_bc8_g4",
+      "seed": 42,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.1433255970478058,
+        "accuracy": 0.9794921875,
+        "auc": 0.9970698924731183,
+        "iou": 0.8478260869565217,
+        "dice": 0.9176470588235294
+      },
+      "test": {
+        "loss": 0.1002798726161321,
+        "accuracy": 0.9856770833333334,
+        "auc": 0.9977152355194951,
+        "iou": 0.9178338001867413,
+        "dice": 0.9571567672833495
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.5419871807098389,
+          "accuracy": 0.52734375,
+          "auc": 0.3695810931899642,
+          "iou": 0.07809523809523809,
+          "dice": 0.14487632508833923
+        },
+        {
+          "epoch": 1,
+          "loss": 0.4255014657974243,
+          "accuracy": 0.97998046875,
+          "auc": 0.994081541218638,
+          "iou": 0.8435114503816794,
+          "dice": 0.9151138716356108
+        },
+        {
+          "epoch": 2,
+          "loss": 0.32035890221595764,
+          "accuracy": 0.953125,
+          "auc": 0.994355958781362,
+          "iou": 0.7117117117117117,
+          "dice": 0.8315789473684211
+        },
+        {
+          "epoch": 3,
+          "loss": 0.2020847499370575,
+          "accuracy": 0.97802734375,
+          "auc": 0.9889471326164875,
+          "iou": 0.8327137546468402,
+          "dice": 0.9087221095334685
+        },
+        {
+          "epoch": 4,
+          "loss": 0.1433255970478058,
+          "accuracy": 0.9794921875,
+          "auc": 0.9970698924731183,
+          "iou": 0.8478260869565217,
+          "dice": 0.9176470588235294
+        }
+      ],
+      "elapsed_s": 3.5885306390118785
+    },
+    {
+      "id": "classical_bc8_g4",
+      "seed": 77,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.2609923779964447,
+        "accuracy": 0.97265625,
+        "auc": 0.9822428499062171,
+        "iou": 0.8088737201365188,
+        "dice": 0.8943396226415095
+      },
+      "test": {
+        "loss": 0.20164310932159424,
+        "accuracy": 0.9811197916666666,
+        "auc": 0.9784503418225527,
+        "iou": 0.8927911275415896,
+        "dice": 0.943359375
+      },
+      "knockout": null,
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.6336888074874878,
+          "accuracy": 0.25244140625,
+          "auc": 0.43896089671749916,
+          "iou": 0.1114335461404527,
+          "dice": 0.20052219321148826
+        },
+        {
+          "epoch": 1,
+          "loss": 0.4291101396083832,
+          "accuracy": 0.96240234375,
+          "auc": 0.9755049512309134,
+          "iou": 0.7389830508474576,
+          "dice": 0.8499025341130604
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2771494686603546,
+          "accuracy": 0.97021484375,
+          "auc": 0.980910916960533,
+          "iou": 0.7918088737201365,
+          "dice": 0.8838095238095238
+        },
+        {
+          "epoch": 3,
+          "loss": 0.2831476032733917,
+          "accuracy": 0.9697265625,
+          "auc": 0.9806977294552767,
+          "iou": 0.7869415807560137,
+          "dice": 0.8807692307692307
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2609923779964447,
+          "accuracy": 0.97265625,
+          "auc": 0.9822428499062171,
+          "iou": 0.8088737201365188,
+          "dice": 0.8943396226415095
+        }
+      ],
+      "elapsed_s": 3.967615214001853
+    },
+    {
+      "id": "classical_bc8_g4",
+      "seed": 123,
+      "model_type": "classical",
+      "total_params": 648106,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.17346256971359253,
+        "accuracy": 0.9853515625,
+        "auc": 0.9819254116535204,
+        "iou": 0.8790322580645161,
+        "dice": 0.9356223175965666
+      },
+      "test": {
+        "loss": 0.17673040429751077,
+        "accuracy": 0.978515625,
+        "auc": 0.9902734580422208,
+        "iou": 0.8742857142857143,
+        "dice": 0.9329268292682927
+      },
+      "knockout": null,
+      "best_epoch": 3,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.3512799739837646,
+          "accuracy": 0.86962890625,
+          "auc": 0.2640375667914653,
+          "iou": 0.0,
+          "dice": 0.0
+        },
+        {
+          "epoch": 1,
+          "loss": 0.6357026100158691,
+          "accuracy": 0.97265625,
+          "auc": 0.9745283704699939,
+          "iou": 0.7829457364341085,
+          "dice": 0.8782608695652174
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2593404948711395,
+          "accuracy": 0.970703125,
+          "auc": 0.9761186434517102,
+          "iou": 0.7872340425531915,
+          "dice": 0.8809523809523809
+        },
+        {
+          "epoch": 3,
+          "loss": 0.17346256971359253,
+          "accuracy": 0.9853515625,
+          "auc": 0.9819254116535204,
+          "iou": 0.8790322580645161,
+          "dice": 0.9356223175965666
+        },
+        {
+          "epoch": 4,
+          "loss": 0.2360164225101471,
+          "accuracy": 0.96533203125,
+          "auc": 0.9928551306750028,
+          "iou": 0.7641196013289037,
+          "dice": 0.8662900188323918
+        }
+      ],
+      "elapsed_s": 3.6867679929709993
+    },
+    {
+      "id": "quantum_bc8_g4",
+      "seed": 42,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.12332317233085632,
+        "accuracy": 0.98486328125,
+        "auc": 0.9977464157706093,
+        "iou": 0.8834586466165414,
+        "dice": 0.93812375249501
+      },
+      "test": {
+        "loss": 0.0879786213239034,
+        "accuracy": 0.98876953125,
+        "auc": 0.9986152430320787,
+        "iou": 0.9350893697083725,
+        "dice": 0.966456003889159
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.08817487458388011,
+          "accuracy": 0.98876953125,
+          "auc": 0.9986191871384569,
+          "iou": 0.9350893697083725,
+          "dice": 0.966456003889159
+        },
+        "random": {
+          "loss": 0.08833751082420349,
+          "accuracy": 0.98876953125,
+          "auc": 0.9986366538952746,
+          "iou": 0.9350893697083725,
+          "dice": 0.966456003889159
+        }
+      },
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.368215560913086,
+          "accuracy": 0.78173828125,
+          "auc": 0.7124663978494623,
+          "iou": 0.2198952879581152,
+          "dice": 0.3605150214592275
+        },
+        {
+          "epoch": 1,
+          "loss": 0.39685067534446716,
+          "accuracy": 0.9814453125,
+          "auc": 0.9892495519713261,
+          "iou": 0.8515625,
+          "dice": 0.919831223628692
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2712066173553467,
+          "accuracy": 0.9609375,
+          "auc": 0.9927822580645161,
+          "iou": 0.739413680781759,
+          "dice": 0.850187265917603
+        },
+        {
+          "epoch": 3,
+          "loss": 0.17356616258621216,
+          "accuracy": 0.9775390625,
+          "auc": 0.9945004480286739,
+          "iou": 0.828996282527881,
+          "dice": 0.9065040650406504
+        },
+        {
+          "epoch": 4,
+          "loss": 0.12332317233085632,
+          "accuracy": 0.98486328125,
+          "auc": 0.9977464157706093,
+          "iou": 0.8834586466165414,
+          "dice": 0.93812375249501
+        }
+      ],
+      "elapsed_s": 6.144273460959084
+    },
+    {
+      "id": "quantum_bc8_g4",
+      "seed": 77,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.23018240928649902,
+        "accuracy": 0.97607421875,
+        "auc": 0.9902011981528965,
+        "iou": 0.8327645051194539,
+        "dice": 0.9087523277467412
+      },
+      "test": {
+        "loss": 0.18398276964823404,
+        "accuracy": 0.9830729166666666,
+        "auc": 0.9863811884907219,
+        "iou": 0.9028944911297853,
+        "dice": 0.9489695780176644
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.1841519077618917,
+          "accuracy": 0.98291015625,
+          "auc": 0.9863501990834649,
+          "iou": 0.9020522388059702,
+          "dice": 0.9485041687101521
+        },
+        "random": {
+          "loss": 0.18435713648796082,
+          "accuracy": 0.98291015625,
+          "auc": 0.9862840883479829,
+          "iou": 0.9020522388059702,
+          "dice": 0.9485041687101521
+        }
+      },
+      "best_epoch": 3,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.4968056678771973,
+          "accuracy": 0.46728515625,
+          "auc": 0.5655375552282769,
+          "iou": 0.13481363996827914,
+          "dice": 0.2375960866526904
+        },
+        {
+          "epoch": 1,
+          "loss": 0.3492623567581177,
+          "accuracy": 0.96826171875,
+          "auc": 0.9822643642416099,
+          "iou": 0.7773972602739726,
+          "dice": 0.8747591522157996
+        },
+        {
+          "epoch": 2,
+          "loss": 0.24391400814056396,
+          "accuracy": 0.9736328125,
+          "auc": 0.9882414377834757,
+          "iou": 0.815068493150685,
+          "dice": 0.8981132075471698
+        },
+        {
+          "epoch": 3,
+          "loss": 0.23018240928649902,
+          "accuracy": 0.97607421875,
+          "auc": 0.9902011981528965,
+          "iou": 0.8327645051194539,
+          "dice": 0.9087523277467412
+        },
+        {
+          "epoch": 4,
+          "loss": 2.798671245574951,
+          "accuracy": 0.64453125,
+          "auc": 0.917263689473818,
+          "iou": 0.2741774675972084,
+          "dice": 0.4303599374021909
+        }
+      ],
+      "elapsed_s": 6.600277463032398
+    },
+    {
+      "id": "quantum_bc8_g4",
+      "seed": 123,
+      "model_type": "quantum",
+      "total_params": 500394,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.43220391869544983,
+        "accuracy": 0.98486328125,
+        "auc": 0.9813438261059213,
+        "iou": 0.8734693877551021,
+        "dice": 0.9324618736383442
+      },
+      "test": {
+        "loss": 0.38167037566502887,
+        "accuracy": 0.97412109375,
+        "auc": 0.9864625122079482,
+        "iou": 0.8488593155893536,
+        "dice": 0.9182519280205655
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.3813505172729492,
+          "accuracy": 0.9742838541666666,
+          "auc": 0.9864981969799413,
+          "iou": 0.8498098859315589,
+          "dice": 0.9188078108941419
+        },
+        "random": {
+          "loss": 0.3821658293406169,
+          "accuracy": 0.9737955729166666,
+          "auc": 0.9864136804146948,
+          "iou": 0.846958174904943,
+          "dice": 0.9171384457025219
+        }
+      },
+      "best_epoch": 1,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.60977303981781,
+          "accuracy": 0.30517578125,
+          "auc": 0.545120588128385,
+          "iou": 0.1095118898623279,
+          "dice": 0.19740552735476594
+        },
+        {
+          "epoch": 1,
+          "loss": 0.43220391869544983,
+          "accuracy": 0.98486328125,
+          "auc": 0.9813438261059213,
+          "iou": 0.8734693877551021,
+          "dice": 0.9324618736383442
+        },
+        {
+          "epoch": 2,
+          "loss": 0.3051832914352417,
+          "accuracy": 0.95751953125,
+          "auc": 0.9889930391479772,
+          "iou": 0.7202572347266881,
+          "dice": 0.8373831775700935
+        },
+        {
+          "epoch": 3,
+          "loss": 0.16974569857120514,
+          "accuracy": 0.978515625,
+          "auc": 0.992341699683763,
+          "iou": 0.8345864661654135,
+          "dice": 0.9098360655737705
+        },
+        {
+          "epoch": 4,
+          "loss": 0.1555481255054474,
+          "accuracy": 0.97998046875,
+          "auc": 0.9935593944240485,
+          "iou": 0.8446969696969697,
+          "dice": 0.9158110882956879
+        }
+      ],
+      "elapsed_s": 5.9713011819985695
+    },
+    {
+      "id": "ablation_bc8_g4",
+      "seed": 42,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 42,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        1,
+        2
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.11667914688587189,
+        "accuracy": 0.986328125,
+        "auc": 0.9978091397849462,
+        "iou": 0.89272030651341,
+        "dice": 0.9433198380566802
+      },
+      "test": {
+        "loss": 0.09320660928885142,
+        "accuracy": 0.9879557291666666,
+        "auc": 0.9982937044549621,
+        "iou": 0.9299905392620624,
+        "dice": 0.9637254901960784
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.09292799731095631,
+          "accuracy": 0.9879557291666666,
+          "auc": 0.9982876943881002,
+          "iou": 0.9299905392620624,
+          "dice": 0.9637254901960784
+        },
+        "random": {
+          "loss": 0.09390496214230855,
+          "accuracy": 0.9879557291666666,
+          "auc": 0.9982373600781308,
+          "iou": 0.9299242424242424,
+          "dice": 0.9636898920510304
+        }
+      },
+      "best_epoch": 4,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.3680329322814941,
+          "accuracy": 0.78125,
+          "auc": 0.7128113799283154,
+          "iou": 0.2181500872600349,
+          "dice": 0.35816618911174786
+        },
+        {
+          "epoch": 1,
+          "loss": 0.39798879623413086,
+          "accuracy": 0.98095703125,
+          "auc": 0.9878001792114696,
+          "iou": 0.8482490272373541,
+          "dice": 0.9178947368421052
+        },
+        {
+          "epoch": 2,
+          "loss": 0.26019906997680664,
+          "accuracy": 0.9619140625,
+          "auc": 0.9931003584229391,
+          "iou": 0.7442622950819672,
+          "dice": 0.8533834586466166
+        },
+        {
+          "epoch": 3,
+          "loss": 0.16670024394989014,
+          "accuracy": 0.97802734375,
+          "auc": 0.9950649641577061,
+          "iou": 0.832089552238806,
+          "dice": 0.9083503054989817
+        },
+        {
+          "epoch": 4,
+          "loss": 0.11667914688587189,
+          "accuracy": 0.986328125,
+          "auc": 0.9978091397849462,
+          "iou": 0.89272030651341,
+          "dice": 0.9433198380566802
+        }
+      ],
+      "elapsed_s": 5.6180198839865625
+    },
+    {
+      "id": "ablation_bc8_g4",
+      "seed": 77,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 77,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        10,
+        11
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.2335590422153473,
+        "accuracy": 0.97509765625,
+        "auc": 0.9872439549607167,
+        "iou": 0.8271186440677966,
+        "dice": 0.9053803339517625
+      },
+      "test": {
+        "loss": 0.18887757261594137,
+        "accuracy": 0.9817708333333334,
+        "auc": 0.9828767560664111,
+        "iou": 0.895032802249297,
+        "dice": 0.9446092977250248
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.18990121285120645,
+          "accuracy": 0.98193359375,
+          "auc": 0.9824554879423033,
+          "iou": 0.8958724202626641,
+          "dice": 0.9450766947055913
+        },
+        "random": {
+          "loss": 0.19035262862841287,
+          "accuracy": 0.9817708333333334,
+          "auc": 0.9821906693711968,
+          "iou": 0.895032802249297,
+          "dice": 0.9446092977250248
+        }
+      },
+      "best_epoch": 2,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.4970216751098633,
+          "accuracy": 0.46728515625,
+          "auc": 0.5656373035105527,
+          "iou": 0.13481363996827914,
+          "dice": 0.2375960866526904
+        },
+        {
+          "epoch": 1,
+          "loss": 0.3458234667778015,
+          "accuracy": 0.96728515625,
+          "auc": 0.98308386483521,
+          "iou": 0.7705479452054794,
+          "dice": 0.8704061895551257
+        },
+        {
+          "epoch": 2,
+          "loss": 0.2335590422153473,
+          "accuracy": 0.97509765625,
+          "auc": 0.9872439549607167,
+          "iou": 0.8271186440677966,
+          "dice": 0.9053803339517625
+        },
+        {
+          "epoch": 3,
+          "loss": 0.2549683749675751,
+          "accuracy": 0.97265625,
+          "auc": 0.9812747048135391,
+          "iou": 0.8101694915254237,
+          "dice": 0.8951310861423221
+        },
+        {
+          "epoch": 4,
+          "loss": 10.013671875,
+          "accuracy": 0.3662109375,
+          "auc": 0.748925750116862,
+          "iou": 0.17900063251106893,
+          "dice": 0.30364806866952787
+        }
+      ],
+      "elapsed_s": 4.876635787950363
+    },
+    {
+      "id": "ablation_bc8_g4",
+      "seed": 123,
+      "model_type": "ablation",
+      "total_params": 500522,
+      "settings": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 4,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "optical",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "seed": 123,
+        "image_size": 32,
+        "batch_size": 4,
+        "learning_rate": 0.005,
+        "num_epochs": 4
+      },
+      "train_indices": [
+        0,
+        1,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "val_indices": [
+        2,
+        7
+      ],
+      "train_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013",
+        "014",
+        "015"
+      ],
+      "test_names": [
+        "000",
+        "001",
+        "002",
+        "003",
+        "004",
+        "005"
+      ],
+      "val": {
+        "loss": 0.43032175302505493,
+        "accuracy": 0.9853515625,
+        "auc": 0.9811189160699356,
+        "iou": 0.8775510204081632,
+        "dice": 0.9347826086956522
+      },
+      "test": {
+        "loss": 0.37946728865305585,
+        "accuracy": 0.97509765625,
+        "auc": 0.9865325670498084,
+        "iou": 0.8545627376425855,
+        "dice": 0.9215786776012301
+      },
+      "knockout": {
+        "zero": {
+          "loss": 0.3793612023194631,
+          "accuracy": 0.97509765625,
+          "auc": 0.9865894748704078,
+          "iou": 0.8545627376425855,
+          "dice": 0.9215786776012301
+        },
+        "random": {
+          "loss": 0.3792758385340373,
+          "accuracy": 0.97509765625,
+          "auc": 0.986598114341522,
+          "iou": 0.8545627376425855,
+          "dice": 0.9215786776012301
+        }
+      },
+      "best_epoch": 1,
+      "history": [
+        {
+          "epoch": 0,
+          "loss": 1.609621286392212,
+          "accuracy": 0.3046875,
+          "auc": 0.5452807513358293,
+          "iou": 0.10944340212632896,
+          "dice": 0.19729425028184894
+        },
+        {
+          "epoch": 1,
+          "loss": 0.43032175302505493,
+          "accuracy": 0.9853515625,
+          "auc": 0.9811189160699356,
+          "iou": 0.8775510204081632,
+          "dice": 0.9347826086956522
+        },
+        {
+          "epoch": 2,
+          "loss": 0.19084133207798004,
+          "accuracy": 0.9814453125,
+          "auc": 0.9836588092035914,
+          "iou": 0.8527131782945736,
+          "dice": 0.9205020920502092
+        },
+        {
+          "epoch": 3,
+          "loss": 0.18937928974628448,
+          "accuracy": 0.978515625,
+          "auc": 0.987661753480426,
+          "iou": 0.8345864661654135,
+          "dice": 0.9098360655737705
+        },
+        {
+          "epoch": 4,
+          "loss": 0.1741296947002411,
+          "accuracy": 0.982421875,
+          "auc": 0.990381120279161,
+          "iou": 0.8615384615384616,
+          "dice": 0.9256198347107438
+        }
+      ],
+      "elapsed_s": 5.111131342011504
+    }
+  ],
+  "analysis": {
+    "rows": [
+      {
+        "id": "classical_bc7_g1",
+        "total_params": 510631,
+        "test_iou": {
+          "mean": 0.8783091996783138,
+          "std": 0.014400260459869078,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9351707076360468,
+          "std": 0.008193205256883206,
+          "n": 3
+        },
+        "zero_delta_iou": null
+      },
+      {
+        "id": "classical_bc8_g1",
+        "total_params": 648106,
+        "test_iou": {
+          "mean": 0.8887188861613936,
+          "std": 0.005481822824963269,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9410752259219903,
+          "std": 0.003070101363749815,
+          "n": 3
+        },
+        "zero_delta_iou": null
+      },
+      {
+        "id": "quantum_bc8_g1",
+        "total_params": 500394,
+        "test_iou": {
+          "mean": 0.8829283037835866,
+          "std": 0.013795469394090236,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9377866097756846,
+          "std": 0.007791438946303473,
+          "n": 3
+        },
+        "zero_delta_iou": {
+          "mean": 0.000544541543837318,
+          "std": 0.00047164529482465864,
+          "n": 3
+        }
+      },
+      {
+        "id": "ablation_bc8_g1",
+        "total_params": 500522,
+        "test_iou": {
+          "mean": 0.8938137434837835,
+          "std": 0.014210684077380211,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9438904537660966,
+          "std": 0.007892656418629903,
+          "n": 3
+        },
+        "zero_delta_iou": {
+          "mean": 0.0008607923024654962,
+          "std": 6.745077851356863e-05,
+          "n": 3
+        }
+      },
+      {
+        "id": "classical_bc8_g4",
+        "total_params": 648106,
+        "test_iou": {
+          "mean": 0.8949702140046818,
+          "std": 0.02185566882461001,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9444809905172141,
+          "std": 0.012153846719442992,
+          "n": 3
+        },
+        "zero_delta_iou": null
+      },
+      {
+        "id": "quantum_bc8_g4",
+        "total_params": 500394,
+        "test_iou": {
+          "mean": 0.8956143921425038,
+          "std": 0.04357356353674435,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9445591699757963,
+          "std": 0.024402807357107682,
+          "n": 3
+        },
+        "zero_delta_iou": {
+          "mean": -3.6106006130095146e-05,
+          "std": 0.0008969565266545268,
+          "n": 3
+        }
+      },
+      {
+        "id": "ablation_bc8_g4",
+        "total_params": 500522,
+        "test_iou": {
+          "mean": 0.8931953597179817,
+          "std": 0.037747456345808346,
+          "n": 3
+        },
+        "test_dice": {
+          "mean": 0.9433044885074444,
+          "std": 0.021103680918195956,
+          "n": 3
+        },
+        "zero_delta_iou": {
+          "mean": -0.0002798726711223572,
+          "std": 0.0004847536860339376,
+          "n": 3
+        }
+      }
+    ],
+    "paired_comparisons": [
+      {
+        "left": "classical_bc8_g1",
+        "right": "classical_bc7_g1",
+        "unit": "IoU",
+        "differences": {
+          "42": 0.03275057381595503,
+          "77": -0.005281116869725655,
+          "123": 0.0037596025030101066
+        },
+        "mean": 0.010409686483079827,
+        "std": 0.019868821978398912,
+        "n": 3
+      },
+      {
+        "left": "quantum_bc8_g1",
+        "right": "classical_bc7_g1",
+        "unit": "IoU",
+        "differences": {
+          "42": 0.03391227858060286,
+          "77": -0.005038876986405927,
+          "123": -0.01501608927837872
+        },
+        "mean": 0.004619104105272738,
+        "std": 0.025854472425701755,
+        "n": 3
+      },
+      {
+        "left": "ablation_bc8_g1",
+        "right": "classical_bc7_g1",
+        "unit": "IoU",
+        "differences": {
+          "42": 0.0480762035086969,
+          "77": -0.005386939620783848,
+          "123": 0.00382436752849602
+        },
+        "mean": 0.015504543805469692,
+        "std": 0.028581406660917165,
+        "n": 3
+      },
+      {
+        "left": "classical_bc8_g1",
+        "right": "classical_bc8_g4",
+        "unit": "IoU",
+        "differences": {
+          "42": -0.023047070328921393,
+          "77": -0.008667039950348787,
+          "123": 0.012960126749405831
+        },
+        "mean": -0.0062513278432881165,
+        "std": 0.018124743007764933,
+        "n": 3
+      },
+      {
+        "left": "quantum_bc8_g1",
+        "right": "quantum_bc8_g4",
+        "unit": "IoU",
+        "differences": {
+          "42": -0.03914093508590477,
+          "77": -0.018528163655224694,
+          "123": 0.01961083366437777
+        },
+        "mean": -0.012686088358917233,
+        "std": 0.02980838750498697,
+        "n": 3
+      },
+      {
+        "left": "ablation_bc8_g1",
+        "right": "ablation_bc8_g4",
+        "unit": "IoU",
+        "differences": {
+          "42": -0.019878179711500632,
+          "77": -0.0110145374091144,
+          "123": 0.032747868418020576
+        },
+        "mean": 0.000618383765801848,
+        "std": 0.02817567881576293,
+        "n": 3
+      },
+      {
+        "left": "quantum_bc8_g4",
+        "right": "ablation_bc8_g4",
+        "unit": "IoU",
+        "differences": {
+          "42": 0.005098830446310099,
+          "77": 0.007861688880488216,
+          "123": -0.005703422053231932
+        },
+        "mean": 0.0024190324245221273,
+        "std": 0.007168615399030521,
+        "n": 3
+      },
+      {
+        "left": "quantum_bc8_g1",
+        "right": "ablation_bc8_g1",
+        "unit": "IoU",
+        "differences": {
+          "42": -0.01416392492809404,
+          "77": 0.0003480626343779214,
+          "123": -0.01884045680687474
+        },
+        "mean": -0.010885439700196953,
+        "std": 0.010005556887499436,
+        "n": 3
+      }
+    ]
+  }
+}

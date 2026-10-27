@@ -1,5 +1,29 @@
 # Running the QUAFFLE experiment grid
 
+## Ordinary U-Net at the quantum parameter budget
+
+```bash
+python scripts/run_parameter_budget_comparison.py --work-dir /tmp/quaffle-budget-comparison \
+  --seeds 42 77 123 --device cuda
+```
+
+This standalone local experiment selects an ordinary U-Net width by parameter
+counts before training, from base widths 4–8 with the standard `(1, 2, 4, 8)`
+channel multipliers. The target is the width-8 full quantum bottleneck with
+500,394 parameters. Width 7 has 510,631 parameters (+2.05%); it preserves the
+ordinary spatial bottleneck convolutions and encoder–decoder skip connections.
+The comparison uses one GroupNorm group for every model in its main comparison,
+because seven channels cannot divide into four groups. Width-8 U-Net, quantum,
+and wider MLP references are also run with four groups to connect to the earlier
+sweep and measure normalization sensitivity. All seven configurations use paired
+seeds/splits, four training epochs by default, and validation-IoU selection.
+
+The new or empty work directory retains each completed fit immediately, selected
+checkpoints, input hashes, source/runtime provenance, and aggregate/paired reports.
+An existing nonempty directory is rejected. Run under a host-memory limit on a
+shared workstation; CUDA allocation is capped at 12% of GPU memory by the script.
+This is a small synthetic benchmark and does not establish real DFC24 performance.
+
 ## Local Wave 4 comparisons
 
 The synthetic mini-sweep has two opt-in panels for the post-audit controls:
