@@ -394,6 +394,14 @@ class ClassicalFedAvg(tc.RoundOffsetMixin, FedAvg):
             # it so main() can mark the whole run as failed.
             self.failed_rounds.append((server_round, len(failures), repr(failures[0])[:500]))
             print(f"Round {server_round}: {len(failures)} client fit failures, first: {repr(failures[0])[:500]}")
+        global_params = (
+            getattr(self, '_round_start_parameters', None)
+            or getattr(self, '_current_parameters', None)
+            or getattr(self, 'initial_parameters', None)
+        )
+        results = tc.apply_comm_compression_to_fit_results(
+            results, global_params, self.config
+        )
         aggregated_result = super().aggregate_fit(server_round, results, failures)
         
         # Store current parameters for evaluation
@@ -676,6 +684,13 @@ def main():
                     f.write(line + "\n")
                 f.write(f"Total parameters: {total_params:,}\n")
                 f.write(f"Trainable parameters: {trainable_params:,}\n")
+                comm_tel = tc.compute_comm_compression_telemetry(selected_params if selected_params is not None else total_params, config)
+                f.write(
+                    f"Communication compression: {comm_tel['comm_compression']} "
+                    f"({comm_tel['upload_bytes_per_client_round']:,} bytes / "
+                    f"{comm_tel['upload_mib_per_client_round']:.2f} MiB per client/round, "
+                    f"ratio={comm_tel['compression_ratio']:.4f})\n"
+                )
                 f.write(f"Best AUC achieved: {strategy.best_performance:.4f}\n\n")
                 
                 if strategy.round_metrics:
@@ -720,7 +735,12 @@ def main():
         best_val_score=strategy.best_val_score, best_round=strategy.best_round,
         knockout=None,
         provenance=provenance,
-        extra={'resumed_from_round': strategy.resumed_from_round})
+        extra={
+            'resumed_from_round': strategy.resumed_from_round,
+            **tc.compute_comm_compression_telemetry(
+                selected_params if selected_params is not None else total_params, config
+            ),
+        })
 
     # Shared Excel summary: best effort, a tracker failure never fails the run.
     excel_config = {**config, 'total_params': total_params}

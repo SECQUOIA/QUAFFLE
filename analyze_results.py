@@ -274,7 +274,7 @@ PRIMARY_VARIANT = os.environ.get("QUAFFLE_PRIMARY_VARIANT", "reupload_L2")
 _DEFAULT_Q_LAYERS = 2
 
 _SCALE_TAG_RE = _re_disk.compile(r"(?:_(?:bc\d+|img\d+|max\d+|dr[0-9a-f]{6}))+$")
-_FED_MOD_PART = r"(?:_fedprox[\d.eE+-]+)?(?:_qagg-circular)?(?:_K\d+C\d+)?"
+_FED_MOD_PART = r"(?:_fedprox[\d.eE+-]+)?(?:_qagg-circular)?(?:_comm-(?:fp16|int8|topk10))?(?:_K\d+C\d+)?"
 _CLASSICAL_MOD_PART = (
     r"(?:_(?:standard|depthwise_sep))?"
     r"(?:_in-(?:concat6|dual_stem))?"
@@ -295,8 +295,8 @@ _VTAG_RE = _re_disk.compile(
 )
 _CLASSICAL_VTAG_RE = _re_disk.compile(
     r"_((?:"
-    r"(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+)"
-    r"(?:_(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+))*"
+    r"(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|comm-(?:fp16|int8|topk10)|K\d+C\d+)"
+    r"(?:_(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|comm-(?:fp16|int8|topk10)|K\d+C\d+))*"
     r"))$"
 )
 _BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
@@ -418,6 +418,9 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
             q_agg = data.get("q_angle_agg")
             if q_agg and q_agg != "linear":
                 parts.append(f"qagg-{q_agg}")
+            comm_comp = data.get("comm_compression")
+            if comm_comp and comm_comp != "none":
+                parts.append(f"comm-{comm_comp}")
             nc = data.get("num_clients")
             cpr = data.get("clients_per_round")
             if nc is not None:
@@ -450,9 +453,16 @@ def _infer_variant_from_summary(text, quantumish=True):
     dsg = _re_disk.search(r"--decoder[-_]skip[-_]gate[ =](\w+)", cli)
     bb = _re_disk.search(r"--backbone[-_]conv[-_]mode[ =](\w+)", cli)
     loss_m = _re_disk.search(r"--loss[ =](\w+)", cli)
+    comm_comp = _re_disk.search(r"--comm[-_]compression[ =](\w+)", cli)
     no_time = bool(_re_disk.search(r"--no[-_]time[-_]emb\b", cli))
     aug = bool(_re_disk.search(r"--augment\b", cli))
+    is_fed = bool(
+        comm_comp
+        or _re_disk.search(r"--(?:partition|fl[-_]strategy|fedprox[-_]mu|q[-_]angle[-_]agg|mode[ =]federated)\b", cli)
+        or "Federated" in (text or "")
+    )
     data = {
+        "training": "federated" if is_fed else "centralized",
         "n_qubits": int(n_qubits.group(1)) if n_qubits else None,
         "hqunet_grid": int(grid.group(1)) if grid else None,
         "q_spatial_mode": q_sp.group(1) if q_sp else None,
@@ -463,6 +473,7 @@ def _infer_variant_from_summary(text, quantumish=True):
         "decoder_skip_gate": dsg.group(1) if dsg else None,
         "backbone_conv_mode": bb.group(1) if bb else None,
         "loss": loss_m.group(1) if loss_m else None,
+        "comm_compression": comm_comp.group(1) if comm_comp else None,
         "use_time_emb": False if no_time else True,
         "augment": True if aug else False,
     }

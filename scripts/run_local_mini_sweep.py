@@ -84,6 +84,7 @@ _SCHEMA_DEFAULTS: Dict[str, Any] = {
     "ablation_mode": "auto",
     "ablation_mlp_mode": "param_matched",
     "ablation_mlp_hidden": None,
+    "comm_compression": "none",
 }
 
 
@@ -178,6 +179,8 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
         "--fedprox_mu": ("fedprox_mu", float),
         "--q-angle-agg": ("q_angle_agg", str),
         "--q_angle_agg": ("q_angle_agg", str),
+        "--comm-compression": ("comm_compression", str),
+        "--comm_compression": ("comm_compression", str),
         "--num-clients": ("num_clients", int),
         "--num_clients": ("num_clients", int),
         "--clients-per-round": ("clients_per_round", int),

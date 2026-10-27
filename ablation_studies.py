@@ -622,6 +622,9 @@ class _TorchAblationFedAvg:
         return self._base.initialize_parameters(client_manager)
 
     def configure_fit(self, server_round, parameters, client_manager):
+        self._round_start_parameters = parameters
+        if getattr(self, '_current_parameters', None) is None:
+            self._current_parameters = parameters
         return self._base.configure_fit(server_round + self.round_offset, parameters, client_manager)
 
     def configure_evaluate(self, server_round, parameters, client_manager):
@@ -633,6 +636,14 @@ class _TorchAblationFedAvg:
         if failures:
             self.failed_rounds.append((server_round, len(failures), repr(failures[0])[:500]))
             print(f"Round {server_round}: {len(failures)} client fit failures, first: {repr(failures[0])[:500]}")
+        global_params = (
+            getattr(self, '_round_start_parameters', None)
+            or getattr(self, '_current_parameters', None)
+            or getattr(self, 'initial_parameters', None)
+        )
+        results = tc.apply_comm_compression_to_fit_results(
+            results, global_params, self.config
+        )
         agg = self._base.aggregate_fit(server_round, results, failures)
         if agg is not None:
             self._current_parameters = agg[0]
@@ -894,6 +905,9 @@ def run_federated_torch(args):
     final_val = strategy.round_metrics[-1] if strategy.round_metrics else None
     best_val = best_val_metrics or final_val
     b_target, b_actual = tc.bottleneck_param_counts(config, 'ablation')
+    comm_tel = tc.compute_comm_compression_telemetry(
+        selected_params if selected_params is not None else total_params, config
+    )
     _write_summary_torch(output_dir, backend, q_params, config['base_channels'],
                          total_params, strategy.round_metrics, test_result,
                          mode='federated',
@@ -903,6 +917,10 @@ def run_federated_torch(args):
                              f"Bottleneck parameters (target / actual): {b_target} / {b_actual}",
                              f"Clients: {config['num_clients']}, Rounds: {config['fed_rounds']}, "
                              f"Local epochs: {config['local_epochs']}",
+                             f"Communication compression: {comm_tel['comm_compression']} "
+                             f"({comm_tel['upload_bytes_per_client_round']:,} bytes / "
+                             f"{comm_tel['upload_mib_per_client_round']:.2f} MiB per client/round, "
+                             f"ratio={comm_tel['compression_ratio']:.4f})",
                              f"Checkpoint selection metric: {strategy.select_metric} (best round: {best_round})",
                          ],
                          provenance=provenance, knockout=knockout,
@@ -920,7 +938,8 @@ def run_federated_torch(args):
         knockout=knockout if config.get('quantum_knockout_eval') else None,
         provenance=provenance,
         extra={'reference_quantum_params': q_params,
-               'resumed_from_round': strategy.resumed_from_round})
+               'resumed_from_round': strategy.resumed_from_round,
+               **comm_tel})
     tc.safe_tracker_call(
         save_results_to_excel,
         demo_name=f"Ablation Federated Torch Bottleneck (vs {backend}){qc_suffix}",
