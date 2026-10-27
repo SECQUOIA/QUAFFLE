@@ -106,6 +106,31 @@ the larger mean gain takes priority. This criterion was recorded in local task
 state when the 60-epoch run started; its executable helper was added later.
 It is an exploratory screening rule, not a significance test.
 
+When that rule qualifies a mode, run the additional controls in a new directory:
+
+```bash
+python scripts/run_quantum_training_controls.py \
+  --baseline-run /tmp/real-spatial-pilot --data-root /path/to/data \
+  --work-dir /tmp/real-spatial-controls
+```
+
+The launcher reads validation-only fit records, chooses the qualifying mode by
+the recorded rule, and inherits the baseline's seeds, rate grid, fit cap, image
+size, batch size, epoch budget and evaluation schedule. It refuses incomplete
+or nonqualifying comparisons and checks the original input byte identity. The
+two new models receive independent rate selection with the same tuning budget;
+their test replay follows all control fits. The launcher and decision helper
+are included in the new run's source hashes.
+
+The `q_training_control` configuration field defaults to `trainable`. `frozen`
+keeps circuit angles and input scales at their original initialization while
+training the classical model around them. `no_entanglement` removes every CNOT
+ring while retaining and training the same single-qubit rotations, input
+scales and classical model. These two controls currently require the reupload
+ansatz and a PennyLane backend. They preserve total parameter counts; the
+frozen model has fewer trainable parameters. Checkpoint settings, simulator
+metadata and centralized/federated resume fingerprints record the choice.
+
 ## Compare typical and failure examples from saved checkpoints
 
 ```bash

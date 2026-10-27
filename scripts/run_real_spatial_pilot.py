@@ -213,7 +213,8 @@ def fit_one(spec, seed, rate, args, data, directory, device):
                                   nonzero_steps=sum(value > 0 for value in values), steps=len(values))
                         for name, values in gradient_values.items() if values})
     record = dict(id=spec['id'], model_type=spec['model_type'], seed=seed, learning_rate=rate,
-        total_params=sum(p.numel() for p in model.parameters()), settings=cfg,
+        total_params=sum(p.numel() for p in model.parameters()),
+        trainable_params=sum(p.numel() for p in model.parameters() if p.requires_grad), settings=cfg,
         fit_indices=data['fit'], val_indices=data['validation'],
         fit_names=[data['dataset'].names[i] for i in data['fit']],
         val_names=[data['dataset'].names[i] for i in data['validation']],
@@ -282,7 +283,8 @@ def format_report(summary):
     return '\n'.join(lines)
 
 
-def main(argv=None):
+def main(argv=None, *, spec_factory=None, extra_source_files=(), experiment_context=None,
+         expected_input_identity=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-root', type=Path, required=True)
     parser.add_argument('--work-dir', type=Path, required=True)
@@ -312,7 +314,7 @@ def main(argv=None):
     if args.device == 'cuda':
         torch.cuda.set_per_process_memory_fraction(0.12)
     device = torch.device(args.device)
-    specs = plan_specs()
+    specs = (spec_factory or plan_specs)()
     if args.specs:
         if not set(args.specs) <= {spec['id'] for spec in specs}:
             parser.error('Unknown model id')
@@ -320,10 +322,14 @@ def main(argv=None):
     source_files = ['scripts/run_real_spatial_pilot.py', 'scripts/run_parameter_budget_comparison.py',
                     'utilsTorch/unetTorch.py', 'utilsTorch/utilsTorch.py', 'tools/training_common.py',
                     'tools/checkpoint_evaluation.py', 'flood_data.py', 'splits/norm_stats.json']
+    source_files += list(extra_source_files)
     hashes = {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in source_files}
     input_identity = verify_inputs(args.data_root)
+    if expected_input_identity is not None and input_identity != expected_input_identity:
+        parser.error('Input data differ from the frozen baseline comparison')
     settings = {key: value for key, value in vars(args).items() if key not in ('resume', 'work_dir', 'data_root')}
     plan = dict(settings=settings, specs=specs, source_hashes=hashes,
+        experiment_context=experiment_context,
         source_revision=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         python=platform.python_version(), packages={p: importlib.metadata.version(p) for p in ['torch', 'pennylane', 'numpy', 'rasterio']},
         input_identity=input_identity,
@@ -335,7 +341,7 @@ def main(argv=None):
     plan_path = args.work_dir / 'plan.json'
     if args.resume:
         previous = json.loads(plan_path.read_text())
-        for key in ('settings', 'specs', 'source_hashes', 'input_identity', 'packages', 'device'):
+        for key in ('settings', 'specs', 'source_hashes', 'input_identity', 'packages', 'device', 'experiment_context'):
             if previous[key] != plan[key]:
                 parser.error('Resume inputs differ from the frozen plan: ' + key)
     else:
