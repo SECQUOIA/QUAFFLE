@@ -14,5 +14,6 @@
   "selected_test_replays": 18,
   "qualitative": "Both modes/all3seeds/full205tiles,71optical134SAR; all checkpoint and normalization identities verified. PNGs visually inspected separately.",
   "scope": "Local centralized capped-optimization pilot; Anvil execution belongs to Alan and was not performed here",
-  "postprocessing": "CSV line endings normalized to LF after collection; parsed rows verified unchanged. Interpretation and supplementary provenance added separately."
+  "postprocessing": "CSV line endings normalized to LF after collection; parsed rows verified unchanged. Interpretation and supplementary provenance added separately.",
+  "sensor_views": "12Optical/SARsubsetgroups(2modes x2sensors x3seeds);71/134tiles;allper-tilevaluesandcheckpointidentitiesmatchpooledexport. Representativeoverlay/scatterPNGsandnative-resolutiontitlecropinspected. Source9cdf9f0;noadditionaltraining."
 }

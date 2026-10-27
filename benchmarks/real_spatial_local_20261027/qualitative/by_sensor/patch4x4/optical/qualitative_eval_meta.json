@@ -1,0 +1,2866 @@
+{
+  "selection_rule": "Per-sensor classical lower median/worst IoU among >=5% flood tiles; original dataset index breaks ties",
+  "scope": "Sensor test subsets of combined-trained checkpoints",
+  "empty_union_iou": 0,
+  "datasets": [
+    {
+      "id": "OPTICAL; patch4x4; seed 42",
+      "dataset": "combined",
+      "seed": 42,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 42,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 42,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "f291b8c2d396cbc3",
+        "stats_sha256": "d94231cc31e7c2e1"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "db970e00c29d2ed464a9094861c231a79ece246ecc99df994b51a78317612a35",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "6b2fa3a2aeeba0e3ffea8de03f43318012f82ec63c256c41c5dd60f63d052867",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "458d80f228ef575b76a5ebab1fe6538f1e77788028fe1a181fc8a199be4c6f01",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.5500770416024653,
+            "ablation": 0.5605187319884726,
+            "quantum": 0.5229166666666667
+          },
+          "dataset_index": 0
+        },
+        {
+          "index": 1,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 2
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8626686656671664,
+            "ablation": 0.8679699248120301,
+            "quantum": 0.869062119366626
+          },
+          "dataset_index": 4
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.13516483516483516,
+            "ablation": 0.056179775280898875,
+            "quantum": 0.015904572564612324
+          },
+          "dataset_index": 6
+        },
+        {
+          "index": 4,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 8
+        },
+        {
+          "index": 5,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 10
+        },
+        {
+          "index": 6,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.20114942528735633,
+            "ablation": 0.22388059701492538,
+            "quantum": 0.379746835443038
+          },
+          "dataset_index": 11
+        },
+        {
+          "index": 7,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 12
+        },
+        {
+          "index": 8,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.6405295315682281,
+            "ablation": 0.6632996632996633,
+            "quantum": 0.7633689839572193
+          },
+          "dataset_index": 14
+        },
+        {
+          "index": 9,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.7300884955752213,
+            "ablation": 0.7565217391304347,
+            "quantum": 0.7739463601532567
+          },
+          "dataset_index": 16
+        },
+        {
+          "index": 10,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.6137931034482759,
+            "ablation": 0.2571138211382114,
+            "quantum": 0.4613899613899614
+          },
+          "dataset_index": 17
+        },
+        {
+          "index": 11,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9618155619596542,
+            "ablation": 0.9713248638838475,
+            "quantum": 0.9726277372262774
+          },
+          "dataset_index": 19
+        },
+        {
+          "index": 12,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9490894039735099,
+            "ablation": 0.948559670781893,
+            "quantum": 0.9503753127606339
+          },
+          "dataset_index": 21
+        },
+        {
+          "index": 13,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.14336917562724014,
+            "ablation": 0.052096569250317665,
+            "quantum": 0.17307692307692307
+          },
+          "dataset_index": 23
+        },
+        {
+          "index": 14,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 25
+        },
+        {
+          "index": 15,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.31638182576073365,
+            "ablation": 0.40984267849939493,
+            "quantum": 0.32618556701030926
+          },
+          "dataset_index": 27
+        },
+        {
+          "index": 16,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9227764423076923,
+            "ablation": 0.9250913520097442,
+            "quantum": 0.9209388511426807
+          },
+          "dataset_index": 28
+        },
+        {
+          "index": 17,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.9016047297297297,
+            "ablation": 0.9129864451246174,
+            "quantum": 0.914780292942743
+          },
+          "dataset_index": 30
+        },
+        {
+          "index": 18,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.4869029275808937,
+            "ablation": 0.49128205128205127,
+            "quantum": 0.4831693423096841
+          },
+          "dataset_index": 32
+        },
+        {
+          "index": 19,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.38612308898471187,
+            "ablation": 0.3803096466851925,
+            "quantum": 0.36716417910447763
+          },
+          "dataset_index": 33
+        },
+        {
+          "index": 20,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4353099730458221,
+            "ablation": 0.47623619779164666,
+            "quantum": 0.5447338618346546
+          },
+          "dataset_index": 35
+        },
+        {
+          "index": 21,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 37
+        },
+        {
+          "index": 22,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.621301775147929,
+            "ablation": 0.6219915054270883,
+            "quantum": 0.5649038461538461
+          },
+          "dataset_index": 39
+        },
+        {
+          "index": 23,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.6818181818181818,
+            "ablation": 0.7203994293865906,
+            "quantum": 0.670061099796334
+          },
+          "dataset_index": 41
+        },
+        {
+          "index": 24,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.03508771929824561,
+            "ablation": 0.0425531914893617,
+            "quantum": 0.0
+          },
+          "dataset_index": 43
+        },
+        {
+          "index": 25,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.037940379403794036,
+            "ablation": 0.04868913857677903,
+            "quantum": 0.04727272727272727
+          },
+          "dataset_index": 45
+        },
+        {
+          "index": 26,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.5073409461663948,
+            "ablation": 0.5722145804676754,
+            "quantum": 0.5357142857142857
+          },
+          "dataset_index": 46
+        },
+        {
+          "index": 27,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7936288088642659,
+            "ablation": 0.7838721394841991,
+            "quantum": 0.6991869918699187
+          },
+          "dataset_index": 48
+        },
+        {
+          "index": 28,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.23119266055045873,
+            "ablation": 0.2924187725631769,
+            "quantum": 0.2248995983935743
+          },
+          "dataset_index": 50
+        },
+        {
+          "index": 29,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.20175438596491227,
+            "ablation": 0.14457831325301204,
+            "quantum": 0.16666666666666666
+          },
+          "dataset_index": 52
+        },
+        {
+          "index": 30,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.4485401459854015,
+            "ablation": 0.460463405663847,
+            "quantum": 0.4459210040605389
+          },
+          "dataset_index": 53
+        },
+        {
+          "index": 31,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 54
+        },
+        {
+          "index": 32,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.05790960451977401,
+            "ablation": 0.10597826086956522,
+            "quantum": 0.17412935323383086
+          },
+          "dataset_index": 55
+        },
+        {
+          "index": 33,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.001366120218579235,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 57
+        },
+        {
+          "index": 34,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.6954206602768903,
+            "ablation": 0.7081545064377682,
+            "quantum": 0.7088744588744589
+          },
+          "dataset_index": 59
+        },
+        {
+          "index": 35,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 61
+        },
+        {
+          "index": 36,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.37228260869565216,
+            "ablation": 0.2972027972027972,
+            "quantum": 0.5349794238683128
+          },
+          "dataset_index": 63
+        },
+        {
+          "index": 37,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 64
+        },
+        {
+          "index": 38,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 66
+        },
+        {
+          "index": 39,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.28537920250195464,
+            "ablation": 0.3867478025693036,
+            "quantum": 0.08223350253807106
+          },
+          "dataset_index": 68
+        },
+        {
+          "index": 40,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.08411214953271028,
+            "ablation": 0.0,
+            "quantum": 0.25
+          },
+          "dataset_index": 70
+        },
+        {
+          "index": 41,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 72
+        },
+        {
+          "index": 42,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.889437585733882,
+            "ablation": 0.8864714086471409,
+            "quantum": 0.8781654473832302
+          },
+          "dataset_index": 73
+        },
+        {
+          "index": 43,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.8514739229024944,
+            "ablation": 0.8632075471698113,
+            "quantum": 0.8623334679047234
+          },
+          "dataset_index": 75
+        },
+        {
+          "index": 44,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.6606136505948653,
+            "ablation": 0.7623188405797101,
+            "quantum": 0.7684210526315789
+          },
+          "dataset_index": 77
+        },
+        {
+          "index": 45,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.37510692899914455,
+            "ablation": 0.4715797726381811,
+            "quantum": 0.36558669001751315
+          },
+          "dataset_index": 79
+        },
+        {
+          "index": 46,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.15412186379928317,
+            "ablation": 0.20540540540540542,
+            "quantum": 0.2996389891696751
+          },
+          "dataset_index": 81
+        },
+        {
+          "index": 47,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 83
+        },
+        {
+          "index": 48,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 85
+        },
+        {
+          "index": 49,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.7013081395348837,
+            "ablation": 0.7214285714285714,
+            "quantum": 0.6785185185185185
+          },
+          "dataset_index": 87
+        },
+        {
+          "index": 50,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.1756152125279642,
+            "ablation": 0.1750841750841751,
+            "quantum": 0.12030075187969924
+          },
+          "dataset_index": 89
+        },
+        {
+          "index": 51,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.056179775280898875,
+            "ablation": 0.3691246226821906,
+            "quantum": 0.34503684438664933
+          },
+          "dataset_index": 91
+        },
+        {
+          "index": 52,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.8404001905669366,
+            "ablation": 0.8672032193158954,
+            "quantum": 0.9187124931805782
+          },
+          "dataset_index": 92
+        },
+        {
+          "index": 53,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.08333333333333333,
+            "ablation": 0.030303030303030304,
+            "quantum": 0.0
+          },
+          "dataset_index": 94
+        },
+        {
+          "index": 54,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.6980108499095841,
+            "ablation": 0.6780529461998293,
+            "quantum": 0.6873290793072014
+          },
+          "dataset_index": 95
+        },
+        {
+          "index": 55,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.35579293344289237,
+            "ablation": 0.49523052464228934,
+            "quantum": 0.4073777064955894
+          },
+          "dataset_index": 97
+        },
+        {
+          "index": 56,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.7310215557638238,
+            "ablation": 0.7040723981900453,
+            "quantum": 0.7265846736045412
+          },
+          "dataset_index": 99
+        },
+        {
+          "index": 57,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.03125,
+            "quantum": 0.0
+          },
+          "dataset_index": 101
+        },
+        {
+          "index": 58,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 103
+        },
+        {
+          "index": 59,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.6220510351468465,
+            "ablation": 0.7231735159817352,
+            "quantum": 0.7163613392293114
+          },
+          "dataset_index": 105
+        },
+        {
+          "index": 60,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9307073030477285,
+            "ablation": 0.9248271889400922,
+            "quantum": 0.9036670547147846
+          },
+          "dataset_index": 107
+        },
+        {
+          "index": 61,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6784934497816594,
+            "ablation": 0.6910206358059119,
+            "quantum": 0.6385135135135135
+          },
+          "dataset_index": 109
+        },
+        {
+          "index": 62,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.6829931972789116,
+            "ablation": 0.5180360721442886,
+            "quantum": 0.778125
+          },
+          "dataset_index": 110
+        },
+        {
+          "index": 63,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.226890756302521,
+            "ablation": 0.2869318181818182,
+            "quantum": 0.24834437086092714
+          },
+          "dataset_index": 112
+        },
+        {
+          "index": 64,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.23847780126849893,
+            "ablation": 0.28885135135135137,
+            "quantum": 0.23412362404741743
+          },
+          "dataset_index": 114
+        },
+        {
+          "index": 65,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.033821871476888386,
+            "ablation": 0.02855543113101904,
+            "quantum": 0.003941441441441441
+          },
+          "dataset_index": 116
+        },
+        {
+          "index": 66,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.6965811965811965,
+            "ablation": 0.7136363636363636,
+            "quantum": 0.7306733167082294
+          },
+          "dataset_index": 118
+        },
+        {
+          "index": 67,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.04334677419354839,
+            "ablation": 0.07345575959933222,
+            "quantum": 0.1688888888888889
+          },
+          "dataset_index": 119
+        },
+        {
+          "index": 68,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7894368660370759,
+            "ablation": 0.772082878953108,
+            "quantum": 0.6660516605166051
+          },
+          "dataset_index": 121
+        },
+        {
+          "index": 69,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.08856088560885608,
+            "ablation": 0.17790262172284643,
+            "quantum": 0.20050761421319796
+          },
+          "dataset_index": 123
+        },
+        {
+          "index": 70,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 124
+        }
+      ],
+      "selected": {
+        "worst": 65,
+        "median": 61
+      },
+      "example_modality": "optical"
+    },
+    {
+      "id": "OPTICAL; patch4x4; seed 77",
+      "dataset": "combined",
+      "seed": 77,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 77,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 77,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "4040a209ab34cda8",
+        "stats_sha256": "7e7eafec5129b4b2"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "e76d00ca49881f4c11aa1da036241fa9c8edb01e9f9e5d5839bf766abb640edd",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "309920b1e1d438688704e1a70c01e67a6545c620e85f8b977b94ac334314cae4",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "85b14f0eae967e363e387dd19acca3fe131e3284ab9d843853ab872d51beeefd",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.4536489151873767,
+            "ablation": 0.41030927835051545,
+            "quantum": 0.3333333333333333
+          },
+          "dataset_index": 0
+        },
+        {
+          "index": 1,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 2
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8477943324569092,
+            "ablation": 0.8696574719612004,
+            "quantum": 0.8711637800060772
+          },
+          "dataset_index": 4
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 6
+        },
+        {
+          "index": 4,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 8
+        },
+        {
+          "index": 5,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 10
+        },
+        {
+          "index": 6,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 11
+        },
+        {
+          "index": 7,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 12
+        },
+        {
+          "index": 8,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.5952380952380952,
+            "ablation": 0.6808199121522694,
+            "quantum": 0.6612665684830633
+          },
+          "dataset_index": 14
+        },
+        {
+          "index": 9,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.7644298451431253,
+            "ablation": 0.7673975214489991,
+            "quantum": 0.7590304182509505
+          },
+          "dataset_index": 16
+        },
+        {
+          "index": 10,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.4942084942084942,
+            "ablation": 0.6115384615384616,
+            "quantum": 0.49034749034749037
+          },
+          "dataset_index": 17
+        },
+        {
+          "index": 11,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9117847411444142,
+            "ablation": 0.9686588921282799,
+            "quantum": 0.9624277456647399
+          },
+          "dataset_index": 19
+        },
+        {
+          "index": 12,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9183431952662722,
+            "ablation": 0.9629012088370155,
+            "quantum": 0.9665131854332356
+          },
+          "dataset_index": 21
+        },
+        {
+          "index": 13,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.0625,
+            "ablation": 0.10238907849829351,
+            "quantum": 0.10276679841897234
+          },
+          "dataset_index": 23
+        },
+        {
+          "index": 14,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 25
+        },
+        {
+          "index": 15,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.29138795986622074,
+            "ablation": 0.24560669456066947,
+            "quantum": 0.22473794549266246
+          },
+          "dataset_index": 27
+        },
+        {
+          "index": 16,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9211704986563153,
+            "ablation": 0.9171220400728597,
+            "quantum": 0.9140340218712029
+          },
+          "dataset_index": 28
+        },
+        {
+          "index": 17,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.9198919891989199,
+            "ablation": 0.9201623815967523,
+            "quantum": 0.9169300225733634
+          },
+          "dataset_index": 30
+        },
+        {
+          "index": 18,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.5985330073349633,
+            "ablation": 0.46701570680628274,
+            "quantum": 0.47277486910994765
+          },
+          "dataset_index": 32
+        },
+        {
+          "index": 19,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.3871369294605809,
+            "ablation": 0.37209302325581395,
+            "quantum": 0.3704470198675497
+          },
+          "dataset_index": 33
+        },
+        {
+          "index": 20,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4678030303030303,
+            "ablation": 0.5296187683284458,
+            "quantum": 0.5119047619047619
+          },
+          "dataset_index": 35
+        },
+        {
+          "index": 21,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 37
+        },
+        {
+          "index": 22,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.6723842195540308,
+            "ablation": 0.5295256534365924,
+            "quantum": 0.5152690256907416
+          },
+          "dataset_index": 39
+        },
+        {
+          "index": 23,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.5653292181069959,
+            "ablation": 0.5939771547248183,
+            "quantum": 0.5617283950617284
+          },
+          "dataset_index": 41
+        },
+        {
+          "index": 24,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 43
+        },
+        {
+          "index": 25,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.012345679012345678,
+            "ablation": 0.008695652173913044,
+            "quantum": 0.0
+          },
+          "dataset_index": 45
+        },
+        {
+          "index": 26,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.6121794871794872,
+            "ablation": 0.5660377358490566,
+            "quantum": 0.5481611208406305
+          },
+          "dataset_index": 46
+        },
+        {
+          "index": 27,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7547102737291148,
+            "ablation": 0.745724907063197,
+            "quantum": 0.7399103139013453
+          },
+          "dataset_index": 48
+        },
+        {
+          "index": 28,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.0625,
+            "ablation": 0.050724637681159424,
+            "quantum": 0.06521739130434782
+          },
+          "dataset_index": 50
+        },
+        {
+          "index": 29,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.05185185185185185,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 52
+        },
+        {
+          "index": 30,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.5175070028011205,
+            "ablation": 0.40793413173652693,
+            "quantum": 0.4099402092675635
+          },
+          "dataset_index": 53
+        },
+        {
+          "index": 31,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 54
+        },
+        {
+          "index": 32,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.47058823529411764,
+            "ablation": 0.5192307692307693,
+            "quantum": 0.6041666666666666
+          },
+          "dataset_index": 55
+        },
+        {
+          "index": 33,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 57
+        },
+        {
+          "index": 34,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.6912087912087912,
+            "ablation": 0.6821705426356589,
+            "quantum": 0.6718232044198895
+          },
+          "dataset_index": 59
+        },
+        {
+          "index": 35,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 61
+        },
+        {
+          "index": 36,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.5731225296442688,
+            "ablation": 0.6041666666666666,
+            "quantum": 0.583732057416268
+          },
+          "dataset_index": 63
+        },
+        {
+          "index": 37,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 64
+        },
+        {
+          "index": 38,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 66
+        },
+        {
+          "index": 39,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.2870448772226926,
+            "ablation": 0.2867012089810017,
+            "quantum": 0.2475770925110132
+          },
+          "dataset_index": 68
+        },
+        {
+          "index": 40,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 70
+        },
+        {
+          "index": 41,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 72
+        },
+        {
+          "index": 42,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.8839553255243803,
+            "ablation": 0.8817323709050527,
+            "quantum": 0.8834492350486787
+          },
+          "dataset_index": 73
+        },
+        {
+          "index": 43,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.861405575186494,
+            "ablation": 0.8547619047619047,
+            "quantum": 0.8536682615629984
+          },
+          "dataset_index": 75
+        },
+        {
+          "index": 44,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.7568181818181818,
+            "ablation": 0.7467581998474447,
+            "quantum": 0.7402597402597403
+          },
+          "dataset_index": 77
+        },
+        {
+          "index": 45,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.4174125305126119,
+            "ablation": 0.3769165247018739,
+            "quantum": 0.37607204116638077
+          },
+          "dataset_index": 79
+        },
+        {
+          "index": 46,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.33755274261603374,
+            "ablation": 0.34418604651162793,
+            "quantum": 0.2935323383084577
+          },
+          "dataset_index": 81
+        },
+        {
+          "index": 47,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 83
+        },
+        {
+          "index": 48,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 85
+        },
+        {
+          "index": 49,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.6025738077214232,
+            "ablation": 0.5825095057034221,
+            "quantum": 0.5871212121212122
+          },
+          "dataset_index": 87
+        },
+        {
+          "index": 50,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 89
+        },
+        {
+          "index": 51,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.3372395833333333,
+            "ablation": 0.35559410234171723,
+            "quantum": 0.3521248915871639
+          },
+          "dataset_index": 91
+        },
+        {
+          "index": 52,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.9292873051224945,
+            "ablation": 0.9276572064552031,
+            "quantum": 0.9220923761825265
+          },
+          "dataset_index": 92
+        },
+        {
+          "index": 53,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 94
+        },
+        {
+          "index": 54,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.6517775752051048,
+            "ablation": 0.6843525179856115,
+            "quantum": 0.6821071752951862
+          },
+          "dataset_index": 95
+        },
+        {
+          "index": 55,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.6262804662663369,
+            "ablation": 0.44153141905950893,
+            "quantum": 0.4153846153846154
+          },
+          "dataset_index": 97
+        },
+        {
+          "index": 56,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.5674911660777385,
+            "ablation": 0.7273603082851637,
+            "quantum": 0.7306949806949807
+          },
+          "dataset_index": 99
+        },
+        {
+          "index": 57,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 101
+        },
+        {
+          "index": 58,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 103
+        },
+        {
+          "index": 59,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.42202418841502226,
+            "ablation": 0.7188221709006929,
+            "quantum": 0.6692667706708268
+          },
+          "dataset_index": 105
+        },
+        {
+          "index": 60,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9293296089385474,
+            "ablation": 0.9287539029236446,
+            "quantum": 0.933390022675737
+          },
+          "dataset_index": 107
+        },
+        {
+          "index": 61,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6507230255839822,
+            "ablation": 0.580828133862734,
+            "quantum": 0.5816326530612245
+          },
+          "dataset_index": 109
+        },
+        {
+          "index": 62,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.6939546599496221,
+            "ablation": 0.7538896746817539,
+            "quantum": 0.7774480712166172
+          },
+          "dataset_index": 110
+        },
+        {
+          "index": 63,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.08092485549132948,
+            "ablation": 0.06896551724137931,
+            "quantum": 0.0625
+          },
+          "dataset_index": 112
+        },
+        {
+          "index": 64,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.19684703877290158,
+            "ablation": 0.17835757057313945,
+            "quantum": 0.1687313114053823
+          },
+          "dataset_index": 114
+        },
+        {
+          "index": 65,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.11630495269894268,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 116
+        },
+        {
+          "index": 66,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.24376731301939059,
+            "ablation": 0.24929971988795518,
+            "quantum": 0.5466666666666666
+          },
+          "dataset_index": 118
+        },
+        {
+          "index": 67,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3761467889908257,
+            "ablation": 0.5,
+            "quantum": 0.5555555555555556
+          },
+          "dataset_index": 119
+        },
+        {
+          "index": 68,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7491683300066534,
+            "ablation": 0.7536873156342183,
+            "quantum": 0.7435040831477358
+          },
+          "dataset_index": 121
+        },
+        {
+          "index": 69,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.6013071895424836,
+            "ablation": 0.3761467889908257,
+            "quantum": 0.4766355140186916
+          },
+          "dataset_index": 123
+        },
+        {
+          "index": 70,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 124
+        }
+      ],
+      "selected": {
+        "worst": 3,
+        "median": 26
+      },
+      "example_modality": "optical"
+    },
+    {
+      "id": "OPTICAL; patch4x4; seed 123",
+      "dataset": "combined",
+      "seed": 123,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 123,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 123,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "5ebcecad4c596348",
+        "stats_sha256": "1ae22a113d342e97"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "86214506eae00cb0c36001d4ef1575e54637aafb2ea3ffa393eb355a51db9078",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "c520bf90a2dc0d483e9eff95a9d9016cac829caaf70ae53d2cdb7d975d682b37",
+          "config_sha256": null,
+          "total_params": 500522,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "265f610f95e69085e2a3fa7123fe2151b0b60693e7dd837a5c6cbbc99115c77c",
+          "config_sha256": null,
+          "total_params": 500394,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.5222437137330754,
+            "ablation": 0.0423728813559322,
+            "quantum": 0.01694915254237288
+          },
+          "dataset_index": 0
+        },
+        {
+          "index": 1,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 2
+        },
+        {
+          "index": 2,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8738246891113133,
+            "ablation": 0.8780635400907716,
+            "quantum": 0.8748119169425218
+          },
+          "dataset_index": 4
+        },
+        {
+          "index": 3,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.0038314176245210726,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 6
+        },
+        {
+          "index": 4,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 8
+        },
+        {
+          "index": 5,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 10
+        },
+        {
+          "index": 6,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.3055555555555556,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 11
+        },
+        {
+          "index": 7,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 12
+        },
+        {
+          "index": 8,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.7806788511749347,
+            "ablation": 0.7447698744769874,
+            "quantum": 0.6994301994301995
+          },
+          "dataset_index": 14
+        },
+        {
+          "index": 9,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.729562527618206,
+            "ablation": 0.7082105263157895,
+            "quantum": 0.7452914798206278
+          },
+          "dataset_index": 16
+        },
+        {
+          "index": 10,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.7518518518518519,
+            "ablation": 0.47761194029850745,
+            "quantum": 0.04924242424242424
+          },
+          "dataset_index": 17
+        },
+        {
+          "index": 11,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9513964454116793,
+            "ablation": 0.965843023255814,
+            "quantum": 0.9585137085137085
+          },
+          "dataset_index": 19
+        },
+        {
+          "index": 12,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9116370808678501,
+            "ablation": 0.9210422424003158,
+            "quantum": 0.926674593737614
+          },
+          "dataset_index": 21
+        },
+        {
+          "index": 13,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.19411764705882353,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 23
+        },
+        {
+          "index": 14,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 25
+        },
+        {
+          "index": 15,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.38415366146458585,
+            "ablation": 0.267644726407613,
+            "quantum": 0.2660294703305456
+          },
+          "dataset_index": 27
+        },
+        {
+          "index": 16,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9238733252131547,
+            "ablation": 0.9095583787053841,
+            "quantum": 0.9169415292353823
+          },
+          "dataset_index": 28
+        },
+        {
+          "index": 17,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.920726306465899,
+            "ablation": 0.924697445091887,
+            "quantum": 0.9158794421952317
+          },
+          "dataset_index": 30
+        },
+        {
+          "index": 18,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.48383786557208824,
+            "ablation": 0.4897225077081192,
+            "quantum": 0.4925831202046036
+          },
+          "dataset_index": 32
+        },
+        {
+          "index": 19,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.6189839572192514,
+            "ablation": 0.6071969696969697,
+            "quantum": 0.4950457317073171
+          },
+          "dataset_index": 33
+        },
+        {
+          "index": 20,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4846190250828206,
+            "ablation": 0.4627582892839981,
+            "quantum": 0.45698166431593795
+          },
+          "dataset_index": 35
+        },
+        {
+          "index": 21,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 37
+        },
+        {
+          "index": 22,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.581296992481203,
+            "ablation": 0.535680751173709,
+            "quantum": 0.568075117370892
+          },
+          "dataset_index": 39
+        },
+        {
+          "index": 23,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.6605343845816908,
+            "ablation": 0.6773743016759777,
+            "quantum": 0.6750232126276694
+          },
+          "dataset_index": 41
+        },
+        {
+          "index": 24,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 43
+        },
+        {
+          "index": 25,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.050505050505050504,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 45
+        },
+        {
+          "index": 26,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.3076923076923077,
+            "ablation": 0.41798107255520506,
+            "quantum": 0.5736766809728183
+          },
+          "dataset_index": 46
+        },
+        {
+          "index": 27,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7521395655036208,
+            "ablation": 0.7311015118790497,
+            "quantum": 0.7485590778097982
+          },
+          "dataset_index": 48
+        },
+        {
+          "index": 28,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.32919254658385094,
+            "ablation": 0.057971014492753624,
+            "quantum": 0.06474820143884892
+          },
+          "dataset_index": 50
+        },
+        {
+          "index": 29,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.12422360248447205,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 52
+        },
+        {
+          "index": 30,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.4488078541374474,
+            "ablation": 0.4253676470588235,
+            "quantum": 0.42658875091307524
+          },
+          "dataset_index": 53
+        },
+        {
+          "index": 31,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 54
+        },
+        {
+          "index": 32,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.47058823529411764,
+            "ablation": 0.0,
+            "quantum": 0.3673469387755102
+          },
+          "dataset_index": 55
+        },
+        {
+          "index": 33,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 57
+        },
+        {
+          "index": 34,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.7165271966527197,
+            "ablation": 0.7036247334754797,
+            "quantum": 0.7135250266240681
+          },
+          "dataset_index": 59
+        },
+        {
+          "index": 35,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 61
+        },
+        {
+          "index": 36,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.3870246085011186,
+            "ablation": 0.5965665236051502,
+            "quantum": 0.6185185185185185
+          },
+          "dataset_index": 63
+        },
+        {
+          "index": 37,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 64
+        },
+        {
+          "index": 38,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 66
+        },
+        {
+          "index": 39,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.482124079915878,
+            "ablation": 0.3042671614100185,
+            "quantum": 0.47860434496379195
+          },
+          "dataset_index": 68
+        },
+        {
+          "index": 40,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.14285714285714285,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 70
+        },
+        {
+          "index": 41,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 72
+        },
+        {
+          "index": 42,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.8772222222222222,
+            "ablation": 0.8644729503625209,
+            "quantum": 0.8876651982378855
+          },
+          "dataset_index": 73
+        },
+        {
+          "index": 43,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.8406072106261859,
+            "ablation": 0.8595304417031436,
+            "quantum": 0.8544582167133147
+          },
+          "dataset_index": 75
+        },
+        {
+          "index": 44,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.7423312883435583,
+            "ablation": 0.7650429799426934,
+            "quantum": 0.7793053545586107
+          },
+          "dataset_index": 77
+        },
+        {
+          "index": 45,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.5818399044205496,
+            "ablation": 0.41723721304873135,
+            "quantum": 0.4243394715772618
+          },
+          "dataset_index": 79
+        },
+        {
+          "index": 46,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.19395866454689983,
+            "ablation": 0.3333333333333333,
+            "quantum": 0.3470319634703196
+          },
+          "dataset_index": 81
+        },
+        {
+          "index": 47,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 83
+        },
+        {
+          "index": 48,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 85
+        },
+        {
+          "index": 49,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.6863173216885007,
+            "ablation": 0.6554989075018208,
+            "quantum": 0.6532553035844916
+          },
+          "dataset_index": 87
+        },
+        {
+          "index": 50,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.0945945945945946,
+            "ablation": 0.13679245283018868,
+            "quantum": 0.1380952380952381
+          },
+          "dataset_index": 89
+        },
+        {
+          "index": 51,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.5309134423613882,
+            "ablation": 0.43362463587182687,
+            "quantum": 0.4224532224532225
+          },
+          "dataset_index": 91
+        },
+        {
+          "index": 52,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.9379679144385027,
+            "ablation": 0.9314775160599572,
+            "quantum": 0.9396790260099612
+          },
+          "dataset_index": 92
+        },
+        {
+          "index": 53,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.045454545454545456,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 94
+        },
+        {
+          "index": 54,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.5623376623376624,
+            "ablation": 0.7229219143576826,
+            "quantum": 0.7838541666666666
+          },
+          "dataset_index": 95
+        },
+        {
+          "index": 55,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.5941506410256411,
+            "ablation": 0.6294517807122849,
+            "quantum": 0.581554571083367
+          },
+          "dataset_index": 97
+        },
+        {
+          "index": 56,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.6916221033868093,
+            "ablation": 0.7300843486410497,
+            "quantum": 0.7286384976525822
+          },
+          "dataset_index": 99
+        },
+        {
+          "index": 57,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 101
+        },
+        {
+          "index": 58,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 103
+        },
+        {
+          "index": 59,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.636810486073184,
+            "ablation": 0.599502487562189,
+            "quantum": 0.5626643295354952
+          },
+          "dataset_index": 105
+        },
+        {
+          "index": 60,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9080975063042869,
+            "ablation": 0.9361702127659575,
+            "quantum": 0.9191135734072022
+          },
+          "dataset_index": 107
+        },
+        {
+          "index": 61,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6480758505298383,
+            "ablation": 0.5823204419889503,
+            "quantum": 0.5973597359735974
+          },
+          "dataset_index": 109
+        },
+        {
+          "index": 62,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.6069042316258352,
+            "ablation": 0.6106870229007634,
+            "quantum": 0.5315145813734713
+          },
+          "dataset_index": 110
+        },
+        {
+          "index": 63,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.3728813559322034,
+            "ablation": 0.1282051282051282,
+            "quantum": 0.30337078651685395
+          },
+          "dataset_index": 112
+        },
+        {
+          "index": 64,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.2583368509919797,
+            "ablation": 0.1981450252951096,
+            "quantum": 0.19957805907172996
+          },
+          "dataset_index": 114
+        },
+        {
+          "index": 65,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.1226890756302521,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 116
+        },
+        {
+          "index": 66,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.5068493150684932,
+            "ablation": 0.710594315245478,
+            "quantum": 0.7281795511221946
+          },
+          "dataset_index": 118
+        },
+        {
+          "index": 67,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.4722222222222222,
+            "ablation": 0.15217391304347827,
+            "quantum": 0.46551724137931033
+          },
+          "dataset_index": 119
+        },
+        {
+          "index": 68,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7653263019116677,
+            "ablation": 0.737527114967462,
+            "quantum": 0.7506315409599422
+          },
+          "dataset_index": 121
+        },
+        {
+          "index": 69,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.41605839416058393,
+            "ablation": 0.31,
+            "quantum": 0.427536231884058
+          },
+          "dataset_index": 123
+        },
+        {
+          "index": 70,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          },
+          "dataset_index": 124
+        }
+      ],
+      "selected": {
+        "worst": 3,
+        "median": 61
+      },
+      "example_modality": "optical"
+    }
+  ]
+}

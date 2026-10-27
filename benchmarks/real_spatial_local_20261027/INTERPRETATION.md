@@ -87,6 +87,15 @@ classical baseline rule. Their scatter plots include every test tile and both
 sensors. Per-tile empty-union IoU is zero; this is not the pooled test metric.
 All checkpoint and normalization identities were verified.
 
+Separate sensor-subset views give each sensor its own median/worst selection:
+[global Optical](qualitative/by_sensor/global/optical/qualitative_median_worst_fp_fn.png),
+[global SAR](qualitative/by_sensor/global/sar/qualitative_median_worst_fp_fn.png),
+[patchwise Optical](qualitative/by_sensor/patch4x4/optical/qualitative_median_worst_fp_fn.png),
+and [patchwise SAR](qualitative/by_sensor/patch4x4/sar/qualitative_median_worst_fp_fn.png).
+Each uses the same combined-trained checkpoints, with all 71 Optical or 134 SAR
+test tiles in its scatter plot. Their per-tile scores exactly match the pooled
+exports. Metadata retains both subset and original dataset indices.
+
 The producing source is `71d1680c1c565e5880eec44783cf270b1ac918fb`; the original
 collection and figures used `33b67bf2f17841f70bd5f3b5a082f9ad64a20689` with matching
 executable hashes. Later control support changes those source files. Rebuild
