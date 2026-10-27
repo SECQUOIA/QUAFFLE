@@ -85,6 +85,27 @@ An optional `--screen-dir` retains a preceding validation-only screen with its
 their hashes are retained with the smaller review artifacts. The local pilot
 does not establish Anvil or federated performance.
 
+The 2026-10-27 local campaign increased the common budget to `--epochs 60`
+after a validation-only 30-epoch screen showed continued improvement. Both
+campaigns and the stopping reason are retained; neither screen's test scores
+were used to choose that change.
+
+For this three-seed campaign, inspect the fixed rule for additional controls
+without reading any trained-model test scores:
+
+```bash
+python scripts/check_spatial_control_trigger.py \
+  --run-dir /tmp/real-spatial-pilot --out /tmp/spatial-control-decision.json
+```
+
+The rule waits for both quantum/MLP modes at seeds 42, 77 and 123. A mode
+qualifies for frozen-circuit and no-entanglement training controls when its
+mean paired validation IoU gain is at least 0.005, it wins in at least two
+seeds, and its selected circuit angles moved in every seed. If both qualify,
+the larger mean gain takes priority. This criterion was recorded in local task
+state when the 60-epoch run started; its executable helper was added later.
+It is an exploratory screening rule, not a significance test.
+
 ## Compare typical and failure examples from saved checkpoints
 
 ```bash

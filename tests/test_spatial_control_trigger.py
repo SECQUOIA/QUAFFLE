@@ -37,3 +37,8 @@ def test_missing_pairs_wait_and_test_input_is_rejected():
     records[0]['test'] = {'iou': 0.99}
     with pytest.raises(ValueError, match='validation-only'):
         decide(records)
+
+
+def test_fixed_three_seed_rule_rejects_another_study_design():
+    with pytest.raises(ValueError, match='three study seeds'):
+        decide(rows(), seeds=(42, 77))

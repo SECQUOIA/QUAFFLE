@@ -13,6 +13,8 @@ from scripts.run_real_spatial_pilot import choose_rates
 
 
 def decide(records, seeds=(42, 77, 123)):
+    if len(seeds) != 3 or set(seeds) != {42, 77, 123}:
+        raise ValueError('The fixed control rule requires the three study seeds: 42, 77, 123')
     groups = {}
     for row in records:
         if 'test' in row:
