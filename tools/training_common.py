@@ -60,6 +60,8 @@ ABLATION_MLP_MODE_CHOICES = ('param_matched', 'full_rank')
 DEFAULT_ABLATION_MLP_MODE = 'param_matched'
 BACKBONE_CONV_CHOICES = ('ws_conv', 'standard', 'depthwise_sep')
 DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
+DECODER_SKIP_GATE_CHOICES = ('none', 'se', 'affine')
+DEFAULT_DECODER_SKIP_GATE = 'none'
 LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
 DEFAULT_LOSS_MODE = 'ce'
 
@@ -236,6 +238,14 @@ def add_common_args(parser, quantum=True, federated=False):
                              "'shared3' (default, 3-ch shared init_conv), 'concat6' (6-ch "
                              "[Optical(3), SAR(3)] into 6-ch init_conv), or 'dual_stem' "
                              "(separate 3-ch optical and SAR input stems routed per sample)")
+    parser.add_argument('--decoder-skip-gate', '--decoder_skip_gate',
+                        dest='decoder_skip_gate',
+                        choices=list(DECODER_SKIP_GATE_CHOICES),
+                        default=DEFAULT_DECODER_SKIP_GATE,
+                        help="Bottleneck-conditioned encoder-decoder skip connection gating in UpUnet (#43): "
+                             "'none' (default, unmodulated skip concatenation), 'se' "
+                             "(squeeze-and-excitation channel gate), or 'affine' "
+                             "(FiLM scale-and-shift modulation)")
     if quantum:
         parser.add_argument('--q-ansatz', choices=list(Q_ANSATZ_CHOICES), default='reupload',
                             help='Quantum bottleneck ansatz (default: reupload)')
@@ -413,6 +423,10 @@ def apply_common_args(config, args):
         config['combined_input_mode'] = effective_combined_input_mode({'combined_input_mode': args.combined_input_mode})
     else:
         config['combined_input_mode'] = effective_combined_input_mode(config)
+    if getattr(args, 'decoder_skip_gate', None) is not None:
+        config['decoder_skip_gate'] = effective_decoder_skip_gate({'decoder_skip_gate': args.decoder_skip_gate})
+    else:
+        config['decoder_skip_gate'] = effective_decoder_skip_gate(config)
     if getattr(args, 'skip_modulation', None) is not None:
         config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
@@ -1553,6 +1567,14 @@ def effective_combined_input_mode(config):
     return normalize_combined_input_mode(config.get('combined_input_mode', DEFAULT_COMBINED_INPUT_MODE))
 
 
+def effective_decoder_skip_gate(config):
+    """Resolve and normalize `decoder_skip_gate` ('none' default, 'se', or 'affine', #43)."""
+    from utilsTorch.unetTorch import normalize_decoder_skip_gate
+    if not isinstance(config, dict):
+        return normalize_decoder_skip_gate(config)
+    return normalize_decoder_skip_gate(config.get('decoder_skip_gate', DEFAULT_DECODER_SKIP_GATE))
+
+
 def effective_fl_strategy(config):
     """Resolve and normalize federated strategy ('fedavg' default, or 'fedprox', #15)."""
     if not isinstance(config, dict):
@@ -1847,6 +1869,7 @@ def _normalize_saved_fingerprint(saved, model_type=None):
         'ablation_mlp_hidden': None,
         'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
         'combined_input_mode': DEFAULT_COMBINED_INPUT_MODE,
+        'decoder_skip_gate': DEFAULT_DECODER_SKIP_GATE,
         'loss': DEFAULT_LOSS_MODE,
         'use_time_emb': True,
         'augment': False,
@@ -1970,6 +1993,7 @@ def centralized_fingerprint(config, model_type):
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
@@ -2098,6 +2122,9 @@ def classical_variant_tag(config):
     cim = effective_combined_input_mode(config)
     if cim != DEFAULT_COMBINED_INPUT_MODE:
         parts.append(f'in-{cim}')
+    dsg = effective_decoder_skip_gate(config)
+    if dsg != DEFAULT_DECODER_SKIP_GATE:
+        parts.append(f'skipgate-{dsg}')
     loss_mode = effective_loss_mode(config)
     if loss_mode != DEFAULT_LOSS_MODE:
         parts.append(loss_mode)
@@ -2439,6 +2466,7 @@ def run_fingerprint(config, model_type):
         'skip_modulation': skip_mod,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),
@@ -2818,6 +2846,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
         'skip_modulation': effective_skip_modulation(config) if quantum else None,
         'backbone_conv_mode': effective_backbone_conv_mode(config),
         'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
         'loss': effective_loss_mode(config),
         'use_time_emb': effective_use_time_emb(config),
         'augment': bool(config.get('augment', False)),

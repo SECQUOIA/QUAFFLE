@@ -278,6 +278,7 @@ _FED_MOD_PART = r"(?:_fedprox[\d.eE+-]+)?(?:_qagg-circular)?(?:_K\d+C\d+)?"
 _CLASSICAL_MOD_PART = (
     r"(?:_(?:standard|depthwise_sep))?"
     r"(?:_in-(?:concat6|dual_stem))?"
+    r"(?:_skipgate-(?:se|affine))?"
     r"(?:_(?:dice_ce|focal_dice))?"
     r"(?:_notime)?(?:_aug)?"
     + _FED_MOD_PART
@@ -294,8 +295,8 @@ _VTAG_RE = _re_disk.compile(
 )
 _CLASSICAL_VTAG_RE = _re_disk.compile(
     r"_((?:"
-    r"(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+)"
-    r"(?:_(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+))*"
+    r"(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+)"
+    r"(?:_(?:standard|depthwise_sep|in-(?:concat6|dual_stem)|skipgate-(?:se|affine)|dice_ce|focal_dice|notime|aug|fedprox[\d.eE+-]+|K\d+C\d+))*"
     r"))$"
 )
 _BTAG_RE = _re_disk.compile(r"_(qtorch|qpergroup)$")
@@ -393,6 +394,9 @@ def _variant_from_fields(q_ansatz, q_layers, data=None):
         cim = data.get("combined_input_mode")
         if cim and cim != "shared3":
             parts.append(f"in-{cim}")
+        dsg = data.get("decoder_skip_gate")
+        if dsg and dsg != "none":
+            parts.append(f"skipgate-{dsg}")
         loss_m = data.get("loss")
         if loss_m and loss_m != "ce":
             parts.append(str(loss_m))
@@ -443,6 +447,7 @@ def _infer_variant_from_summary(text, quantumish=True):
     mlp_mode = _re_disk.search(r"--ablation[-_]mlp[-_]mode[ =](\w+)", cli)
     mlp_h = _re_disk.search(r"--ablation[-_]mlp[-_]hidden[ =](\d+)", cli)
     skip_m = _re_disk.search(r"--skip[-_]modulation[ =](\w+)", cli)
+    dsg = _re_disk.search(r"--decoder[-_]skip[-_]gate[ =](\w+)", cli)
     bb = _re_disk.search(r"--backbone[-_]conv[-_]mode[ =](\w+)", cli)
     loss_m = _re_disk.search(r"--loss[ =](\w+)", cli)
     no_time = bool(_re_disk.search(r"--no[-_]time[-_]emb\b", cli))
@@ -455,6 +460,7 @@ def _infer_variant_from_summary(text, quantumish=True):
         "ablation_mlp_mode": mlp_mode.group(1) if mlp_mode else None,
         "ablation_mlp_hidden": int(mlp_h.group(1)) if mlp_h else None,
         "skip_modulation": skip_m.group(1) if skip_m else None,
+        "decoder_skip_gate": dsg.group(1) if dsg else None,
         "backbone_conv_mode": bb.group(1) if bb else None,
         "loss": loss_m.group(1) if loss_m else None,
         "use_time_emb": False if no_time else True,

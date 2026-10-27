@@ -1906,6 +1906,72 @@ class DownUnet(nn.Module):
         h = self.final_conv(h)
         return h, hs, time_emb
 
+
+DECODER_SKIP_GATE_CHOICES = ('none', 'se', 'affine')
+DEFAULT_DECODER_SKIP_GATE = 'none'
+
+
+def normalize_decoder_skip_gate(mode=None):
+    """Normalize bottleneck-conditioned encoder-decoder skip gating mode
+    ('none' default, 'se', or 'affine'; #43)."""
+    if mode is None:
+        return DEFAULT_DECODER_SKIP_GATE
+    key = str(mode).strip().lower()
+    if key not in DECODER_SKIP_GATE_CHOICES:
+        raise ValueError(
+            f"Unknown decoder_skip_gate {mode!r}, expected one of {DECODER_SKIP_GATE_CHOICES}"
+        )
+    return key
+
+
+class DecoderSkipGate(nn.Module):
+    """Bottleneck-conditioned gate applied to an encoder skip tensor before concatenation (#43).
+
+    Modes:
+      - 'se': Squeeze-and-excitation channel gate conditioned on globally pooled
+        bottleneck features `cond_pooled` ([B, cond_dim]):
+        `skip * sigmoid(Linear(SiLU(Linear(cond_pooled))))`.
+      - 'affine': FiLM-style affine modulation conditioned on `cond_pooled`:
+        `skip * (1.0 + tanh(scale)) + shift`.
+    """
+
+    def __init__(self, cond_dim: int, skip_dim: int, mode: str = 'se'):
+        super().__init__()
+        self.cond_dim = _validate_exact_int(cond_dim, "cond_dim")
+        self.skip_dim = _validate_exact_int(skip_dim, "skip_dim")
+        if self.cond_dim < 1 or self.skip_dim < 1:
+            raise ValueError(
+                f"DecoderSkipGate requires cond_dim >= 1 and skip_dim >= 1, got ({self.cond_dim}, {self.skip_dim})"
+            )
+        self.mode = normalize_decoder_skip_gate(mode)
+        if self.mode == 'se':
+            hidden_dim = max(4, self.skip_dim // 4)
+            self.net = nn.Sequential(
+                nn.Linear(self.cond_dim, hidden_dim),
+                nn.SiLU(),
+                nn.Linear(hidden_dim, self.skip_dim),
+                nn.Sigmoid(),
+            )
+            self.proj = None
+        elif self.mode == 'affine':
+            self.net = None
+            self.proj = nn.Linear(self.cond_dim, 2 * self.skip_dim)
+        else:
+            self.net = None
+            self.proj = None
+
+    def forward(self, skip: torch.Tensor, cond_pooled: Optional[torch.Tensor]) -> torch.Tensor:
+        if self.mode == 'none' or cond_pooled is None:
+            return skip
+        if self.mode == 'se':
+            gate = self.net(cond_pooled).unsqueeze(-1).unsqueeze(-1)
+            return skip * gate
+        if self.mode == 'affine':
+            scale, shift = self.proj(cond_pooled).unsqueeze(-1).unsqueeze(-1).chunk(2, dim=1)
+            return skip * (1.0 + torch.tanh(scale)) + shift
+        raise ValueError(f"Unsupported DecoderSkipGate mode {self.mode!r}")
+
+
 class UpUnet(nn.Module):
     def __init__(
         self,
@@ -1916,6 +1982,7 @@ class UpUnet(nn.Module):
         resnet_block_groups=8,
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
+        decoder_skip_gate: str = DEFAULT_DECODER_SKIP_GATE,
     ):
         super().__init__()
         self.dim = dim
@@ -1925,6 +1992,7 @@ class UpUnet(nn.Module):
         self.resnet_block_groups = resnet_block_groups
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
+        self.decoder_skip_gate = normalize_decoder_skip_gate(decoder_skip_gate)
         
         # Upsampling blocks
         self.ups = nn.ModuleList()
@@ -1958,10 +2026,33 @@ class UpUnet(nn.Module):
             backbone_conv_mode=self.backbone_conv_mode,
         )
         self.final_conv2 = nn.Conv2d(self.dim, self.out_dim, 1)
+
+        if self.decoder_skip_gate == 'none':
+            self.skip_gates = None
+            self.final_skip_gate = None
+        else:
+            mid_dim = dims[-1]
+            with torch.random.fork_rng(devices=[]):
+                w0 = float(self.final_conv2.weight.detach().flatten()[0].item())
+                gate_seed = (int(abs(w0) * 1e9) ^ 0x5D190043) & 0x7FFFFFFF
+                torch.default_generator.manual_seed(gate_seed)
+                self.skip_gates = nn.ModuleList([
+                    nn.ModuleList([
+                        DecoderSkipGate(mid_dim, dims[i], self.decoder_skip_gate),
+                        DecoderSkipGate(mid_dim, dims[i], self.decoder_skip_gate),
+                    ])
+                    for i in reversed(range(len(dim_mults)))
+                ])
+                self.final_skip_gate = DecoderSkipGate(mid_dim, self.init_dim, self.decoder_skip_gate)
     
     def forward(self, x, h, hs, time_emb=None):
         num_resolutions = len(self.dim_mults)
         dims = [self.init_dim] + [self.dim * m for m in self.dim_mults]
+        cond_pooled = (
+            F.adaptive_avg_pool2d(h, 1).flatten(1)
+            if self.skip_gates is not None
+            else None
+        )
         
         # Upsampling - following JAX logic exactly
         for i, (resblock1, resblock2, attn, upsample) in enumerate(self.ups):
@@ -1971,11 +2062,15 @@ class UpUnet(nn.Module):
             
             # First skip connection
             skip1 = hs.pop()
+            if self.skip_gates is not None:
+                skip1 = self.skip_gates[i][0](skip1, cond_pooled)
             h = torch.cat([h, skip1], dim=1)
             h = resblock1(h, time_emb)
             
             # Second skip connection  
             skip2 = hs.pop()
+            if self.skip_gates is not None:
+                skip2 = self.skip_gates[i][1](skip2, cond_pooled)
             h = torch.cat([h, skip2], dim=1)
             h = resblock2(h, time_emb)
             
@@ -1987,6 +2082,8 @@ class UpUnet(nn.Module):
         
         # Final skip connection
         final_skip = hs.pop()
+        if self.final_skip_gate is not None:
+            final_skip = self.final_skip_gate(final_skip, cond_pooled)
         h = torch.cat([h, final_skip], dim=1)
         h = self.final_resblock(h, time_emb)
         h = self.final_conv2(h)
@@ -2413,6 +2510,7 @@ class QVUNet(nn.Module):
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
         combined_input_mode: str = DEFAULT_COMBINED_INPUT_MODE,
+        decoder_skip_gate: str = DEFAULT_DECODER_SKIP_GATE,
     ):
         super().__init__()
         self.dim = dim
@@ -2428,6 +2526,7 @@ class QVUNet(nn.Module):
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
         self.combined_input_mode = normalize_combined_input_mode(combined_input_mode)
+        self.decoder_skip_gate = normalize_decoder_skip_gate(decoder_skip_gate)
         
         self.down = DownUnet(
             dim, init_dim, dim_mults, resnet_block_groups,
@@ -2442,6 +2541,7 @@ class QVUNet(nn.Module):
         self.up = UpUnet(
             dim, init_dim, out_dim, dim_mults, resnet_block_groups,
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
+            decoder_skip_gate=self.decoder_skip_gate,
         )
 
     @property
@@ -2518,6 +2618,7 @@ class UNet(nn.Module):
         use_time_emb: bool = True,
         backbone_conv_mode: str = DEFAULT_BACKBONE_CONV_MODE,
         combined_input_mode: str = DEFAULT_COMBINED_INPUT_MODE,
+        decoder_skip_gate: str = DEFAULT_DECODER_SKIP_GATE,
     ):
         super().__init__()
         self.dim = dim
@@ -2528,6 +2629,7 @@ class UNet(nn.Module):
         self.use_time_emb = bool(use_time_emb)
         self.backbone_conv_mode = normalize_backbone_conv_mode(backbone_conv_mode)
         self.combined_input_mode = normalize_combined_input_mode(combined_input_mode)
+        self.decoder_skip_gate = normalize_decoder_skip_gate(decoder_skip_gate)
         
         self.down = DownUnet(
             dim, init_dim, dim_mults, resnet_block_groups,
@@ -2541,6 +2643,7 @@ class UNet(nn.Module):
         self.up = UpUnet(
             dim, init_dim, out_dim, dim_mults, resnet_block_groups,
             use_time_emb=self.use_time_emb, backbone_conv_mode=self.backbone_conv_mode,
+            decoder_skip_gate=self.decoder_skip_gate,
         )
     
     @property

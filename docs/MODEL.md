@@ -33,6 +33,31 @@ multiplicative/affine channel modulation (`skip_modulation='affine'`):
 * `'additive'`: `x_skip[:, :qc] + y_q`, retained for backward-compatible
   evaluation or reproduction of legacy additive checkpoints (`--skip-modulation additive`).
 
+### Full-bottleneck replacement (`--quantum-channels 256 --no-time-emb`) and decoder skip gating (`--decoder-skip-gate`, `#43`)
+
+At the default `quantum_channels=32` (`mid_dim = 8 * base_channels = 256`), 224 of the 256
+bottleneck channels pass through two classical $3\times 3$ weight-standardized convolutions,
+and the 9 encoder skip tensors in `UpUnet.forward` are concatenated into the decoder without
+bottleneck conditioning. Two architectural mechanisms remove these bypass pathways:
+
+1. **Full-bottleneck replacement (`--quantum-channels 256`)**: Sets `effective_qc = mid_dim = base_channels * dim_mults[-1] = 256`
+   (`classical_channels = 0`), eliminating the classical bottleneck $3\times 3$ convolutions in both
+   `QResnetBlock`s / `AblationResnetBlock`s whenever `quantum_channels >= mid_dim` and `mid_dim` is
+   divisible by the circuit group width (`n_qubits` for `legacy`/`reupload`, or `4` for `hqunet`/`hqunet_spatial`;
+   for example, at `mid_dim = 256`, `n_qubits` in `{4, 8, 16}` yields `effective_qc = 256` and `0` classical
+   channels, whereas `n_qubits = 12` floor-divides to `effective_qc = 252` with `4` residual classical channels
+   and emits a `UserWarning`). At `base_channels=32, n_qubits=4, q_layers=2`, total model
+   parameters drop from `9,327,970` (classical U-Net) to `6,835,554` (`-26.7%`) with time
+   embeddings enabled, or to `6,426,786` (`-26.9%` vs. `8,787,106` `--no-time-emb` classical U-Net,
+   `-31.1%` vs. baseline U-Net) with `--no-time-emb`.
+2. **Bottleneck-conditioned encoder–decoder skip gating (`--decoder-skip-gate {none,se,affine}`)**:
+   Pools the bottleneck representation `h` at the start of `UpUnet.forward` into a global vector
+   $\bar{h}_b = \operatorname{GAP}(h) \in \mathbb{R}^{B \times d_b}$ and gates each encoder skip
+   tensor (`skip1`, `skip2` at each decoder stage plus `final_skip`) before concatenation:
+   * `'none'` (default): unmodulated skip concatenation (0 extra parameters, exact backward compatibility).
+   * `'se'`: squeeze-and-excitation channel gate `skip * sigmoid(Linear(SiLU(Linear(h_b))))`.
+   * `'affine'`: FiLM-style scale-and-shift modulation `skip * (1.0 + tanh(scale)) + shift`.
+
 ## Circuit options (`q_ansatz`)
 
 ### `legacy` (original model)
@@ -369,6 +394,7 @@ Config keys read by `QVUNetSegmentation` and `ClassicalAblationUNetSegmentation`
 | `ablation_mlp_hidden` | `None` | `None` or int >= 1 (explicit MLP hidden dimension override; `#44`) |
 | `q_share_blocks` | `True` | bool |
 | `skip_modulation` | `'affine'` | `'affine'`, `'additive'` (`QResnetBlock` / `AblationResnetBlock` skip modulation) |
+| `decoder_skip_gate` | `'none'` | `'none'`, `'se'`, `'affine'` (bottleneck-conditioned encoder–decoder skip gating in `UpUnet`; `#43`) |
 | `combined_input_mode` | `'shared3'` | `'shared3'`, `'concat6'`, `'dual_stem'` (`#14`) |
 | `fl_strategy` | `'fedavg'` | `'fedavg'`, `'fedprox'` (`#15`, federated only) |
 | `fedprox_mu` | `0.0` | float >= 0.0 (`#15`, defaults to `0.01` when `fl_strategy='fedprox'`) |

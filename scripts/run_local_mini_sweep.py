@@ -70,6 +70,7 @@ _SCHEMA_DEFAULTS: Dict[str, Any] = {
     "image_size": 128,
     "combined_input_mode": "shared3",
     "backbone_conv_mode": "ws_conv",
+    "decoder_skip_gate": "none",
     "loss": "ce",
     "use_time_emb": True,
     "augment": False,
@@ -124,7 +125,7 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
         meta["model_type"] = model_type
         explicit.add("model_type")
     meta["training"] = "federated" if "federated" in script.lower() else "centralized"
-    for k in ("dataset", "base_channels", "image_size", "combined_input_mode", "backbone_conv_mode", "loss", "use_time_emb", "augment"):
+    for k in ("dataset", "base_channels", "image_size", "combined_input_mode", "backbone_conv_mode", "decoder_skip_gate", "loss", "use_time_emb", "augment"):
         meta[k] = _SCHEMA_DEFAULTS[k]
     if model_type in ("quantum", "ablation"):
         for k in ("q_ansatz", "q_layers", "n_qubits", "quantum_channels", "q_spatial_mode", "hqunet_grid", "skip_modulation"):
@@ -146,6 +147,8 @@ def _expected_metadata_from_argv(argv: List[str]) -> Tuple[Dict[str, Any], set]:
         "--combined_input_mode": ("combined_input_mode", str),
         "--backbone-conv-mode": ("backbone_conv_mode", str),
         "--backbone_conv_mode": ("backbone_conv_mode", str),
+        "--decoder-skip-gate": ("decoder_skip_gate", str),
+        "--decoder_skip_gate": ("decoder_skip_gate", str),
         "--loss": ("loss", str),
         "--q-ansatz": ("q_ansatz", str),
         "--q_ansatz": ("q_ansatz", str),
