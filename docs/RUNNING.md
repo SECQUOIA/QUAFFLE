@@ -1,5 +1,35 @@
 # Running the QUAFFLE experiment grid
 
+## Evaluate saved checkpoints by sensor
+
+```bash
+python scripts/evaluate_checkpoint.py --checkpoint /path/to/checkpoint.pt \
+  --data-root /path/to/data --device cpu --out /tmp/checkpoint-evaluation.json
+```
+
+The command restores validation-selected weights (`best_state_dict` or
+`best_parameters`) when present, reconstructs the saved model architecture, and
+evaluates the saved dataset's test split without retraining. It supports classical,
+quantum and classical-ablation models and both centralized and federated
+checkpoints. For older checkpoints with incomplete metadata, provide an explicit
+`--config model-config.json` and, when necessary, `--model-type`. Architecture
+dimensions and behavior flags must be recorded; incompatible weights fail strict
+loading. `--out` cannot overwrite the checkpoint or supplied configuration.
+
+When dataset sensor metadata is available, `evaluate_model` adds
+`optical_subset_*` and `sar_subset_*` IoU, Dice, accuracy, AUC, sample counts,
+and TP/FP/FN/TN pixel counts. These fields also persist under `test` and `val`
+in ordinary training `metrics.json` files. Metadata follows the sampled items,
+including through shuffled batches and nested subsets; shared three-channel
+inputs do not require guessing a sensor from image brightness. Pooled IoU is
+computed from combined pixel counts, rather than averaging the sensor IoUs.
+Sensor-aware evaluation requires PyTorch's default collator; custom collators
+are rejected because they can reorder samples independently of sensor tags.
+Datasets without sensor metadata keep their original collation behavior.
+An absent sensor is identified by `*_subset_n_samples = 0`; its AUC uses the
+existing single-class fallback. Datasets without metadata retain the existing
+five-field evaluation result.
+
 ## Ordinary U-Net at the quantum parameter budget
 
 ```bash

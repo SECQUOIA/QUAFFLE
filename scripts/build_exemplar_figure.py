@@ -373,51 +373,9 @@ def select_best_sample(model, loader, device, min_flood_frac=0.05, max_samples=2
 
 
 def _load_checkpoint_into_model(model, ckpt):
-    """Load a centralized or federated checkpoint dict/state_dict into `model`.
-    Prefers `best_state_dict` over `model_state_dict` and `best_parameters` over
-    `parameters` when present and non-None."""
-    # Ensure lazy QVUNetSegmentation wrapper is initialized before parameter copy
-    _ = sum(p.numel() for p in model.parameters())
-    if isinstance(ckpt, dict) and ("best_state_dict" in ckpt or "model_state_dict" in ckpt):
-        state = (
-            ckpt["best_state_dict"]
-            if ckpt.get("best_state_dict") is not None
-            else ckpt.get("model_state_dict")
-        )
-    elif isinstance(ckpt, dict) and ("best_parameters" in ckpt or "parameters" in ckpt):
-        # fed_resume.pt stores the global parameters as a list of arrays
-        # in model.parameters() order (prefer best_parameters when available).
-        params_list = (
-            ckpt["best_parameters"]
-            if ckpt.get("best_parameters") is not None
-            else ckpt.get("parameters")
-        )
-        model_params = list(model.parameters())
-        if len(model_params) != len(params_list):
-            raise ValueError(
-                f"Checkpoint parameter count mismatch: model expects {len(model_params)} tensors, "
-                f"checkpoint has {len(params_list)}"
-            )
-        validated_tensors = []
-        for idx, (p, arr) in enumerate(zip(model_params, params_list)):
-            t_arr = torch.as_tensor(arr, dtype=p.dtype, device=p.device)
-            if tuple(p.shape) != tuple(t_arr.shape):
-                raise ValueError(
-                    f"Checkpoint parameter shape mismatch at index {idx}: "
-                    f"model expects {tuple(p.shape)}, checkpoint has {tuple(t_arr.shape)}"
-                )
-            validated_tensors.append(t_arr)
-        with torch.no_grad():
-            for p, t_arr in zip(model_params, validated_tensors):
-                p.copy_(t_arr)
-        state = None
-    elif isinstance(ckpt, dict) and "state_dict" in ckpt:
-        state = ckpt["state_dict"]
-    else:
-        state = ckpt
-    if state is not None:
-        model.load_state_dict(state)
-    return model
+    """Load validation-selected weights through the shared diagnostic loader."""
+    from tools.checkpoint_evaluation import load_weights
+    return load_weights(model, ckpt)
 
 
 def _resolve_model_config_for_checkpoint(ckpt, ckpt_path=None, base_config=None):
