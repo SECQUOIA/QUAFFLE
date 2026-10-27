@@ -23,6 +23,8 @@ Purdue Anvil:
       - Ablation Fed (Modality Silos, FedAvg)
       - Quantum Fed (Modality Silos, FedAvg + Linear Angle Agg)
       - Quantum Fed (Modality Silos, FedProx mu=0.05 + Circular Angle Agg)
+  * Panel 5 (opt-in): partial/full bottlenecks, decoder skip gates, and both MLP controls.
+  * Panel 6 (opt-in): federated update compression for classical, MLP, and quantum models.
 """
 
 import argparse
@@ -403,6 +405,15 @@ def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
             else None
         )
     )
+    ko_random_delta_iou = _vals(
+        lambda r: (
+            float(r["test"]["iou"]) - float(r["knockout"]["random"]["iou"])
+            if isinstance(r.get("knockout"), dict)
+            and isinstance(r["knockout"].get("random"), dict)
+            and r["knockout"]["random"].get("iou") is not None
+            else None
+        )
+    )
     params = [int(r["total_params"]) for r in records if r.get("total_params") is not None]
     elapsed = [float(r["_elapsed_s"]) for r in records if r.get("_elapsed_s") is not None]
     return {
@@ -415,6 +426,9 @@ def _summarize_seed_runs(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         "test_loss": _stat(test_loss),
         "ko_zero_delta_iou": _stat(ko_delta_iou),
         "ko_zero_delta_loss": _stat(ko_delta_loss),
+        "ko_random_delta_iou": _stat(ko_random_delta_iou),
+        "upload_mib_per_client_round": _stat(_vals(lambda r: r.get("upload_mib_per_client_round"))),
+        "compression_ratio": _stat(_vals(lambda r: r.get("compression_ratio"))),
         "mean_elapsed_s": float(np.mean(elapsed)) if elapsed else 0.0,
     }
 
@@ -445,9 +459,9 @@ def _format_markdown_report(summary: Dict[str, Any]) -> str:
         lines.append(f"## {panel['title']}")
         lines.append("")
         lines.append(
-            "| Spec / Variant | Params | Val IoU | Test IoU | Test Dice | Test AUC | Test Loss | Knockout $\\Delta$IoU (`on - zero`) | Time/seed |"
+            "| Spec / Variant | Params | Val IoU | Test IoU | Test Dice | Test AUC | Test Loss | Knockout $\\Delta$IoU (`on - zero`) | Knockout $\\Delta$IoU (`on - random`) | Modeled upload MiB/client/round | Time/seed |"
         )
-        lines.append("| --- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | ---: |")
+        lines.append("| --- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | ---: | ---: |")
         for row in panel["rows"]:
             st = row["stats"]
             p_str = f"{st['total_params']:,}" if st.get("total_params") is not None else "—"
@@ -455,10 +469,84 @@ def _format_markdown_report(summary: Dict[str, Any]) -> str:
                 f"| {row['label']} | {p_str} | {_fmt_ms(st['val_iou'])} | "
                 f"**{_fmt_ms(st['test_iou'])}** | {_fmt_ms(st['test_dice'])} | "
                 f"{_fmt_ms(st['test_auc'])} | {_fmt_ms(st['test_loss'])} | "
-                f"{_fmt_ms(st['ko_zero_delta_iou'], signed=True)} | {st['mean_elapsed_s']:.2f}s |"
+                f"{_fmt_ms(st['ko_zero_delta_iou'], signed=True)} | "
+                f"{_fmt_ms(st['ko_random_delta_iou'], signed=True)} | "
+                f"{_fmt_ms(st['upload_mib_per_client_round'])} | {st['mean_elapsed_s']:.2f}s |"
             )
         lines.append("")
     return "\n".join(lines)
+
+
+def _wave4_panel_defs(common_c, common_f, base_channels):
+    """Independent architecture and compression panels; never multiply the two grids."""
+    architecture = []
+    # Keep the reference slice partial even for a downscaled backbone.
+    full_qc = int(base_channels) * 8
+    partial_qc = min(32, full_qc // 2)
+    if partial_qc < 4 or partial_qc % 4:
+        raise ValueError("Panel 5 requires a partial bottleneck divisible by four channels")
+    for gate in ("none", "affine"):
+        gate_args = ["--decoder-skip-gate", gate]
+        architecture.append((
+            f"Classical U-Net (gate={gate})", centralized_demoTorchClassical.main,
+            ["centralized_demoTorchClassical.py", "--dataset", "optical", *gate_args, *common_c],
+        ))
+        for qc in (partial_qc, full_qc):
+            common_q = [
+                "--dataset", "optical", "--q-ansatz", "reupload", "--q-layers", "2",
+                "--n-qubits", "4", "--quantum-channels", str(qc),
+                "--quantum-knockout-eval", *gate_args, *common_c,
+            ]
+            architecture.append((
+                f"Quantum (qc={qc}, gate={gate})", centralized_demoTorchQ.main,
+                ["centralized_demoTorchQ.py", *common_q],
+            ))
+            for mlp_mode in ("param_matched", "full_rank"):
+                architecture.append((
+                    f"MLP {mlp_mode} (qc={qc}, gate={gate})", ablation_studies.main,
+                    ["ablation_studies.py", "--framework", "torch", "--mode", "centralized",
+                     "--ablation-mode", "mlp", "--ablation-mlp-mode", mlp_mode, *common_q],
+                ))
+    compression = []
+    for mode in tc.COMM_COMPRESSION_CHOICES:
+        common = [
+            "--dataset", "combined", "--partition", "modality",
+            "--combined-input-mode", "dual_stem", "--fl-strategy", "fedavg",
+            "--comm-compression", mode, *common_f,
+        ]
+        compression.append((
+            f"Classical Fed ({mode})", federated_demoTorchClassical.main,
+            ["federated_demoTorchClassical.py", *common],
+        ))
+        q_args = ["--q-ansatz", "reupload", "--q-layers", "2", "--quantum-knockout-eval"]
+        compression.append((
+            f"MLP Fed ({mode})", ablation_studies.main,
+            ["ablation_studies.py", "--framework", "torch", "--mode", "federated",
+             "--ablation-mode", "mlp", *q_args, *common],
+        ))
+        compression.append((
+            f"Quantum Fed ({mode})", federated_demoTorchQ.main,
+            ["federated_demoTorchQ.py", "--q-angle-agg", "linear", *q_args, *common],
+        ))
+    return [
+        (5, "Panel 5: Full Bottleneck, Decoder Skip Gating & MLP Controls (Centralized optical)", architecture),
+        (6, "Panel 6: Federated Update Compression (Combined Modality Silos, dual_stem)", compression),
+    ]
+
+
+def _retain_seed_record(record, argv):
+    """Retain paired-seed outcomes and settings without machine-specific data paths."""
+    keys = (
+        "seed", "val", "test", "knockout", "total_params", "bottleneck_target_params",
+        "bottleneck_actual_params", "best_epoch", "best_round", "select_metric",
+        "upload_bytes_per_client_round", "uncompressed_bytes_per_client_round",
+        "upload_mib_per_client_round", "compression_ratio", "telemetry_is_exact_per_tensor",
+        "q_backend", "q_simulator",
+    )
+    result = {k: record[k] for k in keys if k in record}
+    result["settings"] = _expected_metadata_from_argv(argv)[0]
+    result["elapsed_s"] = record["_elapsed_s"]
+    return result
 
 
 def run_mini_sweep(
@@ -489,7 +577,7 @@ def run_mini_sweep(
     if len(set(seed_list)) != len(seed_list):
         raise ValueError(f"Duplicate seeds are not allowed: {seed_list}")
 
-    valid_panel_ids = {1, 2, 3, 4}
+    valid_panel_ids = {1, 2, 3, 4, 5, 6}
     default_panel_ids = {1, 2, 3}
     if panels_filter is not None:
         panel_list = [int(p) for p in panels_filter]
@@ -853,6 +941,8 @@ def run_mini_sweep(
                 ],
             ),
         ]
+        if active_panels & {5, 6}:
+            panel_defs.extend(_wave4_panel_defs(common_c, common_f, base_channels))
 
         panels_out = []
 
@@ -873,12 +963,14 @@ def run_mini_sweep(
                         mdata = json.load(f)
                     mdata["_elapsed_s"] = dt
                     mdata["_metrics_path"] = mpath
+                    mdata["_retained"] = _retain_seed_record(mdata, argv)
                     seed_records.append(mdata)
                 stats = _summarize_seed_runs(seed_records)
                 rows_out.append({
                     "label": label,
                     "stats": stats,
                     "seeds": {int(r["seed"]): r["test"] for r in seed_records},
+                    "runs": [r["_retained"] for r in seed_records],
                 })
             panels_out.append({
                 "panel_id": panel_id,
@@ -908,6 +1000,10 @@ def run_mini_sweep(
             "epochs": int(epochs),
             "rounds": int(rounds),
             "local_epochs": int(local_epochs),
+            "batch_size": int(batch_size),
+            "learning_rate": float(learning_rate),
+            "num_clients": int(num_clients),
+            "min_client_samples": int(min_client_samples),
             "n_train": int(n_train),
             "n_test": int(n_test),
             "device": eff_device,
@@ -963,7 +1059,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser.add_argument("--keep-work-dir", action="store_true")
     parser.add_argument("--out-json", type=str, default=None)
     parser.add_argument("--out-md", type=str, default=None)
-    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3, 4], default=None)
+    parser.add_argument("--panels", type=int, nargs="+", choices=[1, 2, 3, 4, 5, 6], default=None)
     args = parser.parse_args(argv)
     if len(set(args.seeds)) != len(args.seeds):
         parser.error(f"Duplicate seeds are not allowed: {args.seeds}")

@@ -1,5 +1,31 @@
 # Running the QUAFFLE experiment grid
 
+## Local Wave 4 comparisons
+
+The synthetic mini-sweep has two opt-in panels for the post-audit controls:
+
+```bash
+python scripts/run_local_mini_sweep.py --panels 5 6 --seeds 42 77 123 \
+  --device cuda --work-dir /tmp/quaffle-wave4-local --keep-work-dir \
+  --out-json /tmp/quaffle-wave4-summary.json --out-md /tmp/quaffle-wave4-report.md
+```
+
+Panel 5 compares classical U-Net references and quantum/MLP bottlenecks with
+`none`/`affine` decoder gates. Quantum and both `param_matched`/`full_rank` MLP
+controls use a partial slice (`min(32, 4 * base_channels)` channels) and the full
+bottleneck (`8 * base_channels`; 64 at the default small scale), with time
+embeddings disabled. Panel 6 separately compares `none`, `fp16`, `int8`, and
+`topk10` update compression for classical, MLP, and quantum FedAvg models on
+combined modality silos. Together these panels run 78 training jobs across three seeds.
+Without `--panels`, the original panels 1–3 remain the default.
+
+Reports retain per-seed settings, validation/test metrics, both zero and random
+knockout outcomes, and modeled upload sizes. Compression still uses dense Flower
+transport; payloads exclude RPC framing. This tiny synthetic benchmark checks
+training behavior and guides real-data pilots. It cannot establish a DFC24
+accuracy gain or hardware quantum advantage. Compare paired seeds and report
+knockout effects separately from quantum-minus-classical accuracy differences.
+
 The grid is run on a SLURM cluster with one GPU per job. One GPU-hour is counted as 1 SU in the cost estimates below.
 
 ## 0. Cluster settings
