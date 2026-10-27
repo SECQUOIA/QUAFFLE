@@ -1,0 +1,54 @@
+{
+  "source_revision": "2d9907e4b59a023bda8380041c5df9a7132a75b7",
+  "sources": {
+    "optical": "https://drive.google.com/drive/folders/1UHE8pRFGZkHiOwmwc8tFI77c620U59eD",
+    "sar": "https://drive.google.com/drive/folders/1WvKc7AxSiFknl1EuICnlLY2hU487qtB-"
+  },
+  "original_files_verified": 3874,
+  "combined_byte_identical_files": 3874,
+  "file_identity": "Every original and combined file MD5 equals its committed split-manifest hash",
+  "manifest_sha256": {
+    "flood_optical": "2fb7b1ee5eaf182e9d09ce9abea8c1c0b11374d5227b75f572c82878c1630e73",
+    "flood_SAR": "1f3744013fdf56e22b92b1a8ce1f9658c855837a34147fa2596d2d8db364090b",
+    "flood_combined": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2"
+  },
+  "download_audit_sha256": {
+    "optical": "1344f2ac2235aae5d6fd2400b735e7e1cd585080297d99bc29135999c86c96f3",
+    "sar": "e424c06a490a20bf54a12d1552aa76055cce6bae79b2f3235815410551e6ab66"
+  },
+  "command": "python tools/compute_norm_stats.py --data-root <verified-dfc24-data> --seed 42 --val-fraction 0.15 --seeds 7 17 31 42 77 123 256 314 512 999",
+  "image_size": 128,
+  "fit_only": true,
+  "val_fraction": 0.15,
+  "seeds": [
+    7,
+    17,
+    31,
+    42,
+    77,
+    123,
+    256,
+    314,
+    512,
+    999
+  ],
+  "python": "3.11.14",
+  "packages": {
+    "numpy": "2.4.6",
+    "rasterio": "1.4.3",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.9.1"
+  },
+  "source_hashes": {
+    "tools/compute_norm_stats.py": "f80e012de9a8d94c5f731310318756c899251244f9dee5e604dd6176625aa486",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53"
+  },
+  "norm_stats_sha256": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+  "audit_verifier_sha256": "7062a82678e9de3c0853ff5499e4dacd3509a99c4abf0ff7b5c9de49ee23b53a",
+  "raw_audit_sha256": "9814953c7eb1e53959e8d009173d096f2bb5fd918c82fa666ffe41117724e6f9",
+  "verification": {
+    "focused_offline": "32 passed",
+    "full_suite": "257 passed, 21 warnings; 157.35 seconds",
+    "raw_audit": "30 fit identities and four sampled raw-band statistics exactly match"
+  }
+}

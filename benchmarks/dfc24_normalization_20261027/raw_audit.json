@@ -1,0 +1,174 @@
+{
+  "norm_stats_sha256": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+  "datasets": [
+    {
+      "dataset": "flood_optical",
+      "fit_identities": {
+        "7": {
+          "n_fit": 200,
+          "fit_names_sha256": "cac4dd3a0370f3af"
+        },
+        "17": {
+          "n_fit": 200,
+          "fit_names_sha256": "be1595dfdaeae9aa"
+        },
+        "31": {
+          "n_fit": 200,
+          "fit_names_sha256": "d6ea6484aca9b352"
+        },
+        "42": {
+          "n_fit": 200,
+          "fit_names_sha256": "163645c392166baa"
+        },
+        "77": {
+          "n_fit": 200,
+          "fit_names_sha256": "cdefabfdde374421"
+        },
+        "123": {
+          "n_fit": 200,
+          "fit_names_sha256": "c1954e249c0d89dd"
+        },
+        "256": {
+          "n_fit": 200,
+          "fit_names_sha256": "f3887b6579e09a4f"
+        },
+        "314": {
+          "n_fit": 200,
+          "fit_names_sha256": "d3f60d3226c407a0"
+        },
+        "512": {
+          "n_fit": 200,
+          "fit_names_sha256": "6aa86893247cfe1a"
+        },
+        "999": {
+          "n_fit": 200,
+          "fit_names_sha256": "8e3f3959f2fba60e"
+        }
+      },
+      "raw_reference_bands": {
+        "optical/GREEN": {
+          "lo": 198.0,
+          "hi": 2011.0,
+          "mean": 822.923738,
+          "std": 421.874905,
+          "log1p": false
+        }
+      }
+    },
+    {
+      "dataset": "flood_SAR",
+      "fit_identities": {
+        "7": {
+          "n_fit": 1103,
+          "fit_names_sha256": "a6e2db145b0459d7"
+        },
+        "17": {
+          "n_fit": 1103,
+          "fit_names_sha256": "0515daf3c3d33ccb"
+        },
+        "31": {
+          "n_fit": 1103,
+          "fit_names_sha256": "8119e85d96d659f5"
+        },
+        "42": {
+          "n_fit": 1103,
+          "fit_names_sha256": "93247457cd26ab8c"
+        },
+        "77": {
+          "n_fit": 1103,
+          "fit_names_sha256": "a75784d012530114"
+        },
+        "123": {
+          "n_fit": 1103,
+          "fit_names_sha256": "7f2b2c3f856c386b"
+        },
+        "256": {
+          "n_fit": 1103,
+          "fit_names_sha256": "d9de998c9d6eaa16"
+        },
+        "314": {
+          "n_fit": 1103,
+          "fit_names_sha256": "eca3b54f30de0af2"
+        },
+        "512": {
+          "n_fit": 1103,
+          "fit_names_sha256": "10535ade4c0266b0"
+        },
+        "999": {
+          "n_fit": 1103,
+          "fit_names_sha256": "f97018b5edcb7548"
+        }
+      },
+      "raw_reference_bands": {
+        "sar/VV": {
+          "lo": 3.89182,
+          "hi": 9.51392,
+          "mean": 6.997473,
+          "std": 0.992432,
+          "log1p": true
+        }
+      }
+    },
+    {
+      "dataset": "flood_combined",
+      "fit_identities": {
+        "7": {
+          "n_fit": 1303,
+          "fit_names_sha256": "9f711e0247d5dda5"
+        },
+        "17": {
+          "n_fit": 1303,
+          "fit_names_sha256": "afba84683f4cab3b"
+        },
+        "31": {
+          "n_fit": 1303,
+          "fit_names_sha256": "af4db70507c5632f"
+        },
+        "42": {
+          "n_fit": 1303,
+          "fit_names_sha256": "b8f753c87797ee9a"
+        },
+        "77": {
+          "n_fit": 1303,
+          "fit_names_sha256": "703c308a1f4e4baa"
+        },
+        "123": {
+          "n_fit": 1303,
+          "fit_names_sha256": "dad9f2297bc59c73"
+        },
+        "256": {
+          "n_fit": 1303,
+          "fit_names_sha256": "24836fb3d3ceb22a"
+        },
+        "314": {
+          "n_fit": 1303,
+          "fit_names_sha256": "854ef3fb87f908d7"
+        },
+        "512": {
+          "n_fit": 1303,
+          "fit_names_sha256": "46ccb9fdbb841225"
+        },
+        "999": {
+          "n_fit": 1303,
+          "fit_names_sha256": "ec28a2acc870964f"
+        }
+      },
+      "raw_reference_bands": {
+        "optical/GREEN": {
+          "lo": 195.0,
+          "hi": 1874.0,
+          "mean": 821.925991,
+          "std": 364.063255,
+          "log1p": false
+        },
+        "sar/VV": {
+          "lo": 3.89182,
+          "hi": 9.490998,
+          "mean": 6.988058,
+          "std": 0.991307,
+          "log1p": true
+        }
+      }
+    }
+  ]
+}
