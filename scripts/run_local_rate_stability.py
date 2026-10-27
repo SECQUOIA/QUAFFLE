@@ -149,6 +149,10 @@ def audit_record(row, spec, seed, rate, args, data):
     if epochs != list(range(args.epochs + 1)):
         raise ValueError('Fit does not contain the complete planned epoch history')
     evaluations = [entry for entry in row['history'] if 'val' in entry]
+    expected_evaluations = [epoch for epoch in range(args.epochs + 1)
+                            if epoch == 0 or epoch % args.eval_every == 0 or epoch == args.epochs]
+    if [entry['epoch'] for entry in evaluations] != expected_evaluations:
+        raise ValueError('Fit validation evaluation schedule differs from the planned budget')
     chosen = max(evaluations, key=lambda entry: (entry['val']['iou'], -entry['epoch']))
     if row['best_epoch'] != chosen['epoch'] or row['val'] != chosen['val']:
         raise ValueError('Fit checkpoint selection differs from validation history')

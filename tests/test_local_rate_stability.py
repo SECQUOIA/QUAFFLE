@@ -82,7 +82,7 @@ def test_resume_keeps_original_producer_and_rejects_execution_drift(tmp_path):
 
 def record_fixture():
     spec = dict(id='quantum_global', model_type='quantum', config={'q_spatial_mode': 'global'})
-    args = SimpleNamespace(data_root=Path('/data'), image_size=64, batch_size=16, epochs=2, fit_cap=128)
+    args = SimpleNamespace(data_root=Path('/data'), image_size=64, batch_size=16, epochs=2, eval_every=2, fit_cap=128)
     data = dict(fit=[0], validation=[1], all_fit=[0, 2],
                 dataset=SimpleNamespace(names=['fit', 'val', 'unused']), normalization={'fit_only': True})
     row = dict(id=spec['id'], model_type='quantum', seed=42, learning_rate=0.001,
@@ -99,6 +99,17 @@ def test_record_reuse_accepts_legacy_default_and_storage_root_only():
     row['settings'].pop('q_training_control')
     row['settings']['data_root'] = '/historical/storage'
     study.audit_record(row, spec, 42, 0.001, args, data)
+
+
+@pytest.mark.parametrize('change', ['extra', 'missing'])
+def test_reuse_requires_the_exact_validation_evaluation_schedule(change):
+    spec, args, data, row = record_fixture()
+    if change == 'extra':
+        row['history'][1]['val'] = {'iou': 0.4}
+    else:
+        del row['history'][0]['val']
+    with pytest.raises(ValueError, match='evaluation schedule'):
+        study.audit_record(row, spec, 42, 0.001, args, data)
 
 
 @pytest.mark.parametrize('change, message', [
