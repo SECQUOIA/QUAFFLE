@@ -30,6 +30,42 @@ An absent sensor is identified by `*_subset_n_samples = 0`; its AUC uses the
 existing single-class fallback. Datasets without metadata retain the existing
 five-field evaluation result.
 
+## Compare typical and failure examples from saved checkpoints
+
+```bash
+python misc/build_qualitative_error_figure.py --manifest comparison.json \
+  --data-root /path/to/data --out-dir /tmp/qualitative-comparison --device cpu
+```
+
+The manifest names one or more dataset groups and the three checkpoints per group:
+
+```json
+{"datasets": [{"id": "Pooled", "checkpoints": {
+  "classical": "classical/checkpoint.pt",
+  "ablation": "ablation/checkpoint.pt",
+  "quantum": "quantum/checkpoint.pt"
+}}]}
+```
+
+Paths are relative to the manifest, or to an explicit `--checkpoint-dir`.
+A checkpoint entry can instead be `{"path": "run/checkpoint.pt", "config": "model.json"}`
+for older files requiring explicit architecture metadata. Add Optical and SAR
+groups with their corresponding checkpoints in the same way. Compared models
+must use identical dataset, seed and preprocessing settings. The tool restores
+validation-selected weights and performs no training.
+
+For each group, examples are selected by Classical U-Net IoU among test tiles
+with at least 5% ground-truth flood: the worst and the lower median. Exact IoU
+ties use dataset index order. Each row shows the same tile across all models;
+green, magenta and cyan boundaries indicate TP, FP and FN regions. The scatter
+plots cover **every** test tile, including dry tiles, with an IoU parity line.
+An empty predicted/true foreground union has IoU zero, matching `evaluate_model`.
+
+Outputs are `qualitative_median_worst_fp_fn.{png,pdf}`,
+`per_tile_iou_scatter.{png,pdf}` and `qualitative_eval_meta.json`. The JSON retains
+all tile identities, sensor tags, flood fractions and IoUs, selected indices,
+checkpoint/config hashes, parameter counts and normalization provenance.
+
 ## Ordinary U-Net at the quantum parameter budget
 
 ```bash
