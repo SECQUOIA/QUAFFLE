@@ -53,6 +53,11 @@ for older files requiring explicit architecture metadata. Add Optical and SAR
 groups with their corresponding checkpoints in the same way. Compared models
 must use identical dataset, seed and preprocessing settings. The tool restores
 validation-selected weights and performs no training.
+Recorded normalization fingerprints must also agree across models and with the
+reloaded data. A mismatch requires an explicit checkpoint configuration with the
+original matching `stats_path`. Metadata retains each saved identity and marks
+whether it was verified; older checkpoints without a resolved fingerprint are
+marked unverified rather than claiming their training bounds were reproduced.
 
 For each group, examples are selected by Classical U-Net IoU among test tiles
 with at least 5% ground-truth flood: the worst and the lower median. Exact IoU

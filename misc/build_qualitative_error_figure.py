@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+from textwrap import fill
 
 import matplotlib
 matplotlib.use('Agg')
@@ -25,10 +26,24 @@ COLORS = {'TP': '#18a558', 'FP': '#e34aab', 'FN': '#00b9ef'}
 PREPROCESSING_DEFAULTS = dict(image_size=128, dataset=None, seed=42, bands=None,
     legacy_data=False, fit_only_norm=True, val_fraction=0.15, max_samples=None,
     sample_seed=None, stats_path=None, manifest=None, combined_input_mode='shared3')
+NORMALIZATION_FIELDS = ('mode', 'fit_only', 'seed', 'val_fraction', 'image_size',
+    'max_samples', 'n_manifest_train_tiles', 'n_fit_train_tiles',
+    'n_excluded_val_tiles', 'fit_names_sha256', 'stats_sha256', 'modality_fallbacks')
 
 
 def _sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _saved_normalization(config):
+    provenance = config.get('norm_provenance') or config.get('_resolved_norm_provenance')
+    if provenance is None:
+        return None
+    if not isinstance(provenance, dict):
+        raise ValueError('Saved normalization provenance must be an object')
+    if str(provenance.get('mode', '')).startswith('unresolved_'):
+        return None
+    return {key: provenance[key] for key in NORMALIZATION_FIELDS if key in provenance}
 
 
 def select_examples(records, min_flood_fraction=0.05):
@@ -79,9 +94,21 @@ def evaluate_group(group, data_root, checkpoint_root, device, batch_size):
                   for cfg in configs.values()]
     if any(signature != signatures[0] for signature in signatures[1:]):
         raise ValueError('Compared checkpoints must have identical dataset, seed and preprocessing settings')
+    saved_normalization = {kind: _saved_normalization(config) for kind, config in configs.items()}
+    for key in NORMALIZATION_FIELDS:
+        known = [value[key] for value in saved_normalization.values() if value is not None and key in value]
+        if known and any(value != known[0] for value in known[1:]):
+            raise ValueError('Saved normalization differs across checkpoints; use models trained with matching statistics')
     cfg = configs['classical']
     _, _, _, images, masks = tc.resolve_data_dirs(cfg['dataset'], str(data_root))
     dataset = tc.load_dataset(images, masks, cfg)
+    actual_normalization = dataset.norm_provenance or {}
+    for kind, identity in saved_normalization.items():
+        if identity is not None and any(actual_normalization.get(key) != value for key, value in identity.items()):
+            raise ValueError('Saved normalization differs from reloaded data; supply a matching config with the original stats_path')
+        checkpoint_meta[kind]['saved_normalization'] = identity
+        checkpoint_meta[kind]['normalization_verified'] = bool(identity and (
+            identity.get('stats_sha256') or identity.get('mode') == 'legacy_per_image_p2_p98'))
     if not len(dataset):
         raise ValueError('The test dataset is empty')
     loader = tc.make_loader(dataset, batch_size, False, cfg['seed'])
@@ -124,7 +151,8 @@ def render(groups, out_dir):
             index = meta['selected'][rule]
             tile = meta['tiles'][index]
             panels[0].imshow(images[index])
-            panels[0].set_title(f"{meta['id']} {rule}: {tile['name']}\nInput ({tile['modality']})")
+            title = fill(f"{meta['id']} {rule}: {tile['name']}", width=26)
+            panels[0].set_title(title + f"\nInput ({tile['modality']})", fontsize=10)
             panels[1].imshow(targets[index], cmap='gray', vmin=0, vmax=1)
             panels[1].set_title(f"Ground truth\nFlood {100 * tile['flood_fraction']:.1f}%")
             for panel, kind, label in zip(panels[2:], KINDS, LABELS):
@@ -136,7 +164,7 @@ def render(groups, out_dir):
                   loc='lower center', ncol=3)
     figure.tight_layout(rect=(0, 0.035, 1, 1))
     for extension in ('png', 'pdf'):
-        figure.savefig(out_dir / ('qualitative_median_worst_fp_fn.' + extension), dpi=180)
+        figure.savefig(out_dir / ('qualitative_median_worst_fp_fn.' + extension), dpi=180, bbox_inches='tight')
     plt.close(figure)
     figure, axes = plt.subplots(len(groups), 2, figsize=(9, 4 * len(groups)), squeeze=False)
     for row, (meta, _, _, _) in enumerate(groups):
@@ -148,11 +176,11 @@ def render(groups, out_dir):
                                   s=20, alpha=0.6, marker=marker, label=sensor)
             panel.plot([0, 1], [0, 1], '--', color='gray')
             panel.set(xlim=(-0.02, 1.02), ylim=(-0.02, 1.02), xlabel=label + ' IoU',
-                      ylabel='QUAFFLE IoU', title=meta['id'] + ' — all test tiles', aspect='equal')
+                      ylabel='QUAFFLE IoU', title=fill(meta['id'] + ' — all test tiles', width=40), aspect='equal')
             panel.legend()
     figure.tight_layout()
     for extension in ('png', 'pdf'):
-        figure.savefig(out_dir / ('per_tile_iou_scatter.' + extension), dpi=180)
+        figure.savefig(out_dir / ('per_tile_iou_scatter.' + extension), dpi=180, bbox_inches='tight')
     plt.close(figure)
 
 
@@ -178,7 +206,7 @@ def main(argv=None):
             entry = group['checkpoints'][kind]
             entry = {'path': entry} if isinstance(entry, str) else entry
             inputs.update((checkpoint_root / entry[key]).resolve() for key in ('path', 'config') if entry.get(key))
-    outputs = {args.out_dir.resolve() / name for name in (
+    outputs = {(args.out_dir / name).resolve() for name in (
         'qualitative_eval_meta.json', 'qualitative_median_worst_fp_fn.png',
         'qualitative_median_worst_fp_fn.pdf', 'per_tile_iou_scatter.png', 'per_tile_iou_scatter.pdf')}
     if inputs & outputs:
