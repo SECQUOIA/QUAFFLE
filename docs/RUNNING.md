@@ -131,6 +131,25 @@ ansatz and a PennyLane backend. They preserve total parameter counts; the
 frozen model has fewer trainable parameters. Checkpoint settings, simulator
 metadata and centralized/federated resume fingerprints record the choice.
 
+After every control fit and test replay finishes, retain its artifacts and
+generate the paired comparison against the original retained pilot:
+
+```bash
+python scripts/collect_real_spatial_results.py \
+  --run-dir /tmp/real-spatial-controls --out-dir /tmp/control-evidence
+python scripts/summarize_quantum_training_controls.py \
+  --baseline-dir /tmp/real-spatial-evidence --control-run /tmp/real-spatial-controls \
+  --out-dir /tmp/control-evidence
+```
+
+The comparison verifies initialization, cohorts, normalization, configuration,
+budgets and recorded runtime settings across the two campaigns. It checks the
+frozen circuit stayed fixed and distinguishes total from trainable parameters.
+Each model independently selects its rate from the same grid; the report
+includes those selected-rate differences. It retains every original model and
+both controls, together with seed-paired differences and sample standard
+deviations. The three-seed comparison is descriptive.
+
 ## Compare typical and failure examples from saved checkpoints
 
 ```bash
