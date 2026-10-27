@@ -44,6 +44,9 @@ def audit_run(run):
     assert summary['selection'] == {name: row['learning_rate'] for name, row in chosen.items()}
     records = summary['records']
     assert len(records) == len(specs) * len(settings['seeds'])
+    if {(row['id'], row['seed']) for row in records} != {
+            (name, seed) for name in specs for seed in settings['seeds']}:
+        raise ValueError('Selected results do not cover the planned model/seed pairs')
     checkpoints = {}
     flat = []
     for row in records:
@@ -55,6 +58,12 @@ def audit_run(run):
         assert set(row['fit_names']).isdisjoint(row['val_names'])
         assert len(row['fit_names']) <= settings['fit_cap']
         checkpoint = run / row['checkpoint']
+        fit_record = {key: value for key, value in row.items()
+                      if key not in ('test', 'test_names', 'checkpoint', 'knockout')}
+        if read(checkpoint.parent / 'metrics.json') != fit_record:
+            raise ValueError('Selected summary differs from its saved validation-only fit record')
+        if read(checkpoint.parent / 'selected_test.json') != row:
+            raise ValueError('Selected summary differs from its saved test replay')
         checkpoints[row['checkpoint']] = digest(checkpoint)
         test = row['test']
         totals = {name: sum(test[sensor + '_subset_' + name] for sensor in ('optical', 'sar'))
@@ -74,6 +83,12 @@ def audit_run(run):
     # Preserve all trials, not only validation-selected winners.
     fits = [dict(directory=str(path.parent.relative_to(run)), record=read(path)) for path in sorted(fit_paths)]
     assert all('test' not in item['record'] for item in fits)
+    expected_fits = {(name, 42, rate) for name in specs for rate in settings['learning_rates']}
+    expected_fits.update((name, seed, chosen[name]['learning_rate'])
+                         for name in specs for seed in settings['seeds'][1:])
+    if {(item['record']['id'], item['record']['seed'], item['record']['learning_rate'])
+            for item in fits} != expected_fits:
+        raise ValueError('Fit records do not cover the planned tuning and replication grid')
     return summary, fits, flat, checkpoints
 
 

@@ -63,6 +63,23 @@ def test_bounded_checkpoint_smoke_keeps_full_test_and_records_learning_diagnosti
     assert all(row['diagnostics']['initial_bottleneck_output'] for row in quantum)
     assert all(Path(tmp_path / 'runs' / row['checkpoint']).is_file() for row in result['records'])
     assert (tmp_path / 'runs/report.md').is_file()
+    from scripts.collect_real_spatial_results import audit_run
+    _, fits, _, checkpoints = audit_run(tmp_path / 'runs')
+    assert len(fits) == 9 and len(checkpoints) == 6
+    summary_path = tmp_path / 'runs/summary.json'
+    original_summary = summary_path.read_text()
+    try:
+        result['records'][0]['seed'] = 999
+        summary_path.write_text(json.dumps(result))
+        with pytest.raises(ValueError, match='planned model/seed'):
+            audit_run(tmp_path / 'runs')
+        result['records'][0]['seed'] = 42
+        result['records'][0]['elapsed_s'] += 1
+        summary_path.write_text(json.dumps(result))
+        with pytest.raises(ValueError, match='saved validation-only fit record'):
+            audit_run(tmp_path / 'runs')
+    finally:
+        summary_path.write_text(original_summary)
     # Cached candidate records remain validation-only after test replay.
     assert all('test' not in json.loads(path.read_text()) for path in (tmp_path / 'runs/tuning').rglob('metrics.json'))
     before = {path: path.stat().st_mtime_ns for path in (tmp_path / 'runs').rglob('metrics.json')}
