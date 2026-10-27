@@ -6,6 +6,7 @@ Contains common training, testing, and visualization functions.
 
 import os
 import glob
+from functools import partial
 from typing import Optional
 import numpy as np
 import torch
@@ -583,7 +584,77 @@ def train_one_epoch(
     return avg_loss, accuracy
 
 
+def _evaluation_modalities(dataset):
+    """Resolve explicit sensor metadata in dataset order, including nested subsets."""
+    if isinstance(dataset, torch.utils.data.Subset):
+        parent = _evaluation_modalities(dataset.dataset)
+        return None if parent is None else [parent[int(i)] for i in dataset.indices]
+    modalities = getattr(dataset, 'modalities', None)
+    if modalities is None:
+        return None
+    values = [str(m).strip().lower() for m in modalities]
+    if len(values) != len(dataset) or any(m not in ('optical', 'sar') for m in values):
+        raise ValueError('Evaluation sensor metadata must contain one optical/sar tag per sample')
+    return values
+
+
+class _SensorEvaluationDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset, modalities):
+        self.dataset = dataset
+        self.modalities = modalities
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return self.dataset[index], self.modalities[index]
+
+
+def _collate_sensor_samples(samples, collate_fn):
+    data, modalities = zip(*samples)
+    return collate_fn(list(data)), list(modalities)
+
+
+def _sensor_evaluation_loader(dataloader, modalities):
+    """Attach tags before sampling so shuffled batches keep their sensor identities.
+
+    Reuse the original batch sampler and generator exactly once, together with its
+    collator and worker settings. Never infer sensor identity from image brightness.
+    """
+    kwargs = dict(
+        dataset=_SensorEvaluationDataset(dataloader.dataset, modalities),
+        batch_sampler=dataloader.batch_sampler,
+        collate_fn=partial(_collate_sensor_samples, collate_fn=dataloader.collate_fn),
+        num_workers=dataloader.num_workers, pin_memory=dataloader.pin_memory,
+        timeout=dataloader.timeout, worker_init_fn=dataloader.worker_init_fn,
+        generator=dataloader.generator, persistent_workers=dataloader.persistent_workers,
+    )
+    if dataloader.num_workers:
+        kwargs['prefetch_factor'] = dataloader.prefetch_factor
+        kwargs['multiprocessing_context'] = dataloader.multiprocessing_context
+    return DataLoader(**kwargs)
+
+
+def _auc_from_chunks(labels, probabilities, single_class_auc):
+    y = np.concatenate(labels) if labels else np.empty(0, dtype=np.float32)
+    p = np.concatenate(probabilities) if probabilities else np.empty(0, dtype=np.float32)
+    if y.size == 0 or np.unique(y).size < 2:
+        return float(single_class_auc)
+    try:
+        value = float(roc_auc_score(y, p))
+        return float(single_class_auc) if np.isnan(value) else value
+    except ValueError:
+        return float(single_class_auc)
+
+
 def evaluate_model(model, dataloader, device, single_class_auc=0.0, loss_mode: Optional[str] = None):
+    """Evaluate pooled metrics and sensor subsets when explicit metadata is available.
+
+    Subset IoU/Dice/accuracy use separate pixel confusion counts; AUC uses each
+    sensor's complete probability/label vectors. Pooled metrics retain their
+    existing definitions. Subset counts distinguish an absent sensor from a
+    sensor with zero performance, and all returned fields persist in metrics.json.
+    """
     model.eval()
     eff_loss_mode = _resolve_model_loss_mode(model, loss_mode)
     total_loss = 0
@@ -594,8 +665,15 @@ def evaluate_model(model, dataloader, device, single_class_auc=0.0, loss_mode: O
     total_true_pos = 0
     all_probs = []
     all_labels = []
+    modalities = _evaluation_modalities(getattr(dataloader, 'dataset', None))
+    sensor_counts = {
+        m: dict(tp=0, fp=0, fn=0, tn=0, n_samples=0, labels=[], probabilities=[])
+        for m in ('optical', 'sar')
+    } if modalities is not None else None
+    batches = _sensor_evaluation_loader(dataloader, modalities) if modalities is not None else dataloader
     with torch.no_grad():
-        for imgs, masks in tqdm(dataloader, desc='Evaluating'):
+        for batch in tqdm(batches, desc='Evaluating'):
+            (imgs, masks), sensor_tags = batch if sensor_counts is not None else (batch, None)
             imgs, masks = imgs.to(device), masks.to(device)
             logits = model(imgs)
             loss = segmentation_loss(logits, masks, loss_mode=eff_loss_mode)
@@ -611,6 +689,20 @@ def evaluate_model(model, dataloader, device, single_class_auc=0.0, loss_mode: O
             probs = torch.softmax(logits, dim=1)[:, 1, ...]
             all_probs.append(probs.cpu().numpy().ravel())
             all_labels.append(masks.cpu().numpy().ravel())
+            if sensor_counts is not None:
+                for sensor, counts in sensor_counts.items():
+                    indices = [i for i, tag in enumerate(sensor_tags) if tag == sensor]
+                    if not indices:
+                        continue
+                    predicted = preds[indices] == 1
+                    actual = masks_int[indices] == 1
+                    counts['tp'] += int((predicted & actual).sum().item())
+                    counts['fp'] += int((predicted & ~actual).sum().item())
+                    counts['fn'] += int((~predicted & actual).sum().item())
+                    counts['tn'] += int((~predicted & ~actual).sum().item())
+                    counts['n_samples'] += len(indices)
+                    counts['labels'].append(masks_int[indices].cpu().numpy().ravel())
+                    counts['probabilities'].append(probs[indices].cpu().numpy().ravel())
     n_samples = len(dataloader.dataset)
     avg_loss = float(total_loss / n_samples) if n_samples > 0 else 0.0
     accuracy = float(total_correct / total_pixels) if total_pixels > 0 else 0.0
@@ -621,18 +713,21 @@ def evaluate_model(model, dataloader, device, single_class_auc=0.0, loss_mode: O
         if (total_pred_pos + total_true_pos) > 0
         else 0.0
     )
-    all_probs_arr = np.concatenate(all_probs) if all_probs else np.empty(0, dtype=np.float32)
-    all_labels_arr = np.concatenate(all_labels) if all_labels else np.empty(0, dtype=np.float32)
-    try:
-        if all_labels_arr.size == 0 or np.unique(all_labels_arr).size < 2:
-            auc_score = float(single_class_auc)
-        else:
-            auc_score = float(roc_auc_score(all_labels_arr, all_probs_arr))
-            if np.isnan(auc_score):
-                auc_score = float(single_class_auc)
-    except ValueError:
-        auc_score = float(single_class_auc)
-    return {'loss': avg_loss, 'accuracy': accuracy, 'auc': auc_score, 'iou': iou, 'dice': dice}
+    auc_score = _auc_from_chunks(all_labels, all_probs, single_class_auc)
+    result = {'loss': avg_loss, 'accuracy': accuracy, 'auc': auc_score, 'iou': iou, 'dice': dice}
+    if sensor_counts is not None:
+        for sensor, counts in sensor_counts.items():
+            tp, fp, fn, tn = (counts[k] for k in ('tp', 'fp', 'fn', 'tn'))
+            union = tp + fp + fn
+            dice_denominator = 2 * tp + fp + fn
+            pixels = tp + fp + fn + tn
+            prefix = f'{sensor}_subset_'
+            result.update({prefix + key: counts[key] for key in ('tp', 'fp', 'fn', 'tn', 'n_samples')})
+            result[prefix + 'iou'] = tp / union if union else 0.0
+            result[prefix + 'dice'] = 2 * tp / dice_denominator if dice_denominator else 0.0
+            result[prefix + 'accuracy'] = (tp + tn) / pixels if pixels else 0.0
+            result[prefix + 'auc'] = _auc_from_chunks(counts['labels'], counts['probabilities'], single_class_auc)
+    return result
 
 def save_training_curves(metrics, output_dir, prefix="", title_prefix=""):
     """Save training curves - generic version for both centralized and federated."""
