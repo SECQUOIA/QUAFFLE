@@ -110,6 +110,7 @@ ALL_MODES = ["centralized", "fed-random", "fed-dirichlet", "fed-modality", "fed-
 DATASETS = ["optical", "sar", "combined"]
 ABLATION_MODES = ["auto", "mlp", "linear", "conv1x1", "depthwise3x3", "lowrank", "hqunet_spatial"]
 ABLATION_MLP_MODES = ["param_matched", "full_rank"]
+DECODER_SKIP_GATES = ["none", "se", "affine"]
 
 SCRIPT = {
     ("classical", "centralized"): "centralized_demoTorchClassical.py",
@@ -358,7 +359,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
               combined_input_mode=None, fl_strategy=None, fedprox_mu=None,
               q_angle_agg=None, num_clients=None, clients_per_round=None,
               fraction_fit=None, n_qubits=None, ablation_mode=None,
-              ablation_mlp_mode=None, ablation_mlp_hidden=None):
+              ablation_mlp_mode=None, ablation_mlp_hidden=None,
+              decoder_skip_gate=None):
     """Return a dict describing one job (no files written)."""
     kind = mode_kind(mode)
     script = SCRIPT[(method, kind)]
@@ -397,6 +399,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
     args += ["--dataset", dataset, "--seed", str(seed)]
     if combined_input_mode is not None:
         args += ["--combined-input-mode", str(combined_input_mode)]
+    if decoder_skip_gate is not None:
+        args += ["--decoder-skip-gate", str(decoder_skip_gate)]
     if base_channels is not None:
         args += ["--base-channels", str(base_channels)]
     if backbone_conv_mode is not None:
@@ -480,6 +484,8 @@ def build_job(method, mode, dataset, seed, root, python="python", alpha=0.5,
             parts.append("addskip")
     if combined_input_mode is not None and combined_input_mode != "shared3":
         parts.append("in-%s" % combined_input_mode)
+    if decoder_skip_gate is not None and decoder_skip_gate != "none":
+        parts.append("skipgate-%s" % str(decoder_skip_gate))
     if backbone_conv_mode == "depthwise_sep":
         parts.append("depthwise_sep")
     if loss is not None and loss != "ce":
@@ -889,6 +895,7 @@ def main(argv=None):
     ap.add_argument("--skip-modulation", choices=["affine", "additive"], default=None)
     ap.add_argument("--backbone-conv-mode", choices=["ws_conv", "standard", "depthwise_sep"], default=None)
     ap.add_argument("--combined-input-mode", choices=["shared3", "concat6", "dual_stem"], default=None)
+    ap.add_argument("--decoder-skip-gate", choices=DECODER_SKIP_GATES, default=None)
     ap.add_argument("--fl-strategy", choices=["fedavg", "fedprox"], default=None)
     ap.add_argument("--fedprox-mu", type=float, default=None)
     ap.add_argument("--q-angle-agg", choices=["linear", "circular"], default=None)
@@ -972,7 +979,8 @@ def main(argv=None):
                         fraction_fit=args.fraction_fit, n_qubits=args.n_qubits,
                         ablation_mode=args.ablation_mode,
                         ablation_mlp_mode=args.ablation_mlp_mode,
-                        ablation_mlp_hidden=args.ablation_mlp_hidden))
+                        ablation_mlp_hidden=args.ablation_mlp_hidden,
+                        decoder_skip_gate=args.decoder_skip_gate))
     finish(ap, args, jobs, out_dir)
 
 

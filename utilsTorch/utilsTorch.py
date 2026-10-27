@@ -158,6 +158,9 @@ class QVUNetSegmentation(torch.nn.Module):
             combined_input_mode = unet.normalize_combined_input_mode(
                 self.config.get('combined_input_mode')
             )
+            decoder_skip_gate = unet.normalize_decoder_skip_gate(
+                self.config.get('decoder_skip_gate')
+            )
 
             def build():
                 def make_block(offset):
@@ -193,6 +196,7 @@ class QVUNetSegmentation(torch.nn.Module):
                     use_time_emb=use_time_emb,
                     backbone_conv_mode=backbone_conv_mode,
                     combined_input_mode=combined_input_mode,
+                    decoder_skip_gate=decoder_skip_gate,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -292,6 +296,9 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
             combined_input_mode = unet.normalize_combined_input_mode(
                 self.config.get('combined_input_mode')
             )
+            decoder_skip_gate = unet.normalize_decoder_skip_gate(
+                self.config.get('decoder_skip_gate')
+            )
             if q_ansatz == 'legacy':
                 kind = 'linear'
             elif q_ansatz == 'hqunet':
@@ -336,6 +343,7 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
                     use_time_emb=use_time_emb,
                     backbone_conv_mode=backbone_conv_mode,
                     combined_input_mode=combined_input_mode,
+                    decoder_skip_gate=decoder_skip_gate,
                 )
 
             self._model = _build_seeded(self.seed, build)
@@ -408,6 +416,9 @@ class UNetSegmentation(torch.nn.Module):
             combined_input_mode = unet.normalize_combined_input_mode(
                 self.config.get('combined_input_mode')
             )
+            decoder_skip_gate = unet.normalize_decoder_skip_gate(
+                self.config.get('decoder_skip_gate')
+            )
             
             self._model = _build_seeded(self.seed, lambda: unet.UNet(
                 dim=self.config['base_channels'],
@@ -418,6 +429,7 @@ class UNetSegmentation(torch.nn.Module):
                 use_time_emb=use_time_emb,
                 backbone_conv_mode=backbone_conv_mode,
                 combined_input_mode=combined_input_mode,
+                decoder_skip_gate=decoder_skip_gate,
             ))
     
     @property
