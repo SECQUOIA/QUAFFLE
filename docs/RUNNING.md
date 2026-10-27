@@ -80,10 +80,10 @@ python scripts/collect_real_spatial_results.py --run-dir /tmp/real-spatial-pilot
   --out-dir /tmp/real-spatial-evidence
 ```
 
-An optional `--screen-dir` retains a preceding validation-only screen and its
-stopping reason. Checkpoints stay in the run directory; their hashes are retained
-with the smaller review artifacts. Cluster execution belongs to Alan; the local
-pilot and its conclusions do not establish Anvil or federated performance.
+An optional `--screen-dir` retains a preceding validation-only screen with its
+`screen_disposition.json` stopping record. Checkpoints stay in the run directory;
+their hashes are retained with the smaller review artifacts. The local pilot
+does not establish Anvil or federated performance.
 
 ## Compare typical and failure examples from saved checkpoints
 
