@@ -106,6 +106,9 @@ class LocalSpatialBottleneckBlock(nn.Module):
             raise ValueError('The local spatial block requires positive integer quantum_channels')
         if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
             raise ValueError('The local spatial block requires a positive integer q_layers')
+        # Classical checkpoint fingerprints mark quantum-only controls as null.
+        if q_training_control is None:
+            q_training_control = 'trainable'
         if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
             raise ValueError('Unknown q_training_control')
         if kind != 'quantum' and q_training_control != 'trainable':
