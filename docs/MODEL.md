@@ -109,8 +109,10 @@ Quantum has `16L` core parameters, MLP has 284, convolution has 60, and sine/cos
 has 160. All use the same pre/post projection parameter count. These are
 receptive-field and interface controls, not claims of identical function classes.
 
-`angle_diagnostics(x)` reports bounded-input saturation on an explicitly supplied
-batch without retaining tensors or a graph. `zero` knockout removes the entire
+`angle_diagnostics(x)` reports bounded-input saturation for quantum and sine/cosine
+cores on an explicitly supplied batch without retaining tensors or a graph.
+The MLP and convolution consume raw projected inputs and return no angle diagnostic.
+`zero` knockout removes the entire
 projected block output. `random` reinitializes core weights reproducibly while
 preserving the trained projections and input dependence; it does not overwrite
 the saved model parameters. These interventions have different meanings and

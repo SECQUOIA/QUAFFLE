@@ -109,7 +109,9 @@ def output_probe(model, blocks, images):
                          between_sample_std=float(output.std(dim=0, unbiased=False).mean()),
                          spatial_std=float(output.flatten(2).std(dim=2, unbiased=False).mean())))
         if hasattr(module, 'angle_diagnostics'):
-            rows[-1]['input_angles'] = module.angle_diagnostics(inputs[0])
+            angles = module.angle_diagnostics(inputs[0])
+            if angles is not None:
+                rows[-1]['input_angles'] = angles
     handles = [block.register_forward_hook(capture) for block in blocks]
     try:
         model.eval()

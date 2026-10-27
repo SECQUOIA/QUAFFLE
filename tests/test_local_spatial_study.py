@@ -11,6 +11,7 @@ def complete_summary():
         for seed in (42, 77, 123):
             records.append(dict(id=spec['id'], seed=seed, learning_rate=0.001,
                 total_params=100 + index, val={'iou': 0.5}, test={'iou': 0.3},
+                initial_parameter_sha256='same-initial-' + str(seed),
                 fit_names=['fit'], val_names=['val'], test_names=['test'], normalization={'fit_only': True}))
     return dict(records=records)
 
@@ -77,3 +78,49 @@ def test_duration_analysis_uses_only_selected_quantum_classical_pair():
     assert len(analysis) == 2
     assert {row['split'] for row in analysis} == {'val', 'test'}
     assert all((row['left'], row['right']) == ('local_quantum_z', 'local_conv') for row in analysis)
+
+
+def tuning_records():
+    records = []
+    for row in complete_summary()['records']:
+        if row['seed'] == 42:
+            for rate in (0.001, 0.003):
+                candidate = copy.deepcopy(row)
+                candidate['learning_rate'] = rate
+                if candidate['id'] == 'local_quantum_xz_zz':
+                    candidate['val']['iou'] += 0.01 if rate == 0.001 else -0.02
+                records.append(candidate)
+    return records
+
+
+def test_common_rate_readout_contrasts_use_only_seed42_validation():
+    records = tuning_records()
+    for row in records:
+        row['test']['iou'] = 1.0 if row['id'] == 'local_quantum_xz_zz' else 0.0
+    result = study.fixed_rate_readout_contrasts(records)
+    assert [row['difference_pp'] for row in result] == pytest.approx([1.0, -2.0])
+    assert [row['learning_rate'] for row in result] == [0.001, 0.003]
+    assert all(row['seed'] == 42 and row['n'] == 1 for row in result)
+
+
+@pytest.mark.parametrize('damage', ['missing', 'whole_readout_missing', 'duplicate', 'cohort', 'initial'])
+def test_common_rate_readout_contrasts_reject_invalid_pairing(damage):
+    records = tuning_records()
+    target = next(row for row in records if row['id'] == 'local_quantum_xz_zz')
+    if damage == 'missing':
+        records.remove(target)
+    elif damage == 'whole_readout_missing':
+        records = [row for row in records if row['id'] != 'local_quantum_xz_zz']
+    elif damage == 'duplicate':
+        records.append(copy.deepcopy(target))
+    elif damage == 'cohort':
+        target['val_names'] = ['different']
+    else:
+        target['initial_parameter_sha256'] = 'different'
+    with pytest.raises(ValueError):
+        study.fixed_rate_readout_contrasts(records)
+
+
+def test_duration_extension_explicitly_has_only_one_readout():
+    records = [row for row in tuning_records() if row['id'] != 'local_quantum_xz_zz']
+    assert study.fixed_rate_readout_contrasts(records, require_both=False) == []

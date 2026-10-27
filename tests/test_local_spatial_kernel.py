@@ -235,6 +235,15 @@ def test_angle_diagnostics_reports_saturation_without_changing_gradients():
     assert all(parameter.grad is None for parameter in block.parameters())
 
 
+@pytest.mark.parametrize('kind', ['mlp', 'conv'])
+def test_unbounded_classical_cores_have_no_input_angle_diagnostic(kind):
+    from scripts.run_real_spatial_pilot import output_probe
+    block = LocalSpatialBottleneckBlock(1, kind=kind, feature_channels=1)
+    images = torch.randn(1, 1, 2, 2)
+    assert block.angle_diagnostics(images) is None
+    assert 'input_angles' not in output_probe(block, [block], images)[0]
+
+
 @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
 def test_classical_checkpoint_replay_preserves_local_core(tmp_path, kind):
     cfg = config(kind)

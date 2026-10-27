@@ -172,9 +172,11 @@ class LocalSpatialBottleneckBlock(nn.Module):
 
     def angle_diagnostics(self, x):
         """Input-angle saturation on this batch, without retaining a graph."""
+        if self.kind not in ('quantum', 'sincos'):
+            return None
         with torch.no_grad():
             tokens = self._tokens(x)
-            scales = self.input_scales[0] if hasattr(self, 'input_scales') else torch.ones(1, 4, device=tokens.device)
+            scales = self.input_scales[0]
             bounded = torch.tanh(tokens[:, None, :] * scales.to(tokens.device)[None, :, :])
             return dict(n_angles=bounded.numel(), saturation_fraction=float((bounded.abs() >= 0.95).float().mean()),
                         mean_abs_tanh=float(bounded.abs().mean()), max_abs_tanh=float(bounded.abs().max()))

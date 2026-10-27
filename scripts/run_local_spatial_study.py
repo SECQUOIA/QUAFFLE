@@ -94,9 +94,41 @@ def paired_analysis(records):
     return comparisons
 
 
+def fixed_rate_readout_contrasts(tuning, *, require_both=True):
+    """Single tuning-seed evidence at each common rate, without rate selection."""
+    candidates = {}
+    for row in tuning:
+        if row['id'] not in QUANTUM_IDS:
+            continue
+        key = row['id'], row['learning_rate']
+        if row['seed'] != 42 or key in candidates:
+            raise ValueError('Readout tuning requires unique seed-42 candidates')
+        candidates[key] = row
+    if {key[0] for key in candidates} != set(QUANTUM_IDS):
+        # The duration extension contains one selected readout, not both.
+        if not require_both and len({key[0] for key in candidates}) <= 1:
+            return []
+        raise ValueError('Both planned readouts are required for the pilot tuning report')
+    if set(candidates) != {(name, rate) for name in QUANTUM_IDS for rate in (0.001, 0.003)}:
+        raise ValueError('Readout tuning requires both planned common rates')
+    comparisons = []
+    for rate in (0.001, 0.003):
+        left, right = (candidates[name, rate] for name in ('local_quantum_xz_zz', 'local_quantum_z'))
+        for key in ('fit_names', 'val_names', 'normalization', 'initial_parameter_sha256'):
+            if left[key] != right[key]:
+                raise ValueError('Unpaired fixed-rate readout comparison: ' + key)
+        comparisons.append(dict(left=left['id'], right=right['id'], seed=42, n=1,
+            learning_rate=rate, split='val', difference_pp=100 * (left['val']['iou'] - right['val']['iou']),
+            qualification='One tuning seed at a fixed common rate; no across-seed uncertainty estimate'))
+    return comparisons
+
+
 def summarize(summary, work_dir):
     comparisons = paired_analysis(summary['records'])
     pilot.write_json(work_dir / 'paired_spatial_analysis.json', comparisons)
+    fixed_rate = fixed_rate_readout_contrasts(json.loads((work_dir / 'tuning_candidates.json').read_text()),
+        require_both=set(QUANTUM_IDS) <= {row['id'] for row in summary['records']})
+    pilot.write_json(work_dir / 'fixed_rate_readout_analysis.json', fixed_rate)
     lines = ['# Local spatial quantum comparison', '',
         'All comparisons use validation-selected rates; unequal selected rates remain a confound for gate/readout attribution.',
         'The test set was exposed during earlier research. These are exploratory descriptive results, not an untouched-holdout confirmation.', '',
@@ -104,6 +136,11 @@ def summarize(summary, work_dir):
         '| --- | --- | ---: | ---: | --- |']
     for row in comparisons:
         lines.append(f"| {row['left']} − {row['right']} | {row['split']} | {row['mean']:+.3f} ± {row['std']:.3f} | {row['wins']}/3 | {row['same_learning_rates']} |")
+    if fixed_rate:
+        lines += ['', 'Common-rate readout comparison: richer Z/X/ZZ minus Z-only, using seed 42 validation.',
+                  'Each row has n=1 and supplies no across-seed uncertainty estimate.', '',
+                  '| Fixed learning rate | Validation IoU difference (percentage points) |', '| ---: | ---: |']
+        lines += [f"| {row['learning_rate']} | {row['difference_pp']:+.3f} |" for row in fixed_rate]
     lines += ['', 'All per-seed outcomes, learning histories, input-angle diagnostics, parameter movement and output knockouts are retained in summary.json.',
               'Normalization uses the entire global fit partition while optimization uses 128 tiles per seed; this is not a pure few-image experiment.', '']
     (work_dir / 'spatial_report.md').write_text('\n'.join(lines))
