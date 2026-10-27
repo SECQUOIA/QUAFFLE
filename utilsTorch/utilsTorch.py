@@ -164,6 +164,10 @@ class QVUNetSegmentation(torch.nn.Module):
 
             def build():
                 def make_block(offset):
+                    if self.config.get('local_spatial_kernel') is not None:
+                        from .local_spatial import build_local_spatial_block
+                        return build_local_spatial_block(self.config, 'quantum',
+                            seed=None if self.seed is None else int(self.seed) + offset)
                     return unet.QuantumBlock(
                         backend=self.config.get('quantum_backend', 'pennylane'),
                         quantum_channels=quantum_channels,
@@ -311,6 +315,10 @@ class ClassicalAblationUNetSegmentation(torch.nn.Module):
 
             def build():
                 def make_block(offset):
+                    if self.config.get('local_spatial_kernel') is not None:
+                        from .local_spatial import build_local_spatial_block
+                        return build_local_spatial_block(self.config, 'ablation',
+                            seed=None if self.seed is None else int(self.seed) + offset)
                     return unet.ClassicalBottleneckBlock(
                         quantum_channels=quantum_channels,
                         kind=kind,
