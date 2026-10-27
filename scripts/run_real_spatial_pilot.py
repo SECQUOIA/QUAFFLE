@@ -341,9 +341,11 @@ def main(argv=None, *, spec_factory=None, extra_source_files=(), experiment_cont
     plan_path = args.work_dir / 'plan.json'
     if args.resume:
         previous = json.loads(plan_path.read_text())
-        for key in ('settings', 'specs', 'source_hashes', 'input_identity', 'packages', 'device', 'experiment_context'):
+        for key in ('settings', 'specs', 'source_hashes', 'input_identity', 'packages', 'device',
+                    'python', 'gpu', 'gpu_allocator_fraction', 'threads', 'experiment_context'):
             if previous[key] != plan[key]:
                 parser.error('Resume inputs differ from the frozen plan: ' + key)
+        plan = previous
     else:
         if args.work_dir.exists() and any(args.work_dir.iterdir()):
             parser.error('Use a new/empty work directory, or --resume with identical inputs')

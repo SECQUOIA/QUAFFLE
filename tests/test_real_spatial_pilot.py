@@ -1,6 +1,8 @@
 """Selection is validation-only; the capped optimization partition stays paired."""
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -83,10 +85,37 @@ def test_bounded_checkpoint_smoke_keeps_full_test_and_records_learning_diagnosti
     # Cached candidate records remain validation-only after test replay.
     assert all('test' not in json.loads(path.read_text()) for path in (tmp_path / 'runs/tuning').rglob('metrics.json'))
     before = {path: path.stat().st_mtime_ns for path in (tmp_path / 'runs').rglob('metrics.json')}
+    frozen_plan = json.loads((tmp_path / 'runs/plan.json').read_text())
+    # Only the reported Git revision changes; source hashes, data and cached fits stay fixed.
+    git_dir = tmp_path / 'resume-bin'
+    git_dir.mkdir()
+    real_git = shutil.which('git')
+    assert real_git is not None
+    fake_git = git_dir / 'git'
+    fake_git.write_text('#!/usr/bin/env python3\nimport os, sys\n'
+        "if sys.argv[1:] == ['rev-parse', 'HEAD']:\n    print('f' * 40)\n"
+        f'else:\n    os.execv({real_git!r}, [{real_git!r}, *sys.argv[1:]])\n')
+    fake_git.chmod(0o755)
+    resume_env = dict(os.environ, PATH=str(git_dir) + os.pathsep + os.environ['PATH'])
     with (tmp_path / 'resume.log').open('w') as log:
         subprocess.run([sys.executable, str(Path(pilot.__file__)), *args, '--resume'], check=True,
-                       stdout=log, stderr=subprocess.STDOUT)
+                       stdout=log, stderr=subprocess.STDOUT, env=resume_env)
     assert before == {path: path.stat().st_mtime_ns for path in before}
+    assert json.loads((tmp_path / 'runs/summary.json').read_text())['plan'] == frozen_plan
+    assert json.loads((tmp_path / 'runs/plan.json').read_text()) == frozen_plan
+    audit_run(tmp_path / 'runs')
+    # Keeping the canonical plan must not conceal a changed execution environment.
+    plan_path = tmp_path / 'runs/plan.json'
+    try:
+        plan_path.write_text(json.dumps(dict(frozen_plan, python='different-runtime')))
+        with (tmp_path / 'runtime-drift.log').open('w') as log:
+            with pytest.raises(subprocess.CalledProcessError):
+                subprocess.run([sys.executable, str(Path(pilot.__file__)), *args, '--resume'], check=True,
+                               stdout=log, stderr=subprocess.STDOUT)
+        assert 'Resume inputs differ from the frozen plan: python' in (tmp_path / 'runtime-drift.log').read_text()
+        assert before == {path: path.stat().st_mtime_ns for path in before}
+    finally:
+        plan_path.write_text(json.dumps(frozen_plan))
     image = data / 'flood_combined/Training/images' / (result['records'][0]['fit_names'][0] + '.tif')
     original = image.read_bytes()
     try:

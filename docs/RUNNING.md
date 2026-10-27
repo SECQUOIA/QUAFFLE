@@ -68,8 +68,12 @@ gradient norms, parameter movement, bottleneck output variation, and zero/random
 knockouts. `report.md` summarizes results and flags selections near the run limit.
 
 Use `--resume` only with identical settings, input identities and executable
-source hashes. Completed fit records are reused; incomplete attempts are
-preserved separately. An Anvil follow-up should repeat the comparison with the
+source hashes, Python/package versions, device/GPU and thread/allocator settings.
+Completed fit records are reused; incomplete attempts are
+preserved separately. Resumed summaries retain the original frozen producing
+plan even when an unrelated Git revision has changed, so subsequent collection
+remains consistent with `plan.json`. An Anvil follow-up should repeat the
+comparison with the
 full optimization fit partition and adequate convergence before drawing a final
 ranking or a federated-performance conclusion.
 
