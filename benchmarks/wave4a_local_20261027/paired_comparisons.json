@@ -1,0 +1,422 @@
+[
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=32, gate=none)",
+    "right": "MLP param_matched (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.001062694593332747,
+      "77": -0.002609134777241673,
+      "123": 0.02790030692853429
+    },
+    "mean": 0.008784622248208454,
+    "sample_std": 0.01665615902091134,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=32, gate=none)",
+    "right": "MLP full_rank (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.04144230089746315,
+      "77": -0.005143236951124286,
+      "123": 0.026852666415315696
+    },
+    "mean": -0.006577623811090579,
+    "sample_std": 0.03417007081220956,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=64, gate=none)",
+    "right": "MLP param_matched (qc=64, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.016933207902163683,
+      "77": 0.008206699890269897,
+      "123": -0.0001435334134954891
+    },
+    "mean": 0.008332124792979364,
+    "sample_std": 0.00853906154358604,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=64, gate=none)",
+    "right": "MLP full_rank (qc=64, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.005098830446310099,
+      "77": 0.007861688880488216,
+      "123": -0.005703422053231932
+    },
+    "mean": 0.0024190324245221273,
+    "sample_std": 0.007168615399030521,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "Quantum (qc=64, gate=none)",
+    "right": "Quantum (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.0689845007945149,
+      "77": 0.0025185512801612076,
+      "123": -0.03187462936477492
+    },
+    "mean": 0.01320947423663373,
+    "sample_std": 0.05127243810633609,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "MLP param_matched (qc=64, gate=none)",
+    "right": "MLP param_matched (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.05311398748568397,
+      "77": -0.008297283387350363,
+      "123": -0.00383078902274514
+    },
+    "mean": 0.01366197169186282,
+    "sample_std": 0.03423935682258353,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "MLP full_rank (qc=64, gate=none)",
+    "right": "MLP full_rank (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.022443369450741657,
+      "77": -0.010486374551451294,
+      "123": 0.000681459103772708
+    },
+    "mean": 0.004212818001021024,
+    "sample_std": 0.016746488639663295,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=32, gate=affine)",
+    "right": "MLP param_matched (qc=32, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.023561933349669162,
+      "77": 0.0011692860445710052,
+      "123": -0.010009760043612426
+    },
+    "mean": 0.0049071531168759135,
+    "sample_std": 0.017095127581003677,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=32, gate=affine)",
+    "right": "MLP full_rank (qc=32, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.06693428066516016,
+      "77": 0.02094839708969365,
+      "123": -0.006123992499407094
+    },
+    "mean": 0.027252895085148904,
+    "sample_std": 0.03693491357344913,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=64, gate=affine)",
+    "right": "MLP param_matched (qc=64, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.03503749923268307,
+      "77": -0.09642613026071667,
+      "123": 0.009551098376313294
+    },
+    "mean": -0.017279177550573437,
+    "sample_std": 0.06971778287947149,
+    "n": 3
+  },
+  {
+    "comparison": "quantum_minus_mlp",
+    "left": "Quantum (qc=64, gate=affine)",
+    "right": "MLP full_rank (qc=64, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.004983929584269964,
+      "77": -0.10181028954767424,
+      "123": 0.07067812798471829
+    },
+    "mean": -0.008716077326228663,
+    "sample_std": 0.08705648274377978,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "Quantum (qc=64, gate=affine)",
+    "right": "Quantum (qc=32, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.0041875504090332916,
+      "77": -0.10287759057700907,
+      "123": 0.0009831746764622507
+    },
+    "mean": -0.0353606554365267,
+    "sample_std": 0.0585285101258397,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "MLP param_matched (qc=64, gate=affine)",
+    "right": "MLP param_matched (qc=32, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.015663116292047197,
+      "77": -0.005282174271721396,
+      "123": -0.01857768374346347
+    },
+    "mean": -0.013174324769077353,
+    "sample_std": 0.006988433691600766,
+    "n": 3
+  },
+  {
+    "comparison": "full_minus_partial",
+    "left": "MLP full_rank (qc=64, gate=affine)",
+    "right": "MLP full_rank (qc=32, gate=affine)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.057762800671856906,
+      "77": 0.019881096060358816,
+      "123": -0.07581894580766313
+    },
+    "mean": 0.0006083169748508643,
+    "sample_std": 0.06884475839443978,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "Quantum (qc=32, gate=affine)",
+    "right": "Quantum (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.0325693735103848,
+      "77": -0.008024665062088654,
+      "123": -0.0020609591721379994
+    },
+    "mean": 0.007494583092052716,
+    "sample_std": 0.02191917614505429,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "MLP param_matched (qc=32, gate=affine)",
+    "right": "MLP param_matched (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.010070134754048388,
+      "77": -0.011803085883901332,
+      "123": 0.03584910780000872
+    },
+    "mean": 0.011372052223385257,
+    "sample_std": 0.023852759432504714,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "MLP full_rank (qc=32, gate=affine)",
+    "right": "MLP full_rank (qc=32, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.0758072080522385,
+      "77": -0.03411629910290659,
+      "123": 0.03091569974258479
+    },
+    "mean": -0.026335935804186767,
+    "sample_std": 0.05378517734321082,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "Quantum (qc=64, gate=affine)",
+    "right": "Quantum (qc=64, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.04060267769316339,
+      "77": -0.11342080691925893,
+      "123": 0.03079684486909917
+    },
+    "mean": -0.041075546581107715,
+    "sample_std": 0.07210998873648447,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "MLP param_matched (qc=64, gate=affine)",
+    "right": "MLP param_matched (qc=64, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.058706969023682776,
+      "77": -0.008787976768272365,
+      "123": 0.02110221307929039
+    },
+    "mean": -0.015464244237554917,
+    "sample_std": 0.04032128219039461,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "MLP full_rank (qc=64, gate=affine)",
+    "right": "MLP full_rank (qc=64, gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.04048777683112326,
+      "77": -0.0037488284910964786,
+      "123": -0.04558470516885105
+    },
+    "mean": -0.029940436830356926,
+    "sample_std": 0.02282531336406789,
+    "n": 3
+  },
+  {
+    "comparison": "affine_minus_none",
+    "left": "Classical U-Net (gate=affine)",
+    "right": "Classical U-Net (gate=none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.0441778862082467,
+      "77": -0.13556569401557805,
+      "123": 0.010619946091644183
+    },
+    "mean": -0.05637454471072686,
+    "sample_std": 0.07385207649321153,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Classical Fed (fp16)",
+    "right": "Classical Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.0001067335877583675,
+      "77": -5.223217949967829e-05,
+      "123": -0.0015330693138044804
+    },
+    "mean": -0.0005640116936875087,
+    "sample_std": 0.0008396708308650609,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Classical Fed (int8)",
+    "right": "Classical Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.03704689224509694,
+      "77": -0.003319014436183876,
+      "123": -0.0019845365824274763
+    },
+    "mean": -0.014116814421236098,
+    "sample_std": 0.019869236511294984,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Classical Fed (topk10)",
+    "right": "Classical Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.3391017098480068,
+      "77": -0.12397962706745391,
+      "123": -0.7922704658525554
+    },
+    "mean": -0.41845060092267206,
+    "sample_std": 0.34113830946862,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "MLP Fed (fp16)",
+    "right": "MLP Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 5.586374554211737e-05,
+      "77": 5.301715828032183e-05,
+      "123": 0.0008692943218167049
+    },
+    "mean": 0.00032605840854638135,
+    "sample_std": 0.0004704582541147956,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "MLP Fed (int8)",
+    "right": "MLP Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.0006475477322307466,
+      "77": 0.00019311039274327868,
+      "123": 0.00038408169794590385
+    },
+    "mean": 0.0004082466076399764,
+    "sample_std": 0.0002281803695007615,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "MLP Fed (topk10)",
+    "right": "MLP Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.3008275204095041,
+      "77": -0.21585456385596635,
+      "123": -0.058901092243168196
+    },
+    "mean": -0.19186105883621288,
+    "sample_std": 0.12273493949841677,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Quantum Fed (fp16)",
+    "right": "Quantum Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.00014703211172928388,
+      "77": -0.00045913682277320955,
+      "123": 0.0
+    },
+    "mean": -0.00010403490368130856,
+    "sample_std": 0.0003161924100558968,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Quantum Fed (int8)",
+    "right": "Quantum Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": 0.0009149130832570851,
+      "77": -0.0026242984943334324,
+      "123": -0.0009045680687471691
+    },
+    "mean": -0.0008713178266078389,
+    "sample_std": 0.0017698400582226161,
+    "n": 3
+  },
+  {
+    "comparison": "compressed_minus_uncompressed",
+    "left": "Quantum Fed (topk10)",
+    "right": "Quantum Fed (none)",
+    "unit": "IoU",
+    "paired_differences": {
+      "42": -0.26988104948622527,
+      "77": -0.20729755585631415,
+      "123": -0.06676763502259264
+    },
+    "mean": -0.181315413455044,
+    "sample_std": 0.10401955862523529,
+    "n": 3
+  }
+]

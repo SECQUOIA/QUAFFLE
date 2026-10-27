@@ -631,6 +631,6 @@ def test_downstream_parsers_generators_and_visualizers_with_n_qubits():
     with pytest.raises(ValueError, match="hqunet"):
         bq.main(["--q-ansatz", "hqunet", "--n-qubits", "8", "--skip-block", "--skip-model"])
 
-    # run_local_mini_sweep rejects invalid panel 5, accepts panel 4
+    # run_local_mini_sweep rejects IDs outside the available panels
     with pytest.raises(ValueError, match="panels_filter"):
-        rlms.run_mini_sweep(seeds=[42], panels_filter=[5])
+        rlms.run_mini_sweep(seeds=[42], panels_filter=[7])

@@ -1,0 +1,39 @@
+{
+  "source_revision": "a2664cadd20765a22250449a6280ffbaa195b3dd",
+  "source_status_before_run": "?? benchmarks/",
+  "runner_sha256": "d98d35772a64f4d1ab4023e329584a8ffa64770043c1ff2e9e137a9113aed6b1",
+  "python": "3.11.14",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "flwr": "1.42.0",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "rasterio": "1.4.3",
+    "affine": "2.4.0",
+    "attrs": "26.1.0",
+    "click-plugins": "1.1.1.2",
+    "cligj": "0.7.2"
+  },
+  "gpu": "NVIDIA RTX A1000",
+  "torch_cuda": "12.1",
+  "torch_threads": 2,
+  "torch_interop_threads": 2,
+  "gpu_allocator_fraction_limit": 0.12,
+  "host_memory_limit": "6 GiB",
+  "swap_limit": "0",
+  "panels": [
+    6
+  ],
+  "federated_executor": "in-process Flower Server.fit, sequential client proxies",
+  "seeds": [
+    42,
+    77,
+    123
+  ],
+  "command": "QUAFFLE_INPROCESS_FED=1 python scripts/run_local_mini_sweep.py --panels 6 --seeds 42 77 123 --device cuda --work-dir <scratch> --keep-work-dir --out-json summary.json --out-md report.md",
+  "outcome": {
+    "completed_compression_runs": 36,
+    "failed_client_fits": 0
+  }
+}
