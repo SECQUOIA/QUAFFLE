@@ -1,0 +1,12 @@
+{
+  "quantum_frozen_global": {
+    "learning_rate": 0.001,
+    "val_iou": 0.6267035890753109,
+    "best_epoch": 58
+  },
+  "quantum_no_entanglement_global": {
+    "learning_rate": 0.003,
+    "val_iou": 0.6347488179928247,
+    "best_epoch": 40
+  }
+}

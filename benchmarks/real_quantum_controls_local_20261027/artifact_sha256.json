@@ -1,0 +1,22 @@
+{
+  "COMPARISON.md": "55cd00ec2ab043e85baefbe24b4bd274ace4991c58fc6a702c568ac8cbb6568f",
+  "INTERPRETATION.md": "fd1636fb06e0f25010b96f982a32c9d28c684752dae79efb16a710deab8c4a35",
+  "README.md": "d26de122a54798a9c62f68127d2920dc684a9c4dba73f2e8f0702d6d284925ed",
+  "all_fits.json": "53b8ba1fbd34352b00126140da951f4385b831606df622f16b72da6ee132b197",
+  "audit.json": "22f19c299b8a2ba50f189b9bbd7bf7b45867b51a7c74ed509c291e6c17e006a1",
+  "checkpoint_sha256.json": "6b227e0d0e2fdff52d71f8261b66ab72e85fdf936367ff21d35f7833eedb5b57",
+  "comparison.json": "dc98571c7819526f5fce2fad67f6483f66a3c2d7d43828ba0a4068da655470ea",
+  "learning_curves.pdf": "fc83c7e19e9d4bacfcbaf1799914bef2a1d9e22bcf96ddb78b257a53201edd28",
+  "learning_curves.png": "712bd24423a7ccb9fe6c15edcdef4d3ecd15bc8b6f16b93a4ccdb73d6dbd182c",
+  "per_seed.csv": "88157f64b8f41747d9bbe8a0db1d4f8cdea095cc0139d230b010e31c4e301cdb",
+  "plan.json": "9b73951bd114763b16ff7c24c2508d8f0b90a261353cce1060d09222dff8ef5b",
+  "provenance/checkpoint_restore_audit.json": "44a3eed5939d5be0f1fc588e7b53b172c89a0822d583aee02ed86241d049bda2",
+  "provenance/checkpoint_restore_audit.py": "7bad646bde7ab39319efe0965a0ca07be74e2087b48221d006f55b03d72aeaaa",
+  "provenance/comparison_test_output.txt": "99eaf0e14b258b7373cf9ddc6a6404c61678a3123db05950af1d1f2451201680",
+  "provenance/first_frozen_fit_audit.json": "c09d32baafe3521b184e3791b361ad9d1dcadb4c625562beb7c07d299f703f2a",
+  "provenance/full_test_output.txt": "8c1f51225d8b554eea6d23fb67deb8f2b19263ddd5413233d92f7fcca487c42e",
+  "provenance/verification.json": "bd20c325c1aad31ad49919dfe7483f98e170876dfa447d44506032e287b1d529",
+  "summary.json": "2582de4ec78b48c266b1ab4c1653efd3682aacfc095f718fc41184bf14eefc9a",
+  "tuning_candidates.json": "d564caf5f97fbdd6b5178f6ee7380fa479c0193dc71f86358233c5bd86973422",
+  "validation_selection.json": "d04dc990b48b463f5bd9ee19e89157ac5f3c3c995a4c3b3ad271f472eed6e8f8"
+}

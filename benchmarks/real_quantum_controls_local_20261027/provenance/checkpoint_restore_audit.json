@@ -1,0 +1,94 @@
+{
+  "producing_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+  "audit_source_sha256": "7bad646bde7ab39319efe0965a0ca07be74e2087b48221d006f55b03d72aeaaa",
+  "rows": [
+    {
+      "directory": "tuning/quantum_frozen_global/0.001/seed42",
+      "q_training_control": "frozen",
+      "seed": 42,
+      "best_epoch": 58,
+      "total_params": 500394,
+      "trainable_params": 499882,
+      "checkpoint_sha256": "57ec203dc900edc86c682da74445313f5c1a3a1403ff0e2c1e1f1affd96fa74b",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "tuning/quantum_frozen_global/0.003/seed42",
+      "q_training_control": "frozen",
+      "seed": 42,
+      "best_epoch": 14,
+      "total_params": 500394,
+      "trainable_params": 499882,
+      "checkpoint_sha256": "f4d356d11e6b5f324fa8196e9122e07776649386e20f085deb1fb9040b47b3d9",
+      "selected_for_test": false,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "replication/quantum_frozen_global/seed77",
+      "q_training_control": "frozen",
+      "seed": 77,
+      "best_epoch": 60,
+      "total_params": 500394,
+      "trainable_params": 499882,
+      "checkpoint_sha256": "44ae64de47885abab32c118ef503a3dd289b6eb7b64f75e0e4802c79545fd84f",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "replication/quantum_frozen_global/seed123",
+      "q_training_control": "frozen",
+      "seed": 123,
+      "best_epoch": 60,
+      "total_params": 500394,
+      "trainable_params": 499882,
+      "checkpoint_sha256": "79811cf0720fc7c6ae2f7e3883162cb7ef6de1c15c0dc20480dde7f185768240",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "tuning/quantum_no_entanglement_global/0.001/seed42",
+      "q_training_control": "no_entanglement",
+      "seed": 42,
+      "best_epoch": 50,
+      "total_params": 500394,
+      "trainable_params": 500394,
+      "checkpoint_sha256": "f581721e9aa15f1189e056842209d552508567537b4e333f85d62b27a2e60757",
+      "selected_for_test": false,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "tuning/quantum_no_entanglement_global/0.003/seed42",
+      "q_training_control": "no_entanglement",
+      "seed": 42,
+      "best_epoch": 40,
+      "total_params": 500394,
+      "trainable_params": 500394,
+      "checkpoint_sha256": "7eb9267577367b00483aebc223feaf554a68030e17328a982d4086f9f325b14c",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "replication/quantum_no_entanglement_global/seed77",
+      "q_training_control": "no_entanglement",
+      "seed": 77,
+      "best_epoch": 60,
+      "total_params": 500394,
+      "trainable_params": 500394,
+      "checkpoint_sha256": "e01086bfc34904b6d48175161aeaac638260c4dd4daca9618023b40b43606b12",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    },
+    {
+      "directory": "replication/quantum_no_entanglement_global/seed123",
+      "q_training_control": "no_entanglement",
+      "seed": 123,
+      "best_epoch": 28,
+      "total_params": 500394,
+      "trainable_params": 500394,
+      "checkpoint_sha256": "6c8e340473c54498e7c5a9a0f4961d69709f2d1649121eee0b1f3e953e6e8d3d",
+      "selected_for_test": true,
+      "checks": "strict selected finite weights; configuration/normalization; best validation epoch; parameter counts; frozen flags; CNOT-control semantics"
+    }
+  ]
+}

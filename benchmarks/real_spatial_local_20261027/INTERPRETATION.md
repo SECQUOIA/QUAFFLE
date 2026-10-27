@@ -63,7 +63,8 @@ controls: quantum beat its matching MLP in all three validation seeds, averaging
 and did not qualify. The [decision record](provenance/control_trigger.json)
 was computed without test-score input. Frozen-at-initialization and
 no-entanglement training controls follow this decision with the original
-rate grid, seeds and training budget; their results are reported separately.
+rate grid, seeds and training budget; their [completed results are reported
+separately](../real_quantum_controls_local_20261027/INTERPRETATION.md).
 
 ## Limits and reproducibility
 

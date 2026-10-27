@@ -1,0 +1,16 @@
+{
+  "producing_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+  "input_summary_sha256": "2582de4ec78b48c266b1ab4c1653efd3682aacfc095f718fc41184bf14eefc9a",
+  "collector_source_sha256": "e2120b0aa4602e374faaaef38ac337c81d2568ecd31284bb572747a3f4a9e306",
+  "completed_fit_records": 8,
+  "selected_checkpoint_hashes": 6,
+  "checks": [
+    "source hashes",
+    "complete tuning grid",
+    "validation-only rate selection",
+    "best validation checkpoints",
+    "paired cohorts and normalization",
+    "sensor-confusion recombination",
+    "paired aggregation"
+  ]
+}
