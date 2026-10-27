@@ -10,15 +10,16 @@ modified. All fixes live in committed files that the loaders read.
 |---|---|
 | `flood_data.py` | Shared loader used by `utilsTorch.FloodSegmentationDataset`, `utilsTorch.get_dataloaders` and `utilsJAX.load_dataset` |
 | `tools/dedup_splits.py` | Hashes every image/mask pair and writes `splits/<dataset>.json` |
-| `tools/compute_norm_stats.py` | Computes per-band statistics on the training split only and writes `splits/norm_stats.json` |
+| `tools/compute_norm_stats.py` | Computes per-band statistics on fit-only training tiles, excluding validation, and writes `splits/norm_stats.json` |
 | `splits/flood_optical.json`, `splits/flood_SAR.json`, `splits/flood_combined.json` | Split manifests (kept names, exclusions with reasons, per-file hashes) |
-| `splits/norm_stats.json` | Training-split per-band statistics |
+| `splits/norm_stats.json` | Fit-only per-band statistics and per-seed provenance |
 
 Regenerate with:
 
 ```
 python tools/dedup_splits.py --conflict-policy drop
-python tools/compute_norm_stats.py
+python tools/compute_norm_stats.py --data-root /path/to/data --seed 42 --val-fraction 0.15 \
+  --seeds 7 17 31 42 77 123 256 314 512 999
 ```
 
 When the raw `data/` folders are not present locally, `tools/dedup_splits.py`
@@ -33,6 +34,21 @@ python tools/dedup_splits.py --validate --conflict-policy drop
 Both tools are deterministic. The manifests store file md5s and decoded
 pixel md5s for every pair, so a changed dataset can be detected by rerunning
 the tool and diffing the JSON.
+
+Fit-only normalization is already the generator's default; no `--exclude-val`
+flag is needed. `--full-train` explicitly opts into the older full-training
+behavior. The committed normalization artifact contains entries for all ten
+campaign seeds under each dataset's `by_seed`, with seed 42 also at the top
+level. Each entry records the manifest training count, fit count, excluded
+validation count, seed, validation fraction and a digest of the actual fit names.
+The cache identity also includes image size (128 for these campaign entries)
+and sample cap (uncapped). Other sizes or capped training pools require their
+own fit statistics; the loader does not silently reuse an incompatible entry.
+At seed 42, the recorded fit/validation counts are 200/35 for Optical,
+1,103/195 for SAR, and 1,303/230 for combined. Combined fit statistics use
+207 Optical and 1,096 SAR tiles, reflecting that dataset's own validation split.
+Generation inputs, environment and a raw-band audit are retained under
+`benchmarks/dfc24_normalization_20261027/`.
 
 ## Building flood_combined
 
@@ -199,9 +215,9 @@ Changing the number of bands requires a matching `in_channels`.
 
 ### Normalization
 
-* Statistics come from the deduplicated training split of each dataset
+* Statistics come from the fit-only part of the deduplicated training split of each dataset
   (`splits/norm_stats.json`, built by `tools/compute_norm_stats.py`), and
-  support fit-only calculation (`train_idx` excluding the global stratified
+  exclude validation (`train_idx` excluding the global stratified
   validation holdout `val_idx` for a given `seed` and `val_fraction`, or
   explicit `train_indices` / `exclude_names`) so validation tile distributions
   do not leak into normalization percentiles.
