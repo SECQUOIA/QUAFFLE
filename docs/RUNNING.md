@@ -30,6 +30,39 @@ An absent sensor is identified by `*_subset_n_samples = 0`; its AUC uses the
 existing single-class fallback. Datasets without metadata retain the existing
 five-field evaluation result.
 
+## Bounded real-data spatial pilot
+
+```bash
+python scripts/run_real_spatial_pilot.py --data-root /path/to/data \
+  --work-dir /tmp/real-spatial-pilot --device cuda
+```
+
+This centralized screen compares full quantum and classical MLP bottlenecks in
+global and shared 4×4 modes, an ordinary width-8 U-Net, and the nearest ordinary
+U-Net parameter budget (width 7). All use one-group normalization, full
+bottleneck processing, no decoder skip gate, and the same paired data choices.
+
+Defaults are 64-pixel inputs, 128 optimization fit tiles per seed, batch size 16,
+30 epochs, validation every two epochs, and seeds 42/77/123. The global validation
+partition and test set are uncapped. Normalization excludes validation but uses
+all global fit images, including unused optimization tiles; this is not a pure
+few-image learning experiment. Raw kept files are checked against the committed
+drop manifest before fitting, and saved normalization is checked at test replay.
+
+Seed 42 selects the learning rate (0.001 or 0.003) separately for each model using
+validation IoU. The remaining seeds use that selected rate. All candidate runs
+receive the same epoch/checkpoint budget. Test data are evaluated only after
+every tuning and replication fit has finished. The output retains all candidate
+histories, selections, checkpoints, per-sensor test scores, paired contrasts,
+gradient norms, parameter movement, bottleneck output variation, and zero/random
+knockouts. `report.md` summarizes results and flags selections near the run limit.
+
+Use `--resume` only with identical settings, input identities and executable
+source hashes. Completed fit records are reused; incomplete attempts are
+preserved separately. An Anvil follow-up should repeat the comparison with the
+full optimization fit partition and adequate convergence before drawing a final
+ranking or a federated-performance conclusion.
+
 ## Ordinary U-Net at the quantum parameter budget
 
 ```bash
