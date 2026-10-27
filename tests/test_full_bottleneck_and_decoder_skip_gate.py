@@ -154,10 +154,20 @@ def test_decoder_skip_gate_modes_and_paired_seed_invariance():
     """Verify --decoder-skip-gate {none,se,affine} construction, forward/backward gradients,
     and paired-seed weight equivalence between QVUNetSegmentation and ClassicalAblationUNetSegmentation."""
     x = torch.randn(2, 3, 32, 32)
+    cfg_omitted = _base_config(quantum_channels=8)
     cfg_none = _base_config(quantum_channels=8, decoder_skip_gate="none")
+    m_omitted = tc.build_model(QVUNetSegmentation, cfg_omitted)
     m_none = tc.build_model(QVUNetSegmentation, cfg_none)
     assert m_none.model.up.skip_gates is None
     assert m_none.model.up.final_skip_gate is None
+    # Strict checkpoint compatibility and deterministic output equivalence for omitted vs explicit 'none'
+    m_none.load_state_dict(m_omitted.state_dict())
+    m_none.model.load_state_dict(m_omitted.model.state_dict(), strict=True)
+    m_omitted.model.load_state_dict(m_none.model.state_dict(), strict=True)
+    m_omitted.eval()
+    m_none.eval()
+    with torch.no_grad():
+        assert torch.equal(m_omitted(x), m_none(x))
 
     for gate_mode in ("se", "affine"):
         cfg_g = _base_config(quantum_channels=8, decoder_skip_gate=gate_mode, use_time_emb=False)

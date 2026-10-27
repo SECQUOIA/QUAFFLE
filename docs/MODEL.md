@@ -40,9 +40,13 @@ bottleneck channels pass through two classical $3\times 3$ weight-standardized c
 and the 9 encoder skip tensors in `UpUnet.forward` are concatenated into the decoder without
 bottleneck conditioning. Two architectural mechanisms remove these bypass pathways:
 
-1. **Full-bottleneck replacement (`--quantum-channels 256`)**: Sets `effective_qc = mid_dim = 256`
+1. **Full-bottleneck replacement (`--quantum-channels 256`)**: Sets `effective_qc = mid_dim = base_channels * dim_mults[-1] = 256`
    (`classical_channels = 0`), eliminating the classical bottleneck $3\times 3$ convolutions in both
-   `QResnetBlock`s / `AblationResnetBlock`s. At `base_channels=32, q_layers=2`, total model
+   `QResnetBlock`s / `AblationResnetBlock`s whenever `quantum_channels >= mid_dim` and `mid_dim` is
+   divisible by the circuit group width (`n_qubits` for `legacy`/`reupload`, or `4` for `hqunet`/`hqunet_spatial`;
+   for example, at `mid_dim = 256`, `n_qubits` in `{4, 8, 16}` yields `effective_qc = 256` and `0` classical
+   channels, whereas `n_qubits = 12` floor-divides to `effective_qc = 252` with `4` residual classical channels
+   and emits a `UserWarning`). At `base_channels=32, n_qubits=4, q_layers=2`, total model
    parameters drop from `9,327,970` (classical U-Net) to `6,835,554` (`-26.7%`) with time
    embeddings enabled, or to `6,426,786` (`-26.9%` vs. `8,787,106` `--no-time-emb` classical U-Net,
    `-31.1%` vs. baseline U-Net) with `--no-time-emb`.
