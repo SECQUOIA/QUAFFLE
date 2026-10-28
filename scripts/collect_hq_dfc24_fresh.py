@@ -6,6 +6,7 @@ screens are defined exclusively for a complete, full-mode 16-fit campaign.
 """
 import argparse
 from collections import Counter
+from fractions import Fraction
 import csv
 import gc
 import importlib.metadata
@@ -498,12 +499,18 @@ def analysis(result):
         gate = dict(status='not_applicable_rehearsal',
             reason='Software rehearsal uses validation replays only; no scientific decision screen is calculated.')
     else:
-        contrasts = {row['right']: row for row in paired if row['phase'] == 'val' and
-                     row['scope'] == 'pooled' and row['metric'] == 'flood_iou'}
-        checks = {other: dict(mean_gain_at_least_one_point=contrasts[other]['mean'] >= 1.,
-            all_three_positive=contrasts[other]['wins'] == 3) for other in ('frozen_quantum', 'compact_affine')}
-        quantum = statistics.mean(by_key['quantum', seed]['val']['iou'] for seed in SEEDS)
-        zero = statistics.mean(by_key['zero_bottleneck', seed]['val']['iou'] for seed in SEEDS)
+        # Decisions use exact audited counts; floating-point tables above stay unchanged.
+        def exact_iou(kind, seed):
+            counts = result['metrics'][identity(by_key[kind, seed])]['val']['pooled']['counts']
+            tp, fp, fn = (counts[key] for key in ('tp', 'fp', 'fn'))
+            return Fraction(tp, tp+fp+fn) if tp+fp+fn else Fraction(0)
+        checks = {}
+        for other in ('frozen_quantum', 'compact_affine'):
+            gains = [exact_iou('quantum', seed)-exact_iou(other, seed) for seed in SEEDS]
+            checks[other] = dict(mean_gain_at_least_one_point=sum(gains, Fraction(0))/len(SEEDS) >= Fraction(1,100),
+                all_three_positive=all(value > 0 for value in gains))
+        quantum = sum((exact_iou('quantum', seed) for seed in SEEDS), Fraction(0))/len(SEEDS)
+        zero = sum((exact_iou('zero_bottleneck', seed) for seed in SEEDS), Fraction(0))/len(SEEDS)
         passed = all(all(value.values()) for value in checks.values()) and quantum >= zero
         gate = dict(status='pass' if passed else 'fail', comparisons=checks,
             quantum_mean_at_least_zero=quantum >= zero, threshold_iou_fraction=.01,

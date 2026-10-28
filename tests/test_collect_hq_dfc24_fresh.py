@@ -1,6 +1,7 @@
 """Synthetic records/checkpoints verify audit contracts, never scientific fits."""
 import argparse
 import copy
+from fractions import Fraction
 from pathlib import Path
 import shutil
 from types import SimpleNamespace
@@ -324,13 +325,36 @@ def test_collection_detects_a_raw_byte_change_during_restore(campaign_factory,mo
     with pytest.raises(ValueError,match='changed during collection'):collect.audit_campaign(raw,data)
 
 
-def test_full_gate_units_and_conjunction_do_not_apply_to_incomplete_or_rehearsal_runs(campaign_factory):
+def test_full_gate_exact_count_boundaries_and_conjunction_do_not_apply_to_rehearsal(campaign_factory):
     raw,data,_=campaign_factory('full');result=collect.audit_campaign(raw,data)
-    def scores(frozen=.68,affine=.675,zero=.69):
-        targets=dict(quantum=.70,frozen_quantum=frozen,compact_affine=affine,zero_bottleneck=zero)
+    def set_score(row,score):
+        # All arms have the same million positive pixels, entirely in SAR.
+        # This realizes exact decimal IoUs without inconsistent saved fields.
+        positive=1_000_000
+        rational=Fraction(str(score))*positive
+        assert rational.denominator==1
+        tp=int(rational)
+        saved=dict(loss=.7,auc=.6)
+        totals=dict(tp=0,fp=0,fn=0,tn=0)
+        for sensor in ('optical','sar'):
+            n=row['val'][sensor+'_subset_n_samples']
+            counts=dict(tp=tp if sensor=='sar' else 0,fp=0,
+                fn=positive-tp if sensor=='sar' else 0,tn=n*128*128-positive if sensor=='sar' else n*128*128)
+            assert all(value>=0 for value in counts.values())
+            derived=collect.derived_metrics(counts)
+            saved.update({sensor+'_subset_'+key:value for key,value in counts.items()})
+            saved.update({sensor+'_subset_n_samples':n,sensor+'_subset_iou':derived['flood_iou'],
+                sensor+'_subset_dice':derived['flood_dice'],sensor+'_subset_accuracy':derived['accuracy'],
+                sensor+'_subset_auc':.6 if sensor=='sar' else 0.})
+            for key,value in counts.items():totals[key]+=value
+        derived=collect.derived_metrics(totals)
+        saved.update(iou=derived['flood_iou'],dice=derived['flood_dice'],accuracy=derived['accuracy'])
+        row['val']=saved
+        result['metrics'][collect.identity(row)]['val']=collect.check_metrics(saved,230)
+    def scores(quantum=.70,frozen=.68,affine=.675,zero=.69):
+        targets=dict(quantum=quantum,frozen_quantum=frozen,compact_affine=affine,zero_bottleneck=zero)
         for row in result['summary']['records']:
-            value=targets[row['kind']];row['val']['iou']=value
-            result['metrics'][collect.identity(row)]['val']['pooled']['metrics']['flood_iou']=value
+            set_score(row,targets[row['kind']])
     scores()
     assert collect.analysis(result)['gate']['status']=='pass'
     scores(frozen=.695)  # +0.5pp is below the chosen +1pp screen.
@@ -339,8 +363,24 @@ def test_full_gate_units_and_conjunction_do_not_apply_to_incomplete_or_rehearsal
     assert collect.analysis(result)['gate']['status']=='fail'
     scores()
     row=next(row for row in result['summary']['records'] if row['kind']=='frozen_quantum' and row['seed']==77)
-    result['metrics'][collect.identity(row)]['val']['pooled']['metrics']['flood_iou']=.70
-    assert collect.analysis(result)['gate']['status']=='fail'  # One tie fails all-positive.
+    set_score(row,.70)
+    gate=collect.analysis(result)['gate']
+    assert gate['status']=='fail' and gate['comparisons']['frozen_quantum']['mean_gain_at_least_one_point']
+    assert not gate['comparisons']['frozen_quantum']['all_three_positive']  # A tie fails despite mean>1pp.
+    scores(quantum=.29,frozen=.28,affine=.28,zero=.28)
+    boundary=collect.analysis(result)
+    assert boundary['gate']['status']=='pass'  # Exactly29/100−28/100 =1/100, inclusive.
+    reported=next(row for row in boundary['paired'] if row['right']=='frozen_quantum' and
+        row['phase']=='val' and row['scope']=='pooled' and row['metric']=='flood_iou')
+    assert reported['mean']<1.  # Preserve the ordinary floating-point reporting.
+    scores(quantum=.289999,frozen=.28,affine=.28,zero=.28)
+    below=collect.analysis(result)['gate']
+    assert below['status']=='fail'
+    assert not below['comparisons']['frozen_quantum']['mean_gain_at_least_one_point']
+    assert below['comparisons']['frozen_quantum']['all_three_positive']
+    scores(quantum=.29,frozen=.28,affine=.28,zero=.29)
+    equal_zero=collect.analysis(result)['gate']
+    assert equal_zero['status']=='pass' and equal_zero['quantum_mean_at_least_zero']
     result['plan']['mode']='rehearsal'
     assert collect.analysis(result)['gate']['status']=='not_applicable_rehearsal'
     result['fits'].pop()
