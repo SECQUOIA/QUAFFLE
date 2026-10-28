@@ -379,7 +379,10 @@ def plot_results(result, contrasts, out_dir):
     plot_dir = Path(out_dir) / 'plots'
     plot_dir.mkdir()
     def save(fig, name):
-        fig.tight_layout()
+        if name == 'knockouts':
+            fig.tight_layout(rect=(0, .14, 1, 1))
+        else:
+            fig.tight_layout()
         fig.savefig(plot_dir / (name + '.png'), dpi=150, bbox_inches='tight')
         fig.savefig(plot_dir / (name + '.pdf'), bbox_inches='tight', metadata={'CreationDate': None, 'ModDate': None})
         plt.close(fig)
@@ -424,7 +427,7 @@ def plot_results(result, contrasts, out_dir):
         ax.axhline(0, color='grey', linewidth=.8)
         ax.set(xticks=range(3), xticklabels=study.MODES, ylabel='On − diagnostic IoU (points)', title=name + ' — descriptive test')
     handles, seed_labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, seed_labels, loc='lower center', bbox_to_anchor=(.5, -.02), ncol=3)
+    fig.legend(handles, seed_labels, loc='lower center', bbox_to_anchor=(.5, .01), ncol=3)
     save(fig, 'knockouts')
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     fits = sorted(result['fits'], key=lambda entry: identity(entry['record']))
