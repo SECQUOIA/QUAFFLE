@@ -255,6 +255,8 @@ def add_common_args(parser, quantum=True, federated=False):
         parser.add_argument('--q-layers', type=int, default=None,
                             help='Number of variational layers in the quantum bottleneck '
                                  '(default: model default)')
+        parser.add_argument('--q-training-control', choices=['trainable', 'frozen', 'no_entanglement'],
+                            default=None, help='Trainable circuit, frozen angles/scales, or omitted CNOT gates')
         parser.add_argument('--n-qubits', '--n_qubits', dest='n_qubits', type=int,
                             choices=list(N_QUBITS_CHOICES), default=DEFAULT_N_QUBITS,
                             help="Per-group qubit width for 'reupload' and 'legacy' ansatze "
@@ -266,6 +268,12 @@ def add_common_args(parser, quantum=True, federated=False):
                             default=DEFAULT_Q_SPATIAL_MODE,
                             help="Spatial feature preservation mode for 4-qubit bottleneck groups "
                                  f"(default: {DEFAULT_Q_SPATIAL_MODE}; choices: {Q_SPATIAL_MODES})")
+        parser.add_argument('--local-spatial-kernel', choices=['quantum', 'mlp', 'conv', 'sincos'],
+                            default=None, help='Opt-in shared filter over neighboring 2x2 latent locations')
+        parser.add_argument('--local-spatial-readout', choices=['z', 'xz_zz'], default=None,
+                            help='Local quantum readout; Z pads eight features with zero (default: xz_zz)')
+        parser.add_argument('--local-spatial-channels', type=int, default=None,
+                            help='Number of projected scalar feature maps in the local filter (default: 4)')
         parser.add_argument('--hqunet-grid', type=int, choices=list(HQUNET_GRID_CHOICES),
                             default=DEFAULT_HQUNET_GRID,
                             help="Spatial grid dimension G for --q-ansatz hqunet "
@@ -446,10 +454,20 @@ def apply_common_args(config, args):
         config['q_ansatz'] = args.q_ansatz
     if getattr(args, 'q_layers', None) is not None:
         config['q_layers'] = args.q_layers
+    if getattr(args, 'q_training_control', None) is not None:
+        config['q_training_control'] = args.q_training_control
+    elif hasattr(args, 'q_ansatz'):
+        config.setdefault('q_training_control', 'trainable')
     if getattr(args, 'q_spatial_mode', None) is not None:
         config['q_spatial_mode'] = effective_q_spatial_mode({'q_spatial_mode': args.q_spatial_mode})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_spatial_mode' in config:
         config['q_spatial_mode'] = effective_q_spatial_mode(config)
+    for local_key in ('local_spatial_kernel', 'local_spatial_readout', 'local_spatial_channels'):
+        if getattr(args, local_key, None) is not None:
+            config[local_key] = getattr(args, local_key)
+    if config.get('local_spatial_kernel') is not None:
+        from utilsTorch.local_spatial import local_spatial_options
+        config.update(local_spatial_options(config))
     if getattr(args, 'hqunet_grid', None) is not None:
         config['hqunet_grid'] = effective_hqunet_grid({'hqunet_grid': args.hqunet_grid})
     elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'hqunet_grid' in config:
@@ -1497,6 +1515,11 @@ def bottleneck_param_counts(config, model_type, model=None):
                 return sum(targets), sum(actuals)
     if not isinstance(config, dict):
         return None, None
+    if config.get('local_spatial_kernel') is not None:
+        from utilsTorch.local_spatial import build_local_spatial_block
+        block = build_local_spatial_block(config, model_type)
+        n_blocks = 1 if bool(config.get('q_share_blocks', True)) else 2
+        return block.bottleneck_target_params * n_blocks, block.bottleneck_actual_params * n_blocks
     qc = int(config.get('quantum_channels', 32) if config.get('quantum_channels') is not None else 32)
     n_blocks = 1 if bool(config.get('q_share_blocks', True)) else 2
     if qc <= 0:
@@ -2173,6 +2196,9 @@ def _normalize_saved_fingerprint(saved, model_type=None):
     is_fed = 'fed_rounds' in out or 'partition' in out
     defaults = {
         'q_training_control': 'trainable' if eff_model_type == 'quantum' else None,
+        'local_spatial_kernel': None,
+        'local_spatial_readout': None,
+        'local_spatial_channels': None,
         'n_qubits': DEFAULT_N_QUBITS if quantum else None,
         'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
         'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
@@ -2283,6 +2309,11 @@ def effective_q_training_control(config):
     return normalize_q_training_control(config.get('q_training_control'))
 
 
+def effective_local_spatial_options(config, model_type):
+    from utilsTorch.local_spatial import local_spatial_options
+    return local_spatial_options(config if model_type in ('quantum', 'ablation') else {})
+
+
 def centralized_fingerprint(config, model_type):
     """Settings that must match for a centralized checkpoint to be resumed."""
     ansatz, layers = effective_q_variant(config)
@@ -2298,6 +2329,7 @@ def centralized_fingerprint(config, model_type):
     return {
         'model_type': model_type,
         'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
         'dataset': config.get('dataset', 'optical'),
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'seed': int(config['seed']),
@@ -2525,6 +2557,14 @@ def variant_tag(config):
             tag += f'_mlph{mlp_h}'
         elif mlp_mode != DEFAULT_ABLATION_MLP_MODE:
             tag += f'_mlp-{mlp_mode}'
+        local = effective_local_spatial_options(config, 'quantum')
+        if local['local_spatial_kernel'] is not None:
+            tag += (f"_local2x2-{local['local_spatial_kernel']}"
+                    f"-{local['local_spatial_readout']}-c{local['local_spatial_channels']}")
+            if local['local_spatial_kernel'] == 'quantum':
+                tag += '_' + effective_q_training_control(config)
+        elif effective_q_training_control(config) != 'trainable':
+            tag += '_' + effective_q_training_control(config)
         tag += classical_variant_tag(config)
     return tag
 
@@ -2772,6 +2812,7 @@ def run_fingerprint(config, model_type):
     fp = {
         'model_type': model_type,
         'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
         'dataset': config.get('dataset', 'optical'),
         'data_root': os.path.abspath(data_root) if data_root is not None else None,
         'partition': config.get('partition', 'random'),
@@ -3153,6 +3194,7 @@ def write_metrics_json(output_dir, *, script, training, model_type, config, val_
     payload = {
         'schema': 'quaffle-metrics-v1',
         'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
         'run_dir': os.path.basename(os.path.normpath(output_dir)),
         'script': script,
         'training': training,

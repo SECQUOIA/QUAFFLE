@@ -1,0 +1,5 @@
+Running as unit: run-rb33c7cca59c64367b216b7a49c2c1666.scope; invocation ID: d66932eec0474bfa802c99016f97cf6f
+checkpoint keys ['best_state_dict', 'settings', 'model_type', 'best_epoch']
+record model_type,best_epoch ablation 46
+checkpoint model_type,best_epoch ablation 46
+{"key": "dim_mults", "checkpoint": [1, 2, 4, 8], "checkpoint_present": true, "record": [1, 2, 4, 8], "record_present": true}

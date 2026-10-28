@@ -1,0 +1,27 @@
+{
+  "method": "Coordinator inspected both PNGs and both actual PDFs rasterized at1600px; visual/semantic agreement, not cross-format pixel identity.",
+  "figures": [
+    {
+      "stem": "qualitative_median_worst_fp_fn",
+      "png_sha256": "fd846d49c29730a5371b20216a163947fb093b39d7edfd9d843d73f7d08b9f95",
+      "pdf_sha256": "c5cc0f750b1b80cdc3a72d335b19e8b526d3c0075fed46faf81503ef6f90b7e7",
+      "pdf_pages": 1,
+      "pdf_raster_sha256": "727270e853c40bd8e082607c11cf049cdc198c59b67903cb19e649ff04ff7e4f",
+      "render_exit_code": 0
+    },
+    {
+      "stem": "per_tile_iou_scatter",
+      "png_sha256": "54c3330b4e55ba9fb5c19d67ea28f9990ca04f775fd6f585628461afa5940714",
+      "pdf_sha256": "b39884c34aac0d829721d70a88ddf578c2ddc3dfc4d47709fa9880158c760b50",
+      "pdf_pages": 1,
+      "pdf_raster_sha256": "c06e14d8e01c4626d86134672e15167006b3bdec9d034ed87d0c755716a58c06",
+      "render_exit_code": 0
+    }
+  ],
+  "observations": [
+    "All six selected image rows and model IoUs/ground-truth percentages/TP-FP-FN legend visible; fixed baseline-selected examples include quantum losses and ties.",
+    "All six scatter panels show full0\u20131axes, diagonal identity line, three seeds and both modality legends without clipping.",
+    "Model labels are disambiguated in README; sine/cosine is the validation-selected control, not the best descriptive test classical model.",
+    "Combined-set median/worst selection is not described as per-modality selection."
+  ]
+}

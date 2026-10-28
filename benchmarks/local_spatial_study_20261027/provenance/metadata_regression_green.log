@@ -1,0 +1,13 @@
+Running as unit: run-r4dcdeddea9284c6da5b0ca194d2a3029.scope; invocation ID: 78c0a61bb99649c2ae1070a34d1d0ace
+.......................................                                  [100%]
+=============================== warnings summary ===============================
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+39 passed, 2 warnings in 13.40s

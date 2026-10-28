@@ -1,0 +1,159 @@
+Running as unit: run-re37a6aa33f0d47c78495fd958ba769b4.scope; invocation ID: cc88b6db3a954a17b4ded67cab742d98
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+__ test_local_production_simulator_metadata_and_description[local_quantum_z] ___
+
+model_id = 'local_quantum_z'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+>           assert info['q_backend'] == info['family'] == 'pennylane'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:18: KeyError
+_ test_local_production_simulator_metadata_and_description[local_quantum_xz_zz] _
+
+model_id = 'local_quantum_xz_zz'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+>           assert info['q_backend'] == info['family'] == 'pennylane'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:18: KeyError
+_ test_local_production_simulator_metadata_and_description[local_quantum_frozen] _
+
+model_id = 'local_quantum_frozen'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+>           assert info['q_backend'] == info['family'] == 'pennylane'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:18: KeyError
+_ test_local_production_simulator_metadata_and_description[local_quantum_no_entanglement] _
+
+model_id = 'local_quantum_no_entanglement'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+>           assert info['q_backend'] == info['family'] == 'pennylane'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:18: KeyError
+_____ test_local_production_simulator_metadata_and_description[local_mlp] ______
+
+model_id = 'local_mlp'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+            assert info['q_backend'] == info['family'] == 'pennylane'
+            assert info['device'] == 'default.qubit'
+            assert info['sim_device'] == 'cpu'
+            assert info['interface'] == 'torch' and info['diff_method'] == 'backprop'
+            assert 'PennyLane default.qubit' in description and 'on cpu' in description
+            assert 'q_backend=pennylane' in description and not description.startswith('none')
+        else:
+>           assert info['q_backend'] is None and info['family'] == 'classical'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:25: KeyError
+_____ test_local_production_simulator_metadata_and_description[local_conv] _____
+
+model_id = 'local_conv'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+            assert info['q_backend'] == info['family'] == 'pennylane'
+            assert info['device'] == 'default.qubit'
+            assert info['sim_device'] == 'cpu'
+            assert info['interface'] == 'torch' and info['diff_method'] == 'backprop'
+            assert 'PennyLane default.qubit' in description and 'on cpu' in description
+            assert 'q_backend=pennylane' in description and not description.startswith('none')
+        else:
+>           assert info['q_backend'] is None and info['family'] == 'classical'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:25: KeyError
+____ test_local_production_simulator_metadata_and_description[local_sincos] ____
+
+model_id = 'local_sincos'
+
+    @pytest.mark.parametrize('model_id', [spec['id'] for spec in study_specs()])
+    def test_local_production_simulator_metadata_and_description(model_id):
+        spec = next(spec for spec in study_specs() if spec['id'] == model_id)
+        config = dict(spec['config'], seed=42)
+        cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+        model = tc.build_model(cls, config)
+        info = tc.quantum_simulator_info(model, config)
+        description = tc.format_quantum_simulator(info)
+        if spec['model_type'] == 'quantum':
+            assert info['q_backend'] == info['family'] == 'pennylane'
+            assert info['device'] == 'default.qubit'
+            assert info['sim_device'] == 'cpu'
+            assert info['interface'] == 'torch' and info['diff_method'] == 'backprop'
+            assert 'PennyLane default.qubit' in description and 'on cpu' in description
+            assert 'q_backend=pennylane' in description and not description.startswith('none')
+        else:
+>           assert info['q_backend'] is None and info['family'] == 'classical'
+                   ^^^^^^^^^^^^^^^^^
+E           KeyError: 'q_backend'
+
+tests/test_local_spatial_metadata.py:25: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_quantum_z]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_quantum_xz_zz]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_quantum_frozen]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_quantum_no_entanglement]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_mlp]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_conv]
+FAILED tests/test_local_spatial_metadata.py::test_local_production_simulator_metadata_and_description[local_sincos]
+7 failed in 8.28s

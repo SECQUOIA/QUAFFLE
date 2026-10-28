@@ -117,7 +117,14 @@ def _find_matched_torch_config(backend, overrides=None):
     qcfg = _torch_quantum_config(backend)
     if overrides:
         qcfg.update(overrides)
-    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, qcfg))
+    reference_cfg = dict(qcfg)
+    if qcfg.get('local_spatial_kernel') in ('mlp', 'conv', 'sincos'):
+        # Local controls retain their requested classical core. The reference
+        # count uses the quantum core with the same projections and readout
+        # interface; different core capacities are reported, not forced equal.
+        reference_cfg['local_spatial_kernel'] = 'quantum'
+        reference_cfg['q_training_control'] = 'trainable'
+    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, reference_cfg))
     c_params = _count_torch_params(tc.build_model(ClassicalAblationUNetSegmentation, qcfg))
     print(f"Quantum params:   {q_params:,}")
     print(f"Ablation params:  {c_params:,}  ({100*(c_params-q_params)/q_params:+.2f}% vs quantum)")

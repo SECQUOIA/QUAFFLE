@@ -1,0 +1,8 @@
+{
+  "original_producer_revision": "211c2852f470a7b006704f591652939089d4a41f",
+  "fix_base": "f990aa7564ecb436f9818a1bea461220d6ff455f",
+  "original_module_sha256": "1b2526bf606ba2fedcc95b3601284e5a313fd350ff01224f92d5c85285c7f825",
+  "fixed_module_sha256": "c3c2f6843d90c7a0690290f7b422b4a8d5d79f0b8af2ffa58ec17459c28e0890",
+  "entire_module_AST_identical_except": "LocalSpatialBottleneckBlock.simulator_info",
+  "scope": "Simulator reporting only; circuit/readout/initialization/forward/gradient functions are unchanged. Frozen producing checkout remains untouched."
+}

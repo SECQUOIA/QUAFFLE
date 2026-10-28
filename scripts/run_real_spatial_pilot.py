@@ -87,7 +87,8 @@ def selected_fit_indices(train_indices, cap, seed):
 
 def parameter_groups(model):
     from utilsTorch.unetTorch import QuantumBlock, ClassicalBottleneckBlock
-    blocks = [module for module in model.modules() if isinstance(module, (QuantumBlock, ClassicalBottleneckBlock))]
+    from utilsTorch.local_spatial import LocalSpatialBottleneckBlock
+    blocks = [module for module in model.modules() if isinstance(module, (QuantumBlock, ClassicalBottleneckBlock, LocalSpatialBottleneckBlock))]
     bottleneck = {id(p) for module in blocks for p in module.parameters()}
     groups = dict(backbone=[], bottleneck=[], circuit_angles=[], input_scales=[])
     for name, parameter in model.named_parameters():
@@ -107,6 +108,10 @@ def output_probe(model, blocks, images):
         rows.append(dict(mean=float(output.mean()), std=float(output.std(unbiased=False)),
                          between_sample_std=float(output.std(dim=0, unbiased=False).mean()),
                          spatial_std=float(output.flatten(2).std(dim=2, unbiased=False).mean())))
+        if hasattr(module, 'angle_diagnostics'):
+            angles = module.angle_diagnostics(inputs[0])
+            if angles is not None:
+                rows[-1]['input_angles'] = angles
     handles = [block.register_forward_hook(capture) for block in blocks]
     try:
         model.eval()

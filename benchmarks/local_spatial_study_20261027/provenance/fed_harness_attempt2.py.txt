@@ -1,0 +1,286 @@
+"""Read-only production compatibility probe; all generated files stay in /tmp."""
+import copy
+import gc
+import hashlib
+import importlib.metadata
+import json
+import math
+from pathlib import Path
+import subprocess
+import sys
+import traceback
+
+ROOT = Path('/tmp/quaffle-local-spatial-kernel-20261027')
+EXPECTED_REVISION = 'f990aa7564ecb436f9818a1bea461220d6ff455f'
+OUTPUT = Path('/tmp/quaffle-local-spatial-federated-compatibility.json')
+WORK = Path('/tmp/quaffle-local-spatial-federated-probe-runs-attempt2')
+sys.path.insert(0, str(ROOT))
+SOURCES = ('federated_demoTorchQ.py', 'ablation_studies.py', 'tools/training_common.py',
+           'tools/checkpoint_evaluation.py', 'utilsTorch/local_spatial.py',
+           'utilsTorch/utilsTorch.py', 'utilsTorch/unetTorch.py',
+           'scripts/run_local_spatial_study.py')
+report = dict(status='running', source_revision=EXPECTED_REVISION,
+    scope='One in-process Flower round with two synthetic clients per configuration; compatibility only, no FL accuracy claim',
+    limits=dict(memory='3G', swap='0', threads=2, cuda_visible_devices=''), cases=[])
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
+def emit():
+    OUTPUT.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+
+
+def main():
+    import numpy as np
+    import torch
+    import flwr as fl
+    from flwr.common import Code, FitRes, Status, ndarrays_to_parameters, parameters_to_ndarrays
+    from flwr.server import ServerConfig
+    import federated_demoTorchQ as quantum
+    import ablation_studies as ablation
+    from scripts.run_local_spatial_study import study_specs
+    from tools import training_common as tc
+    from tools.checkpoint_evaluation import load_checkpoint_model
+    from utilsTorch.local_spatial import LocalSpatialBottleneckBlock
+    from utilsTorch.utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation
+
+    torch.set_num_threads(2)
+    torch.set_num_interop_threads(2)
+    require(not torch.cuda.is_available(), 'The compatibility probe must be CPU-only')
+    revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    require(revision == EXPECTED_REVISION, 'Frozen source revision changed')
+    before = {name: digest(ROOT / name) for name in SOURCES}
+    report.update(source_hashes=before, probe_sha256=digest(__file__),
+                  packages={name: importlib.metadata.version(name) for name in ('torch', 'pennylane', 'flwr', 'numpy')},
+                  module_paths=dict(quantum=quantum.__file__, ablation=ablation.__file__,
+                                    training_common=tc.__file__))
+    require(Path(quantum.__file__).resolve() == ROOT / 'federated_demoTorchQ.py', 'Wrong source import')
+    require(Path(tc.__file__).resolve() == ROOT / 'tools/training_common.py', 'Wrong shared source import')
+    WORK.mkdir(exist_ok=False)
+    generator = torch.Generator().manual_seed(991)
+    images = torch.randn(6, 3, 32, 32, generator=generator)
+    masks = ((images[:, :1] + 0.2 * images[:, 1:2]) > 0).float()
+    dataset = torch.utils.data.TensorDataset(images, masks)
+    partitions = [torch.utils.data.Subset(dataset, [0, 1]),
+                  torch.utils.data.Subset(dataset, [2, 3, 4, 5])]
+    wanted = ('local_quantum_xz_zz', 'local_quantum_frozen',
+              'local_quantum_no_entanglement', 'local_mlp')
+    specs = {spec['id']: spec for spec in study_specs()}
+    for name in wanted:
+        spec = specs[name]
+        is_quantum = spec['model_type'] == 'quantum'
+        cfg = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2, partition='random',
+            eval_every=1, ckpt_every=1, log_every=1, comm_compression='none',
+            q_angle_agg='circular' if name != 'local_quantum_frozen' and is_quantum else 'linear')
+        model_cls = QVUNetSegmentation if is_quantum else ClassicalAblationUNetSegmentation
+        export = quantum.torch_params_to_numpy if is_quantum else ablation._torch_params_to_numpy
+        restore = quantum.numpy_to_torch_params if is_quantum else ablation._numpy_to_torch_params
+        strategy_cls = quantum.QuantumFedAvg if is_quantum else ablation._TorchAblationFedAvg
+        client_cls = quantum.QuantumFlowerClient if is_quantum else ablation._TorchClassicalFlowerClient
+        tc.seed_everything(42)
+        model = tc.build_model(model_cls, cfg)
+        initial_arrays = [value.copy() for value in export(model)]
+        named = list(model.named_parameters())
+        param_keys = [key for key, _ in named]
+        param_spec = {key: tuple(parameter.shape) for key, parameter in named}
+        periodic = tc.quantum_periodic_param_indices(param_spec)
+        scales = {index for index, key in enumerate(param_keys) if 'input_scales' in key}
+        expected_periodic = {index for index, key in enumerate(param_keys) if '.quantum_params.' in key}
+        require(periodic == expected_periodic, 'Periodic indices do not match transmitted angle arrays')
+        require(periodic.isdisjoint(scales), 'Input scales were classified as periodic angles')
+        local_aliases = [(path, module) for path, module in model.named_modules(remove_duplicate=False)
+                         if isinstance(module, LocalSpatialBottleneckBlock)]
+        require(len(local_aliases) == 2 and len({id(module) for _, module in local_aliases}) == 1,
+                'The two bottleneck positions do not share one module')
+        alias_paths = [path for path, _ in local_aliases]
+        frozen_keys = [key for key, parameter in named if not parameter.requires_grad]
+        expected_frozen = [key for key, _ in named if '.quantum_params.' in key or '.input_scales.' in key]
+        require(frozen_keys == (expected_frozen if name == 'local_quantum_frozen' else []),
+                'Initial frozen parameter flags differ')
+        # Exercise atomic count/shape guards before training without changing source.
+        transport_checks = []
+        for mutation in ('count', 'shape'):
+            bad = [value.copy() for value in initial_arrays]
+            if mutation == 'count':
+                bad.pop()
+            else:
+                bad[-1] = np.zeros((1,), dtype=bad[-1].dtype)
+            try:
+                restore(model, bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError('Production transport accepted wrong ' + mutation)
+            require(all(np.array_equal(a, b) for a, b in zip(export(model), initial_arrays)),
+                    'Rejected import partially mutated model parameters')
+            transport_checks.append(mutation + ' mismatch rejected atomically')
+        local_count = sum(parameter.numel() for parameter in local_aliases[0][1].parameters())
+        counted = tc.bottleneck_param_counts(cfg, spec['model_type'], model)
+        fallback_counted = tc.bottleneck_param_counts(cfg, spec['model_type'])
+        require(counted == fallback_counted and counted[1] == local_count,
+                'Shared local bottleneck parameter count is duplicated or stale')
+        fingerprint = tc.run_fingerprint(cfg, spec['model_type'])
+        for key in ('local_spatial_kernel', 'local_spatial_readout', 'local_spatial_channels'):
+            require(fingerprint[key] == cfg[key], 'Federated fingerprint omitted ' + key)
+        require(fingerprint['q_training_control'] == (cfg['q_training_control'] if is_quantum else None),
+                'Federated fingerprint omitted training control')
+        out = WORK / name
+        initial_parameters = ndarrays_to_parameters(initial_arrays)
+        strategy = strategy_cls(tc.make_loader(dataset, 4, False, 42), cfg, 'cpu', str(out),
+            fraction_fit=1.0, fraction_evaluate=1.0, min_fit_clients=2,
+            min_evaluate_clients=2, min_available_clients=2, accept_failures=False,
+            initial_parameters=initial_parameters,
+            on_fit_config_fn=lambda round_number: {'server_round': round_number})
+        strategy.fingerprint = fingerprint
+        strategy.template_model = model
+        clients, captured = [], []
+        base_aggregate = strategy.aggregate_fit
+
+        def capture_aggregate(round_number, results, failures):
+            captured.extend(results)
+            return base_aggregate(round_number, results, failures)
+
+        strategy.aggregate_fit = capture_aggregate
+
+        def client_fn(cid):
+            client = client_cls(int(cid), partitions[int(cid)], cfg, 'cpu')
+            clients.append(client)
+            return client
+
+        history = tc._run_inprocess_flower_simulation(client_fn=client_fn, num_clients=2,
+            config=ServerConfig(num_rounds=1, round_timeout=None), strategy=strategy)
+        require(strategy.final_round == 1 and not strategy.failed_rounds and len(captured) == 2,
+                'Production Flower round did not complete two successful updates')
+        require(sorted(result.num_examples for _, result in captured) == [2, 4], 'Client weights differ')
+        trained_clients = [client for client in clients if client.local_model is not None]
+        require(len(trained_clients) == 2, 'Unexpected number of trained clients')
+        movements = []
+        for client in trained_clients:
+            actual = export(client.local_model)
+            require(all(np.isfinite(value).all() for value in actual), 'Nonfinite trained client parameters')
+            require([key for key, parameter in client.local_model.named_parameters() if not parameter.requires_grad] == frozen_keys,
+                    'Client training changed requires_grad flags')
+            require(all(np.array_equal(actual[index], initial_arrays[index]) for index, key in enumerate(param_keys)
+                        if key in frozen_keys), 'A frozen parameter changed during a local update')
+            movements.append(dict(client_id=client.client_id,
+                changed_parameter_tensors=sum(not np.array_equal(a, b) for a, b in zip(actual, initial_arrays)),
+                frozen_parameter_tensors_unchanged=len(frozen_keys)))
+        final_arrays = parameters_to_ndarrays(strategy.final_parameters)
+        result_pairs = [(parameters_to_ndarrays(result.parameters), result.num_examples) for _, result in captured]
+        reference = tc.aggregate_ndarrays_quantum_aware(result_pairs, periodic_indices=periodic,
+                                                      q_angle_agg=cfg['q_angle_agg'])
+        aggregation_delta = max(float(np.max(np.abs(a - b))) for a, b in zip(final_arrays, reference))
+        require(all(np.allclose(a, b, rtol=2e-6, atol=2e-7) for a, b in zip(final_arrays, reference)),
+                'Production FedAvg differs from shared weighted aggregation helper')
+        restore(model, final_arrays)
+        require(all(np.array_equal(a, b) for a, b in zip(export(model), final_arrays)), 'Transport roundtrip changed parameters')
+        aliases_after = [module for _, module in model.named_modules(remove_duplicate=False)
+                         if isinstance(module, LocalSpatialBottleneckBlock)]
+        require(len({id(module) for module in aliases_after}) == 1, 'Transport broke shared module identity')
+        checkpoint = Path(tc.fed_checkpoint_path(str(out)))
+        require(checkpoint.is_file(), 'Production round did not write a resumable checkpoint')
+        saved = tc.load_fed_checkpoint(str(out), fingerprint, resume=True)
+        require(saved['completed_round'] == 1 and saved['fingerprint'] == fingerprint,
+                'Production resume checkpoint did not preserve the configuration')
+        config_path = out / 'config.json'
+        config_path.write_text(json.dumps(cfg, indent=2) + '\n')
+        restored, _, kind = load_checkpoint_model(checkpoint, data_root=out, device='cpu',
+                                                  config_path=config_path, model_type=spec['model_type'])
+        selected, _, used_best = tc.select_federated_eval_parameters(strategy)
+        selected_arrays = selected
+        require(all(np.array_equal(a, b) for a, b in zip(export(restored), selected_arrays)),
+                'Strict federated checkpoint restore changed selected parameters')
+        require([key for key, parameter in restored.named_parameters() if not parameter.requires_grad] == frozen_keys,
+                'Strict restore did not reconstruct frozen flags')
+        state_path = out / 'strict_state.pt'
+        torch.save(dict(best_state_dict=model.state_dict(), settings=cfg, model_type=kind, best_epoch=1), state_path)
+        strict, _, _ = load_checkpoint_model(state_path, data_root=out, device='cpu')
+        require(all(torch.equal(value, strict.state_dict()[key]) for key, value in model.state_dict().items()),
+                'Strict state_dict roundtrip changed a shared alias')
+        require(len({id(module) for module in strict.modules() if isinstance(module, LocalSpatialBottleneckBlock)}) == 1,
+                'Strict restore duplicated the shared bottleneck')
+        resume_strategy = strategy_cls(None, cfg, 'cpu', str(out / 'resume'),
+            fraction_fit=1.0, fraction_evaluate=0.0, min_fit_clients=2,
+            min_available_clients=2, initial_parameters=initial_parameters)
+        resume_strategy.fingerprint = fingerprint
+        resume_parameters, remaining = tc.apply_fed_resume(resume_strategy, saved)
+        require(remaining == 0 and resume_strategy.round_offset == 1
+                and tc.ndarrays_equal(parameters_to_ndarrays(resume_parameters), final_arrays),
+                'Federated strategy resume lost completed round or global parameters')
+        frozen_aggregation_delta = max((float(np.max(np.abs(final_arrays[index] - initial_arrays[index])))
+            for index, key in enumerate(param_keys) if key in frozen_keys), default=0.0)
+        case = dict(id=name, model_type=kind, config=cfg, total_params=sum(p.numel() for p in model.parameters()),
+            trainable_params=sum(p.numel() for p in model.parameters() if p.requires_grad),
+            transmitted_parameter_tensors=len(initial_arrays), periodic_angle_indices=sorted(periodic),
+            periodic_angle_names=[param_keys[index] for index in sorted(periodic)],
+            euclidean_input_scale_indices=sorted(scales), shared_alias_paths=alias_paths,
+            shared_module_identity_preserved=True, frozen_parameter_names=frozen_keys,
+            frozen_flags_preserved=True, client_updates=movements,
+            frozen_parameter_max_aggregation_roundoff=frozen_aggregation_delta,
+            production_round_completed=True, client_example_weights=[2, 4], local_optimizer_updates_per_client=1,
+            angle_aggregation=cfg['q_angle_agg'], production_vs_shared_aggregation_max_abs=aggregation_delta,
+            transport_checks=transport_checks, strict_federated_restore=True, strict_state_restore=True,
+            resume_round=resume_strategy.round_offset, remaining_rounds=remaining, best_validation_selected=used_best,
+            bottleneck_target_params=counted[0], bottleneck_actual_params=counted[1],
+            fingerprint={key: fingerprint[key] for key in ('model_type', 'q_training_control',
+                'local_spatial_kernel', 'local_spatial_readout', 'local_spatial_channels', 'q_share_blocks')
+                if key in fingerprint}, checkpoint_sha256=digest(checkpoint))
+        if name == 'local_quantum_xz_zz':
+            # A branch-cut supplement isolates circular angle routing from input scaling.
+            toy_results = []
+            for index, weight in enumerate((2, 4)):
+                values = [value.copy() for value in initial_arrays]
+                for position in periodic:
+                    values[position].fill(3.12 if index == 0 else -3.12)
+                for position in scales:
+                    values[position].fill(2.0 if index == 0 else 4.0)
+                toy_results.append((None, FitRes(status=Status(code=Code.OK, message=''),
+                    parameters=ndarrays_to_parameters(values), num_examples=weight, metrics={})))
+            toy_strategy = quantum.QuantumFedAvg(None, cfg, 'cpu', str(out / 'branch-cut'),
+                fraction_fit=1.0, fraction_evaluate=0.0, min_fit_clients=2,
+                min_available_clients=2, initial_parameters=initial_parameters)
+            toy_strategy.template_model = model
+            toy_arrays = parameters_to_ndarrays(toy_strategy.aggregate_fit(1, toy_results, [])[0])
+            expected_angle = math.atan2(2 * math.sin(3.12) + 4 * math.sin(-3.12),
+                                       2 * math.cos(3.12) + 4 * math.cos(-3.12))
+            for position in periodic:
+                require(np.allclose(toy_arrays[position], expected_angle, atol=2e-7, rtol=0),
+                        'Branch-cut supplement did not circularly average angle tensors')
+            for position in scales:
+                require(np.allclose(toy_arrays[position], 20 / 6, atol=2e-7, rtol=0),
+                        'Input scales were not Euclidean-averaged')
+            case['branch_cut_supplement'] = dict(angle_mean=float(toy_arrays[next(iter(periodic))].flat[0]),
+                independent_expected_angle=expected_angle, input_scale_mean=float(toy_arrays[next(iter(scales))].flat[0]),
+                independent_expected_scale=20 / 6)
+        report['cases'].append(case)
+        emit()
+        print('COMPATIBILITY CASE COMPLETE', name, flush=True)
+        del model, restored, strict, strategy, resume_strategy, clients, trained_clients
+        gc.collect()
+    require({name: digest(ROOT / name) for name in SOURCES} == before, 'Frozen source changed during probe')
+    require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip() == EXPECTED_REVISION,
+            'Frozen revision changed during probe')
+    report.update(status='passed', inprocess_server=True, ray_started=False, services_started=False,
+        static_classical_coverage='Local conv and sine/cosine cores use the same ClassicalAblationUNetSegmentation, generic deduplicated model.parameters transport and _TorchAblationFedAvg paths as the exercised MLP; neither was trained in this probe.',
+        known_exclusion='The separately identified simulator_info standardized-key issue was deliberately not exercised.',
+        gaps=['No multi-round convergence or FL accuracy comparison', 'No Ray/SLURM/Anvil execution',
+              'No communication compression or FedProx study', 'No unshared-block study',
+              'Classical conv/sincos transport compatibility inspected statically rather than trained'])
+    emit()
+
+
+try:
+    main()
+except BaseException as error:
+    report.update(status='failed', error_type=type(error).__name__, error=str(error), traceback=traceback.format_exc())
+    emit()
+    raise

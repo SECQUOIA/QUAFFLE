@@ -86,6 +86,10 @@ def load_checkpoint_model(path, *, data_root, device='cpu', config_path=None, mo
             required.append('n_qubits')
         else:
             required.append('hqunet_grid')
+    if config.get('local_spatial_kernel') is not None:
+        required += ['local_spatial_readout', 'local_spatial_channels']
+        if kind == 'quantum':
+            required.append('q_training_control')
     if kind == 'ablation':
         required += ['ablation_mode', 'ablation_mlp_mode']
     missing = [k for k in required if config.get(k) is None]

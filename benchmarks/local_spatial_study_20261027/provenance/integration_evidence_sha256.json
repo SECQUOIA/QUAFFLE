@@ -1,0 +1,42 @@
+{
+  "metadata_regression_red.log": {
+    "sha256": "2e7b03705f2bc496180c3f3a9c15ae057ee44bcf1e87f67b58c4365d98aca530",
+    "bytes": 8872
+  },
+  "metadata_regression_green.log": {
+    "sha256": "cd88b4d6314f688aded244e49333c76006dfe52da742ddabb45e360dff40e9db",
+    "bytes": 1317
+  },
+  "metadata_computation_audit.json": {
+    "sha256": "35b7e2babba536b942c356036f7a6e7e9fc359dd7df2761d17fac32d199ad7f7",
+    "bytes": 570
+  },
+  "null_control_regression_red.log": {
+    "sha256": "21bd4e102c409a00911f491d20d7b96c4596ad2fadf7503050ada65b2f959eca",
+    "bytes": 26916
+  },
+  "null_control_regression_green.log": {
+    "sha256": "ce777d753add4a307550a1076be8ab730a9f21ad1e71cfad648476cba109e0b9",
+    "bytes": 1317
+  },
+  "null_control_computation_audit.json": {
+    "sha256": "326c329cfc228170cc45f48367894fcb6be06080af6a8c356cd89931e4d46b8c",
+    "bytes": 871
+  },
+  "federated_compatibility_original.md": {
+    "sha256": "5b8ffc0ccd68b9635da6c15a18759453cca2e7fd6e2fc0d7ffba6fc5ebb7217a",
+    "bytes": 6517
+  },
+  "federated_compatibility_original.json": {
+    "sha256": "834d4a097fd9a43426272d7cbf2db8453ec27ef85ff457ca92aa3e2c3e64e09a",
+    "bytes": 14958
+  },
+  "federated_compatibility_original.log": {
+    "sha256": "e69587af88275c624797b1a1f1560c1462c5484cf5d1927cffeb42e3555444db",
+    "bytes": 13606
+  },
+  "federated_compatibility_original.py.txt": {
+    "sha256": "7662301d530ba8aebb3b11d52878789f6e40eb5f25dc629ab840b084581af928",
+    "bytes": 18955
+  }
+}

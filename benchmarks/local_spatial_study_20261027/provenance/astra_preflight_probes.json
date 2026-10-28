@@ -1,0 +1,12 @@
+{
+  "source_revision": "cca85993d5d610ebe111998f593871bf6b6b614f",
+  "imported_source": "/tmp/quaffle-local-spatial-kernel-20261027/utilsTorch/local_spatial.py",
+  "manifest_files_verified": 183,
+  "shared_initialization_hashes": {
+    "77": "e57001d270af0101103c8181978799aac9e7afbcb66c5d5bc6d62344716be727",
+    "123": "ccd02ba5f89c46edf774e61b1f28ca3a68172fb9378a0a569913e7578b11274b"
+  },
+  "analytic_ry_expectations_and_input_scale_gradients": "passed",
+  "inactive_z_projection_gradient": "passed",
+  "cuda_used": false
+}

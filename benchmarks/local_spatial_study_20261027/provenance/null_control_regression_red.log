@@ -1,0 +1,447 @@
+Running as unit: run-rd54af644a2aa44ada0de8a50f3127b95.scope; invocation ID: 94affc14218f4e2b8f233ca8107d8278
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-mlp] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read0')
+kind = 'mlp', training = 'centralized'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'mlp'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-conv] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read1')
+kind = 'conv', training = 'centralized'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'conv'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-sincos] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read2')
+kind = 'sincos', training = 'centralized'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'sincos'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[federated-mlp] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read3')
+kind = 'mlp', training = 'federated'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'mlp'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[federated-conv] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read4')
+kind = 'conv', training = 'federated'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'conv'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+_ test_classical_checkpoint_reader_accepts_its_production_null_control[federated-sincos] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-302/test_classical_checkpoint_read5')
+kind = 'sincos', training = 'federated'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    @pytest.mark.parametrize('training', ['centralized', 'federated'])
+    def test_classical_checkpoint_reader_accepts_its_production_null_control(tmp_path, kind, training):
+        import ablation_studies
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        config = dict(spec['config'], seed=42, image_size=32, batch_size=4,
+            learning_rate=0.001, num_epochs=1, local_epochs=1, fed_rounds=1,
+            num_clients=2, clients_per_round=2)
+        model = tc.build_model(ClassicalAblationUNetSegmentation, config)
+        fingerprint = (tc.centralized_fingerprint if training == 'centralized' else tc.run_fingerprint)(config, 'ablation')
+        assert fingerprint['q_training_control'] is None
+        payload = dict(fingerprint=fingerprint, model_type='ablation', best_epoch=1)
+        if training == 'centralized':
+            payload['best_state_dict'] = model.state_dict()
+        else:
+            payload['best_parameters'] = ablation_studies._torch_params_to_numpy(model)
+        checkpoint, config_path = tmp_path / 'checkpoint.pt', tmp_path / 'config.json'
+        torch.save(payload, checkpoint)
+        config_path.write_text(json.dumps(config))
+>       restored, loaded, model_type = load_checkpoint_model(checkpoint, data_root=tmp_path,
+            config_path=config_path, device='cpu')
+
+tests/test_local_spatial_metadata.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/checkpoint_evaluation.py:99: in load_checkpoint_model
+    model = tc.build_model(classes[kind], config).to(torch.device(device))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:403: in to
+    self._initialize_model()
+utilsTorch/utilsTorch.py:358: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:336: in build
+    classical_bottleneck = make_block(0)
+                           ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:320: in make_block
+    return build_local_spatial_block(self.config, 'ablation',
+utilsTorch/local_spatial.py:246: in build_local_spatial_block
+    return LocalSpatialBottleneckBlock(quantum_channels=config['quantum_channels'], kind=kind,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = LocalSpatialBottleneckBlock(), quantum_channels = 64, kind = 'sincos'
+readout = 'xz_zz', feature_channels = 4, q_layers = 1, q_training_control = None
+seed = 42
+
+    def __init__(self, quantum_channels, kind='quantum', readout='xz_zz',
+                 feature_channels=4, q_layers=1, q_training_control='trainable', seed=None):
+        super().__init__()
+        options = local_spatial_options(dict(local_spatial_kernel=kind,
+            local_spatial_readout=readout, local_spatial_channels=feature_channels))
+        self.kind = options['local_spatial_kernel']
+        self.readout = options['local_spatial_readout']
+        self.feature_channels = options['local_spatial_channels']
+        kind, readout = self.kind, self.readout
+        if isinstance(quantum_channels, bool) or not isinstance(quantum_channels, int) or quantum_channels < 1:
+            raise ValueError('The local spatial block requires positive integer quantum_channels')
+        if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
+            raise ValueError('The local spatial block requires a positive integer q_layers')
+        if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
+>           raise ValueError('Unknown q_training_control')
+E           ValueError: Unknown q_training_control
+
+utilsTorch/local_spatial.py:110: ValueError
+=============================== warnings summary ===============================
+tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-mlp]
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-mlp]
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-mlp]
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-conv]
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[centralized-sincos]
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[federated-mlp]
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[federated-conv]
+FAILED tests/test_local_spatial_metadata.py::test_classical_checkpoint_reader_accepts_its_production_null_control[federated-sincos]
+6 failed, 13 deselected, 2 warnings in 9.57s

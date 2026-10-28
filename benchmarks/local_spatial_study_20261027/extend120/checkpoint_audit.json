@@ -1,0 +1,82 @@
+{
+  "tuning/local_quantum_z/0.001/seed42/checkpoint.pt": {
+    "sha256": "323b62e279ecb13abba08692273486e075f1a024c176e9ea72a99a797925c305",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "cfe7ee4c78b6594eee7d2862f2d3735fab61745478adb006b1b549ba2a73d3fc",
+    "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+    "core_params": 16,
+    "total_params": 503294,
+    "trainable_params": 503294
+  },
+  "tuning/local_quantum_z/0.003/seed42/checkpoint.pt": {
+    "sha256": "d5b2337f54b6f45e75c601b5dc0778faa8994778d4153e3fff741bb51b3202cd",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "cfe7ee4c78b6594eee7d2862f2d3735fab61745478adb006b1b549ba2a73d3fc",
+    "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+    "core_params": 16,
+    "total_params": 503294,
+    "trainable_params": 503294
+  },
+  "tuning/local_sincos/0.001/seed42/checkpoint.pt": {
+    "sha256": "94d4bbcf853229a6c037765b9d394449b70c11b3f7cf7fa482461ccbeb110ef1",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "393c629466a1a574ea7596d84880bfe967b64e6a41af72b07b58bb9a59592314",
+    "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+    "core_params": 160,
+    "total_params": 503438,
+    "trainable_params": 503438
+  },
+  "tuning/local_sincos/0.003/seed42/checkpoint.pt": {
+    "sha256": "d159e75283c3cdc152ca25baeed27e68df8f936a25f418aaa37ab998f0f9f2b6",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "393c629466a1a574ea7596d84880bfe967b64e6a41af72b07b58bb9a59592314",
+    "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+    "core_params": 160,
+    "total_params": 503438,
+    "trainable_params": 503438
+  },
+  "replication/local_quantum_z/seed123/checkpoint.pt": {
+    "sha256": "65b8891c98b62bbee5198533d6eb77e2d44a18f340f16e5ac7783acb66c360f4",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "cb96c08c4b405d349e81f74303ae6a3a497c1da8db86a4169ecfa113f80e7a4c",
+    "shared_initial_parameter_sha256": "0f882ded8b033a5090bd81f619143f53cb5ae179ed36055abcf41e6089dde1eb",
+    "core_params": 16,
+    "total_params": 503294,
+    "trainable_params": 503294
+  },
+  "replication/local_quantum_z/seed77/checkpoint.pt": {
+    "sha256": "6665e44b41b0cb1b637d0b3ed42112f12f903616f0287d2b10c81eef0d9060e8",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "36493e8cdbef40ce297b6e93421a317c889d78ffb120d634ef0b47d52657a87b",
+    "shared_initial_parameter_sha256": "2820188c6ab6f01afbbfa952cdb51f5aa09d1993d303b235aecf65abe8880171",
+    "core_params": 16,
+    "total_params": 503294,
+    "trainable_params": 503294
+  },
+  "replication/local_sincos/seed123/checkpoint.pt": {
+    "sha256": "de2532ce5d275a3002598a74e38faa4339a971513e8f3efa858a7b79a74ce3bd",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "cae6c1588276c9f034a0c7e3710477d9fc004929d4bb20e54ee738f491eefa4a",
+    "shared_initial_parameter_sha256": "0f882ded8b033a5090bd81f619143f53cb5ae179ed36055abcf41e6089dde1eb",
+    "core_params": 160,
+    "total_params": 503438,
+    "trainable_params": 503438
+  },
+  "replication/local_sincos/seed77/checkpoint.pt": {
+    "sha256": "20d1756154e4e75938d7dcf798a30710c82547c4cce5af47f91e1ddac0a7c904",
+    "strict_restore": true,
+    "finite_weights": true,
+    "initial_parameter_sha256": "3df8145884a84501dbcbf9cbb23585412002d0edab3da74c145287dbadc7f72b",
+    "shared_initial_parameter_sha256": "2820188c6ab6f01afbbfa952cdb51f5aa09d1993d303b235aecf65abe8880171",
+    "core_params": 160,
+    "total_params": 503438,
+    "trainable_params": 503438
+  }
+}

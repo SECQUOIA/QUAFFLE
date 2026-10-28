@@ -60,6 +60,64 @@ bottleneck conditioning. Two architectural mechanisms remove these bypass pathwa
 
 ## Circuit options (`q_ansatz`)
 
+### Opt-in local spatial filter (`local_spatial_kernel`)
+
+`utilsTorch/local_spatial.py` adds a separate experimental filter selected with
+`--local-spatial-kernel {quantum,mlp,conv,sincos}`. The existing bottlenecks and
+their defaults are unchanged. A pointwise projection maps the active bottleneck
+channels to `K=4` scalar feature maps (`--local-spatial-channels`). Every sliding
+2 by 2 window of each map becomes four inputs in row-major spatial order. The
+bottom and right borders use replicate padding, so each output retains the
+original height and width. There is no pooling over the whole encoder map.
+
+The same core is shared over locations and all K maps. Every core emits twelve
+features per window, followed by the same pointwise `12K -> quantum_channels`
+projection. Its initialization and the entire encoder/decoder initialization are
+identical across core alternatives for a fixed seed; isolated core initialization
+does not advance the backbone random stream. `q_share_blocks=True` also shares
+this whole block between the two bottleneck residual blocks. Encoder/decoder
+skips and bottleneck residual modulation keep their configured behavior.
+
+The quantum core uses four qubits, `RY(pi*tanh(scale*x))` encoding, one trainable
+three-angle `Rot` per qubit and layer, and CNOTs on horizontal then vertical
+2 by 2 edges `(0,1), (2,3), (0,2), (1,3)`. The pilot explicitly uses `q_layers=1`.
+It requires `q_ansatz=reupload`, `n_qubits=4`, `q_spatial_mode=global` (the local
+filter supplies its own spatial operation), and the PennyLane CPU simulator.
+Readouts are exact statevector expectations in this experiment:
+
+- `--local-spatial-readout xz_zz` emits four Z, four X and four neighboring ZZ
+  expectations in the edge order above.
+- `--local-spatial-readout z` emits the same four Z values and eight zeros. The
+  post-projection dimensions and stored parameter count stay the same, but its
+  inactive columns receive no data gradient and provide no extra capacity.
+
+`q_training_control=frozen` freezes the circuit angles and input scales while
+both projections and the classical network continue learning.
+`q_training_control=no_entanglement` removes CNOTs while retaining the same
+initial parameters and richer readout. The separable state's ZZ readouts are
+products of its Z values, so this control still includes classical feature
+interactions. Circuit evaluation uses bounded chunks of 1,024 windows with
+activation checkpointing; chunking does not change the mathematical batch.
+
+The classical controls receive exactly the same four spatial inputs and retain
+the same twelve-feature interface: `mlp` is a full-input-rank `4 -> 16 -> 12`
+SiLU MLP, `conv` is an ordinary shared scalar 2 by 2 convolution with twelve
+filters and SiLU, and `sincos` applies a trainable linear map to sine, cosine and
+neighboring cosine-product features of the same bounded input angles. Their
+core capacities are reported rather than reduced to force parameter equality.
+Quantum has `16L` core parameters, MLP has 284, convolution has 60, and sine/cosine
+has 160. All use the same pre/post projection parameter count. These are
+receptive-field and interface controls, not claims of identical function classes.
+
+`angle_diagnostics(x)` reports bounded-input saturation for quantum and sine/cosine
+cores on an explicitly supplied batch without retaining tensors or a graph.
+The MLP and convolution consume raw projected inputs and return no angle diagnostic.
+`zero` knockout removes the entire
+projected block output. `random` reinitializes core weights reproducibly while
+preserving the trained projections and input dependence; it does not overwrite
+the saved model parameters. These interventions have different meanings and
+should be reported separately.
+
 ### `legacy` (original model)
 
 Per group: `RX(x_j)` on wire j, then `RY(theta_j)` on wire j, then a CNOT ring

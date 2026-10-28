@@ -1,0 +1,7072 @@
+{
+  "manifest_sha256": "e3378083bb035dbf4081f205ef6988dc6044a14e1c6e2ee6a99ef71415d90a4b",
+  "selection_rule": "Classical IoU; flood fraction >=0.05; lower median; ties by dataset index",
+  "empty_union_iou": 0.0,
+  "datasets": [
+    {
+      "id": "60ep seed 42",
+      "dataset": "combined",
+      "seed": 42,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 42,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 42,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "f291b8c2d396cbc3",
+        "stats_sha256": "d94231cc31e7c2e1"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "db970e00c29d2ed464a9094861c231a79ece246ecc99df994b51a78317612a35",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "40ea02d2d383cdf115514f7cc82f1caeb244db719920d97163cc5aea3bc34a36",
+          "config_sha256": null,
+          "total_params": 503438,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "e81459e2dadf45e3c952a4a20d704801aced1fb260b1af3092428233d43a81d7",
+          "config_sha256": null,
+          "total_params": 503294,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 42,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "f291b8c2d396cbc3",
+            "stats_sha256": "d94231cc31e7c2e1"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.5500770416024653,
+            "ablation": 0.5740072202166066,
+            "quantum": 0.5888888888888889
+          }
+        },
+        {
+          "index": 1,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 2,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 3,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 4,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8626686656671664,
+            "ablation": 0.8767371601208459,
+            "quantum": 0.8724304715840387
+          }
+        },
+        {
+          "index": 5,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.5149425287356322,
+            "ablation": 0.5296803652968036,
+            "quantum": 0.5181818181818182
+          }
+        },
+        {
+          "index": 6,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.13516483516483516,
+            "ablation": 0.0,
+            "quantum": 0.014084507042253521
+          }
+        },
+        {
+          "index": 7,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.3392226148409894,
+            "ablation": 0.3352480417754569,
+            "quantum": 0.31454162276080083
+          }
+        },
+        {
+          "index": 8,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 9,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.4166666666666667,
+            "ablation": 0.39285714285714285,
+            "quantum": 0.4
+          }
+        },
+        {
+          "index": 10,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 11,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.20114942528735633,
+            "ablation": 0.3142857142857143,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 12,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 13,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 14,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.6405295315682281,
+            "ablation": 0.775235531628533,
+            "quantum": 0.7442489851150202
+          }
+        },
+        {
+          "index": 15,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 16,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.7300884955752213,
+            "ablation": 0.7565884044082415,
+            "quantum": 0.7529411764705882
+          }
+        },
+        {
+          "index": 17,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.6137931034482759,
+            "ablation": 0.662379421221865,
+            "quantum": 0.44148936170212766
+          }
+        },
+        {
+          "index": 18,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5092592592592593,
+            "ablation": 0.5714285714285714,
+            "quantum": 0.5360824742268041
+          }
+        },
+        {
+          "index": 19,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9618155619596542,
+            "ablation": 0.8823920265780731,
+            "quantum": 0.9645338208409506
+          }
+        },
+        {
+          "index": 20,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 21,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9490894039735099,
+            "ablation": 0.9452341137123745,
+            "quantum": 0.9491315136476427
+          }
+        },
+        {
+          "index": 22,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 23,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.14336917562724014,
+            "ablation": 0.03044041450777202,
+            "quantum": 0.06534954407294832
+          }
+        },
+        {
+          "index": 24,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.45080091533180777,
+            "ablation": 0.3939393939393939,
+            "quantum": 0.4481132075471698
+          }
+        },
+        {
+          "index": 25,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 26,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5754437869822485,
+            "ablation": 0.5426829268292683,
+            "quantum": 0.5625
+          }
+        },
+        {
+          "index": 27,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.31638182576073365,
+            "ablation": 0.22635274679884346,
+            "quantum": 0.30453020134228187
+          }
+        },
+        {
+          "index": 28,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9227764423076923,
+            "ablation": 0.9238470873786407,
+            "quantum": 0.9271665642286416
+          }
+        },
+        {
+          "index": 29,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.06896551724137931,
+            "ablation": 0.0,
+            "quantum": 0.045454545454545456
+          }
+        },
+        {
+          "index": 30,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.9016047297297297,
+            "ablation": 0.9058124734832415,
+            "quantum": 0.9147902869757174
+          }
+        },
+        {
+          "index": 31,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 32,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.4869029275808937,
+            "ablation": 0.5199386503067485,
+            "quantum": 0.46941975953998955
+          }
+        },
+        {
+          "index": 33,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.38612308898471187,
+            "ablation": 0.3785594639865997,
+            "quantum": 0.36973415132924337
+          }
+        },
+        {
+          "index": 34,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 35,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4353099730458221,
+            "ablation": 0.46557085739671256,
+            "quantum": 0.5881983678593848
+          }
+        },
+        {
+          "index": 36,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 37,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 38,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.5997458703939009,
+            "ablation": 0.5865504358655044,
+            "quantum": 0.583989501312336
+          }
+        },
+        {
+          "index": 39,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.621301775147929,
+            "ablation": 0.6501798561151079,
+            "quantum": 0.5386100386100386
+          }
+        },
+        {
+          "index": 40,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.7587822014051522,
+            "ablation": 0.7212276214833759,
+            "quantum": 0.7705314009661836
+          }
+        },
+        {
+          "index": 41,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.6818181818181818,
+            "ablation": 0.6845351043643264,
+            "quantum": 0.6895687061183551
+          }
+        },
+        {
+          "index": 42,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 43,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.03508771929824561,
+            "ablation": 0.0,
+            "quantum": 0.03225806451612903
+          }
+        },
+        {
+          "index": 44,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 45,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.037940379403794036,
+            "ablation": 0.04580152671755725,
+            "quantum": 0.05357142857142857
+          }
+        },
+        {
+          "index": 46,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.5073409461663948,
+            "ablation": 0.5306799336650083,
+            "quantum": 0.631578947368421
+          }
+        },
+        {
+          "index": 47,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5789473684210527,
+            "ablation": 0.5,
+            "quantum": 0.5789473684210527
+          }
+        },
+        {
+          "index": 48,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7936288088642659,
+            "ablation": 0.7548784662786717,
+            "quantum": 0.7195883866225652
+          }
+        },
+        {
+          "index": 49,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.21252796420581654,
+            "ablation": 0.05336426914153132,
+            "quantum": 0.2626728110599078
+          }
+        },
+        {
+          "index": 50,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.23119266055045873,
+            "ablation": 0.24054982817869416,
+            "quantum": 0.1348314606741573
+          }
+        },
+        {
+          "index": 51,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.2788697788697789,
+            "ablation": 0.27,
+            "quantum": 0.30958549222797926
+          }
+        },
+        {
+          "index": 52,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.20175438596491227,
+            "ablation": 0.14792899408284024,
+            "quantum": 0.1111111111111111
+          }
+        },
+        {
+          "index": 53,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.4485401459854015,
+            "ablation": 0.4314456035767511,
+            "quantum": 0.4400448262980949
+          }
+        },
+        {
+          "index": 54,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 55,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.05782792665726375,
+            "ablation": 0.15639810426540285,
+            "quantum": 0.21511627906976744
+          }
+        },
+        {
+          "index": 56,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.6021314387211367,
+            "ablation": 0.5972850678733032,
+            "quantum": 0.5899543378995433
+          }
+        },
+        {
+          "index": 57,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.001364256480218281,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 58,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.1724137931034483,
+            "ablation": 0.0,
+            "quantum": 0.16
+          }
+        },
+        {
+          "index": 59,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.6954206602768903,
+            "ablation": 0.6844978165938864,
+            "quantum": 0.6950276243093922
+          }
+        },
+        {
+          "index": 60,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 61,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 62,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 63,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.37228260869565216,
+            "ablation": 0.4732510288065844,
+            "quantum": 0.5031847133757962
+          }
+        },
+        {
+          "index": 64,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 65,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 66,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 67,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.4318181818181818,
+            "ablation": 0.35714285714285715,
+            "quantum": 0.3933649289099526
+          }
+        },
+        {
+          "index": 68,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.28537920250195464,
+            "ablation": 0.38872832369942195,
+            "quantum": 0.19963369963369965
+          }
+        },
+        {
+          "index": 69,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 70,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.08411214953271028,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 71,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 72,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 73,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.889437585733882,
+            "ablation": 0.9021978021978022,
+            "quantum": 0.8926664793481315
+          }
+        },
+        {
+          "index": 74,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.19090909090909092,
+            "ablation": 0.12060301507537688,
+            "quantum": 0.15196078431372548
+          }
+        },
+        {
+          "index": 75,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.8514739229024944,
+            "ablation": 0.8483606557377049,
+            "quantum": 0.8545597484276729
+          }
+        },
+        {
+          "index": 76,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 77,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.6606136505948653,
+            "ablation": 0.6978891820580475,
+            "quantum": 0.7553584626755359
+          }
+        },
+        {
+          "index": 78,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 79,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.37553464499572287,
+            "ablation": 0.3691834942932397,
+            "quantum": 0.3829424307036247
+          }
+        },
+        {
+          "index": 80,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6608996539792388,
+            "ablation": 0.3886986301369863,
+            "quantum": 0.6415094339622641
+          }
+        },
+        {
+          "index": 81,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.15412186379928317,
+            "ablation": 0.30434782608695654,
+            "quantum": 0.30357142857142855
+          }
+        },
+        {
+          "index": 82,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.7452415812591509,
+            "ablation": 0.8210678210678211,
+            "quantum": 0.8941176470588236
+          }
+        },
+        {
+          "index": 83,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 84,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.06666666666666667,
+            "ablation": 0.018518518518518517,
+            "quantum": 0.06896551724137931
+          }
+        },
+        {
+          "index": 85,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 86,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 87,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.7013081395348837,
+            "ablation": 0.7147962830593281,
+            "quantum": 0.6448736998514116
+          }
+        },
+        {
+          "index": 88,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 89,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.1756152125279642,
+            "ablation": 0.07126436781609195,
+            "quantum": 0.05921052631578947
+          }
+        },
+        {
+          "index": 90,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 91,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.056179775280898875,
+            "ablation": 0.2059843885516045,
+            "quantum": 0.3533997401472499
+          }
+        },
+        {
+          "index": 92,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.84,
+            "ablation": 0.8461538461538461,
+            "quantum": 0.8790697674418605
+          }
+        },
+        {
+          "index": 93,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.3958333333333333,
+            "ablation": 0.1282051282051282,
+            "quantum": 0.4
+          }
+        },
+        {
+          "index": 94,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.08333333333333333,
+            "ablation": 0.0,
+            "quantum": 0.03571428571428571
+          }
+        },
+        {
+          "index": 95,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.6980108499095841,
+            "ablation": 0.6639042357274402,
+            "quantum": 0.6880072137060415
+          }
+        },
+        {
+          "index": 96,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 97,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.3562037797863599,
+            "ablation": 0.2860548271752086,
+            "quantum": 0.42495921696574224
+          }
+        },
+        {
+          "index": 98,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 99,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.7310215557638238,
+            "ablation": 0.7373447946513849,
+            "quantum": 0.7288629737609329
+          }
+        },
+        {
+          "index": 100,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 101,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 102,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 103,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 104,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 105,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.6220510351468465,
+            "ablation": 0.625,
+            "quantum": 0.7147041593438781
+          }
+        },
+        {
+          "index": 106,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 107,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9309948246118459,
+            "ablation": 0.9237760187628261,
+            "quantum": 0.9223021582733812
+          }
+        },
+        {
+          "index": 108,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 109,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6784934497816594,
+            "ablation": 0.6877343331547938,
+            "quantum": 0.6397970687711386
+          }
+        },
+        {
+          "index": 110,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.6839237057220708,
+            "ablation": 0.7885532591414944,
+            "quantum": 0.5345377258235919
+          }
+        },
+        {
+          "index": 111,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.26991150442477874,
+            "ablation": 0.12444444444444444,
+            "quantum": 0.14666666666666667
+          }
+        },
+        {
+          "index": 112,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.226890756302521,
+            "ablation": 0.2604501607717042,
+            "quantum": 0.20786516853932585
+          }
+        },
+        {
+          "index": 113,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.4256410256410256,
+            "ablation": 0.4911242603550296,
+            "quantum": 0.33540372670807456
+          }
+        },
+        {
+          "index": 114,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.23847780126849893,
+            "ablation": 0.1739872068230277,
+            "quantum": 0.24277210884353742
+          }
+        },
+        {
+          "index": 115,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3118279569892473,
+            "ablation": 0.30116959064327486,
+            "quantum": 0.31197771587743733
+          }
+        },
+        {
+          "index": 116,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.033821871476888386,
+            "ablation": 0.020258863252673044,
+            "quantum": 0.0033821871476888386
+          }
+        },
+        {
+          "index": 117,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.2125,
+            "ablation": 0.16666666666666666,
+            "quantum": 0.19480519480519481
+          }
+        },
+        {
+          "index": 118,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.6965811965811965,
+            "ablation": 0.7286821705426356,
+            "quantum": 0.5066666666666667
+          }
+        },
+        {
+          "index": 119,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.0433031218529708,
+            "ablation": 0.10880829015544041,
+            "quantum": 0.17903930131004367
+          }
+        },
+        {
+          "index": 120,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.24805339265850945,
+            "ablation": 0.07975460122699386,
+            "quantum": 0.29001673173452314
+          }
+        },
+        {
+          "index": 121,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7894368660370759,
+            "ablation": 0.6189796646450232,
+            "quantum": 0.7085630282984197
+          }
+        },
+        {
+          "index": 122,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.012,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 123,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.08856088560885608,
+            "ablation": 0.19407894736842105,
+            "quantum": 0.24623115577889448
+          }
+        },
+        {
+          "index": 124,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 125,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 126,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.6486486486486487,
+            "ablation": 0.53125,
+            "quantum": 0.5
+          }
+        },
+        {
+          "index": 127,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.43478260869565216,
+            "ablation": 0.3,
+            "quantum": 0.35
+          }
+        },
+        {
+          "index": 128,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 129,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 130,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 131,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.30448717948717946,
+            "ablation": 0.3385093167701863,
+            "quantum": 0.3181818181818182
+          }
+        },
+        {
+          "index": 132,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6381578947368421,
+            "ablation": 0.23703703703703705,
+            "quantum": 0.6433566433566433
+          }
+        },
+        {
+          "index": 133,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.44933920704845814,
+            "ablation": 0.51,
+            "quantum": 0.4627659574468085
+          }
+        },
+        {
+          "index": 134,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 135,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 136,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 137,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.652542372881356,
+            "ablation": 0.6777041942604857,
+            "quantum": 0.6970387243735763
+          }
+        },
+        {
+          "index": 138,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.39344262295081966,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 139,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.050314465408805034,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 140,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 141,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.3656957928802589,
+            "ablation": 0.3234323432343234,
+            "quantum": 0.3548387096774194
+          }
+        },
+        {
+          "index": 142,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 143,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.32038834951456313,
+            "ablation": 0.1836734693877551,
+            "quantum": 0.22
+          }
+        },
+        {
+          "index": 144,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 145,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5987179487179487,
+            "ablation": 0.5941845764854614,
+            "quantum": 0.5903614457831325
+          }
+        },
+        {
+          "index": 146,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.6304347826086957,
+            "ablation": 0.5576036866359447,
+            "quantum": 0.2971698113207547
+          }
+        },
+        {
+          "index": 147,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.19827586206896552,
+            "ablation": 0.047058823529411764,
+            "quantum": 0.22740524781341107
+          }
+        },
+        {
+          "index": 148,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.7124600638977636,
+            "ablation": 0.6763754045307443,
+            "quantum": 0.618421052631579
+          }
+        },
+        {
+          "index": 149,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3018867924528302,
+            "ablation": 0.3220338983050847,
+            "quantum": 0.32075471698113206
+          }
+        },
+        {
+          "index": 150,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 151,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.8081180811808119,
+            "ablation": 0.767564018384767,
+            "quantum": 0.7184343434343434
+          }
+        },
+        {
+          "index": 152,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.1388888888888889,
+            "ablation": 0.047619047619047616,
+            "quantum": 0.19047619047619047
+          }
+        },
+        {
+          "index": 153,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.8893740902474527,
+            "ablation": 0.7795389048991355,
+            "quantum": 0.9048316251830161
+          }
+        },
+        {
+          "index": 154,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.2141863699582754,
+            "ablation": 0.0893854748603352,
+            "quantum": 0.1634078212290503
+          }
+        },
+        {
+          "index": 155,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 156,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 157,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 158,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 159,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.5064377682403434,
+            "ablation": 0.2850467289719626,
+            "quantum": 0.5263157894736842
+          }
+        },
+        {
+          "index": 160,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.49074074074074076,
+            "ablation": 0.5602094240837696,
+            "quantum": 0.4891304347826087
+          }
+        },
+        {
+          "index": 161,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 162,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.44692737430167595,
+            "ablation": 0.4581005586592179,
+            "quantum": 0.37714285714285717
+          }
+        },
+        {
+          "index": 163,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.004273504273504274,
+            "ablation": 0.004784688995215311,
+            "quantum": 0.004629629629629629
+          }
+        },
+        {
+          "index": 164,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 165,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.2838709677419355,
+            "ablation": 0.1610738255033557,
+            "quantum": 0.26
+          }
+        },
+        {
+          "index": 166,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.047619047619047616,
+            "ablation": 0.0,
+            "quantum": 0.1411764705882353
+          }
+        },
+        {
+          "index": 167,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5142857142857142,
+            "ablation": 0.564935064935065,
+            "quantum": 0.5029239766081871
+          }
+        },
+        {
+          "index": 168,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5454545454545454,
+            "ablation": 0.6285714285714286,
+            "quantum": 0.6052631578947368
+          }
+        },
+        {
+          "index": 169,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.6091245376078915,
+            "ablation": 0.600250626566416,
+            "quantum": 0.6020806241872562
+          }
+        },
+        {
+          "index": 170,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 171,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.17391304347826086,
+            "ablation": 0.0,
+            "quantum": 0.1590909090909091
+          }
+        },
+        {
+          "index": 172,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 173,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 174,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.54375,
+            "ablation": 0.5297619047619048,
+            "quantum": 0.5657894736842105
+          }
+        },
+        {
+          "index": 175,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 176,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 177,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 178,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.13333333333333333,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 179,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 180,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.38154613466334164,
+            "ablation": 0.3972286374133949,
+            "quantum": 0.33004926108374383
+          }
+        },
+        {
+          "index": 181,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 182,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 183,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 184,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.655421686746988,
+            "ablation": 0.6674816625916871,
+            "quantum": 0.6560913705583756
+          }
+        },
+        {
+          "index": 185,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.011494252873563218,
+            "ablation": 0.0,
+            "quantum": 0.013333333333333334
+          }
+        },
+        {
+          "index": 186,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.2741046831955923,
+            "ablation": 0.1997196916608269,
+            "quantum": 0.18706047819971872
+          }
+        },
+        {
+          "index": 187,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 188,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 189,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 190,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5893089960886571,
+            "ablation": 0.5913272010512484,
+            "quantum": 0.595536959553696
+          }
+        },
+        {
+          "index": 191,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 192,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 193,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.46551724137931033,
+            "ablation": 0.14,
+            "quantum": 0.34545454545454546
+          }
+        },
+        {
+          "index": 194,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 195,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.09931506849315068,
+            "ablation": 0.06293706293706294,
+            "quantum": 0.12714776632302405
+          }
+        },
+        {
+          "index": 196,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 197,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 198,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 199,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.617363344051447,
+            "ablation": 0.6006339144215531,
+            "quantum": 0.6231155778894473
+          }
+        },
+        {
+          "index": 200,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.20833333333333334,
+            "ablation": 0.0,
+            "quantum": 0.19444444444444445
+          }
+        },
+        {
+          "index": 201,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.034482758620689655,
+            "ablation": 0.1875,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 202,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 203,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.5154639175257731,
+            "ablation": 0.5146198830409356,
+            "quantum": 0.519774011299435
+          }
+        },
+        {
+          "index": 204,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.5878284923928078,
+            "ablation": 0.13578500707213578,
+            "quantum": 0.10183875530410184
+          }
+        }
+      ],
+      "selected": {
+        "worst": 65,
+        "median": 169
+      }
+    },
+    {
+      "id": "60ep seed 77",
+      "dataset": "combined",
+      "seed": 77,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 77,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 77,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "4040a209ab34cda8",
+        "stats_sha256": "7e7eafec5129b4b2"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "e76d00ca49881f4c11aa1da036241fa9c8edb01e9f9e5d5839bf766abb640edd",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "9c10e6dc22a5350e21216f50fc4b0f7a785afc07f31d4134655373bf17e230b9",
+          "config_sha256": null,
+          "total_params": 503438,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "f6aad749a6c828c95002ca17a7b48bb7b93418dd93432c6c86f1e8583a357c81",
+          "config_sha256": null,
+          "total_params": 503294,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 77,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "4040a209ab34cda8",
+            "stats_sha256": "7e7eafec5129b4b2"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.4536489151873767,
+            "ablation": 0.5388429752066116,
+            "quantum": 0.5060975609756098
+          }
+        },
+        {
+          "index": 1,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 2,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 3,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 4,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8477943324569092,
+            "ablation": 0.8691560412871888,
+            "quantum": 0.8668674698795181
+          }
+        },
+        {
+          "index": 5,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.28935185185185186,
+            "ablation": 0.4802784222737819,
+            "quantum": 0.3579676674364896
+          }
+        },
+        {
+          "index": 6,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 7,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.34908005967180505,
+            "ablation": 0.34405940594059403,
+            "quantum": 0.35493519441674976
+          }
+        },
+        {
+          "index": 8,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 9,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.36666666666666664,
+            "ablation": 0.39285714285714285,
+            "quantum": 0.3870967741935484
+          }
+        },
+        {
+          "index": 10,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 11,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.16666666666666666
+          }
+        },
+        {
+          "index": 12,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 13,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 14,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.5952380952380952,
+            "ablation": 0.6300751879699248,
+            "quantum": 0.624251497005988
+          }
+        },
+        {
+          "index": 15,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 16,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.7644298451431253,
+            "ablation": 0.7541137752703339,
+            "quantum": 0.771551724137931
+          }
+        },
+        {
+          "index": 17,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.4942084942084942,
+            "ablation": 0.3166023166023166,
+            "quantum": 0.5482625482625483
+          }
+        },
+        {
+          "index": 18,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5631067961165048,
+            "ablation": 0.5846153846153846,
+            "quantum": 0.5087719298245614
+          }
+        },
+        {
+          "index": 19,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9117847411444142,
+            "ablation": 0.949358059914408,
+            "quantum": 0.9670050761421319
+          }
+        },
+        {
+          "index": 20,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 21,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9183431952662722,
+            "ablation": 0.9507101086048454,
+            "quantum": 0.9665831244778613
+          }
+        },
+        {
+          "index": 22,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 23,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.0625,
+            "ablation": 0.031426269137792104,
+            "quantum": 0.07511737089201878
+          }
+        },
+        {
+          "index": 24,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.4195519348268839,
+            "ablation": 0.40756302521008403,
+            "quantum": 0.4436781609195402
+          }
+        },
+        {
+          "index": 25,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 26,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5768688293370945,
+            "ablation": 0.6181277860326895,
+            "quantum": 0.6473906911142454
+          }
+        },
+        {
+          "index": 27,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.29138795986622074,
+            "ablation": 0.17978003384094754,
+            "quantum": 0.20016645859342488
+          }
+        },
+        {
+          "index": 28,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9211704986563153,
+            "ablation": 0.9197233914612146,
+            "quantum": 0.9033140772271208
+          }
+        },
+        {
+          "index": 29,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.06896551724137931,
+            "quantum": 0.03488372093023256
+          }
+        },
+        {
+          "index": 30,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.9198919891989199,
+            "ablation": 0.8885364748527412,
+            "quantum": 0.9071978270710729
+          }
+        },
+        {
+          "index": 31,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 32,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.5985330073349633,
+            "ablation": 0.5031023784901758,
+            "quantum": 0.4533542976939203
+          }
+        },
+        {
+          "index": 33,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.3871369294605809,
+            "ablation": 0.38685258964143426,
+            "quantum": 0.37083333333333335
+          }
+        },
+        {
+          "index": 34,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 35,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4678030303030303,
+            "ablation": 0.5259815242494227,
+            "quantum": 0.5376794258373205
+          }
+        },
+        {
+          "index": 36,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 37,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 38,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.583883751651255,
+            "ablation": 0.578005115089514,
+            "quantum": 0.5756791720569211
+          }
+        },
+        {
+          "index": 39,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.6723842195540308,
+            "ablation": 0.5679744525547445,
+            "quantum": 0.4507042253521127
+          }
+        },
+        {
+          "index": 40,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.6742738589211619,
+            "ablation": 0.7505773672055427,
+            "quantum": 0.754257907542579
+          }
+        },
+        {
+          "index": 41,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.5653292181069959,
+            "ablation": 0.5481710458526533,
+            "quantum": 0.4970635344367325
+          }
+        },
+        {
+          "index": 42,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 43,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 44,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 45,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.012345679012345678,
+            "ablation": 0.0,
+            "quantum": 0.032520325203252036
+          }
+        },
+        {
+          "index": 46,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.6121794871794872,
+            "ablation": 0.5486111111111112,
+            "quantum": 0.5736040609137056
+          }
+        },
+        {
+          "index": 47,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5277777777777778,
+            "ablation": 0.5675675675675675,
+            "quantum": 0.5897435897435898
+          }
+        },
+        {
+          "index": 48,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7547102737291148,
+            "ablation": 0.5987067325979459,
+            "quantum": 0.6855728968405025
+          }
+        },
+        {
+          "index": 49,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.43844492440604754,
+            "ablation": 0.375,
+            "quantum": 0.4221218961625282
+          }
+        },
+        {
+          "index": 50,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.0625,
+            "ablation": 0.028985507246376812,
+            "quantum": 0.07246376811594203
+          }
+        },
+        {
+          "index": 51,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.314385150812065,
+            "ablation": 0.33022170361726955,
+            "quantum": 0.33496332518337407
+          }
+        },
+        {
+          "index": 52,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.05185185185185185,
+            "ablation": 0.0,
+            "quantum": 0.0967741935483871
+          }
+        },
+        {
+          "index": 53,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.5175070028011205,
+            "ablation": 0.4267352185089974,
+            "quantum": 0.48161901225399184
+          }
+        },
+        {
+          "index": 54,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 55,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.47058823529411764,
+            "ablation": 0.6808510638297872,
+            "quantum": 0.4065934065934066
+          }
+        },
+        {
+          "index": 56,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.5915492957746479,
+            "ablation": 0.596830985915493,
+            "quantum": 0.5926573426573427
+          }
+        },
+        {
+          "index": 57,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 58,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.2,
+            "ablation": 0.12,
+            "quantum": 0.19230769230769232
+          }
+        },
+        {
+          "index": 59,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.6912087912087912,
+            "ablation": 0.5988888888888889,
+            "quantum": 0.6596452328159645
+          }
+        },
+        {
+          "index": 60,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 61,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 62,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 63,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.5731225296442688,
+            "ablation": 0.3036649214659686,
+            "quantum": 0.6398305084745762
+          }
+        },
+        {
+          "index": 64,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 65,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.06906077348066299,
+            "ablation": 0.07627118644067797,
+            "quantum": 0.3900523560209424
+          }
+        },
+        {
+          "index": 66,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 67,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.37383177570093457,
+            "ablation": 0.33816425120772947,
+            "quantum": 0.397196261682243
+          }
+        },
+        {
+          "index": 68,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.2870448772226926,
+            "ablation": 0.23191094619666047,
+            "quantum": 0.2448015122873346
+          }
+        },
+        {
+          "index": 69,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 70,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 71,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 72,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 73,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.8839553255243803,
+            "ablation": 0.8906637290002755,
+            "quantum": 0.8844765342960289
+          }
+        },
+        {
+          "index": 74,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.12376237623762376,
+            "ablation": 0.13942307692307693,
+            "quantum": 0.13145539906103287
+          }
+        },
+        {
+          "index": 75,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.861405575186494,
+            "ablation": 0.8168216740800647,
+            "quantum": 0.8485335476094817
+          }
+        },
+        {
+          "index": 76,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 77,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.7568181818181818,
+            "ablation": 0.370398773006135,
+            "quantum": 0.7075978511128166
+          }
+        },
+        {
+          "index": 78,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 79,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.4174125305126119,
+            "ablation": 0.4405775638652351,
+            "quantum": 0.455188679245283
+          }
+        },
+        {
+          "index": 80,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6595744680851063,
+            "ablation": 0.7175324675324676,
+            "quantum": 0.6535947712418301
+          }
+        },
+        {
+          "index": 81,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.33755274261603374,
+            "ablation": 0.145,
+            "quantum": 0.3292181069958848
+          }
+        },
+        {
+          "index": 82,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.8292079207920792,
+            "ablation": 0.8459595959595959,
+            "quantum": 0.8470290771175727
+          }
+        },
+        {
+          "index": 83,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 84,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.08196721311475409,
+            "ablation": 0.08928571428571429,
+            "quantum": 0.1111111111111111
+          }
+        },
+        {
+          "index": 85,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 86,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.048672566371681415
+          }
+        },
+        {
+          "index": 87,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.6018168054504164,
+            "ablation": 0.3511450381679389,
+            "quantum": 0.5465648854961832
+          }
+        },
+        {
+          "index": 88,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 89,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.02262443438914027
+          }
+        },
+        {
+          "index": 90,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 91,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.3372395833333333,
+            "ablation": 0.35039028620988727,
+            "quantum": 0.33347807207989577
+          }
+        },
+        {
+          "index": 92,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.9292873051224945,
+            "ablation": 0.9276169265033407,
+            "quantum": 0.9153674832962138
+          }
+        },
+        {
+          "index": 93,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.275,
+            "ablation": 0.4222222222222222,
+            "quantum": 0.3488372093023256
+          }
+        },
+        {
+          "index": 94,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 95,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.6517775752051048,
+            "ablation": 0.5487465181058496,
+            "quantum": 0.5431754874651811
+          }
+        },
+        {
+          "index": 96,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 97,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.6262804662663369,
+            "ablation": 0.34262295081967215,
+            "quantum": 0.18151678408619976
+          }
+        },
+        {
+          "index": 98,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 99,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.5674911660777385,
+            "ablation": 0.6647058823529411,
+            "quantum": 0.7264875239923224
+          }
+        },
+        {
+          "index": 100,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 101,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 102,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 103,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 104,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 105,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.42202418841502226,
+            "ablation": 0.3390601313794846,
+            "quantum": 0.5759465478841871
+          }
+        },
+        {
+          "index": 106,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 107,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9293296089385474,
+            "ablation": 0.926483110984956,
+            "quantum": 0.9323943661971831
+          }
+        },
+        {
+          "index": 108,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 109,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6507230255839822,
+            "ablation": 0.45733788395904434,
+            "quantum": 0.5469016486640137
+          }
+        },
+        {
+          "index": 110,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.694829760403531,
+            "ablation": 0.8392282958199357,
+            "quantum": 0.6449704142011834
+          }
+        },
+        {
+          "index": 111,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.23348017621145375,
+            "ablation": 0.2631578947368421,
+            "quantum": 0.23809523809523808
+          }
+        },
+        {
+          "index": 112,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.08092485549132948,
+            "ablation": 0.06206896551724138,
+            "quantum": 0.12658227848101267
+          }
+        },
+        {
+          "index": 113,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.42771084337349397,
+            "ablation": 0.4742857142857143,
+            "quantum": 0.4294478527607362
+          }
+        },
+        {
+          "index": 114,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.19684703877290158,
+            "ablation": 0.16046213093709885,
+            "quantum": 0.15730818688384055
+          }
+        },
+        {
+          "index": 115,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3023952095808383,
+            "ablation": 0.313953488372093,
+            "quantum": 0.31444759206798867
+          }
+        },
+        {
+          "index": 116,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.11630495269894268,
+            "ablation": 0.09706045479755962,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 117,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.16,
+            "ablation": 0.2564102564102564,
+            "quantum": 0.29333333333333333
+          }
+        },
+        {
+          "index": 118,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.24376731301939059,
+            "ablation": 0.029411764705882353,
+            "quantum": 0.3151862464183381
+          }
+        },
+        {
+          "index": 119,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.37272727272727274,
+            "ablation": 0.6166666666666667,
+            "quantum": 0.3619047619047619
+          }
+        },
+        {
+          "index": 120,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.4212152420185376,
+            "ablation": 0.41636457793889176,
+            "quantum": 0.4079290558163798
+          }
+        },
+        {
+          "index": 121,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7491683300066534,
+            "ablation": 0.5535915757803685,
+            "quantum": 0.6919879062736206
+          }
+        },
+        {
+          "index": 122,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 123,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.6013071895424836,
+            "ablation": 0.42718446601941745,
+            "quantum": 0.4513888888888889
+          }
+        },
+        {
+          "index": 124,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 125,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 126,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5,
+            "ablation": 0.5333333333333333,
+            "quantum": 0.3548387096774194
+          }
+        },
+        {
+          "index": 127,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.3,
+            "ablation": 0.34285714285714286,
+            "quantum": 0.6666666666666666
+          }
+        },
+        {
+          "index": 128,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 129,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 130,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 131,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.336734693877551,
+            "ablation": 0.36271186440677966,
+            "quantum": 0.33222591362126247
+          }
+        },
+        {
+          "index": 132,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6326530612244898,
+            "ablation": 0.6344827586206897,
+            "quantum": 0.6666666666666666
+          }
+        },
+        {
+          "index": 133,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.5049019607843137,
+            "ablation": 0.4975845410628019,
+            "quantum": 0.44019138755980863
+          }
+        },
+        {
+          "index": 134,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 135,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 136,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 137,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.6845637583892618,
+            "ablation": 0.6808988764044944,
+            "quantum": 0.6777777777777778
+          }
+        },
+        {
+          "index": 138,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 139,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.02877697841726619,
+            "quantum": 0.015873015873015872
+          }
+        },
+        {
+          "index": 140,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 141,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.3618421052631579,
+            "ablation": 0.40307692307692305,
+            "quantum": 0.40705128205128205
+          }
+        },
+        {
+          "index": 142,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 143,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.34579439252336447,
+            "ablation": 0.26,
+            "quantum": 0.38596491228070173
+          }
+        },
+        {
+          "index": 144,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 145,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5837837837837838,
+            "ablation": 0.5929778933680104,
+            "quantum": 0.5784061696658098
+          }
+        },
+        {
+          "index": 146,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.5900900900900901,
+            "ablation": 0.5576036866359447,
+            "quantum": 0.5412844036697247
+          }
+        },
+        {
+          "index": 147,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.12280701754385964,
+            "ablation": 0.1871345029239766,
+            "quantum": 0.12244897959183673
+          }
+        },
+        {
+          "index": 148,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.6871345029239766,
+            "ablation": 0.7254901960784313,
+            "quantum": 0.7016393442622951
+          }
+        },
+        {
+          "index": 149,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3333333333333333,
+            "ablation": 0.47761194029850745,
+            "quantum": 0.27586206896551724
+          }
+        },
+        {
+          "index": 150,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 151,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.5166320166320166,
+            "ablation": 0.6464285714285715,
+            "quantum": 0.5365148228488793
+          }
+        },
+        {
+          "index": 152,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.23809523809523808,
+            "ablation": 0.14285714285714285,
+            "quantum": 0.22727272727272727
+          }
+        },
+        {
+          "index": 153,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.7653061224489796,
+            "ablation": 0.8341584158415841,
+            "quantum": 0.8650385604113111
+          }
+        },
+        {
+          "index": 154,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.011188811188811189,
+            "ablation": 0.029329608938547486,
+            "quantum": 0.016783216783216783
+          }
+        },
+        {
+          "index": 155,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 156,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 157,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 158,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.03773584905660377
+          }
+        },
+        {
+          "index": 159,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.4472361809045226,
+            "ablation": 0.4427860696517413,
+            "quantum": 0.495
+          }
+        },
+        {
+          "index": 160,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.5323383084577115,
+            "ablation": 0.5144230769230769,
+            "quantum": 0.4801980198019802
+          }
+        },
+        {
+          "index": 161,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 162,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.44041450777202074,
+            "ablation": 0.4368421052631579,
+            "quantum": 0.41899441340782123
+          }
+        },
+        {
+          "index": 163,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.00510204081632653,
+            "ablation": 0.005154639175257732,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 164,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 165,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.23809523809523808,
+            "ablation": 0.32051282051282054,
+            "quantum": 0.2328767123287671
+          }
+        },
+        {
+          "index": 166,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.08235294117647059,
+            "ablation": 0.05952380952380952,
+            "quantum": 0.13793103448275862
+          }
+        },
+        {
+          "index": 167,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5620915032679739,
+            "ablation": 0.5333333333333333,
+            "quantum": 0.5359477124183006
+          }
+        },
+        {
+          "index": 168,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5625,
+            "ablation": 0.6774193548387096,
+            "quantum": 0.5757575757575758
+          }
+        },
+        {
+          "index": 169,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.5888888888888889,
+            "ablation": 0.6036269430051814,
+            "quantum": 0.5992063492063492
+          }
+        },
+        {
+          "index": 170,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 171,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.2222222222222222,
+            "ablation": 0.046511627906976744,
+            "quantum": 0.09302325581395349
+          }
+        },
+        {
+          "index": 172,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 173,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 174,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.49577464788732395,
+            "ablation": 0.5471698113207547,
+            "quantum": 0.5290519877675841
+          }
+        },
+        {
+          "index": 175,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 176,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 177,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 178,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 179,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 180,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.46008403361344535,
+            "ablation": 0.48868778280542985,
+            "quantum": 0.4943820224719101
+          }
+        },
+        {
+          "index": 181,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 182,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.045454545454545456,
+            "quantum": 0.18181818181818182
+          }
+        },
+        {
+          "index": 183,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 184,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.660759493670886,
+            "ablation": 0.6521739130434783,
+            "quantum": 0.6551297898640297
+          }
+        },
+        {
+          "index": 185,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 186,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.4073333333333333,
+            "ablation": 0.3609789259007478,
+            "quantum": 0.4178498985801217
+          }
+        },
+        {
+          "index": 187,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 188,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 189,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 190,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5893854748603352,
+            "ablation": 0.5918918918918918,
+            "quantum": 0.5782493368700266
+          }
+        },
+        {
+          "index": 191,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 192,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 193,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.18,
+            "ablation": 0.30612244897959184,
+            "quantum": 0.20754716981132076
+          }
+        },
+        {
+          "index": 194,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 195,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.08247422680412371,
+            "ablation": 0.10996563573883161,
+            "quantum": 0.11643835616438356
+          }
+        },
+        {
+          "index": 196,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 197,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 198,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 199,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.5782414307004471,
+            "ablation": 0.612540192926045,
+            "quantum": 0.6177924217462932
+          }
+        },
+        {
+          "index": 200,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.28378378378378377,
+            "ablation": 0.2916666666666667,
+            "quantum": 0.33783783783783783
+          }
+        },
+        {
+          "index": 201,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 202,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 203,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.5802469135802469,
+            "ablation": 0.5485714285714286,
+            "quantum": 0.503030303030303
+          }
+        },
+        {
+          "index": 204,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.6666666666666666,
+            "ablation": 0.6893840104849279,
+            "quantum": 0.6343792633015006
+          }
+        }
+      ],
+      "selected": {
+        "worst": 6,
+        "median": 38
+      }
+    },
+    {
+      "id": "60ep seed 123",
+      "dataset": "combined",
+      "seed": 123,
+      "preprocessing": {
+        "image_size": 64,
+        "dataset": "combined",
+        "seed": 123,
+        "bands": null,
+        "legacy_data": false,
+        "fit_only_norm": true,
+        "val_fraction": 0.15,
+        "max_samples": null,
+        "sample_seed": null,
+        "stats_path": null,
+        "manifest": null,
+        "combined_input_mode": "shared3"
+      },
+      "normalization": {
+        "mode": "fit_only_train_split",
+        "fit_only": true,
+        "seed": 123,
+        "val_fraction": 0.15,
+        "image_size": 64,
+        "max_samples": null,
+        "n_manifest_train_tiles": 1533,
+        "n_fit_train_tiles": 1303,
+        "n_excluded_val_tiles": 230,
+        "fit_names_sha256": "5ebcecad4c596348",
+        "stats_sha256": "1ae22a113d342e97"
+      },
+      "checkpoints": {
+        "classical": {
+          "file": "checkpoint.pt",
+          "sha256": "86214506eae00cb0c36001d4ef1575e54637aafb2ea3ffa393eb355a51db9078",
+          "config_sha256": null,
+          "total_params": 510631,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "ablation": {
+          "file": "checkpoint.pt",
+          "sha256": "cf5f386d989aa8f423242047d983c0e0c99a50c65eb3063ea803b36d4fa654a6",
+          "config_sha256": null,
+          "total_params": 503438,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        },
+        "quantum": {
+          "file": "checkpoint.pt",
+          "sha256": "6f72e9e67532054358df9f2f8349d69e26960c252c31669d3d8cc84f87d19f5d",
+          "config_sha256": null,
+          "total_params": 503294,
+          "saved_normalization": {
+            "mode": "fit_only_train_split",
+            "fit_only": true,
+            "seed": 123,
+            "val_fraction": 0.15,
+            "image_size": 64,
+            "max_samples": null,
+            "n_manifest_train_tiles": 1533,
+            "n_fit_train_tiles": 1303,
+            "n_excluded_val_tiles": 230,
+            "fit_names_sha256": "5ebcecad4c596348",
+            "stats_sha256": "1ae22a113d342e97"
+          },
+          "normalization_verified": true
+        }
+      },
+      "tiles": [
+        {
+          "index": 0,
+          "name": "0",
+          "modality": "optical",
+          "flood_fraction": 0.115234375,
+          "iou": {
+            "classical": 0.5222437137330754,
+            "ablation": 0.2689075630252101,
+            "quantum": 0.26260504201680673
+          }
+        },
+        {
+          "index": 1,
+          "name": "0 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 2,
+          "name": "1",
+          "modality": "optical",
+          "flood_fraction": 0.011962890625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 3,
+          "name": "1 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 4,
+          "name": "2",
+          "modality": "optical",
+          "flood_fraction": 0.713134765625,
+          "iou": {
+            "classical": 0.8738246891113133,
+            "ablation": 0.8551068883610451,
+            "quantum": 0.8535013184881336
+          }
+        },
+        {
+          "index": 5,
+          "name": "2 copy",
+          "modality": "sar",
+          "flood_fraction": 0.104736328125,
+          "iou": {
+            "classical": 0.39351851851851855,
+            "ablation": 0.3874709976798144,
+            "quantum": 0.33488372093023255
+          }
+        },
+        {
+          "index": 6,
+          "name": "3",
+          "modality": "optical",
+          "flood_fraction": 0.052734375,
+          "iou": {
+            "classical": 0.0038314176245210726,
+            "ablation": 0.013043478260869565,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 7,
+          "name": "3 copy",
+          "modality": "sar",
+          "flood_fraction": 0.4599609375,
+          "iou": {
+            "classical": 0.3451100870455709,
+            "ablation": 0.3575609756097561,
+            "quantum": 0.35845314823996033
+          }
+        },
+        {
+          "index": 8,
+          "name": "4",
+          "modality": "optical",
+          "flood_fraction": 0.020263671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 9,
+          "name": "4 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.3235294117647059,
+            "ablation": 0.40625,
+            "quantum": 0.3870967741935484
+          }
+        },
+        {
+          "index": 10,
+          "name": "5",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 11,
+          "name": "6",
+          "modality": "optical",
+          "flood_fraction": 0.01611328125,
+          "iou": {
+            "classical": 0.3055555555555556,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 12,
+          "name": "7",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 13,
+          "name": "7 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 14,
+          "name": "8",
+          "modality": "optical",
+          "flood_fraction": 0.158447265625,
+          "iou": {
+            "classical": 0.7806788511749347,
+            "ablation": 0.7549148099606815,
+            "quantum": 0.7405329593267882
+          }
+        },
+        {
+          "index": 15,
+          "name": "8 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 16,
+          "name": "9",
+          "modality": "optical",
+          "flood_fraction": 0.411376953125,
+          "iou": {
+            "classical": 0.7292402826855123,
+            "ablation": 0.5957522123893805,
+            "quantum": 0.7238095238095238
+          }
+        },
+        {
+          "index": 17,
+          "name": "10",
+          "modality": "optical",
+          "flood_fraction": 0.063232421875,
+          "iou": {
+            "classical": 0.7518518518518519,
+            "ablation": 0.671280276816609,
+            "quantum": 0.5459940652818991
+          }
+        },
+        {
+          "index": 18,
+          "name": "10 copy",
+          "modality": "sar",
+          "flood_fraction": 0.033935546875,
+          "iou": {
+            "classical": 0.5463414634146342,
+            "ablation": 0.5445544554455446,
+            "quantum": 0.5572916666666666
+          }
+        },
+        {
+          "index": 19,
+          "name": "11",
+          "modality": "optical",
+          "flood_fraction": 0.662841796875,
+          "iou": {
+            "classical": 0.9513964454116793,
+            "ablation": 0.9114010989010989,
+            "quantum": 0.9664356074425392
+          }
+        },
+        {
+          "index": 20,
+          "name": "11 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 21,
+          "name": "12",
+          "modality": "optical",
+          "flood_fraction": 0.573974609375,
+          "iou": {
+            "classical": 0.9116370808678501,
+            "ablation": 0.9003476245654692,
+            "quantum": 0.8927890118275468
+          }
+        },
+        {
+          "index": 22,
+          "name": "12 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 23,
+          "name": "13",
+          "modality": "optical",
+          "flood_fraction": 0.011474609375,
+          "iou": {
+            "classical": 0.19411764705882353,
+            "ablation": 0.5416666666666666,
+            "quantum": 0.16494845360824742
+          }
+        },
+        {
+          "index": 24,
+          "name": "13 copy",
+          "modality": "sar",
+          "flood_fraction": 0.08837890625,
+          "iou": {
+            "classical": 0.43187066974595845,
+            "ablation": 0.3967935871743487,
+            "quantum": 0.45278450363196127
+          }
+        },
+        {
+          "index": 25,
+          "name": "14",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 26,
+          "name": "14 copy",
+          "modality": "sar",
+          "flood_fraction": 0.151611328125,
+          "iou": {
+            "classical": 0.5464231354642314,
+            "ablation": 0.5046296296296297,
+            "quantum": 0.5948406676783005
+          }
+        },
+        {
+          "index": 27,
+          "name": "15",
+          "modality": "optical",
+          "flood_fraction": 0.576416015625,
+          "iou": {
+            "classical": 0.38415366146458585,
+            "ablation": 0.30324345447440404,
+            "quantum": 0.3319486404833837
+          }
+        },
+        {
+          "index": 28,
+          "name": "16",
+          "modality": "optical",
+          "flood_fraction": 0.765869140625,
+          "iou": {
+            "classical": 0.9238733252131547,
+            "ablation": 0.9104928938615059,
+            "quantum": 0.9106984969053935
+          }
+        },
+        {
+          "index": 29,
+          "name": "16 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.0594059405940594,
+            "ablation": 0.03488372093023256,
+            "quantum": 0.023255813953488372
+          }
+        },
+        {
+          "index": 30,
+          "name": "17",
+          "modality": "optical",
+          "flood_fraction": 0.529052734375,
+          "iou": {
+            "classical": 0.920726306465899,
+            "ablation": 0.9039473684210526,
+            "quantum": 0.9158460161145927
+          }
+        },
+        {
+          "index": 31,
+          "name": "17 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 32,
+          "name": "18",
+          "modality": "optical",
+          "flood_fraction": 0.465087890625,
+          "iou": {
+            "classical": 0.48383786557208824,
+            "ablation": 0.4839876033057851,
+            "quantum": 0.4873096446700508
+          }
+        },
+        {
+          "index": 33,
+          "name": "19",
+          "modality": "optical",
+          "flood_fraction": 0.55810546875,
+          "iou": {
+            "classical": 0.6189839572192514,
+            "ablation": 0.5989637305699482,
+            "quantum": 0.5942503639010189
+          }
+        },
+        {
+          "index": 34,
+          "name": "19 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 35,
+          "name": "20",
+          "modality": "optical",
+          "flood_fraction": 0.32861328125,
+          "iou": {
+            "classical": 0.4846190250828206,
+            "ablation": 0.4161598609904431,
+            "quantum": 0.43071491615180935
+          }
+        },
+        {
+          "index": 36,
+          "name": "20 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 37,
+          "name": "21",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 38,
+          "name": "21 copy",
+          "modality": "sar",
+          "flood_fraction": 0.177001953125,
+          "iou": {
+            "classical": 0.5634715025906736,
+            "ablation": 0.5654450261780105,
+            "quantum": 0.5704787234042553
+          }
+        },
+        {
+          "index": 39,
+          "name": "22",
+          "modality": "optical",
+          "flood_fraction": 0.501953125,
+          "iou": {
+            "classical": 0.581296992481203,
+            "ablation": 0.5325779036827195,
+            "quantum": 0.5885634588563459
+          }
+        },
+        {
+          "index": 40,
+          "name": "22 copy",
+          "modality": "sar",
+          "flood_fraction": 0.091552734375,
+          "iou": {
+            "classical": 0.5198776758409785,
+            "ablation": 0.6070763500931099,
+            "quantum": 0.7264367816091954
+          }
+        },
+        {
+          "index": 41,
+          "name": "23",
+          "modality": "optical",
+          "flood_fraction": 0.43603515625,
+          "iou": {
+            "classical": 0.6605343845816908,
+            "ablation": 0.5936422826503256,
+            "quantum": 0.6951945080091533
+          }
+        },
+        {
+          "index": 42,
+          "name": "23 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 43,
+          "name": "24",
+          "modality": "optical",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 44,
+          "name": "24 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 45,
+          "name": "25",
+          "modality": "optical",
+          "flood_fraction": 0.01708984375,
+          "iou": {
+            "classical": 0.050505050505050504,
+            "ablation": 0.06802721088435375,
+            "quantum": 0.020833333333333332
+          }
+        },
+        {
+          "index": 46,
+          "name": "26",
+          "modality": "optical",
+          "flood_fraction": 0.12939453125,
+          "iou": {
+            "classical": 0.3076923076923077,
+            "ablation": 0.5075,
+            "quantum": 0.5546218487394958
+          }
+        },
+        {
+          "index": 47,
+          "name": "26 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0087890625,
+          "iou": {
+            "classical": 0.5897435897435898,
+            "ablation": 0.6052631578947368,
+            "quantum": 0.5263157894736842
+          }
+        },
+        {
+          "index": 48,
+          "name": "27",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7521395655036208,
+            "ablation": 0.7614300446888965,
+            "quantum": 0.7435810810810811
+          }
+        },
+        {
+          "index": 49,
+          "name": "27 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1044921875,
+          "iou": {
+            "classical": 0.42616033755274263,
+            "ablation": 0.21846846846846846,
+            "quantum": 0.31125827814569534
+          }
+        },
+        {
+          "index": 50,
+          "name": "28",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.32919254658385094,
+            "ablation": 0.1375,
+            "quantum": 0.06521739130434782
+          }
+        },
+        {
+          "index": 51,
+          "name": "28 copy",
+          "modality": "sar",
+          "flood_fraction": 0.171630859375,
+          "iou": {
+            "classical": 0.3333333333333333,
+            "ablation": 0.28911138923654567,
+            "quantum": 0.3029525032092426
+          }
+        },
+        {
+          "index": 52,
+          "name": "29",
+          "modality": "optical",
+          "flood_fraction": 0.031982421875,
+          "iou": {
+            "classical": 0.12422360248447205,
+            "ablation": 0.03816793893129771,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 53,
+          "name": "30",
+          "modality": "optical",
+          "flood_fraction": 0.647216796875,
+          "iou": {
+            "classical": 0.4488078541374474,
+            "ablation": 0.44919411352487737,
+            "quantum": 0.4169085631349782
+          }
+        },
+        {
+          "index": 54,
+          "name": "31",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 55,
+          "name": "32",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.47058823529411764,
+            "ablation": 0.5882352941176471,
+            "quantum": 0.6382978723404256
+          }
+        },
+        {
+          "index": 56,
+          "name": "32 copy",
+          "modality": "sar",
+          "flood_fraction": 0.263671875,
+          "iou": {
+            "classical": 0.5645302897278315,
+            "ablation": 0.488671157379057,
+            "quantum": 0.5751575157515751
+          }
+        },
+        {
+          "index": 57,
+          "name": "33",
+          "modality": "optical",
+          "flood_fraction": 0.001708984375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 58,
+          "name": "33 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006103515625,
+          "iou": {
+            "classical": 0.1724137931034483,
+            "ablation": 0.16,
+            "quantum": 0.16
+          }
+        },
+        {
+          "index": 59,
+          "name": "34",
+          "modality": "optical",
+          "flood_fraction": 0.2197265625,
+          "iou": {
+            "classical": 0.7165271966527197,
+            "ablation": 0.6923890063424947,
+            "quantum": 0.7176220806794055
+          }
+        },
+        {
+          "index": 60,
+          "name": "34 copy",
+          "modality": "sar",
+          "flood_fraction": 0.001953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 61,
+          "name": "35",
+          "modality": "optical",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 62,
+          "name": "35 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 63,
+          "name": "36",
+          "modality": "optical",
+          "flood_fraction": 0.043212890625,
+          "iou": {
+            "classical": 0.38789237668161436,
+            "ablation": 0.5358255451713395,
+            "quantum": 0.6309523809523809
+          }
+        },
+        {
+          "index": 64,
+          "name": "37",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 65,
+          "name": "37 copy",
+          "modality": "sar",
+          "flood_fraction": 0.06689453125,
+          "iou": {
+            "classical": 0.003367003367003367,
+            "ablation": 0.028645833333333332,
+            "quantum": 0.036312849162011177
+          }
+        },
+        {
+          "index": 66,
+          "name": "38",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 67,
+          "name": "38 copy",
+          "modality": "sar",
+          "flood_fraction": 0.049560546875,
+          "iou": {
+            "classical": 0.37735849056603776,
+            "ablation": 0.4127659574468085,
+            "quantum": 0.341991341991342
+          }
+        },
+        {
+          "index": 68,
+          "name": "39",
+          "modality": "optical",
+          "flood_fraction": 0.236083984375,
+          "iou": {
+            "classical": 0.482124079915878,
+            "ablation": 0.3982118294360385,
+            "quantum": 0.48479318734793186
+          }
+        },
+        {
+          "index": 69,
+          "name": "39 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 70,
+          "name": "40",
+          "modality": "optical",
+          "flood_fraction": 0.00341796875,
+          "iou": {
+            "classical": 0.14285714285714285,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 71,
+          "name": "40 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 72,
+          "name": "41",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 73,
+          "name": "42",
+          "modality": "optical",
+          "flood_fraction": 0.810302734375,
+          "iou": {
+            "classical": 0.8772222222222222,
+            "ablation": 0.8752790178571429,
+            "quantum": 0.877962408063198
+          }
+        },
+        {
+          "index": 74,
+          "name": "42 copy",
+          "modality": "sar",
+          "flood_fraction": 0.047607421875,
+          "iou": {
+            "classical": 0.15458937198067632,
+            "ablation": 0.1320754716981132,
+            "quantum": 0.15789473684210525
+          }
+        },
+        {
+          "index": 75,
+          "name": "43",
+          "modality": "optical",
+          "flood_fraction": 0.565185546875,
+          "iou": {
+            "classical": 0.8406072106261859,
+            "ablation": 0.8425318409880355,
+            "quantum": 0.8617821782178218
+          }
+        },
+        {
+          "index": 76,
+          "name": "43 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000732421875,
+          "iou": {
+            "classical": 0.058823529411764705,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 77,
+          "name": "44",
+          "modality": "optical",
+          "flood_fraction": 0.317626953125,
+          "iou": {
+            "classical": 0.7423312883435583,
+            "ablation": 0.7533568904593639,
+            "quantum": 0.7209302325581395
+          }
+        },
+        {
+          "index": 78,
+          "name": "44 copy",
+          "modality": "sar",
+          "flood_fraction": 0.005615234375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 79,
+          "name": "45",
+          "modality": "optical",
+          "flood_fraction": 0.538818359375,
+          "iou": {
+            "classical": 0.5818399044205496,
+            "ablation": 0.557524782216882,
+            "quantum": 0.5612773302646721
+          }
+        },
+        {
+          "index": 80,
+          "name": "45 copy",
+          "modality": "sar",
+          "flood_fraction": 0.059814453125,
+          "iou": {
+            "classical": 0.6635802469135802,
+            "ablation": 0.7035714285714286,
+            "quantum": 0.7279411764705882
+          }
+        },
+        {
+          "index": 81,
+          "name": "46",
+          "modality": "optical",
+          "flood_fraction": 0.048828125,
+          "iou": {
+            "classical": 0.19395866454689983,
+            "ablation": 0.31555555555555553,
+            "quantum": 0.3153153153153153
+          }
+        },
+        {
+          "index": 82,
+          "name": "46 copy",
+          "modality": "sar",
+          "flood_fraction": 0.1650390625,
+          "iou": {
+            "classical": 0.9277777777777778,
+            "ablation": 0.8733681462140992,
+            "quantum": 0.8812664907651715
+          }
+        },
+        {
+          "index": 83,
+          "name": "47",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 84,
+          "name": "47 copy",
+          "modality": "sar",
+          "flood_fraction": 0.012939453125,
+          "iou": {
+            "classical": 0.06493506493506493,
+            "ablation": 0.07142857142857142,
+            "quantum": 0.07462686567164178
+          }
+        },
+        {
+          "index": 85,
+          "name": "48",
+          "modality": "optical",
+          "flood_fraction": 0.0126953125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 86,
+          "name": "48 copy",
+          "modality": "sar",
+          "flood_fraction": 0.006591796875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 87,
+          "name": "49",
+          "modality": "optical",
+          "flood_fraction": 0.319580078125,
+          "iou": {
+            "classical": 0.6863173216885007,
+            "ablation": 0.6598689002184996,
+            "quantum": 0.6836441893830703
+          }
+        },
+        {
+          "index": 88,
+          "name": "49 copy",
+          "modality": "sar",
+          "flood_fraction": 0.004638671875,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 89,
+          "name": "50",
+          "modality": "optical",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.0945945945945946,
+            "ablation": 0.0,
+            "quantum": 0.11374407582938388
+          }
+        },
+        {
+          "index": 90,
+          "name": "50 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 91,
+          "name": "51",
+          "modality": "optical",
+          "flood_fraction": 0.562255859375,
+          "iou": {
+            "classical": 0.5309134423613882,
+            "ablation": 0.6268601190476191,
+            "quantum": 0.4728903383611904
+          }
+        },
+        {
+          "index": 92,
+          "name": "52",
+          "modality": "optical",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.9379679144385027,
+            "ablation": 0.9465648854961832,
+            "quantum": 0.9079365079365079
+          }
+        },
+        {
+          "index": 93,
+          "name": "52 copy",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.2391304347826087,
+            "ablation": 0.3170731707317073,
+            "quantum": 0.45652173913043476
+          }
+        },
+        {
+          "index": 94,
+          "name": "53",
+          "modality": "optical",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.045454545454545456,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 95,
+          "name": "54",
+          "modality": "optical",
+          "flood_fraction": 0.2626953125,
+          "iou": {
+            "classical": 0.5623376623376624,
+            "ablation": 0.6023759608665269,
+            "quantum": 0.7788309636650869
+          }
+        },
+        {
+          "index": 96,
+          "name": "54 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 97,
+          "name": "55",
+          "modality": "optical",
+          "flood_fraction": 0.585205078125,
+          "iou": {
+            "classical": 0.5941506410256411,
+            "ablation": 0.6878306878306878,
+            "quantum": 0.6270707070707071
+          }
+        },
+        {
+          "index": 98,
+          "name": "55 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 99,
+          "name": "56",
+          "modality": "optical",
+          "flood_fraction": 0.246337890625,
+          "iou": {
+            "classical": 0.6916221033868093,
+            "ablation": 0.6634865568083261,
+            "quantum": 0.7401500938086304
+          }
+        },
+        {
+          "index": 100,
+          "name": "56 copy",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 101,
+          "name": "57",
+          "modality": "optical",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 102,
+          "name": "57 copy",
+          "modality": "sar",
+          "flood_fraction": 1.0,
+          "iou": {
+            "classical": 1.0,
+            "ablation": 1.0,
+            "quantum": 1.0
+          }
+        },
+        {
+          "index": 103,
+          "name": "58",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 104,
+          "name": "58 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 105,
+          "name": "59",
+          "modality": "optical",
+          "flood_fraction": 0.327880859375,
+          "iou": {
+            "classical": 0.636810486073184,
+            "ablation": 0.5724852071005917,
+            "quantum": 0.6251881585549423
+          }
+        },
+        {
+          "index": 106,
+          "name": "59 copy",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 107,
+          "name": "60",
+          "modality": "optical",
+          "flood_fraction": 0.81494140625,
+          "iou": {
+            "classical": 0.9080975063042869,
+            "ablation": 0.9228634850166482,
+            "quantum": 0.8953331534933909
+          }
+        },
+        {
+          "index": 108,
+          "name": "60 copy",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 109,
+          "name": "61",
+          "modality": "optical",
+          "flood_fraction": 0.428955078125,
+          "iou": {
+            "classical": 0.6480758505298383,
+            "ablation": 0.6454794520547945,
+            "quantum": 0.6289886425094646
+          }
+        },
+        {
+          "index": 110,
+          "name": "62",
+          "modality": "optical",
+          "flood_fraction": 0.138916015625,
+          "iou": {
+            "classical": 0.6069042316258352,
+            "ablation": 0.4973309608540925,
+            "quantum": 0.39957567185289955
+          }
+        },
+        {
+          "index": 111,
+          "name": "62 copy",
+          "modality": "sar",
+          "flood_fraction": 0.054931640625,
+          "iou": {
+            "classical": 0.375,
+            "ablation": 0.09734513274336283,
+            "quantum": 0.21145374449339208
+          }
+        },
+        {
+          "index": 112,
+          "name": "63",
+          "modality": "optical",
+          "flood_fraction": 0.03369140625,
+          "iou": {
+            "classical": 0.3728813559322034,
+            "ablation": 0.27167630057803466,
+            "quantum": 0.06040268456375839
+          }
+        },
+        {
+          "index": 113,
+          "name": "63 copy",
+          "modality": "sar",
+          "flood_fraction": 0.035888671875,
+          "iou": {
+            "classical": 0.5114155251141552,
+            "ablation": 0.5119617224880383,
+            "quantum": 0.45121951219512196
+          }
+        },
+        {
+          "index": 114,
+          "name": "64",
+          "modality": "optical",
+          "flood_fraction": 0.569091796875,
+          "iou": {
+            "classical": 0.2583368509919797,
+            "ablation": 0.1997471554993679,
+            "quantum": 0.22478991596638656
+          }
+        },
+        {
+          "index": 115,
+          "name": "64 copy",
+          "modality": "sar",
+          "flood_fraction": 0.07421875,
+          "iou": {
+            "classical": 0.3142857142857143,
+            "ablation": 0.2910662824207493,
+            "quantum": 0.2743362831858407
+          }
+        },
+        {
+          "index": 116,
+          "name": "65",
+          "modality": "optical",
+          "flood_fraction": 0.43310546875,
+          "iou": {
+            "classical": 0.1226890756302521,
+            "ablation": 0.008988764044943821,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 117,
+          "name": "65 copy",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.23376623376623376,
+            "ablation": 0.18666666666666668,
+            "quantum": 0.1232876712328767
+          }
+        },
+        {
+          "index": 118,
+          "name": "66",
+          "modality": "optical",
+          "flood_fraction": 0.082763671875,
+          "iou": {
+            "classical": 0.5068493150684932,
+            "ablation": 0.5161290322580645,
+            "quantum": 0.72
+          }
+        },
+        {
+          "index": 119,
+          "name": "67",
+          "modality": "optical",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.4722222222222222,
+            "ablation": 0.5689655172413793,
+            "quantum": 0.5833333333333334
+          }
+        },
+        {
+          "index": 120,
+          "name": "67 copy",
+          "modality": "sar",
+          "flood_fraction": 0.437744140625,
+          "iou": {
+            "classical": 0.4079575596816976,
+            "ablation": 0.43083421330517424,
+            "quantum": 0.418011452368558
+          }
+        },
+        {
+          "index": 121,
+          "name": "68",
+          "modality": "optical",
+          "flood_fraction": 0.631103515625,
+          "iou": {
+            "classical": 0.7653263019116677,
+            "ablation": 0.7774369461486026,
+            "quantum": 0.7626703949667948
+          }
+        },
+        {
+          "index": 122,
+          "name": "68 copy",
+          "modality": "sar",
+          "flood_fraction": 0.002197265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 123,
+          "name": "69",
+          "modality": "optical",
+          "flood_fraction": 0.024169921875,
+          "iou": {
+            "classical": 0.41605839416058393,
+            "ablation": 0.5,
+            "quantum": 0.5433070866141733
+          }
+        },
+        {
+          "index": 124,
+          "name": "70",
+          "modality": "optical",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 125,
+          "name": "70 copy",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 126,
+          "name": "72",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.5757575757575758,
+            "ablation": 0.5882352941176471,
+            "quantum": 0.5
+          }
+        },
+        {
+          "index": 127,
+          "name": "74",
+          "modality": "sar",
+          "flood_fraction": 0.00439453125,
+          "iou": {
+            "classical": 0.2413793103448276,
+            "ablation": 0.3,
+            "quantum": 0.25
+          }
+        },
+        {
+          "index": 128,
+          "name": "75",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 129,
+          "name": "76",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 130,
+          "name": "78",
+          "modality": "sar",
+          "flood_fraction": 0.0048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 131,
+          "name": "79",
+          "modality": "sar",
+          "flood_fraction": 0.061279296875,
+          "iou": {
+            "classical": 0.3396825396825397,
+            "ablation": 0.3602693602693603,
+            "quantum": 0.3321554770318021
+          }
+        },
+        {
+          "index": 132,
+          "name": "80",
+          "modality": "sar",
+          "flood_fraction": 0.03125,
+          "iou": {
+            "classical": 0.6287425149700598,
+            "ablation": 0.6691729323308271,
+            "quantum": 0.656934306569343
+          }
+        },
+        {
+          "index": 133,
+          "name": "81",
+          "modality": "sar",
+          "flood_fraction": 0.0400390625,
+          "iou": {
+            "classical": 0.4364406779661017,
+            "ablation": 0.5098039215686274,
+            "quantum": 0.4926829268292683
+          }
+        },
+        {
+          "index": 134,
+          "name": "82",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 135,
+          "name": "83",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 136,
+          "name": "84",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 137,
+          "name": "86",
+          "modality": "sar",
+          "flood_fraction": 0.1015625,
+          "iou": {
+            "classical": 0.6883408071748879,
+            "ablation": 0.6471816283924844,
+            "quantum": 0.6726057906458798
+          }
+        },
+        {
+          "index": 138,
+          "name": "87",
+          "modality": "sar",
+          "flood_fraction": 0.0244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 139,
+          "name": "88",
+          "modality": "sar",
+          "flood_fraction": 0.017333984375,
+          "iou": {
+            "classical": 0.05263157894736842,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 140,
+          "name": "89",
+          "modality": "sar",
+          "flood_fraction": 0.00634765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 141,
+          "name": "90",
+          "modality": "sar",
+          "flood_fraction": 0.072265625,
+          "iou": {
+            "classical": 0.44776119402985076,
+            "ablation": 0.42857142857142855,
+            "quantum": 0.3157894736842105
+          }
+        },
+        {
+          "index": 142,
+          "name": "91",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 143,
+          "name": "92",
+          "modality": "sar",
+          "flood_fraction": 0.02392578125,
+          "iou": {
+            "classical": 0.3790322580645161,
+            "ablation": 0.22772277227722773,
+            "quantum": 0.411214953271028
+          }
+        },
+        {
+          "index": 144,
+          "name": "93",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 145,
+          "name": "94",
+          "modality": "sar",
+          "flood_fraction": 0.1728515625,
+          "iou": {
+            "classical": 0.5737265415549598,
+            "ablation": 0.5901856763925729,
+            "quantum": 0.5943012211668928
+          }
+        },
+        {
+          "index": 146,
+          "name": "95",
+          "modality": "sar",
+          "flood_fraction": 0.0517578125,
+          "iou": {
+            "classical": 0.5753424657534246,
+            "ablation": 0.593607305936073,
+            "quantum": 0.5137614678899083
+          }
+        },
+        {
+          "index": 147,
+          "name": "96",
+          "modality": "sar",
+          "flood_fraction": 0.0830078125,
+          "iou": {
+            "classical": 0.3137254901960784,
+            "ablation": 0.3769633507853403,
+            "quantum": 0.14825581395348839
+          }
+        },
+        {
+          "index": 148,
+          "name": "97",
+          "modality": "sar",
+          "flood_fraction": 0.068359375,
+          "iou": {
+            "classical": 0.2947845804988662,
+            "ablation": 0.46616541353383456,
+            "quantum": 0.6827794561933535
+          }
+        },
+        {
+          "index": 149,
+          "name": "98",
+          "modality": "sar",
+          "flood_fraction": 0.01123046875,
+          "iou": {
+            "classical": 0.3559322033898305,
+            "ablation": 0.30612244897959184,
+            "quantum": 0.021739130434782608
+          }
+        },
+        {
+          "index": 150,
+          "name": "99",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 151,
+          "name": "100",
+          "modality": "sar",
+          "flood_fraction": 0.36572265625,
+          "iou": {
+            "classical": 0.6803321224701608,
+            "ablation": 0.6057259713701432,
+            "quantum": 0.6457831325301204
+          }
+        },
+        {
+          "index": 152,
+          "name": "101",
+          "modality": "sar",
+          "flood_fraction": 0.005126953125,
+          "iou": {
+            "classical": 0.17857142857142858,
+            "ablation": 0.19047619047619047,
+            "quantum": 0.19047619047619047
+          }
+        },
+        {
+          "index": 153,
+          "name": "102",
+          "modality": "sar",
+          "flood_fraction": 0.16552734375,
+          "iou": {
+            "classical": 0.7950530035335689,
+            "ablation": 0.6763527054108216,
+            "quantum": 0.8448060075093867
+          }
+        },
+        {
+          "index": 154,
+          "name": "103",
+          "modality": "sar",
+          "flood_fraction": 0.174560546875,
+          "iou": {
+            "classical": 0.08356545961002786,
+            "ablation": 0.12988826815642457,
+            "quantum": 0.05314685314685315
+          }
+        },
+        {
+          "index": 155,
+          "name": "104",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 156,
+          "name": "106",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 157,
+          "name": "107",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 158,
+          "name": "108",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 159,
+          "name": "109",
+          "modality": "sar",
+          "flood_fraction": 0.0478515625,
+          "iou": {
+            "classical": 0.45226130653266333,
+            "ablation": 0.5294117647058824,
+            "quantum": 0.48756218905472637
+          }
+        },
+        {
+          "index": 160,
+          "name": "110",
+          "modality": "sar",
+          "flood_fraction": 0.03955078125,
+          "iou": {
+            "classical": 0.4533898305084746,
+            "ablation": 0.5190476190476191,
+            "quantum": 0.5223880597014925
+          }
+        },
+        {
+          "index": 161,
+          "name": "112",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 162,
+          "name": "113",
+          "modality": "sar",
+          "flood_fraction": 0.039306640625,
+          "iou": {
+            "classical": 0.4641350210970464,
+            "ablation": 0.5490196078431373,
+            "quantum": 0.41237113402061853
+          }
+        },
+        {
+          "index": 163,
+          "name": "114",
+          "modality": "sar",
+          "flood_fraction": 0.004150390625,
+          "iou": {
+            "classical": 0.005,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 164,
+          "name": "115",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 165,
+          "name": "118",
+          "modality": "sar",
+          "flood_fraction": 0.034423828125,
+          "iou": {
+            "classical": 0.30246913580246915,
+            "ablation": 0.33774834437086093,
+            "quantum": 0.22297297297297297
+          }
+        },
+        {
+          "index": 166,
+          "name": "119",
+          "modality": "sar",
+          "flood_fraction": 0.0205078125,
+          "iou": {
+            "classical": 0.16091954022988506,
+            "ablation": 0.011904761904761904,
+            "quantum": 0.05952380952380952
+          }
+        },
+        {
+          "index": 167,
+          "name": "120",
+          "modality": "sar",
+          "flood_fraction": 0.033203125,
+          "iou": {
+            "classical": 0.5656565656565656,
+            "ablation": 0.6296296296296297,
+            "quantum": 0.4966887417218543
+          }
+        },
+        {
+          "index": 168,
+          "name": "121",
+          "modality": "sar",
+          "flood_fraction": 0.00732421875,
+          "iou": {
+            "classical": 0.6052631578947368,
+            "ablation": 0.55,
+            "quantum": 0.5714285714285714
+          }
+        },
+        {
+          "index": 169,
+          "name": "122",
+          "modality": "sar",
+          "flood_fraction": 0.169921875,
+          "iou": {
+            "classical": 0.5946704067321178,
+            "ablation": 0.5815789473684211,
+            "quantum": 0.5851648351648352
+          }
+        },
+        {
+          "index": 170,
+          "name": "123",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 171,
+          "name": "124",
+          "modality": "sar",
+          "flood_fraction": 0.010498046875,
+          "iou": {
+            "classical": 0.11627906976744186,
+            "ablation": 0.2127659574468085,
+            "quantum": 0.11363636363636363
+          }
+        },
+        {
+          "index": 172,
+          "name": "126",
+          "modality": "sar",
+          "flood_fraction": 0.02197265625,
+          "iou": {
+            "classical": 0.07692307692307693,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 173,
+          "name": "127",
+          "modality": "sar",
+          "flood_fraction": 0.000244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 174,
+          "name": "129",
+          "modality": "sar",
+          "flood_fraction": 0.06591796875,
+          "iou": {
+            "classical": 0.504297994269341,
+            "ablation": 0.48247978436657685,
+            "quantum": 0.5360501567398119
+          }
+        },
+        {
+          "index": 175,
+          "name": "130",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 176,
+          "name": "131",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 177,
+          "name": "132",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 178,
+          "name": "133",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.037037037037037035
+          }
+        },
+        {
+          "index": 179,
+          "name": "134",
+          "modality": "sar",
+          "flood_fraction": 0.001220703125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 180,
+          "name": "135",
+          "modality": "sar",
+          "flood_fraction": 0.0947265625,
+          "iou": {
+            "classical": 0.4916317991631799,
+            "ablation": 0.44786729857819907,
+            "quantum": 0.494199535962877
+          }
+        },
+        {
+          "index": 181,
+          "name": "136",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 182,
+          "name": "137",
+          "modality": "sar",
+          "flood_fraction": 0.009521484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 183,
+          "name": "138",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 184,
+          "name": "139",
+          "modality": "sar",
+          "flood_fraction": 0.1845703125,
+          "iou": {
+            "classical": 0.6630565583634176,
+            "ablation": 0.6654719235364397,
+            "quantum": 0.6573957016434893
+          }
+        },
+        {
+          "index": 185,
+          "name": "141",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.02531645569620253,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 186,
+          "name": "142",
+          "modality": "sar",
+          "flood_fraction": 0.345947265625,
+          "iou": {
+            "classical": 0.5308056872037915,
+            "ablation": 0.5694177863083814,
+            "quantum": 0.37697052775873885
+          }
+        },
+        {
+          "index": 187,
+          "name": "143",
+          "modality": "sar",
+          "flood_fraction": 0.0009765625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 188,
+          "name": "144",
+          "modality": "sar",
+          "flood_fraction": 0.00244140625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 189,
+          "name": "145",
+          "modality": "sar",
+          "flood_fraction": 0.003662109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 190,
+          "name": "146",
+          "modality": "sar",
+          "flood_fraction": 0.166748046875,
+          "iou": {
+            "classical": 0.5825105782792666,
+            "ablation": 0.584931506849315,
+            "quantum": 0.586013986013986
+          }
+        },
+        {
+          "index": 191,
+          "name": "147",
+          "modality": "sar",
+          "flood_fraction": 0.00537109375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 192,
+          "name": "148",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 193,
+          "name": "149",
+          "modality": "sar",
+          "flood_fraction": 0.01171875,
+          "iou": {
+            "classical": 0.32142857142857145,
+            "ablation": 0.3018867924528302,
+            "quantum": 0.30612244897959184
+          }
+        },
+        {
+          "index": 194,
+          "name": "150",
+          "modality": "sar",
+          "flood_fraction": 0.0,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 195,
+          "name": "152",
+          "modality": "sar",
+          "flood_fraction": 0.06982421875,
+          "iou": {
+            "classical": 0.22549019607843138,
+            "ablation": 0.09897610921501707,
+            "quantum": 0.08275862068965517
+          }
+        },
+        {
+          "index": 196,
+          "name": "153",
+          "modality": "sar",
+          "flood_fraction": 0.017822265625,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 197,
+          "name": "154",
+          "modality": "sar",
+          "flood_fraction": 0.007568359375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 198,
+          "name": "155",
+          "modality": "sar",
+          "flood_fraction": 0.00146484375,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 199,
+          "name": "156",
+          "modality": "sar",
+          "flood_fraction": 0.12646484375,
+          "iou": {
+            "classical": 0.6363636363636364,
+            "ablation": 0.6256239600665557,
+            "quantum": 0.6535162950257289
+          }
+        },
+        {
+          "index": 200,
+          "name": "157",
+          "modality": "sar",
+          "flood_fraction": 0.017578125,
+          "iou": {
+            "classical": 0.28,
+            "ablation": 0.25,
+            "quantum": 0.22972972972972974
+          }
+        },
+        {
+          "index": 201,
+          "name": "158",
+          "modality": "sar",
+          "flood_fraction": 0.003173828125,
+          "iou": {
+            "classical": 0.036585365853658534,
+            "ablation": 0.016129032258064516,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 202,
+          "name": "159",
+          "modality": "sar",
+          "flood_fraction": 0.00048828125,
+          "iou": {
+            "classical": 0.0,
+            "ablation": 0.0,
+            "quantum": 0.0
+          }
+        },
+        {
+          "index": 203,
+          "name": "160",
+          "modality": "sar",
+          "flood_fraction": 0.03759765625,
+          "iou": {
+            "classical": 0.6350710900473934,
+            "ablation": 0.6464088397790055,
+            "quantum": 0.5652173913043478
+          }
+        },
+        {
+          "index": 204,
+          "name": "163",
+          "modality": "sar",
+          "flood_fraction": 0.172607421875,
+          "iou": {
+            "classical": 0.660377358490566,
+            "ablation": 0.643719806763285,
+            "quantum": 0.6580732700135685
+          }
+        }
+      ],
+      "selected": {
+        "worst": 65,
+        "median": 39
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "left": "local_quantum_xz_zz",
+    "right": "local_quantum_z",
+    "seed": 42,
+    "n": 1,
+    "learning_rate": 0.001,
+    "split": "val",
+    "difference_pp": 0.00393240516169957,
+    "qualification": "One tuning seed at a fixed common rate; no across-seed uncertainty estimate"
+  },
+  {
+    "left": "local_quantum_xz_zz",
+    "right": "local_quantum_z",
+    "seed": 42,
+    "n": 1,
+    "learning_rate": 0.003,
+    "split": "val",
+    "difference_pp": 0.2400778690498817,
+    "qualification": "One tuning seed at a fixed common rate; no across-seed uncertainty estimate"
+  }
+]

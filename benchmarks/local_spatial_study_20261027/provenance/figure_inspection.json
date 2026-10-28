@@ -1,0 +1,81 @@
+{
+  "render_status": "passed",
+  "visual_inspection": "passed:all3originalPNGsandall3actualPDFexportsviewed;labels/legends/axesreadable,noclipping;pairedseed/rate/phaseassignmentcorrect;21validationpanelsandangle-onlysaturationgroupspresent",
+  "resources": {
+    "MemoryMax": "1G",
+    "MemorySwapMax": 0
+  },
+  "records": [
+    {
+      "name": "paired_quantum_classical",
+      "source_pdf_sha256": "64ed978078f1e3115ea119b1c5678cec4c252ab0fbf8766b4cc236c4108cf399",
+      "pages": 1,
+      "command": [
+        "/usr/bin/pdftoppm",
+        "-png",
+        "-singlefile",
+        "-scale-to",
+        "1600",
+        "/tmp/quaffle-local-spatial-kernel-20261027/benchmarks/local_spatial_study_20261027/plots/paired_quantum_classical.pdf",
+        "/tmp/quaffle-local-spatial-pdf-render-20261028/paired_quantum_classical"
+      ],
+      "exit_code": 0,
+      "raster_sha256": "0f0465b5edaac531f4ff2b0140ee8646bb631dee373e484f3f94ff62fcaab21f",
+      "raster_size": [
+        1600,
+        1163
+      ],
+      "pdfinfo": "Creator:         Matplotlib v3.11.2, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.11.2\nCreationDate:    Tue Oct 27 22:50:18 2026 EDT\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       782.418 x 568.243 pts\nPage rot:        0\nFile size:       21687 bytes\nOptimized:       no\nPDF version:     1.4\n",
+      "original_png_sha256": "d6f6eabfbe6829916987813766d69311c141f8d37d9b31073c5b65e984b230c4",
+      "visual_check": "passed"
+    },
+    {
+      "name": "validation_curves",
+      "source_pdf_sha256": "1a206d13ba8e248322cb1b623c6197c42ec7580622eba93f3653b0c7d013891f",
+      "pages": 1,
+      "command": [
+        "/usr/bin/pdftoppm",
+        "-png",
+        "-singlefile",
+        "-scale-to",
+        "1600",
+        "/tmp/quaffle-local-spatial-kernel-20261027/benchmarks/local_spatial_study_20261027/plots/validation_curves.pdf",
+        "/tmp/quaffle-local-spatial-pdf-render-20261028/validation_curves"
+      ],
+      "exit_code": 0,
+      "raster_sha256": "e6e940ce6d3849507ec1f94ed3441326bcc1ed9a93fdc681df45d15b83c219da",
+      "raster_size": [
+        1154,
+        1600
+      ],
+      "pdfinfo": "Creator:         Matplotlib v3.11.2, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.11.2\nCreationDate:    Tue Oct 27 22:50:21 2026 EDT\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       928.506 x 1288.24 pts\nPage rot:        0\nFile size:       37370 bytes\nOptimized:       no\nPDF version:     1.4\n",
+      "original_png_sha256": "3bb6f6a5a137f5925e8c930068bf65a720d7d60e61b8260d64e9f7d4c3e17e26",
+      "visual_check": "passed"
+    },
+    {
+      "name": "input_angle_saturation",
+      "source_pdf_sha256": "617b752facfb519948c4e20d3132e8eeddb6769838185f6238cadc56ccc8c669",
+      "pages": 1,
+      "command": [
+        "/usr/bin/pdftoppm",
+        "-png",
+        "-singlefile",
+        "-scale-to",
+        "1600",
+        "/tmp/quaffle-local-spatial-kernel-20261027/benchmarks/local_spatial_study_20261027/plots/input_angle_saturation.pdf",
+        "/tmp/quaffle-local-spatial-pdf-render-20261028/input_angle_saturation"
+      ],
+      "exit_code": 0,
+      "raster_sha256": "80407112ef1fc10def9eedb9aa3db84bf46a33351ef6f3d07ea46eeb6f24414f",
+      "raster_size": [
+        1600,
+        606
+      ],
+      "pdfinfo": "Creator:         Matplotlib v3.11.2, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.11.2\nCreationDate:    Tue Oct 27 22:50:21 2026 EDT\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       928.571 x 351.409 pts\nPage rot:        0\nFile size:       26076 bytes\nOptimized:       no\nPDF version:     1.4\n",
+      "original_png_sha256": "16d978329261753bfe55070cc785e0d85e7f839c64b9d54c8f5ac96d8bd62374",
+      "visual_check": "passed"
+    }
+  ],
+  "inspected_utc": "2026-10-28T02:54:08.697410+00:00",
+  "inspector": "coordinator"
+}

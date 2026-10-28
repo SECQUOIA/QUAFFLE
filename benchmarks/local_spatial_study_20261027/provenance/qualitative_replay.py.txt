@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""Render frozen local-study checkpoints and verify aggregate figure parity.
+
+Launch only after the complete 60-epoch spatial pilot is available, in a bounded
+root-owned process. The original figure evaluator, main and renderer execute
+unchanged. A temporary dispatch wrapper captures their actual masks/predictions
+and checks integer confusion counts against the saved study records.
+"""
+import argparse
+import hashlib
+import importlib
+import importlib.metadata
+import importlib.util
+import json
+import math
+from pathlib import Path
+import platform
+import subprocess
+import sys
+
+sys.dont_write_bytecode = True
+SEEDS = (42, 77, 123)
+ROLES = ('classical', 'ablation', 'quantum')
+BASE_SOURCES = {
+    'scripts/run_real_spatial_pilot.py', 'scripts/run_parameter_budget_comparison.py',
+    'utilsTorch/unetTorch.py', 'utilsTorch/utilsTorch.py', 'tools/training_common.py',
+    'tools/checkpoint_evaluation.py', 'flood_data.py', 'splits/norm_stats.json',
+    'scripts/run_local_spatial_study.py', 'utilsTorch/local_spatial.py',
+}
+FIGURE_SOURCE = 'misc/build_qualitative_error_figure.py'
+OUTPUTS = ('qualitative_eval_meta.json', 'qualitative_median_worst_fp_fn.png',
+           'qualitative_median_worst_fp_fn.pdf', 'per_tile_iou_scatter.png', 'per_tile_iou_scatter.pdf')
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def read(path):
+    def invalid(value):
+        raise ValueError('Nonfinite JSON number: ' + value)
+    return json.loads(Path(path).read_text(), parse_constant=invalid)
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def write(path, value):
+    Path(path).write_text(json.dumps(value, indent=2, allow_nan=False) + '\n')
+
+
+def within(root, name):
+    path = (root / name).resolve()
+    require(path.is_relative_to(root), 'Artifact/source path escapes its supplied root: ' + str(name))
+    return path
+
+
+def verify_sources(repo, plan):
+    require(set(plan['source_hashes']) == BASE_SOURCES, 'Spatial producer has an unexpected executable inventory')
+    for name, expected in plan['source_hashes'].items():
+        require(digest(within(repo, name)) == expected, 'Explicit repository snapshot differs from producer: ' + name)
+    names = sorted(BASE_SOURCES | {FIGURE_SOURCE})
+    return {name: digest(within(repo, name)) for name in names}
+
+
+def verify_module(module, repo, relative):
+    require(Path(module.__file__).resolve() == (repo / relative).resolve(),
+            'Imported module did not come from the explicit source snapshot: ' + relative)
+
+
+def index_selected(summary, model_id):
+    rows = [row for row in summary['records'] if row['id'] == model_id]
+    require(len(rows) == 3 and {row['seed'] for row in rows} == set(SEEDS),
+            'Missing or duplicated selected checkpoint seeds: ' + model_id)
+    return {row['seed']: row for row in rows}
+
+
+def check_budget(summary, label):
+    settings = summary['plan']['settings']
+    expected = dict(epochs=60, image_size=64, fit_cap=128, batch_size=16, eval_every=2, seeds=list(SEEDS))
+    require(all(settings.get(key) == value for key, value in expected.items()), label + ': not the matched 60-epoch local budget')
+
+
+def raw_mask_hashes(data_root, manifest):
+    expected_names = set(manifest['test'])
+    files = {}
+    for row in manifest['hashes']['test']:
+        if row['name'] not in expected_names:
+            continue
+        name = row['name']
+        require(name not in files, 'Duplicate test name in current raw-mask inventory')
+        path = within(data_root, str(Path('flood_combined/Testing/labels') / row['mask_file']))
+        files[name] = dict(relative_path=str(path.relative_to(data_root)), sha256=digest(path),
+                           manifest_md5=row['mask_md5'])
+    require(set(files) == expected_names and len(files) == 205, 'Incomplete current raw-mask inventory')
+    return files
+
+
+def derive_parity(group, evaluated, selected, checkpoint_hashes, raw_masks):
+    """Independently count the exact boolean arrays returned to the renderer."""
+    import numpy as np
+    meta, _, targets, predictions = evaluated
+    seed = meta['seed']
+    expected_rows = {role: selected[role][seed] for role in ROLES}
+    tiles = meta['tiles']
+    names = [tile['name'] for tile in tiles]
+    require([tile['index'] for tile in tiles] == list(range(205)), 'Figure tile indices/coverage differ')
+    require(len(targets) == len(tiles) == 205, 'Figure did not evaluate all test tiles')
+    require(meta['id'] == group['id'] and meta['dataset'] == 'combined', 'Figure group metadata differ')
+    mask_hashes = []
+    for tile, target in zip(tiles, targets):
+        require(tile['modality'] in ('optical', 'sar') and target.shape == (64, 64), 'Unexpected figure mask geometry/sensor')
+        mask = np.ascontiguousarray(target, dtype=np.bool_)
+        mask_hashes.append(dict(index=tile['index'], name=tile['name'], modality=tile['modality'],
+            boolean_mask_sha256=hashlib.sha256(mask.tobytes()).hexdigest(), shape=list(mask.shape),
+            dtype=str(mask.dtype), raw_mask=raw_masks[tile['name']]))
+    model_parity = {}
+    for role in ROLES:
+        row = expected_rows[role]
+        require(names == row['test_names'], 'Figure test-name order differs from saved record: ' + role)
+        require(meta['normalization'] == row['normalization'], 'Figure normalization differs from saved record: ' + role)
+        require(meta['checkpoints'][role]['sha256'] == checkpoint_hashes[seed][role], 'Figure loaded different checkpoint bytes: ' + role)
+        require(meta['checkpoints'][role]['total_params'] == row['total_params'], 'Loaded model parameter count differs from saved record: ' + role)
+        require(len(predictions[role]) == 205, 'Prediction coverage differs: ' + role)
+        counts = {sensor: dict(tp=0, fp=0, fn=0, tn=0, n_samples=0) for sensor in ('optical', 'sar')}
+        current_prediction_hashes = []
+        for index, (tile, target, predicted) in enumerate(zip(tiles, targets, predictions[role])):
+            require(predicted.shape == target.shape, 'Prediction and target shape differ')
+            target = np.asarray(target, dtype=np.bool_)
+            predicted = np.asarray(predicted, dtype=np.bool_)
+            integer = dict(tp=int(np.count_nonzero(predicted & target)),
+                fp=int(np.count_nonzero(predicted & ~target)), fn=int(np.count_nonzero(~predicted & target)),
+                tn=int(np.count_nonzero(~predicted & ~target)))
+            require(sum(integer.values()) == 64 * 64, 'Incomplete per-tile pixel counts')
+            union = integer['tp'] + integer['fp'] + integer['fn']
+            iou = integer['tp'] / union if union else 0.0
+            require(iou == tile['iou'][role], 'Figure tile IoU differs from its actual returned arrays')
+            sensor_counts = counts[tile['modality']]
+            for key, value in integer.items():
+                sensor_counts[key] += value
+            sensor_counts['n_samples'] += 1
+            current_prediction_hashes.append(dict(index=index, name=tile['name'],
+                sha256=hashlib.sha256(np.ascontiguousarray(predicted).tobytes()).hexdigest()))
+        saved = row['test']
+        for sensor, actual in counts.items():
+            for key, value in actual.items():
+                saved_value = saved[sensor + '_subset_' + key]
+                require(isinstance(saved_value, int) and not isinstance(saved_value, bool) and value == saved_value,
+                        f'EXACT saved-count parity failed: seed {seed}/{role}/{sensor}/{key}: {value} != {saved_value}')
+        require(counts['optical']['n_samples'] == 71 and counts['sar']['n_samples'] == 134, 'Unexpected sensor test coverage')
+        pooled = {key: sum(counts[sensor][key] for sensor in counts) for key in ('tp', 'fp', 'fn', 'tn')}
+        union = pooled['tp'] + pooled['fp'] + pooled['fn']
+        dice_denominator = 2 * pooled['tp'] + pooled['fp'] + pooled['fn']
+        derived = dict(iou=pooled['tp'] / union if union else 0.0,
+            dice=2 * pooled['tp'] / dice_denominator if dice_denominator else 0.0,
+            accuracy=(pooled['tp'] + pooled['tn']) / (205 * 64 * 64))
+        require(all(math.isclose(value, saved[key], abs_tol=1e-12, rel_tol=0) for key, value in derived.items()),
+                'Counts do not recombine to saved pooled metrics: ' + role)
+        model_parity[role] = dict(id=row['id'], learning_rate=row['learning_rate'], checkpoint_sha256=checkpoint_hashes[seed][role],
+            integer_counts=counts, derived_pooled_metrics=derived, exact_sensor_counts=True, exact_test_names=True,
+            current_prediction_sha256=current_prediction_hashes)
+    return dict(id=group['id'], seed=seed, mask_hashes=mask_hashes, models=model_parity)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--repo-root', type=Path, required=True)
+    parser.add_argument('--pilot-run', type=Path, required=True)
+    parser.add_argument('--reference-run', type=Path, required=True)
+    parser.add_argument('--data-root', type=Path, required=True)
+    parser.add_argument('--out-dir', type=Path, required=True)
+    parser.add_argument('--device', choices=('cpu', 'cuda'), default='cpu')
+    parser.add_argument('--batch-size', type=int, default=16)
+    args = parser.parse_args(argv)
+    require(args.batch_size > 0, 'Use a positive inference batch size')
+    repo, pilot_root, reference_root, data_root, out = (getattr(args, key).resolve()
+        for key in ('repo_root', 'pilot_run', 'reference_run', 'data_root', 'out_dir'))
+    require(not out.exists() or (out.is_dir() and not any(out.iterdir())), 'Use a new or empty output directory')
+    for immutable in (pilot_root, reference_root, data_root):
+        require(not out.is_relative_to(immutable) and not immutable.is_relative_to(out), 'Output aliases immutable run/data inputs')
+    require(not repo.is_relative_to(out), 'Output contains the source snapshot')
+    pilot_summary_path, reference_summary_path = pilot_root / 'summary.json', reference_root / 'summary.json'
+    summary, reference = read(pilot_summary_path), read(reference_summary_path)
+    require(summary['plan'] == read(pilot_root / 'plan.json') and reference['plan'] == read(reference_root / 'plan.json'),
+            'Summary and saved frozen plans differ')
+    check_budget(summary, 'pilot')
+    check_budget(reference, 'reference')
+    require(summary['plan']['input_identity'] == reference['plan']['input_identity'], 'Pilot/reference input identities differ')
+    sources_before = verify_sources(repo, summary['plan'])
+    executing_revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
+    helper_hash = digest(__file__)
+    summary_hashes = dict(pilot=digest(pilot_summary_path), reference=digest(reference_summary_path))
+    sys.path.insert(0, str(repo))
+    study = importlib.import_module('scripts.run_local_spatial_study')
+    pilot = importlib.import_module('scripts.run_real_spatial_pilot')
+    verify_module(study, repo, 'scripts/run_local_spatial_study.py')
+    verify_module(pilot, repo, 'scripts/run_real_spatial_pilot.py')
+    finalists = study.finalist_specs(summary)
+    quantum_id, classical_id = (spec['id'] for spec in finalists)
+    selected = dict(classical=index_selected(reference, 'unet_width7'),
+        ablation=index_selected(summary, classical_id), quantum=index_selected(summary, quantum_id))
+    checkpoint_paths, checkpoint_hashes = {}, {}
+    groups = []
+    for seed in SEEDS:
+        checkpoint_paths[seed], checkpoint_hashes[seed] = {}, {}
+        anchor = selected['classical'][seed]
+        for role in ROLES:
+            row = selected[role][seed]
+            require(row['model_type'] == role, 'Saved model type differs from the figure role')
+            for key in ('fit_names', 'val_names', 'fit_indices', 'val_indices', 'normalization', 'fit_sensor_counts', 'n_global_fit', 'test_names'):
+                require(row[key] == anchor[key], 'Compared models have different cohorts/normalization: ' + key)
+            require(row['settings']['image_size'] == 64 and row['settings']['num_epochs'] == 60 and
+                    row['settings']['optimization_fit_cap'] == 128 and row['settings']['dataset'] == 'combined' and
+                    row['settings']['seed'] == seed,
+                    'Saved checkpoint is not a matched 64-pixel/60-epoch/128-tile fit')
+            owner = reference_root if role == 'classical' else pilot_root
+            checkpoint = within(owner, row['checkpoint'])
+            require(read(checkpoint.parent / 'selected_test.json') == row, 'Selected raw replay differs from summary')
+            require(row['learning_rate'] == (reference if role == 'classical' else summary)['selection'][row['id']],
+                    'Checkpoint rate differs from validation selection')
+            checkpoint_paths[seed][role] = checkpoint
+            checkpoint_hashes[seed][role] = digest(checkpoint)
+        groups.append(dict(id='60ep seed ' + str(seed), checkpoints={role: dict(path=str(checkpoint_paths[seed][role])) for role in ROLES}))
+    identity_before = pilot.verify_inputs(data_root)
+    require(identity_before == summary['plan']['input_identity'], 'Current data differ from the frozen study input identity')
+    data_manifest = read(data_root / 'splits/flood_combined.json')
+    raw_masks_before = raw_mask_hashes(data_root, data_manifest)
+    require(all(row['test_names'] == data_manifest['test'] for role in ROLES for row in selected[role].values()),
+            'Saved test names differ from the complete current manifest')
+    expected_runtime = summary['plan']
+    versions = {name: importlib.metadata.version(name) for name in ('torch', 'pennylane', 'numpy', 'rasterio')}
+    require(platform.python_version() == expected_runtime['python'] and versions == expected_runtime['packages'],
+            'Inference Python/package versions differ from the recorded study environment')
+    spec = importlib.util.spec_from_file_location('quaffle_original_qualitative_figure', repo / FIGURE_SOURCE)
+    figure = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = figure
+    spec.loader.exec_module(figure)
+    verify_module(figure, repo, FIGURE_SOURCE)
+    for name, relative in (('tools.training_common', 'tools/training_common.py'),
+        ('tools.checkpoint_evaluation', 'tools/checkpoint_evaluation.py'), ('utilsTorch.unetTorch', 'utilsTorch/unetTorch.py'),
+        ('utilsTorch.utilsTorch', 'utilsTorch/utilsTorch.py'), ('utilsTorch.local_spatial', 'utilsTorch/local_spatial.py')):
+        verify_module(importlib.import_module(name), repo, relative)
+    import torch
+    torch.set_num_interop_threads(2)
+    manifest = dict(datasets=groups, selection_policy='Frozen finalist_specs uses all three paired validation scores only',
+        model_ids=dict(classical='unet_width7', ablation=classical_id, quantum=quantum_id),
+        phase='60-epoch spatial pilot', saved_summary_sha256=summary_hashes)
+    out.mkdir(parents=True, exist_ok=True)
+    manifest_path = out / 'qualitative_checkpoint_manifest.json'
+    write(manifest_path, manifest)
+    original_evaluator, original_main, original_render = figure.evaluate_group, figure.main, figure.render
+    captured = []
+    def evaluate_and_capture(group, *positional, **keywords):
+        evaluated = original_evaluator(group, *positional, **keywords)
+        captured.append(derive_parity(group, evaluated, selected, checkpoint_hashes, raw_masks_before))
+        print('EXACT sensor-count and test-name parity:', group['id'], flush=True)
+        return evaluated
+    figure.evaluate_group = evaluate_and_capture
+    try:
+        payload = figure.main(['--manifest', str(manifest_path), '--checkpoint-dir', str(repo),
+            '--data-root', str(data_root), '--out-dir', str(out), '--device', args.device, '--batch-size', str(args.batch_size)])
+    finally:
+        figure.evaluate_group = original_evaluator
+    require(figure.main is original_main and figure.render is original_render and figure.evaluate_group is original_evaluator,
+            'Original figure function bindings were not preserved/restored')
+    require(len(captured) == 3 and {row['seed'] for row in captured} == set(SEEDS), 'Incomplete figure parity capture')
+    reference_masks = [(row['name'], row['boolean_mask_sha256']) for row in captured[0]['mask_hashes']]
+    require(all([(row['name'], row['boolean_mask_sha256']) for row in group['mask_hashes']] == reference_masks for group in captured[1:]),
+            'Current transformed test-mask bytes differ between seed evaluations')
+    require(payload == read(out / 'qualitative_eval_meta.json') and payload['manifest_sha256'] == digest(manifest_path),
+            'Original figure metadata/manifest differ from the captured execution')
+    require(all((out / name).is_file() for name in OUTPUTS), 'Original figure outputs are incomplete')
+    module_identities = {}
+    for name, relative in (
+        ('scripts.run_local_spatial_study', 'scripts/run_local_spatial_study.py'),
+        ('scripts.run_real_spatial_pilot', 'scripts/run_real_spatial_pilot.py'),
+        ('scripts.run_parameter_budget_comparison', 'scripts/run_parameter_budget_comparison.py'),
+        ('tools.training_common', 'tools/training_common.py'),
+        ('tools.checkpoint_evaluation', 'tools/checkpoint_evaluation.py'),
+        ('utilsTorch.unetTorch', 'utilsTorch/unetTorch.py'),
+        ('utilsTorch.utilsTorch', 'utilsTorch/utilsTorch.py'),
+        ('utilsTorch.local_spatial', 'utilsTorch/local_spatial.py'), ('flood_data', 'flood_data.py')):
+        module = importlib.import_module(name)
+        verify_module(module, repo, relative)
+        module_identities[name] = dict(path=str(Path(module.__file__).resolve()), sha256=digest(module.__file__))
+    require(pilot.verify_inputs(data_root) == identity_before and raw_mask_hashes(data_root, data_manifest) == raw_masks_before,
+            'Raw inputs/masks changed during evaluation')
+    require(verify_sources(repo, summary['plan']) == sources_before, 'Source bytes changed during evaluation')
+    require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip() == executing_revision and
+            digest(__file__) == helper_hash, 'Executing source revision or helper bytes changed during evaluation')
+    require(dict(pilot=digest(pilot_summary_path), reference=digest(reference_summary_path)) == summary_hashes,
+            'Saved study summaries changed during evaluation')
+    require(all(digest(checkpoint_paths[seed][role]) == checkpoint_hashes[seed][role] for seed in SEEDS for role in ROLES),
+            'Checkpoint bytes changed during evaluation')
+    parity = dict(scope='Exact per-sensor TP/FP/FN/TN and sample counts plus ordered test names against saved selected records; derived thresholded pooled metrics also agree. '
+        'This does not prove per-pixel, logit, probability, loss or AUC identity to the original evaluation.',
+        source_snapshot=str(repo), executing_source_revision=executing_revision,
+        pilot_producer_revision=summary['plan']['source_revision'], helper_sha256=helper_hash,
+        source_sha256=sources_before, verified_module_identities=module_identities,
+        reference_producer_revision=reference['plan']['source_revision'],
+        reference_producer_source_hashes=reference['plan']['source_hashes'], input_identity=identity_before,
+        summary_sha256=summary_hashes, manifest_sha256=digest(manifest_path),
+        selected_ids=manifest['model_ids'], records=captured, current_mask_bytes_equal_across_seeds=True,
+        execution=dict(device=args.device, batch_size=args.batch_size, python=platform.python_version(), packages=versions,
+            matplotlib=importlib.metadata.version('matplotlib'), torch_threads=torch.get_num_threads(),
+            torch_interop_threads=torch.get_num_interop_threads(), torch_version=torch.__version__, torch_cuda_version=torch.version.cuda,
+            gpu=torch.cuda.get_device_name() if args.device == 'cuda' else None,
+            gpu_allocator_fraction=.12 if args.device == 'cuda' else None),
+        instrumentation='Only evaluate_group dispatch was wrapped to capture its original return; original main/render/evaluation code and source files unchanged',
+        original_output_sha256={name: digest(out / name) for name in OUTPUTS})
+    write(out / 'qualitative_metric_parity.json', parity)
+    print('QUALITATIVE PARITY COMPLETE:', out, flush=True)
+    return parity
+
+
+if __name__ == '__main__':
+    main()

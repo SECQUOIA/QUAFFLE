@@ -1,0 +1,147 @@
+{
+  "prefixes": [
+    {
+      "id": "local_quantum_z",
+      "seed": 42,
+      "learning_rate": 0.001,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 1.4901161193847656e-08,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_quantum_z",
+      "seed": 42,
+      "learning_rate": 0.003,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 2.2724270820617676e-06,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_quantum_z",
+      "seed": 77,
+      "learning_rate": 0.003,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 3.5762786865234375e-06,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_quantum_z",
+      "seed": 123,
+      "learning_rate": 0.003,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 1.080334186553955e-06,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_sincos",
+      "seed": 42,
+      "learning_rate": 0.001,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 1.7695128917694092e-08,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_sincos",
+      "seed": 42,
+      "learning_rate": 0.003,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 1.862645149230957e-08,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_sincos",
+      "seed": 77,
+      "learning_rate": 0.001,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 4.470348358154297e-08,
+      "max_abs_validation_iou_delta": 0.0
+    },
+    {
+      "id": "local_sincos",
+      "seed": 123,
+      "learning_rate": 0.001,
+      "comparable": true,
+      "exact_history_match": false,
+      "max_abs_train_loss_delta": 1.4901161193847656e-08,
+      "max_abs_validation_iou_delta": 0.0
+    }
+  ],
+  "selected_rate_contrasts": [
+    {
+      "id": "local_quantum_z",
+      "split": "val",
+      "rate60": 0.003,
+      "rate120": 0.003,
+      "same_learning_rate": true,
+      "differences": {
+        "42": 0.0,
+        "77": 0.0,
+        "123": 0.0
+      },
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 3,
+      "unit": "IoU percentage points",
+      "qualification": "Same selected rate; fresh fits share seeds/data, not independent replication"
+    },
+    {
+      "id": "local_quantum_z",
+      "split": "test",
+      "rate60": 0.003,
+      "rate120": 0.003,
+      "same_learning_rate": true,
+      "differences": {
+        "42": 0.0,
+        "77": 0.0,
+        "123": 0.0
+      },
+      "mean": 0.0,
+      "std": 0.0,
+      "n": 3,
+      "unit": "IoU percentage points",
+      "qualification": "Same selected rate; fresh fits share seeds/data, not independent replication"
+    },
+    {
+      "id": "local_sincos",
+      "split": "val",
+      "rate60": 0.001,
+      "rate120": 0.001,
+      "same_learning_rate": true,
+      "differences": {
+        "42": 0.0,
+        "77": 0.2614759202870687,
+        "123": 0.05077727141229449
+      },
+      "mean": 0.10408439723312106,
+      "std": 0.13864938322960707,
+      "n": 3,
+      "unit": "IoU percentage points",
+      "qualification": "Same selected rate; fresh fits share seeds/data, not independent replication"
+    },
+    {
+      "id": "local_sincos",
+      "split": "test",
+      "rate60": 0.001,
+      "rate120": 0.001,
+      "same_learning_rate": true,
+      "differences": {
+        "42": 0.0,
+        "77": 1.3071142582769424,
+        "123": 0.35979039999655127
+      },
+      "mean": 0.5556348860911645,
+      "std": 0.6752060560288005,
+      "n": 3,
+      "unit": "IoU percentage points",
+      "qualification": "Same selected rate; fresh fits share seeds/data, not independent replication"
+    }
+  ],
+  "prefix_policy": "Only actual matching model/seed/rate fits supply first-60-epoch prefixes; unmatched replication rates are explicitly unmeasured"
+}

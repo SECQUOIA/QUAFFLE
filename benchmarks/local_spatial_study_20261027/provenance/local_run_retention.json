@@ -1,0 +1,49 @@
+{
+  "status": "passed",
+  "scope": "Every file in all six completed raw-run roots and their persistent copies matches the recorded byte inventory;90 fitted checkpoints,32 historical+58new. Archive count is not an independent sample size.",
+  "run_inventory_sha256": "31de0432fc0db590b4ced0ecc665c406475c6a55e0aa0f2e23baa03728f3296c",
+  "helper_sha256": "e44fe627ea456e88ef11f47c6e9814bcb8251664af69c9db06132430e7e81510",
+  "runs": [
+    {
+      "run": "quaffle-local-rate-long120-20261027",
+      "fit_checkpoints": 18,
+      "files": 77,
+      "bytes": 45054079
+    },
+    {
+      "run": "quaffle-local-rate-matched60-20261027",
+      "fit_checkpoints": 4,
+      "files": 30,
+      "bytes": 10699745
+    },
+    {
+      "run": "quaffle-local-spatial-extend120-20261027",
+      "fit_checkpoints": 8,
+      "files": 38,
+      "bytes": 19332758
+    },
+    {
+      "run": "quaffle-local-spatial-pilot60-20261027",
+      "fit_checkpoints": 28,
+      "files": 113,
+      "bytes": 63897607
+    },
+    {
+      "run": "quaffle-real-quantum-controls-20261027",
+      "fit_checkpoints": 8,
+      "files": 35,
+      "bytes": 18170391
+    },
+    {
+      "run": "quaffle-real-spatial-runs-60ep-20261027",
+      "fit_checkpoints": 24,
+      "files": 96,
+      "bytes": 56994854
+    }
+  ],
+  "resources": {
+    "MemoryMax": "2G",
+    "MemorySwapMax": 0
+  },
+  "checkpoint_scope": "Fitted-model checkpoints only; separate synthetic compatibility proof excluded."
+}

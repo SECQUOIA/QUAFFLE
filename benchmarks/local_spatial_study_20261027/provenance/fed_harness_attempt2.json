@@ -1,0 +1,37 @@
+{
+  "status": "failed",
+  "source_revision": "f990aa7564ecb436f9818a1bea461220d6ff455f",
+  "scope": "One in-process Flower round with two synthetic clients per configuration; compatibility only, no FL accuracy claim",
+  "limits": {
+    "memory": "3G",
+    "swap": "0",
+    "threads": 2,
+    "cuda_visible_devices": ""
+  },
+  "cases": [],
+  "source_hashes": {
+    "federated_demoTorchQ.py": "03205158d5d4416929cb9585eab0131dff5653339b2df4e8752e58f375c63389",
+    "ablation_studies.py": "61fd5c08c3d595e12b4eba9abeb4f4d606b9959544b43889b40e350fb53e4ce4",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "tools/checkpoint_evaluation.py": "5ff0165e804c4a0e7dcfcc72c3464e06bc1f91d908b9bdfc47d32540c6327065",
+    "utilsTorch/local_spatial.py": "1b2526bf606ba2fedcc95b3601284e5a313fd350ff01224f92d5c85285c7f825",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "scripts/run_local_spatial_study.py": "c2f79bc3462bd7392a4fdbbaef0aaa7602f5df24f09239d39c62539eadb0e9fb"
+  },
+  "probe_sha256": "ee6b40f3b6a1dcc1357fc821e13dcf5ac216dbc746ae423bf09a7aad87aa1ca5",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "flwr": "1.42.0",
+    "numpy": "2.4.6"
+  },
+  "module_paths": {
+    "quantum": "/tmp/quaffle-local-spatial-kernel-20261027/federated_demoTorchQ.py",
+    "ablation": "/tmp/quaffle-local-spatial-kernel-20261027/ablation_studies.py",
+    "training_common": "/tmp/quaffle-local-spatial-kernel-20261027/tools/training_common.py"
+  },
+  "error_type": "AssertionError",
+  "error": "Input scales were not Euclidean-averaged",
+  "traceback": "Traceback (most recent call last):\n  File \"/tmp/quaffle-local-spatial-fed-probe.py\", line 282, in <module>\n    main()\n  File \"/tmp/quaffle-local-spatial-fed-probe.py\", line 259, in main\n    require(np.allclose(toy_arrays[position], 20 / 6, atol=2e-7, rtol=0),\n  File \"/tmp/quaffle-local-spatial-fed-probe.py\", line 33, in require\n    raise AssertionError(message)\nAssertionError: Input scales were not Euclidean-averaged\n"
+}

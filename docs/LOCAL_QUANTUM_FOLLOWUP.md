@@ -100,3 +100,13 @@ Read the [interpretation](../benchmarks/local_rate_stability_20261027/INTERPRETA
 [complete generated results](../benchmarks/local_rate_stability_20261027/README.md)
 and [reproduction instructions](../benchmarks/local_rate_stability_20261027/REPRODUCTION.md).
 The original protocol bytes are retained with the result provenance.
+
+## Recorded spatial-study outcomes
+
+The completed spatial study retains all 28 pilot fits and eight planned longer
+fits. Read the [interpretation](../benchmarks/local_spatial_study_20261027/INTERPRETATION.md),
+[complete generated results](../benchmarks/local_spatial_study_20261027/README.md),
+[reproduction instructions](../benchmarks/local_spatial_study_20261027/REPRODUCTION.md)
+and [full-size handoff for Alan](LOCAL_SPATIAL_CONFIRMATION.md).
+The original protocol and unsuccessful reporting/mechanics attempts are retained
+alongside successful audits; no test score selected additional fits.

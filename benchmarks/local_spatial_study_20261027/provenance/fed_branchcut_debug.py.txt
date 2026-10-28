@@ -1,0 +1,30 @@
+import sys
+sys.path.insert(0, '/tmp/quaffle-local-spatial-kernel-20261027')
+import numpy as np
+import torch
+from flwr.common import Code, FitRes, Status, ndarrays_to_parameters, parameters_to_ndarrays
+import federated_demoTorchQ as q
+from tools import training_common as tc
+from scripts.run_local_spatial_study import study_specs
+from utilsTorch.utilsTorch import QVUNetSegmentation
+torch.set_num_threads(2)
+torch.set_num_interop_threads(2)
+cfg = dict(study_specs()[1]['config'], seed=42, image_size=32, q_angle_agg='circular', comm_compression='none')
+m = tc.build_model(QVUNetSegmentation, cfg)
+names = [name for name, p in m.named_parameters()]
+initial = [a.copy() for a in q.torch_params_to_numpy(m)]
+periodic = {i for i, name in enumerate(names) if '.quantum_params.' in name}
+scales = {i for i, name in enumerate(names) if 'input_scales' in name}
+results = []
+for k, weight in enumerate((2, 4)):
+    arrays = [a.copy() for a in initial]
+    for i in periodic: arrays[i].fill(3.12 if k == 0 else -3.12)
+    for i in scales: arrays[i].fill(2 if k == 0 else 4)
+    results.append((None, FitRes(Status(Code.OK, ''), ndarrays_to_parameters(arrays), weight, {})))
+s = q.QuantumFedAvg(None, cfg, 'cpu', '/tmp/quaffle-fed-branchcut-debug', min_fit_clients=2,
+                    min_available_clients=2, initial_parameters=ndarrays_to_parameters(initial))
+s.template_model = m
+arrays = parameters_to_ndarrays(s.aggregate_fit(1, results, [])[0])
+for i in sorted(periodic | scales):
+    print(i, names[i], arrays[i].dtype, float(arrays[i].flat[0]), 'scale_expected',20/6,
+          'scale_delta',float(arrays[i].flat[0]) - 20/6)
