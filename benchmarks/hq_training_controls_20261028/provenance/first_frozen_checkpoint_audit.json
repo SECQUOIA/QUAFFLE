@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "scope": "First actual auxiliary frozen fit checkpoint; no inference or whole-grid completion claimed",
+  "producer": "7754773ca2c36020df22a8971e07765b2357cbc8",
+  "identity": [
+    "frozen_quantum",
+    42,
+    0.001
+  ],
+  "parameter_counts": {
+    "total": 344480,
+    "trainable": 344472,
+    "core_total": 8,
+    "core_trainable": 0,
+    "bottleneck_total": 270539,
+    "bottleneck_trainable": 270531
+  },
+  "core_gradient_coverage": {
+    "min": 0.0,
+    "max": 0.0,
+    "mean": 0.0,
+    "steps": 960,
+    "nonzero_steps": 0
+  },
+  "checkpoint_audit": {
+    "checkpoint_sha256": "8ba0331f868a4d9f734711063f23ac05a352905b255ad776b7d18809a9a2032b",
+    "strict_restore": true,
+    "finite_weights_and_bn_buffers": true,
+    "selected_state_sha256": "16a10e86b436b16890803351fda5c1fa95f1d3113bb956ccf0dcae63d243344c"
+  },
+  "strict_trainability_restored": true,
+  "frozen_coefficients_unchanged": true,
+  "history_records": 61,
+  "optimizer_batches": 960
+}

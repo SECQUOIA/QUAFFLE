@@ -1,0 +1,38 @@
+{
+  "scope": "Epoch0 validation metric/count comparison only; not a claim of complete-record or output-tensor byte equality, training outcomes, inference rerun, or whole-grid completion",
+  "checks": [
+    {
+      "seed": 42,
+      "all_prediction_metrics_and_counts_equal": true,
+      "preserved_differences": {
+        "loss": {
+          "learned": 1.4202841717263928,
+          "frozen": 1.4202841634335726
+        }
+      },
+      "loss_difference_frozen_minus_learned": -8.292820208311014e-09
+    },
+    {
+      "seed": 77,
+      "all_prediction_metrics_and_counts_equal": true,
+      "preserved_differences": {
+        "loss": {
+          "learned": 1.5649817052094832,
+          "frozen": 1.5649817135023034
+        }
+      },
+      "loss_difference_frozen_minus_learned": 8.292820208311014e-09
+    },
+    {
+      "seed": 123,
+      "all_prediction_metrics_and_counts_equal": true,
+      "preserved_differences": {
+        "loss": {
+          "learned": 1.4701264567997145,
+          "frozen": 1.4701264526533044
+        }
+      },
+      "loss_difference_frozen_minus_learned": -4.146410104155507e-09
+    }
+  ]
+}

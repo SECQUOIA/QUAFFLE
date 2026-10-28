@@ -1,0 +1,1554 @@
+{
+  "CSV_fields_checked": 2448,
+  "CSV_numeric_fields_checked": 2112,
+  "assertions": 21736,
+  "audit_runtime": {
+    "executable": "/home/bernalde/.local/bin/python3",
+    "project_imports": false,
+    "python": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]"
+  },
+  "audit_source_sha256": "5a8e777fdf54350105ebf3e5c314e99cf41ac94d6633d69cffaf8214f731f1c9",
+  "count_derived_metric_blocks_checked": 635,
+  "counting_basis": {
+    "fits": 20,
+    "fresh_fits": 12,
+    "historical_replays": 6,
+    "historical_reused_fits": 8,
+    "independent_seed_count": 3,
+    "new_primary_replays": 15,
+    "paired_seeds": 3
+  },
+  "csv": {
+    "paired.csv": {
+      "checked_fields": 288,
+      "checked_numeric_fields": 192,
+      "columns": 12,
+      "header": [
+        "left",
+        "right",
+        "split",
+        "metric",
+        "mean",
+        "std",
+        "n",
+        "wins",
+        "common_learning_rate",
+        "seed42_pp",
+        "seed77_pp",
+        "seed123_pp"
+      ],
+      "rows": 24,
+      "sha256": "4b9afd0fb1bf099aedc49b4221043173cc7dbef4be50b6b94039a76fc3ea76e3"
+    },
+    "per_seed.csv": {
+      "checked_fields": 795,
+      "checked_numeric_fields": 780,
+      "columns": 53,
+      "header": [
+        "kind",
+        "seed",
+        "learning_rate",
+        "best_epoch",
+        "total_params",
+        "trainable_params",
+        "core_params",
+        "val_loss",
+        "val_accuracy",
+        "val_auc",
+        "val_iou",
+        "val_dice",
+        "val_optical_subset_tp",
+        "val_optical_subset_fp",
+        "val_optical_subset_fn",
+        "val_optical_subset_tn",
+        "val_optical_subset_n_samples",
+        "val_optical_subset_iou",
+        "val_optical_subset_dice",
+        "val_optical_subset_accuracy",
+        "val_optical_subset_auc",
+        "val_sar_subset_tp",
+        "val_sar_subset_fp",
+        "val_sar_subset_fn",
+        "val_sar_subset_tn",
+        "val_sar_subset_n_samples",
+        "val_sar_subset_iou",
+        "val_sar_subset_dice",
+        "val_sar_subset_accuracy",
+        "val_sar_subset_auc",
+        "test_loss",
+        "test_accuracy",
+        "test_auc",
+        "test_iou",
+        "test_dice",
+        "test_optical_subset_tp",
+        "test_optical_subset_fp",
+        "test_optical_subset_fn",
+        "test_optical_subset_tn",
+        "test_optical_subset_n_samples",
+        "test_optical_subset_iou",
+        "test_optical_subset_dice",
+        "test_optical_subset_accuracy",
+        "test_optical_subset_auc",
+        "test_sar_subset_tp",
+        "test_sar_subset_fp",
+        "test_sar_subset_fn",
+        "test_sar_subset_tn",
+        "test_sar_subset_n_samples",
+        "test_sar_subset_iou",
+        "test_sar_subset_dice",
+        "test_sar_subset_accuracy",
+        "test_sar_subset_auc"
+      ],
+      "rows": 15,
+      "sha256": "c09846b3d69db28c1a7a1fc6f9c912f96f06e8cc848fb8f1d0e50a14defb8809"
+    },
+    "summary.csv": {
+      "checked_fields": 145,
+      "checked_numeric_fields": 140,
+      "columns": 29,
+      "header": [
+        "kind",
+        "learning_rate",
+        "total_params",
+        "trainable_params",
+        "core_params",
+        "total",
+        "trainable",
+        "core_total",
+        "core_trainable",
+        "bottleneck_total",
+        "bottleneck_trainable",
+        "val_iou_mean",
+        "val_iou_std",
+        "val_iou_n",
+        "val_optical_subset_iou_mean",
+        "val_optical_subset_iou_std",
+        "val_optical_subset_iou_n",
+        "val_sar_subset_iou_mean",
+        "val_sar_subset_iou_std",
+        "val_sar_subset_iou_n",
+        "test_iou_mean",
+        "test_iou_std",
+        "test_iou_n",
+        "test_optical_subset_iou_mean",
+        "test_optical_subset_iou_std",
+        "test_optical_subset_iou_n",
+        "test_sar_subset_iou_mean",
+        "test_sar_subset_iou_std",
+        "test_sar_subset_iou_n"
+      ],
+      "rows": 5,
+      "sha256": "2fb0e9d9b53a36ba92394210d52ade8ba6c5b497279feef3cac26ec49fbda38a"
+    },
+    "trainability.csv": {
+      "checked_fields": 640,
+      "checked_numeric_fields": 480,
+      "columns": 16,
+      "header": [
+        "control",
+        "seed",
+        "learning_rate",
+        "origin",
+        "group",
+        "total_params",
+        "trainable_params",
+        "core_params",
+        "angle_probe_scope",
+        "movement_l2",
+        "relative_movement_l2",
+        "gradient_min",
+        "gradient_mean",
+        "gradient_max",
+        "gradient_steps",
+        "gradient_nonzero_steps"
+      ],
+      "rows": 40,
+      "sha256": "037eb9169950aa8b7641f903a2275c4b00b0dab31a81dad1c37f03eb6b5d3d5e"
+    },
+    "tuning.csv": {
+      "checked_fields": 580,
+      "checked_numeric_fields": 520,
+      "columns": 29,
+      "header": [
+        "control",
+        "seed",
+        "learning_rate",
+        "role",
+        "origin",
+        "best_epoch",
+        "val_loss",
+        "val_accuracy",
+        "val_auc",
+        "val_iou",
+        "val_dice",
+        "val_optical_subset_tp",
+        "val_optical_subset_fp",
+        "val_optical_subset_fn",
+        "val_optical_subset_tn",
+        "val_optical_subset_n_samples",
+        "val_optical_subset_iou",
+        "val_optical_subset_dice",
+        "val_optical_subset_accuracy",
+        "val_optical_subset_auc",
+        "val_sar_subset_tp",
+        "val_sar_subset_fp",
+        "val_sar_subset_fn",
+        "val_sar_subset_tn",
+        "val_sar_subset_n_samples",
+        "val_sar_subset_iou",
+        "val_sar_subset_dice",
+        "val_sar_subset_accuracy",
+        "val_sar_subset_auc"
+      ],
+      "rows": 20,
+      "sha256": "c5d72b6bca85afa664a0f9bcd2f747ac9e4e974951d8b689813b5adf0efbc63f"
+    }
+  },
+  "errors": [],
+  "fit_artifacts": [
+    {
+      "bytes": 80029,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.001/seed42/metrics.json",
+      "sha256": "7145325649f89f3e7e968617ff3057f7e467d5cbddf6e8160d2bf084e9e0c839"
+    },
+    {
+      "bytes": 63803,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.001/seed42/history.json",
+      "sha256": "1febadcee84c7b7551bb1e3f4beccc3ca7cb8e14431dfaff730b46f61196b673"
+    },
+    {
+      "bytes": 1418868,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.001/seed42/checkpoint.pt",
+      "sha256": "bccbb2729a8975fb89a919888bb3e0d28eddc2c30eca1b396a8e620d577c9b0d"
+    },
+    {
+      "bytes": 79996,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.003/seed42/metrics.json",
+      "sha256": "202ac876eeaba1c2d7e93e3987fa68ca56932ecb3ee57c1b0a51ee67116795bb"
+    },
+    {
+      "bytes": 63811,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.003/seed42/history.json",
+      "sha256": "f15fcd80b24ba8aba9b1692b5a5214877ebf21c521363596d4af4fead6b5fa55"
+    },
+    {
+      "bytes": 1418868,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_quantum/0.003/seed42/checkpoint.pt",
+      "sha256": "076b652b61df0a83ea4e363d0a73835115c103cd27bf3d5e44731a4505514a3a"
+    },
+    {
+      "bytes": 79956,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.001/seed42/metrics.json",
+      "sha256": "967bd06ce81d15b0c16418d302c2b3a5a4206aa48c612d1afcd4e769d13e4873"
+    },
+    {
+      "bytes": 63745,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.001/seed42/history.json",
+      "sha256": "539788e33a980d7c39d2a4158fc03908d39aa29325e726ab0f99e1f175120ef7"
+    },
+    {
+      "bytes": 1440622,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.001/seed42/checkpoint.pt",
+      "sha256": "c16837364da630817f2e181911811e790904e28c0716875eabccb43c39937873"
+    },
+    {
+      "bytes": 80002,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.003/seed42/metrics.json",
+      "sha256": "a397f9f5e57d0e0092cde3f01edbd0060d2d4f9d1392e562701c5a5688b937dd"
+    },
+    {
+      "bytes": 63833,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.003/seed42/history.json",
+      "sha256": "d987fc5b90542e8fc885591c14204f3d4768d4590d1a8f6885d522c2c34f741b"
+    },
+    {
+      "bytes": 1440622,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/tuning/hq_mlp/0.003/seed42/checkpoint.pt",
+      "sha256": "0311ea5141d79c46c9964bc998a6397908318244a271e5ca57812aebf2bdf492"
+    },
+    {
+      "bytes": 79968,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed77/metrics.json",
+      "sha256": "0da80e1c8763b5cdf19b1639157fdd504d85cade14d59b4efd0787d5d9cb2d7f"
+    },
+    {
+      "bytes": 63766,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed77/history.json",
+      "sha256": "b1ebc142e36bc2597a346d96e8ab4d46e8ab3ddf6c86538e5a271250de0421a2"
+    },
+    {
+      "bytes": 1418868,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed77/checkpoint.pt",
+      "sha256": "9ea1c80a35af774ab3a52e4c8b4fb86eaee9834be9a42d166bacf7df18f6b7f5"
+    },
+    {
+      "bytes": 80057,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed123/metrics.json",
+      "sha256": "0b688b0a8eec200cd5b53ace81d35c072cc1695306768d07296f4d8730e7c6f7"
+    },
+    {
+      "bytes": 63886,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed123/history.json",
+      "sha256": "d63257c15b8f9c8d21bea0e39d298631263d83b66d116e3b0550353be0e39bf5"
+    },
+    {
+      "bytes": 1418868,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_quantum/seed123/checkpoint.pt",
+      "sha256": "08338037830d79866e1499fa9c21ae29c9c3a9cbc8c994902692a380b7bc8d4e"
+    },
+    {
+      "bytes": 79848,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed77/metrics.json",
+      "sha256": "eab8feb268f6ca5514e874ce2e7e9f66260535015b4792000b3fbcdc4a993a43"
+    },
+    {
+      "bytes": 63634,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed77/history.json",
+      "sha256": "2c22e1175dd79fd9d603981867049ce9e78f1dc9b9e24d4a0823f6b054fe1548"
+    },
+    {
+      "bytes": 1440622,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed77/checkpoint.pt",
+      "sha256": "e9f424e432963045fa63f8d7d7c4edf39a6948b77771fe8bb43eb1851764a9d9"
+    },
+    {
+      "bytes": 79950,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed123/metrics.json",
+      "sha256": "038722759d2864fa29c9a9a05d0b09484f60f78c02116e517bac6f48cdd80de9"
+    },
+    {
+      "bytes": 63773,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed123/history.json",
+      "sha256": "a162bdb53a1d62269881f490fa962a1041013dae802b2989b47ff1f4333fa6bc"
+    },
+    {
+      "bytes": 1440622,
+      "origin": "reused",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028/replication/hq_mlp/seed123/checkpoint.pt",
+      "sha256": "028eeaa772de139ad9a9b9ea52ed62432dee94a93d9521651e9aa357d7ba2f70"
+    },
+    {
+      "bytes": 79710,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.001/seed42/metrics.json",
+      "sha256": "ef9bf18a62853543250eaabecb0323254a1403da21bdb959ee711631421ce878"
+    },
+    {
+      "bytes": 60655,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.001/seed42/history.json",
+      "sha256": "fc27408908f0eab1d0acd164fc926c0c56cf8e0d92f976277a1dddcc0e612ef7"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.001/seed42/checkpoint.pt",
+      "sha256": "8ba0331f868a4d9f734711063f23ac05a352905b255ad776b7d18809a9a2032b"
+    },
+    {
+      "bytes": 79687,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed42/metrics.json",
+      "sha256": "3a4c9ecbca0beace2ef600af75a70a7d41c78afd7f0f669fcaa346fd4828df6c"
+    },
+    {
+      "bytes": 60659,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed42/history.json",
+      "sha256": "90d09277d742163278f9af245e022c15676125ca1491ee201476da435e9d0290"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed42/checkpoint.pt",
+      "sha256": "7c262fb50e0cb4947a11c1f239c56fe465c323fb58d5dfa9c3e4310c66fd9cd1"
+    },
+    {
+      "bytes": 79503,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed77/metrics.json",
+      "sha256": "7a810fcc0f240fe173c003ce48d069389fac77242e2e778b63bbb586757993fa"
+    },
+    {
+      "bytes": 60487,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed77/history.json",
+      "sha256": "55878535e409bb4ac522ace2d32374260eccb9b97cf2df2dca402a50e5a9a97b"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed77/checkpoint.pt",
+      "sha256": "606b98d057d8f719e6ba4aa0151bdd0cc29305a9031af3c8ee5747363e405a6c"
+    },
+    {
+      "bytes": 79685,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed123/metrics.json",
+      "sha256": "079b873945b20faa6b2585fc87b3e929406ab2d8e230843a165832a6298f9810"
+    },
+    {
+      "bytes": 60681,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed123/history.json",
+      "sha256": "491165913e69616c85250e00b2231da2aecfa033581546b4427d180ae63187ae"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_frozen_quantum/0.003/seed123/checkpoint.pt",
+      "sha256": "6d61d3a7ab5a794a28db8d9c317610ffbf3ff87be41bcf6ff556d48708f58265"
+    },
+    {
+      "bytes": 79724,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.001/seed42/metrics.json",
+      "sha256": "73764c8e92462668fba3524d16c49e83b4de9a9c19e9e518ea8f5279a9209be8"
+    },
+    {
+      "bytes": 60658,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.001/seed42/history.json",
+      "sha256": "b49cc0295263d5b5d5e50ee620a7ce2ee45f6e4ee3ecc9f324db9d940dc9a53a"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.001/seed42/checkpoint.pt",
+      "sha256": "e0af40498af92ba9a65c22cb9ff8f19f254c09ff4f8cab3dce7b4023f030faab"
+    },
+    {
+      "bytes": 79752,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed42/metrics.json",
+      "sha256": "77107a9f9fbc5397abf14708842688af81afcf0922672805a2b6afbcccc06690"
+    },
+    {
+      "bytes": 60688,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed42/history.json",
+      "sha256": "e1238c7295149063273d51a5802d7a7decf8a6259d515a61cfa4f4253cefc699"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed42/checkpoint.pt",
+      "sha256": "1e2244b52fdcb83e731354a99cfeec580aed90bb79100f712f7e86ebf488833b"
+    },
+    {
+      "bytes": 79526,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed77/metrics.json",
+      "sha256": "9686966c778cb24ea54ba325aa15a1e79782f4daae954922037f5f2cea256a6f"
+    },
+    {
+      "bytes": 60475,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed77/history.json",
+      "sha256": "f858a35687b01131d046265d6fea6970bafeb9f03a2fb9d25eec945d8442688e"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed77/checkpoint.pt",
+      "sha256": "0410f013d118635c49d44315cfb890fe0a96ed3601fafeb73be659746e882d0f"
+    },
+    {
+      "bytes": 79698,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed123/metrics.json",
+      "sha256": "77ab032f1a652bdbc9b7bc8bde0e71c175ef6bdf9b76184d2d1b4d9cc40ff7ab"
+    },
+    {
+      "bytes": 60663,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed123/history.json",
+      "sha256": "053f432ecc817a3909af990002b651a0935546565196e411be88caffd877a905"
+    },
+    {
+      "bytes": 1422205,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_zero_bottleneck/0.003/seed123/checkpoint.pt",
+      "sha256": "091f455f98af5b592d25a3ccd603f5644f4f133d4b82bef3b624e44bb0184c45"
+    },
+    {
+      "bytes": 82895,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.001/seed42/metrics.json",
+      "sha256": "ec3304c4bf5981a2f58d6fdb31aeda6456a741b3f7dbb36c6831c9af4086a7ad"
+    },
+    {
+      "bytes": 63724,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.001/seed42/history.json",
+      "sha256": "9f1134180f66c3c1868e1ba386942d2a390b9dcb37e998af818d8481e1df40e3"
+    },
+    {
+      "bytes": 1428798,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.001/seed42/checkpoint.pt",
+      "sha256": "17c71a54f1355c2d1bcb5df24c68fd0cad6779d84d8aa1a34a0ab025fe25f20d"
+    },
+    {
+      "bytes": 82964,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed42/metrics.json",
+      "sha256": "d9bc4a953d66a4423e92515b01cc6071c8259fef19b17661b785de83b34fd9a4"
+    },
+    {
+      "bytes": 63796,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed42/history.json",
+      "sha256": "4062c73ffd5ebeb16ad011f9688247edaf16b97ef0074cf570aed02aa5aaf70a"
+    },
+    {
+      "bytes": 1428798,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed42/checkpoint.pt",
+      "sha256": "25d092c0c23972a0f8c167359fe7d794c976a8e96d30964ce637532fb6213910"
+    },
+    {
+      "bytes": 82900,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed77/metrics.json",
+      "sha256": "339f58a04819ce54ec3b2059df3f1c76ad14ffe1b36358cc1acd635c32a99f4e"
+    },
+    {
+      "bytes": 63716,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed77/history.json",
+      "sha256": "63935b6b021640bd06a3f799688f96323a2c753342c1ad9784b20dabb4a1b0c3"
+    },
+    {
+      "bytes": 1428798,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed77/checkpoint.pt",
+      "sha256": "8f4ef09caf79a56c7a1ddb348cc9c80cfe1fb5916a8b766f47df801c74db078c"
+    },
+    {
+      "bytes": 82919,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed123/metrics.json",
+      "sha256": "52e12a4f6efb7a4cc84d21e7f29fd41244ea61d72c8896134f3ab55f93ef25e4"
+    },
+    {
+      "bytes": 63754,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed123/history.json",
+      "sha256": "7cea53b0591237a607acfdc15d14991a81a701b8f9a4cd78c58018d2dcf96896"
+    },
+    {
+      "bytes": 1428798,
+      "origin": "fresh",
+      "path": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs/fits/hq_compact_affine/0.003/seed123/checkpoint.pt",
+      "sha256": "38600998e9ab53306d156a4864c72647facf849b46aeef9fdd3ff55147447ebb"
+    }
+  ],
+  "fits": [
+    {
+      "best_epoch": 24,
+      "checkpoint_sha256": "bccbb2729a8975fb89a919888bb3e0d28eddc2c30eca1b396a8e620d577c9b0d",
+      "kind": "quantum",
+      "learning_rate": 0.001,
+      "origin": "reused",
+      "seed": 42,
+      "val_iou": 0.5603895698599488
+    },
+    {
+      "best_epoch": 58,
+      "checkpoint_sha256": "076b652b61df0a83ea4e363d0a73835115c103cd27bf3d5e44731a4505514a3a",
+      "kind": "quantum",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 42,
+      "val_iou": 0.5719341682931578
+    },
+    {
+      "best_epoch": 60,
+      "checkpoint_sha256": "c16837364da630817f2e181911811e790904e28c0716875eabccb43c39937873",
+      "kind": "mlp",
+      "learning_rate": 0.001,
+      "origin": "reused",
+      "seed": 42,
+      "val_iou": 0.5642793094363975
+    },
+    {
+      "best_epoch": 54,
+      "checkpoint_sha256": "0311ea5141d79c46c9964bc998a6397908318244a271e5ca57812aebf2bdf492",
+      "kind": "mlp",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 42,
+      "val_iou": 0.5675216097491852
+    },
+    {
+      "best_epoch": 60,
+      "checkpoint_sha256": "9ea1c80a35af774ab3a52e4c8b4fb86eaee9834be9a42d166bacf7df18f6b7f5",
+      "kind": "quantum",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 77,
+      "val_iou": 0.6591515240328253
+    },
+    {
+      "best_epoch": 58,
+      "checkpoint_sha256": "08338037830d79866e1499fa9c21ae29c9c3a9cbc8c994902692a380b7bc8d4e",
+      "kind": "quantum",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 123,
+      "val_iou": 0.5758185728324495
+    },
+    {
+      "best_epoch": 60,
+      "checkpoint_sha256": "e9f424e432963045fa63f8d7d7c4edf39a6948b77771fe8bb43eb1851764a9d9",
+      "kind": "mlp",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 77,
+      "val_iou": 0.6515769763879095
+    },
+    {
+      "best_epoch": 28,
+      "checkpoint_sha256": "028eeaa772de139ad9a9b9ea52ed62432dee94a93d9521651e9aa357d7ba2f70",
+      "kind": "mlp",
+      "learning_rate": 0.003,
+      "origin": "reused",
+      "seed": 123,
+      "val_iou": 0.5798861676521313
+    },
+    {
+      "best_epoch": 46,
+      "checkpoint_sha256": "8ba0331f868a4d9f734711063f23ac05a352905b255ad776b7d18809a9a2032b",
+      "kind": "frozen_quantum",
+      "learning_rate": 0.001,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.5661632027342867
+    },
+    {
+      "best_epoch": 44,
+      "checkpoint_sha256": "7c262fb50e0cb4947a11c1f239c56fe465c323fb58d5dfa9c3e4310c66fd9cd1",
+      "kind": "frozen_quantum",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.5686946096464718
+    },
+    {
+      "best_epoch": 54,
+      "checkpoint_sha256": "606b98d057d8f719e6ba4aa0151bdd0cc29305a9031af3c8ee5747363e405a6c",
+      "kind": "frozen_quantum",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 77,
+      "val_iou": 0.6477485642257079
+    },
+    {
+      "best_epoch": 56,
+      "checkpoint_sha256": "6d61d3a7ab5a794a28db8d9c317610ffbf3ff87be41bcf6ff556d48708f58265",
+      "kind": "frozen_quantum",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 123,
+      "val_iou": 0.5821387068738221
+    },
+    {
+      "best_epoch": 24,
+      "checkpoint_sha256": "e0af40498af92ba9a65c22cb9ff8f19f254c09ff4f8cab3dce7b4023f030faab",
+      "kind": "zero_bottleneck",
+      "learning_rate": 0.001,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.5641539476490692
+    },
+    {
+      "best_epoch": 24,
+      "checkpoint_sha256": "1e2244b52fdcb83e731354a99cfeec580aed90bb79100f712f7e86ebf488833b",
+      "kind": "zero_bottleneck",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.571966174380225
+    },
+    {
+      "best_epoch": 60,
+      "checkpoint_sha256": "0410f013d118635c49d44315cfb890fe0a96ed3601fafeb73be659746e882d0f",
+      "kind": "zero_bottleneck",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 77,
+      "val_iou": 0.6586750961655918
+    },
+    {
+      "best_epoch": 56,
+      "checkpoint_sha256": "091f455f98af5b592d25a3ccd603f5644f4f133d4b82bef3b624e44bb0184c45",
+      "kind": "zero_bottleneck",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 123,
+      "val_iou": 0.5913898801137534
+    },
+    {
+      "best_epoch": 22,
+      "checkpoint_sha256": "17c71a54f1355c2d1bcb5df24c68fd0cad6779d84d8aa1a34a0ab025fe25f20d",
+      "kind": "compact_affine",
+      "learning_rate": 0.001,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.5615522865581891
+    },
+    {
+      "best_epoch": 44,
+      "checkpoint_sha256": "25d092c0c23972a0f8c167359fe7d794c976a8e96d30964ce637532fb6213910",
+      "kind": "compact_affine",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 42,
+      "val_iou": 0.5668289894030502
+    },
+    {
+      "best_epoch": 60,
+      "checkpoint_sha256": "8f4ef09caf79a56c7a1ddb348cc9c80cfe1fb5916a8b766f47df801c74db078c",
+      "kind": "compact_affine",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 77,
+      "val_iou": 0.6506651053745965
+    },
+    {
+      "best_epoch": 28,
+      "checkpoint_sha256": "38600998e9ab53306d156a4864c72647facf849b46aeef9fdd3ff55147447ebb",
+      "kind": "compact_affine",
+      "learning_rate": 0.003,
+      "origin": "fresh",
+      "seed": 123,
+      "val_iou": 0.5805110657951407
+    }
+  ],
+  "initial_quantum_frozen_parity": [
+    {
+      "auc_observation_only": {
+        "auc": {
+          "difference": 0.0,
+          "frozen": 0.4140041979152161,
+          "quantum": 0.4140041979152161
+        },
+        "optical_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.6962376176497026,
+          "quantum": 0.6962376176497026
+        },
+        "sar_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.33916906915002587,
+          "quantum": 0.33916906915002587
+        }
+      },
+      "exact_prediction_fields": {
+        "accuracy": true,
+        "auc": true,
+        "dice": true,
+        "iou": true,
+        "optical_subset_accuracy": true,
+        "optical_subset_auc": true,
+        "optical_subset_dice": true,
+        "optical_subset_fn": true,
+        "optical_subset_fp": true,
+        "optical_subset_iou": true,
+        "optical_subset_n_samples": true,
+        "optical_subset_tn": true,
+        "optical_subset_tp": true,
+        "sar_subset_accuracy": true,
+        "sar_subset_auc": true,
+        "sar_subset_dice": true,
+        "sar_subset_fn": true,
+        "sar_subset_fp": true,
+        "sar_subset_iou": true,
+        "sar_subset_n_samples": true,
+        "sar_subset_tn": true,
+        "sar_subset_tp": true
+      },
+      "loss_observation_only": {
+        "absolute_difference": 8.292820208311014e-09,
+        "binary64_ulp_distance": 37347542,
+        "equal": false,
+        "frozen_loss": 1.4202841634335726,
+        "quantum_loss": 1.4202841717263928,
+        "signed_frozen_minus_quantum": -8.292820208311014e-09
+      },
+      "seed": 42
+    },
+    {
+      "auc_observation_only": {
+        "auc": {
+          "difference": 0.0,
+          "frozen": 0.5983614381116068,
+          "quantum": 0.5983614381116068
+        },
+        "optical_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.6019065524827841,
+          "quantum": 0.6019065524827841
+        },
+        "sar_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.5550503629719522,
+          "quantum": 0.5550503629719522
+        }
+      },
+      "exact_prediction_fields": {
+        "accuracy": true,
+        "auc": true,
+        "dice": true,
+        "iou": true,
+        "optical_subset_accuracy": true,
+        "optical_subset_auc": true,
+        "optical_subset_dice": true,
+        "optical_subset_fn": true,
+        "optical_subset_fp": true,
+        "optical_subset_iou": true,
+        "optical_subset_n_samples": true,
+        "optical_subset_tn": true,
+        "optical_subset_tp": true,
+        "sar_subset_accuracy": true,
+        "sar_subset_auc": true,
+        "sar_subset_dice": true,
+        "sar_subset_fn": true,
+        "sar_subset_fp": true,
+        "sar_subset_iou": true,
+        "sar_subset_n_samples": true,
+        "sar_subset_tn": true,
+        "sar_subset_tp": true
+      },
+      "loss_observation_only": {
+        "absolute_difference": 8.292820208311014e-09,
+        "binary64_ulp_distance": 37347542,
+        "equal": false,
+        "frozen_loss": 1.5649817135023034,
+        "quantum_loss": 1.5649817052094832,
+        "signed_frozen_minus_quantum": 8.292820208311014e-09
+      },
+      "seed": 77
+    },
+    {
+      "auc_observation_only": {
+        "auc": {
+          "difference": 0.0,
+          "frozen": 0.302588414213657,
+          "quantum": 0.302588414213657
+        },
+        "optical_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.44752741700326937,
+          "quantum": 0.44752741700326937
+        },
+        "sar_subset_auc": {
+          "difference": 0.0,
+          "frozen": 0.29457891386752943,
+          "quantum": 0.29457891386752943
+        }
+      },
+      "exact_prediction_fields": {
+        "accuracy": true,
+        "auc": true,
+        "dice": true,
+        "iou": true,
+        "optical_subset_accuracy": true,
+        "optical_subset_auc": true,
+        "optical_subset_dice": true,
+        "optical_subset_fn": true,
+        "optical_subset_fp": true,
+        "optical_subset_iou": true,
+        "optical_subset_n_samples": true,
+        "optical_subset_tn": true,
+        "optical_subset_tp": true,
+        "sar_subset_accuracy": true,
+        "sar_subset_auc": true,
+        "sar_subset_dice": true,
+        "sar_subset_fn": true,
+        "sar_subset_fp": true,
+        "sar_subset_iou": true,
+        "sar_subset_n_samples": true,
+        "sar_subset_tn": true,
+        "sar_subset_tp": true
+      },
+      "loss_observation_only": {
+        "absolute_difference": 4.146410104155507e-09,
+        "binary64_ulp_distance": 18673771,
+        "equal": false,
+        "frozen_loss": 1.4701264526533044,
+        "quantum_loss": 1.4701264567997145,
+        "signed_frozen_minus_quantum": -4.146410104155507e-09
+      },
+      "seed": 123
+    }
+  ],
+  "learning_rate_policy": "All15 primary records fixed.003; allfive seed42.001 fits retained as auxiliary without rate reselection",
+  "limitations": [
+    "No images, TIFF sensor detection, Torch imports, checkpoint tensor deserialization or inference.",
+    "AUC is not recoverable from confusion counts: only its saved range is checked.",
+    "requires_grad does not establish functional influence or parameter importance; no active-parameter count is inferred.",
+    "Gradient histories contain per-epoch aggregates covering960 updates, not each individual batch value.",
+    "Eight reused fits and six older test replays are historical evidence; three paired seeds remain.",
+    "Angle probes describe eight fixed optimization images; zero-control encodings are inactive counterfactuals.",
+    "No fresh holdout, statistical significance/equivalence, hardware/Anvil/throughput or quantum-causality claim."
+  ],
+  "model_summary": [
+    {
+      "bottleneck_total": 270539,
+      "bottleneck_trainable": 270539,
+      "core_params": 8,
+      "core_total": 8,
+      "core_trainable": 8,
+      "kind": "quantum",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.6092260526132155,
+      "test_iou_n": 3,
+      "test_iou_std": 0.012186102693833049,
+      "test_optical_subset_iou_mean": 0.6159681377768592,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.013256661376194065,
+      "test_sar_subset_iou_mean": 0.5949400975474103,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.012288637646391416,
+      "total": 344480,
+      "total_params": 344480,
+      "trainable": 344480,
+      "trainable_params": 344480,
+      "val_iou_mean": 0.6023014217194775,
+      "val_iou_n": 3,
+      "val_iou_std": 0.04927192658537717,
+      "val_optical_subset_iou_mean": 0.5901695266961935,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.1292747304667981,
+      "val_sar_subset_iou_mean": 0.5921086358456157,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.061736508318447764
+    },
+    {
+      "bottleneck_total": 270539,
+      "bottleneck_trainable": 270531,
+      "core_params": 8,
+      "core_total": 8,
+      "core_trainable": 0,
+      "kind": "frozen_quantum",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.6037984498705847,
+      "test_iou_n": 3,
+      "test_iou_std": 0.005862723012345356,
+      "test_optical_subset_iou_mean": 0.6117777780093187,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.010355750560221028,
+      "test_sar_subset_iou_mean": 0.5863491009473684,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.007955369167530797,
+      "total": 344480,
+      "total_params": 344480,
+      "trainable": 344472,
+      "trainable_params": 344472,
+      "val_iou_mean": 0.5995272935820006,
+      "val_iou_n": 3,
+      "val_iou_std": 0.042298394111772906,
+      "val_optical_subset_iou_mean": 0.5919570851973152,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.11851785908508979,
+      "val_sar_subset_iou_mean": 0.5885154440909707,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.0565172805644712
+    },
+    {
+      "bottleneck_total": 270539,
+      "bottleneck_trainable": 0,
+      "core_params": 8,
+      "core_total": 8,
+      "core_trainable": 0,
+      "kind": "zero_bottleneck",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.6021926380363339,
+      "test_iou_n": 3,
+      "test_iou_std": 0.005238702687354525,
+      "test_optical_subset_iou_mean": 0.6092833822718506,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.016364318373024943,
+      "test_sar_subset_iou_mean": 0.5878062712573509,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.021722768744580328,
+      "total": 344480,
+      "total_params": 344480,
+      "trainable": 73941,
+      "trainable_params": 73941,
+      "val_iou_mean": 0.6073437168865234,
+      "val_iou_n": 3,
+      "val_iou_std": 0.0455027796966774,
+      "val_optical_subset_iou_mean": 0.5980228703612763,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.10941084249872496,
+      "val_sar_subset_iou_mean": 0.6005528409113858,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.0462898589759166
+    },
+    {
+      "bottleneck_total": 272099,
+      "bottleneck_trainable": 272099,
+      "core_params": 1568,
+      "core_total": 1568,
+      "core_trainable": 1568,
+      "kind": "compact_affine",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.6052072833770474,
+      "test_iou_n": 3,
+      "test_iou_std": 0.009881217338598211,
+      "test_optical_subset_iou_mean": 0.6131960659875043,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.014332336329008459,
+      "test_sar_subset_iou_mean": 0.588271471702817,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.0016872816356651146,
+      "total": 346040,
+      "total_params": 346040,
+      "trainable": 346040,
+      "trainable_params": 346040,
+      "val_iou_mean": 0.5993350535242624,
+      "val_iou_n": 3,
+      "val_iou_std": 0.044976443510111375,
+      "val_optical_subset_iou_mean": 0.5891088676314022,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.12629374630002266,
+      "val_sar_subset_iou_mean": 0.5908220093820289,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.05127273429702511
+    },
+    {
+      "bottleneck_total": 275747,
+      "bottleneck_trainable": 275747,
+      "core_params": 5216,
+      "core_total": 5216,
+      "core_trainable": 5216,
+      "kind": "mlp",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.5872362648412336,
+      "test_iou_n": 3,
+      "test_iou_std": 0.007788385634178499,
+      "test_optical_subset_iou_mean": 0.594943058367553,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.0065526501672309315,
+      "test_sar_subset_iou_mean": 0.5699803009859318,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.027791408287203327,
+      "total": 349688,
+      "total_params": 349688,
+      "trainable": 349688,
+      "trainable_params": 349688,
+      "val_iou_mean": 0.5996615845964086,
+      "val_iou_n": 3,
+      "val_iou_std": 0.04538310810954444,
+      "val_optical_subset_iou_mean": 0.5944936270695276,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.0971997033122221,
+      "val_sar_subset_iou_mean": 0.5909318018692096,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.05226532201524984
+    }
+  ],
+  "numerical_policy": {
+    "contrasts_and_CSV": "Exact numeric equality after CSV float roundtrip",
+    "count_derived_scores_and_regrouped_gradient_means": "Absolute float tolerance1e-12; integer counts exact",
+    "epoch0_frozen_loss": "Descriptive signed/absolute/binary64 ULP differences only; no equality threshold",
+    "sample_SD": "Paired differences first, then statistics.stdev with n-1; not SE or significance"
+  },
+  "paired_contrasts_pp": [
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.6320134041372549,
+        "42": 0.3239558646686014,
+        "77": 1.1402959807117363
+      },
+      "left": "quantum",
+      "mean": 0.2774128137476943,
+      "metric": "iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "val",
+      "std": 0.8870709276025914,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.104172259525682,
+        "42": -1.027905931188422,
+        "77": 1.595810640377593
+      },
+      "left": "quantum",
+      "mean": -0.17875585011217035,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "val",
+      "std": 1.5372926884905094,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.22900054652136292,
+        "42": 0.42228714656845634,
+        "77": 0.8846709263463981
+      },
+      "left": "quantum",
+      "mean": 0.35931917546449715,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "val",
+      "std": 0.5594995633676346,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.6598522941968388,
+        "42": 0.11313818286621258,
+        "77": 2.174994934119845
+      },
+      "left": "quantum",
+      "mean": 0.5427602742630729,
+      "metric": "iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "test",
+      "std": 1.4654422738667856,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.31060565750267166,
+        "42": -0.8609679621810695,
+        "77": 2.428681549945899
+      },
+      "left": "quantum",
+      "mean": 0.41903597675405263,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "test",
+      "std": 1.7620247342162705,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.4416994069029965,
+        "42": 2.33199280543146,
+        "77": 1.6870055814840912
+      },
+      "left": "quantum",
+      "mean": 0.8590996600041848,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "frozen_quantum",
+      "split": "test",
+      "std": 2.0184794746230517,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.5571307281303848,
+        "42": -0.003200608706721564,
+        "77": 0.04764278672334532
+      },
+      "left": "quantum",
+      "mean": -0.504229516704587,
+      "metric": "iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "val",
+      "std": 0.9121935011175802,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.7882701718100238,
+        "42": -2.820868631652207,
+        "77": 1.2531357039373803
+      },
+      "left": "quantum",
+      "mean": -0.7853343665082835,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "val",
+      "std": 2.037003754492187,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -2.8313402655294695,
+        "42": 1.0147726440248084,
+        "77": -0.7166938982263837
+      },
+      "left": "quantum",
+      "mean": -0.844420506577015,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "val",
+      "std": 1.9262351084747118,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.03453183369936941,
+        "42": 0.4429006830915405,
+        "77": 1.7016555236722963
+      },
+      "left": "quantum",
+      "mean": 0.7033414576881558,
+      "metric": "iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "test",
+      "std": 0.8969162072226512,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 0.5345909730468779,
+        "42": -1.290892088679929,
+        "77": 2.7617277671356133
+      },
+      "left": "quantum",
+      "mean": 0.668475550500854,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "test",
+      "std": 2.029624530300523,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.2960365312167266,
+        "42": 3.94924123747894,
+        "77": -0.5130568192443952
+      },
+      "left": "quantum",
+      "mean": 0.7133826290059394,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "zero_bottleneck",
+      "split": "test",
+      "std": 2.8295494354864497,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.46924929626911416,
+        "42": 0.5105178890107642,
+        "77": 0.8486418658228745
+      },
+      "left": "quantum",
+      "mean": 0.29663681952150817,
+      "metric": "iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "val",
+      "std": 0.6844838293885722,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.2160828713988261,
+        "42": -0.0998563106418271,
+        "77": 0.6341369014780107
+      },
+      "left": "quantum",
+      "mean": 0.10606590647911918,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "val",
+      "std": 0.4610004177608623,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.0638090897138741,
+        "42": 0.45095574920096526,
+        "77": 0.9988412795889356
+      },
+      "left": "quantum",
+      "mean": 0.1286626463586756,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "val",
+      "std": 1.0684270071469728,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 0.2346585601168627,
+        "42": -0.013132266645787816,
+        "77": 0.9841044773793439
+      },
+      "left": "quantum",
+      "mean": 0.40187692361680627,
+      "metric": "iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "test",
+      "std": 0.5192222710238468,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 0.6434197102973882,
+        "42": -0.7711473806265023,
+        "77": 0.9593492071355847
+      },
+      "left": "quantum",
+      "mean": 0.2772071789354902,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "test",
+      "std": 0.9215412761558343,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.6898991592823256,
+        "42": 1.628418552552724,
+        "77": 1.0620683601075709
+      },
+      "left": "quantum",
+      "mean": 0.6668625844593231,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "compact_affine",
+      "split": "test",
+      "std": 1.208631439720697,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.40675948196817746,
+        "42": 0.44125585439726,
+        "77": 0.757454764491583
+      },
+      "left": "quantum",
+      "mean": 0.2639837123068885,
+      "metric": "iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "val",
+      "std": 0.6020114302784861,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 0.193307414592081,
+        "42": -3.909219182466972,
+        "77": 2.418681655874655
+      },
+      "left": "quantum",
+      "mean": -0.43241003733341205,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "val",
+      "std": 3.210019314926978,
+      "wins": 2
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -1.1912961247353748,
+        "42": 1.7591952937083155,
+        "77": -0.21484897605110742
+      },
+      "left": "quantum",
+      "mean": 0.11768339764061109,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "val",
+      "std": 1.5030912271855796,
+      "wins": 1
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 0.9283723850527559,
+        "42": 3.1608292952077566,
+        "77": 2.5077346513340704
+      },
+      "left": "quantum",
+      "mean": 2.198978777198194,
+      "metric": "iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "test",
+      "std": 1.147808174864058,
+      "wins": 3
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": 1.5766989905061313,
+        "42": 1.681428409745267,
+        "77": 3.0493964225404513
+      },
+      "left": "quantum",
+      "mean": 2.1025079409306167,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "test",
+      "std": 0.8216997080853659,
+      "wins": 3
+    },
+    {
+      "common_learning_rate": 0.003,
+      "differences_pp": {
+        "123": -0.4899715945969274,
+        "42": 6.532255357130435,
+        "77": 1.4456552059100458
+      },
+      "left": "quantum",
+      "mean": 2.495979656147851,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "right": "mlp",
+      "split": "test",
+      "std": 3.6270241146795605,
+      "wins": 2
+    }
+  ],
+  "parameter_arithmetic": {
+    "counting_scope": "Registered and requires_grad parameter counts only; no functional-importance count. With the zero bottleneck, the first upsampler's 32768 kernel weights multiply an always-zero input while its bias remains in the computation. Those kernel weights are still included in the trainable count.",
+    "dense_post_projection": 270336,
+    "outside_bottleneck": 73941,
+    "parameter_counts": {
+      "compact_affine": {
+        "bottleneck_total": 272099,
+        "bottleneck_trainable": 272099,
+        "core_total": 1568,
+        "core_trainable": 1568,
+        "total": 346040,
+        "trainable": 346040
+      },
+      "frozen_quantum": {
+        "bottleneck_total": 270539,
+        "bottleneck_trainable": 270531,
+        "core_total": 8,
+        "core_trainable": 0,
+        "total": 344480,
+        "trainable": 344472
+      },
+      "mlp": {
+        "bottleneck_total": 275747,
+        "bottleneck_trainable": 275747,
+        "core_total": 5216,
+        "core_trainable": 5216,
+        "total": 349688,
+        "trainable": 349688
+      },
+      "quantum": {
+        "bottleneck_total": 270539,
+        "bottleneck_trainable": 270539,
+        "core_total": 8,
+        "core_trainable": 8,
+        "total": 344480,
+        "trainable": 344480
+      },
+      "zero_bottleneck": {
+        "bottleneck_total": 270539,
+        "bottleneck_trainable": 0,
+        "core_total": 8,
+        "core_trainable": 0,
+        "total": 344480,
+        "trainable": 73941
+      }
+    },
+    "pre_projection": 195
+  },
+  "paths": {
+    "report_dir": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/generated_reports/initial",
+    "work_dir": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs"
+  },
+  "provenance": {
+    "checkpoint_bytes_verified": 20,
+    "collector_source_sha256": "61e42953cf54a60d505df24739c9e59e97f1d6693b14ab4e0478dc262b5106bc",
+    "historical_producing_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+    "legacy_inventory_files_verified": 36,
+    "legacy_inventory_sha256": "a32f598d8335b4b458ee566cb94edbe38ef0bbd7164799f971b48914e37ffac5",
+    "legacy_plan_sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+    "plan_sha256": "b1bd974fc2c9c3ed2ec652288a165ed926d23c2728d13a6ba9e8fe4c42d12aeb",
+    "producing_revision": "7754773ca2c36020df22a8971e07765b2357cbc8",
+    "profile_sha256": "843d7d76c3dc721bf058f304bbb0958924fa7611295e2de630bd11b63acc4fd4",
+    "report_artifacts": 114,
+    "source_manifest_sha256": "fb04bc11fe411604eb2c2994c3f47e0b50bdf1fd28bf9bd5ea7b02c3f8f29a54",
+    "source_snapshots": {
+      "docs/HQ_DFC24_DIRECTION_PROTOCOL.md": "be8706cc490859c340d556adbf8467d888ba66a9feaf0a0247aa7d778bc7e39c",
+      "docs/HQ_TRAINING_CONTROLS_PROTOCOL.md": "2ded8843fafa4f49a993a3afd6bb9c82d7e5a6ee982d1a60fa092bc857054b0a",
+      "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+      "scripts/collect_hq_dfc24_direction.py": "db09b5c672878374f5a0056c12d7915fc536cdcfbe05a3b5b0dd80f8e1299add",
+      "scripts/collect_hq_training_controls.py": "61e42953cf54a60d505df24739c9e59e97f1d6693b14ab4e0478dc262b5106bc",
+      "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+      "scripts/run_hq_training_controls.py": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+      "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+      "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+      "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+      "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+      "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+      "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+      "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+      "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+    }
+  },
+  "scope": "Independent saved-number and byte-provenance audit; not a formal Astra review or independent inference replay",
+  "status": "PASS"
+}

@@ -1,0 +1,3330 @@
+#!/usr/bin/env python3
+"""Shared training plumbing for the Torch demos and ablation_studies.py.
+
+Keeps the parts that must be identical across the quantum, classical and
+ablation runs in one place:
+
+  * seeding (python, numpy, torch, cuda) and seeded DataLoaders
+  * the global held-out validation split, carved from the training pool
+    before any client partitioning, stratified on the flood label
+  * the label-skew Dirichlet partition with a deterministic
+    minimum-samples-per-client guard
+  * per (seed, client, round) shuffle seeds for federated clients
+  * model construction that forwards optional kwargs (seed, q_ansatz,
+    q_layers) only when the model class accepts them
+  * common CLI flags and the failed-run exit path
+
+Every function only depends on torch / numpy so it can be imported inside
+Ray workers.
+"""
+import argparse
+import copy
+import hashlib
+import inspect
+import json
+import math
+import os
+import random
+import re
+import socket
+import sys
+import time
+from datetime import datetime
+
+import numpy as np
+
+VAL_FRACTION = 0.15
+FLOOD_LABEL_THRESHOLD = 0.05
+DEFAULT_MIN_CLIENT_SAMPLES = 16
+DEFAULT_CKPT_EVERY = 5
+FED_CKPT_NAME = 'fed_resume.pt'
+
+# Validation metric used to select the best checkpoint for test evaluation (#6).
+SELECT_METRIC_CHOICES = ('iou', 'dice', 'auc', 'loss')
+DEFAULT_SELECT_METRIC = 'iou'
+
+# Skip-connection modulation mode in QResnetBlock / AblationResnetBlock (#27).
+SKIP_MODULATION_CHOICES = ('affine', 'additive')
+DEFAULT_SKIP_MODULATION = 'affine'
+
+# Wave 2 bottleneck, backbone, loss, and augmentation options (#13, #16, #18, #22, #25).
+N_QUBITS_CHOICES = (2, 4, 8, 12, 16)
+DEFAULT_N_QUBITS = 4
+Q_ANSATZ_CHOICES = ('reupload', 'legacy', 'hqunet')
+Q_SPATIAL_MODES = ('global', 'pixel', 'patch2x2', 'patch4x4', 'se_gate')
+DEFAULT_Q_SPATIAL_MODE = 'global'
+HQUNET_GRID_CHOICES = (2, 4)
+DEFAULT_HQUNET_GRID = 2
+ABLATION_MODE_CHOICES = ('auto', 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')
+DEFAULT_ABLATION_MODE = 'auto'
+ABLATION_MLP_MODE_CHOICES = ('param_matched', 'full_rank')
+DEFAULT_ABLATION_MLP_MODE = 'param_matched'
+BACKBONE_CONV_CHOICES = ('ws_conv', 'standard', 'depthwise_sep')
+DEFAULT_BACKBONE_CONV_MODE = 'ws_conv'
+DECODER_SKIP_GATE_CHOICES = ('none', 'se', 'affine')
+DEFAULT_DECODER_SKIP_GATE = 'none'
+LOSS_CHOICES = ('ce', 'dice_ce', 'focal_dice')
+DEFAULT_LOSS_MODE = 'ce'
+
+# Wave 3 multimodal input stems, realistic non-IID partitioning, and federated optimization (#14, #15).
+COMBINED_INPUT_MODE_CHOICES = ('shared3', 'concat6', 'dual_stem')
+DEFAULT_COMBINED_INPUT_MODE = 'shared3'
+PARTITION_CHOICES = ('random', 'dirichlet', 'modality', 'geo_cluster')
+DEFAULT_PARTITION = 'random'
+FL_STRATEGY_CHOICES = ('fedavg', 'fedprox')
+DEFAULT_FL_STRATEGY = 'fedavg'
+DEFAULT_FEDPROX_MU = 0.01
+Q_ANGLE_AGG_CHOICES = ('linear', 'circular')
+DEFAULT_Q_ANGLE_AGG = 'linear'
+COMM_COMPRESSION_CHOICES = ('none', 'fp16', 'int8', 'topk10')
+DEFAULT_COMM_COMPRESSION = 'none'
+
+# Quantum circuit simulator (q_backend) of the QVUNet bottleneck.
+Q_BACKEND_CHOICES = ('pennylane', 'pennylane_pergroup', 'torch')
+DEFAULT_Q_BACKEND = 'pennylane'
+Q_SIM_DEVICE_CHOICES = ('cpu', 'model')
+DEFAULT_Q_SIM_DEVICE = 'cpu'
+# Runs written before the q_backend option was recorded have no q_backend
+# record. The model always used the torch statevector simulator then.
+LEGACY_Q_BACKEND = 'torch'
+
+
+DATASET_FOLDER_NAMES = {
+    'optical': 'flood_optical',
+    'sar': 'flood_SAR',
+    'combined': 'flood_combined',
+    'flood_optical': 'flood_optical',
+    'flood_SAR': 'flood_SAR',
+    'flood_combined': 'flood_combined',
+}
+
+
+def resolve_data_dirs(dataset, data_root=None):
+    """Return (base_dir, train_images_dir, train_masks_dir, test_images_dir, test_masks_dir)
+    under `data_root` (default: 'data')."""
+    folder = DATASET_FOLDER_NAMES.get(dataset, dataset)
+    root = data_root if data_root is not None else os.environ.get('QUAFFLE_DATA_ROOT', 'data')
+    cand = os.path.join(root, folder)
+    if not os.path.exists(cand) and os.path.exists(os.path.join(root, 'Training', 'images')):
+        base_dir = root
+    else:
+        base_dir = cand
+    train_images_dir = os.path.join(base_dir, 'Training', 'images')
+    train_masks_dir = os.path.join(base_dir, 'Training', 'labels')
+    test_images_dir = os.path.join(base_dir, 'Testing', 'images')
+    test_masks_dir = os.path.join(base_dir, 'Testing', 'labels')
+    return base_dir, train_images_dir, train_masks_dir, test_images_dir, test_masks_dir
+
+
+DEFAULT_BASE_CHANNELS = 32
+DEFAULT_IMAGE_SIZE = 128
+_SEED_SUFFIX_RE = re.compile(r"(_seed\d+)$")
+
+
+def scale_tag(config):
+    """Directory suffix that separates downscaled / capped / custom-data-root
+    runs from canonical full-scale paper runs."""
+    if not isinstance(config, dict):
+        return ""
+    parts = []
+    bc = config.get('base_channels')
+    if bc is not None and int(bc) != DEFAULT_BASE_CHANNELS:
+        parts.append(f"bc{int(bc)}")
+    img_sz = config.get('image_size')
+    if img_sz is not None and int(img_sz) != DEFAULT_IMAGE_SIZE:
+        parts.append(f"img{int(img_sz)}")
+    max_s = config.get('max_samples')
+    if max_s is not None:
+        parts.append(f"max{int(max_s)}")
+    dr = config.get('data_root')
+    if dr is not None:
+        abs_dr = os.path.abspath(str(dr))
+        default_dr = os.path.abspath('data')
+        if abs_dr != default_dr:
+            digest = hashlib.sha256(abs_dr.encode('utf-8')).hexdigest()[:6]
+            parts.append(f"dr{digest}")
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
+def _apply_scale_tag_to_rel_path(rel_path, config):
+    stag = scale_tag(config)
+    if not stag or stag in rel_path:
+        return rel_path
+    parent, base = os.path.split(rel_path)
+    m = _SEED_SUFFIX_RE.search(base)
+    if m:
+        tagged_base = base[: m.start()] + stag + m.group(1)
+    else:
+        tagged_base = base + stag
+    return os.path.join(parent, tagged_base) if parent else tagged_base
+
+
+def resolve_output_dir(default_rel_path, config=None, args=None):
+    """Resolve run output directory, honoring --results-dir or QUAFFLE_RESULTS_DIR
+    and tagging non-default scale / data-root overrides so mini runs never
+    collide with full-scale paper runs."""
+    tagged_rel_path = _apply_scale_tag_to_rel_path(default_rel_path, config)
+    results_root = None
+    if args is not None and getattr(args, 'results_dir', None):
+        results_root = args.results_dir
+    elif config is not None and config.get('results_dir'):
+        results_root = config['results_dir']
+    elif os.environ.get('QUAFFLE_RESULTS_DIR'):
+        results_root = os.environ['QUAFFLE_RESULTS_DIR']
+    if not results_root:
+        return tagged_rel_path
+    norm = os.path.normpath(tagged_rel_path)
+    parts = norm.split(os.sep)
+    if parts and parts[0] == 'results':
+        rel = os.sep.join(parts[1:]) if len(parts) > 1 else ''
+        return os.path.join(results_root, rel) if rel else results_root
+    return os.path.join(results_root, os.path.basename(norm))
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def add_common_args(parser, quantum=True, federated=False):
+    """Add the flags shared by every Torch entry point.
+
+    Defaults select the current behaviour. Every flag is passed on to the
+    data and model code only when that code accepts it (signature checks).
+    """
+    parser.add_argument('--data-root', type=str, default=None,
+                        help='Root directory containing flood_<dataset>/ folders and optional splits/ '
+                             '(default: data)')
+    parser.add_argument('--results-dir', type=str, default=None,
+                        help='Root directory for run output folders (default: results)')
+    parser.add_argument('--base-channels', type=int, default=None,
+                        help='Override model base_channels / init_dim (default: script config)')
+    parser.add_argument('--image-size', type=int, default=None,
+                        help='Override input image spatial size (default: script config)')
+    parser.add_argument('--batch-size', type=int, default=None,
+                        help='Override training and evaluation batch size (default: script config)')
+    parser.add_argument('--learning-rate', type=float, default=None,
+                        help='Override optimizer learning rate (default: script config)')
+    parser.add_argument('--eval-every', type=int, default=None,
+                        help='Override validation and checkpoint interval (default: script config)')
+    parser.add_argument('--no-save-samples', action='store_true',
+                        help='Skip saving sample prediction visualizations at the end of the run')
+    parser.add_argument('--legacy-data', action='store_true',
+                        help='Use the pre-fix data loader behaviour (if the loader supports it)')
+    parser.add_argument('--max-samples', type=int, default=None,
+                        help='Debug: cap the training pool and the test set at N samples')
+    parser.add_argument('--val-fraction', type=float, default=VAL_FRACTION,
+                        help='Fraction of the training pool held out as the global, '
+                             'stratified validation set (default: 0.15)')
+    parser.add_argument('--select-metric', choices=list(SELECT_METRIC_CHOICES),
+                        default=DEFAULT_SELECT_METRIC,
+                        help="Validation metric used to select the best checkpoint for test "
+                             f"evaluation (default: {DEFAULT_SELECT_METRIC}; 'loss' minimizes, "
+                             "others maximize)")
+    parser.add_argument('--backbone-conv-mode', choices=list(BACKBONE_CONV_CHOICES),
+                        default=DEFAULT_BACKBONE_CONV_MODE,
+                        help="Backbone 3x3 convolution type in ResnetBlock / QResnetBlock "
+                             f"(default: {DEFAULT_BACKBONE_CONV_MODE}; 'standard' uses standard "
+                             "nn.Conv2d; 'depthwise_sep' uses 3x3 depthwise + 1x1 WSConv)")
+    parser.add_argument('--loss', choices=list(LOSS_CHOICES),
+                        default=DEFAULT_LOSS_MODE,
+                        help="Segmentation training/evaluation loss mode "
+                             f"(default: {DEFAULT_LOSS_MODE}; choices: {LOSS_CHOICES})")
+    parser.add_argument('--no-time-emb', action='store_true',
+                        help='Omit unused diffusion SinusoidalPosEmb / time_mlp layers from '
+                             'encoder, bottleneck, and decoder ResnetBlocks (#16)')
+    parser.add_argument('--augment', action='store_true',
+                        help='Enable seed-reproducible dihedral (D4: 90-deg rotations + '
+                             'horizontal reflection) geometric augmentations on training splits (#25)')
+    parser.add_argument('--combined-input-mode', choices=list(COMBINED_INPUT_MODE_CHOICES),
+                        default=DEFAULT_COMBINED_INPUT_MODE,
+                        help="Input stem mode for multimodal flood_combined tiles (#14): "
+                             "'shared3' (default, 3-ch shared init_conv), 'concat6' (6-ch "
+                             "[Optical(3), SAR(3)] into 6-ch init_conv), or 'dual_stem' "
+                             "(separate 3-ch optical and SAR input stems routed per sample)")
+    parser.add_argument('--decoder-skip-gate', '--decoder_skip_gate',
+                        dest='decoder_skip_gate',
+                        choices=list(DECODER_SKIP_GATE_CHOICES),
+                        default=DEFAULT_DECODER_SKIP_GATE,
+                        help="Bottleneck-conditioned encoder-decoder skip connection gating in UpUnet (#43): "
+                             "'none' (default, unmodulated skip concatenation), 'se' "
+                             "(squeeze-and-excitation channel gate), or 'affine' "
+                             "(FiLM scale-and-shift modulation)")
+    if quantum:
+        parser.add_argument('--q-ansatz', choices=list(Q_ANSATZ_CHOICES), default='reupload',
+                            help='Quantum bottleneck ansatz (default: reupload)')
+        parser.add_argument('--q-layers', type=int, default=None,
+                            help='Number of variational layers in the quantum bottleneck '
+                                 '(default: model default)')
+        parser.add_argument('--q-training-control', choices=['trainable', 'frozen', 'no_entanglement'],
+                            default=None, help='Trainable circuit, frozen angles/scales, or omitted CNOT gates')
+        parser.add_argument('--n-qubits', '--n_qubits', dest='n_qubits', type=int,
+                            choices=list(N_QUBITS_CHOICES), default=DEFAULT_N_QUBITS,
+                            help="Per-group qubit width for 'reupload' and 'legacy' ansatze "
+                                 f"(default: {DEFAULT_N_QUBITS}; choices: {N_QUBITS_CHOICES}; #39)")
+        parser.add_argument('--quantum-channels', '--quantum_channels', dest='quantum_channels',
+                            type=int, default=None,
+                            help='Override number of quantum bottleneck channels (default: script config, 32)')
+        parser.add_argument('--q-spatial-mode', choices=list(Q_SPATIAL_MODES),
+                            default=DEFAULT_Q_SPATIAL_MODE,
+                            help="Spatial feature preservation mode for 4-qubit bottleneck groups "
+                                 f"(default: {DEFAULT_Q_SPATIAL_MODE}; choices: {Q_SPATIAL_MODES})")
+        parser.add_argument('--local-spatial-kernel', choices=['quantum', 'mlp', 'conv', 'sincos'],
+                            default=None, help='Opt-in shared filter over neighboring 2x2 latent locations')
+        parser.add_argument('--local-spatial-readout', choices=['z', 'xz_zz'], default=None,
+                            help='Local quantum readout; Z pads eight features with zero (default: xz_zz)')
+        parser.add_argument('--local-spatial-channels', type=int, default=None,
+                            help='Number of projected scalar feature maps in the local filter (default: 4)')
+        parser.add_argument('--hqunet-grid', type=int, choices=list(HQUNET_GRID_CHOICES),
+                            default=DEFAULT_HQUNET_GRID,
+                            help="Spatial grid dimension G for --q-ansatz hqunet "
+                                 f"(default: {DEFAULT_HQUNET_GRID}, N_q = G^2 qubits)")
+        parser.add_argument('--ablation-mode', choices=list(ABLATION_MODE_CHOICES),
+                            default=DEFAULT_ABLATION_MODE,
+                            help="Classical bottleneck architecture for parameter-matched ablation "
+                                 f"(default: {DEFAULT_ABLATION_MODE}; choices: {ABLATION_MODE_CHOICES})")
+        parser.add_argument('--ablation-mlp-mode', '--ablation_mlp_mode',
+                            dest='ablation_mlp_mode',
+                            choices=list(ABLATION_MLP_MODE_CHOICES),
+                            default=DEFAULT_ABLATION_MLP_MODE,
+                            help="Hidden-width sizing mode for the classical MLP bottleneck control "
+                                 f"(default: {DEFAULT_ABLATION_MLP_MODE}, h=matched_mlp_hidden(4*L*n_q, n_q); "
+                                 "'full_rank' sets h=n_qubits to remove the hidden-width rank ceiling and permit full Jacobian rank; #44)")
+        parser.add_argument('--ablation-mlp-hidden', '--ablation_mlp_hidden',
+                            dest='ablation_mlp_hidden',
+                            type=int, default=None,
+                            help='Explicit hidden dimension h >= 1 for ClassicalBottleneckBlock '
+                                 "(overrides --ablation-mlp-mode when set; #44)")
+        parser.add_argument('--skip-modulation', choices=list(SKIP_MODULATION_CHOICES),
+                            default=DEFAULT_SKIP_MODULATION,
+                            help="How QResnetBlock / AblationResnetBlock combines the spatially "
+                                 "broadcast bottleneck output y_q with the skip path x_skip[:, :qc]: "
+                                 "'affine' (default, x_skip * (1 + y_q) so downstream GroupNorm "
+                                 "does not cancel y_q) or 'additive' (legacy x_skip + y_q)")
+        parser.add_argument('--quantum-knockout-eval', action='store_true',
+                            help="Also evaluate the test set with the quantum block in "
+                                 "mode 'zero' and 'random' and write both to summary.txt")
+        parser.add_argument('--q-backend', choices=list(Q_BACKEND_CHOICES),
+                            default=DEFAULT_Q_BACKEND,
+                            help="Quantum circuit simulator (default: pennylane, one broadcast "
+                                 "default.qubit QNode call per block). 'pennylane_pergroup' is "
+                                 "the old per-group PennyLane loop, 'torch' is the exact torch "
+                                 "statevector cross-check.")
+        parser.add_argument('--q-sim-device', choices=list(Q_SIM_DEVICE_CHOICES),
+                            default=DEFAULT_Q_SIM_DEVICE,
+                            help='Where the PennyLane circuit runs (default: cpu)')
+    if federated:
+        parser.add_argument('--rounds', type=int, default=None,
+                            help='Override the number of federated rounds (debug)')
+        parser.add_argument('--local-epochs', type=int, default=None,
+                            help='Override local epochs per round (debug)')
+        parser.add_argument('--num-clients', type=int, default=None,
+                            help='Override the number of federated clients (debug)')
+        parser.add_argument('--clients-per-round', type=int, default=None,
+                            help='Override the number of clients sampled per federated round (debug)')
+        parser.add_argument('--fraction-fit', type=float, default=None,
+                            help='Fraction of clients sampled per federated round in (0, 1] '
+                                 '(overrides --clients-per-round when set; #15)')
+        parser.add_argument('--fl-strategy', choices=list(FL_STRATEGY_CHOICES), default=None,
+                            help="Federated optimization strategy (#15): 'fedavg' (default) or "
+                                 "'fedprox' (adds proximal penalty (mu/2)*||w - w^(t)||_2^2)")
+        parser.add_argument('--fedprox-mu', type=float, default=None,
+                            help="FedProx proximal penalty coefficient mu >= 0 "
+                                 f"(default: {DEFAULT_FEDPROX_MU} when --fl-strategy=fedprox, else 0.0; #15)")
+        parser.add_argument('--comm-compression', '--comm_compression',
+                            dest='comm_compression',
+                            choices=list(COMM_COMPRESSION_CHOICES),
+                            default=None,
+                            help="Client-to-server federated update compression baseline (#48): "
+                                 f"'{DEFAULT_COMM_COMPRESSION}' (default, uncompressed float32), "
+                                 "'fp16' (float16 cast), 'int8' (symmetric per-tensor absmax int8 + float32 scale), "
+                                 "or 'topk10' (top-10%% magnitude sparsification of client deltas)")
+        if quantum:
+            parser.add_argument('--q-angle-agg', choices=list(Q_ANGLE_AGG_CHOICES),
+                                default=DEFAULT_Q_ANGLE_AGG,
+                                help="Server aggregation mode for periodic PQC rotation angles (#15): "
+                                     "'linear' (default Euclidean average) or 'circular' "
+                                     "(weighted circular mean atan2(sum w_k sin theta_k, sum w_k cos theta_k))")
+    else:
+        parser.add_argument('--epochs', type=int, default=None,
+                            help='Override the number of training epochs/steps (debug)')
+    if federated:
+        parser.add_argument('--min-client-samples', type=int, default=DEFAULT_MIN_CLIENT_SAMPLES,
+                            help='Label-skew Dirichlet guard: minimum training samples per '
+                                 'client (default: 16)')
+        parser.add_argument('--ckpt-every', type=int, default=DEFAULT_CKPT_EVERY,
+                            help='Write the resumable federated checkpoint every N rounds '
+                                 f'(default: {DEFAULT_CKPT_EVERY}; the last round is always saved)')
+        parser.add_argument('--no-resume', action='store_true',
+                            help='Ignore an existing resumable federated checkpoint and start '
+                                 'from round 0 (the old checkpoint is moved aside)')
+        # Debug: simulate a crash right after the checkpoint of round K has
+        # been written. Also settable via QUAFFLE_DEBUG_STOP_AFTER_ROUND.
+        parser.add_argument('--debug-stop-after-round', type=int, default=None,
+                            help=argparse.SUPPRESS)
+    # Debug: simulate an interrupted centralized job right after the
+    # checkpoint of epoch/step K has been written.
+    parser.add_argument('--debug-stop-after-epoch', type=int, default=None,
+                        help=argparse.SUPPRESS)
+    return parser
+
+
+def _compatible_group_count(base_channels, current_groups):
+    g = max(1, min(int(current_groups), int(base_channels)))
+    while g > 1 and int(base_channels) % g != 0:
+        g -= 1
+    return g
+
+
+def apply_common_args(config, args):
+    """Copy the common CLI flags into the config dict."""
+    config['legacy_data'] = bool(getattr(args, 'legacy_data', False))
+    config['max_samples'] = getattr(args, 'max_samples', None)
+    config['val_fraction'] = float(getattr(args, 'val_fraction', VAL_FRACTION))
+    if getattr(args, 'data_root', None) is not None:
+        config['data_root'] = args.data_root
+    elif os.environ.get('QUAFFLE_DATA_ROOT') and not config.get('data_root'):
+        config['data_root'] = os.environ['QUAFFLE_DATA_ROOT']
+    else:
+        config.setdefault('data_root', None)
+    if getattr(args, 'results_dir', None) is not None:
+        config['results_dir'] = args.results_dir
+    if getattr(args, 'n_qubits', None) is not None:
+        config['n_qubits'] = effective_n_qubits({'n_qubits': args.n_qubits})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'n_qubits' in config:
+        config['n_qubits'] = effective_n_qubits(config)
+    if getattr(args, 'quantum_channels', None) is not None:
+        config['quantum_channels'] = int(args.quantum_channels)
+    if getattr(args, 'base_channels', None) is not None:
+        bc = int(args.base_channels)
+        config['base_channels'] = bc
+        config['init_dim'] = bc
+        if 'resnet_block_groups' in config:
+            config['resnet_block_groups'] = _compatible_group_count(bc, config['resnet_block_groups'])
+        if 'quantum_channels' in config and getattr(args, 'quantum_channels', None) is None:
+            mults = config.get('dim_mults', (1, 2, 4, 8))
+            mid_dim = bc * int(mults[-1]) if mults else bc * 8
+            ans_eff = getattr(args, 'q_ansatz', None) or config.get('q_ansatz', 'reupload')
+            group_w = 4 if ans_eff == 'hqunet' else int(config.get('n_qubits', DEFAULT_N_QUBITS))
+            if int(config['quantum_channels']) > mid_dim:
+                if mid_dim >= group_w:
+                    config['quantum_channels'] = max(group_w, (mid_dim // group_w) * group_w)
+                else:
+                    config['quantum_channels'] = mid_dim
+    if getattr(args, 'image_size', None) is not None:
+        config['image_size'] = int(args.image_size)
+    if getattr(args, 'batch_size', None) is not None:
+        config['batch_size'] = int(args.batch_size)
+    if getattr(args, 'learning_rate', None) is not None:
+        config['learning_rate'] = float(args.learning_rate)
+    if getattr(args, 'no_save_samples', False):
+        config['save_samples'] = False
+    if getattr(args, 'select_metric', None) is not None:
+        config['select_metric'] = str(args.select_metric).strip().lower()
+    else:
+        config.setdefault('select_metric', DEFAULT_SELECT_METRIC)
+    if getattr(args, 'backbone_conv_mode', None) is not None:
+        config['backbone_conv_mode'] = effective_backbone_conv_mode({'backbone_conv_mode': args.backbone_conv_mode})
+    else:
+        config['backbone_conv_mode'] = effective_backbone_conv_mode(config)
+    if getattr(args, 'loss', None) is not None:
+        config['loss'] = effective_loss_mode({'loss': args.loss})
+    else:
+        config['loss'] = effective_loss_mode(config)
+    if getattr(args, 'no_time_emb', False):
+        config['use_time_emb'] = False
+    else:
+        config['use_time_emb'] = effective_use_time_emb(config)
+    if getattr(args, 'augment', False):
+        config['augment'] = True
+    else:
+        config['augment'] = bool(config.get('augment', False))
+    if getattr(args, 'combined_input_mode', None) is not None:
+        config['combined_input_mode'] = effective_combined_input_mode({'combined_input_mode': args.combined_input_mode})
+    else:
+        config['combined_input_mode'] = effective_combined_input_mode(config)
+    if getattr(args, 'decoder_skip_gate', None) is not None:
+        config['decoder_skip_gate'] = effective_decoder_skip_gate({'decoder_skip_gate': args.decoder_skip_gate})
+    else:
+        config['decoder_skip_gate'] = effective_decoder_skip_gate(config)
+    if getattr(args, 'skip_modulation', None) is not None:
+        config['skip_modulation'] = effective_skip_modulation({'skip_modulation': args.skip_modulation})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_residual_mode' in config:
+        config['skip_modulation'] = effective_skip_modulation(config)
+    if hasattr(args, 'q_ansatz'):
+        config['q_ansatz'] = args.q_ansatz
+    if getattr(args, 'q_layers', None) is not None:
+        config['q_layers'] = args.q_layers
+    if getattr(args, 'q_training_control', None) is not None:
+        config['q_training_control'] = args.q_training_control
+    elif hasattr(args, 'q_ansatz'):
+        config.setdefault('q_training_control', 'trainable')
+    if getattr(args, 'q_spatial_mode', None) is not None:
+        config['q_spatial_mode'] = effective_q_spatial_mode({'q_spatial_mode': args.q_spatial_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'q_spatial_mode' in config:
+        config['q_spatial_mode'] = effective_q_spatial_mode(config)
+    for local_key in ('local_spatial_kernel', 'local_spatial_readout', 'local_spatial_channels'):
+        if getattr(args, local_key, None) is not None:
+            config[local_key] = getattr(args, local_key)
+    if config.get('local_spatial_kernel') is not None:
+        from utilsTorch.local_spatial import local_spatial_options
+        config.update(local_spatial_options(config))
+    if getattr(args, 'hqunet_grid', None) is not None:
+        config['hqunet_grid'] = effective_hqunet_grid({'hqunet_grid': args.hqunet_grid})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'hqunet_grid' in config:
+        config['hqunet_grid'] = effective_hqunet_grid(config)
+    if getattr(args, 'ablation_mode', None) is not None:
+        config['ablation_mode'] = effective_ablation_mode({'ablation_mode': args.ablation_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'ablation_mode' in config:
+        config['ablation_mode'] = effective_ablation_mode(config)
+    if getattr(args, 'ablation_mlp_mode', None) is not None:
+        config['ablation_mlp_mode'] = effective_ablation_mlp_mode({'ablation_mlp_mode': args.ablation_mlp_mode})
+    elif hasattr(args, 'q_ansatz') or 'quantum_channels' in config or 'ablation_mlp_mode' in config:
+        config['ablation_mlp_mode'] = effective_ablation_mlp_mode(config)
+    if getattr(args, 'ablation_mlp_hidden', None) is not None:
+        config['ablation_mlp_hidden'] = effective_ablation_mlp_hidden({'ablation_mlp_hidden': args.ablation_mlp_hidden})
+    elif 'ablation_mlp_hidden' in config:
+        config['ablation_mlp_hidden'] = effective_ablation_mlp_hidden(config)
+    if hasattr(args, 'quantum_knockout_eval'):
+        config['quantum_knockout_eval'] = bool(args.quantum_knockout_eval)
+    if hasattr(args, 'q_backend'):
+        config['q_backend'] = args.q_backend
+        config['q_sim_device'] = getattr(args, 'q_sim_device', DEFAULT_Q_SIM_DEVICE)
+    if hasattr(args, 'min_client_samples'):
+        config['min_client_samples'] = int(args.min_client_samples)
+    if getattr(args, 'epochs', None) is not None:
+        ep = int(args.epochs)
+        for key in ('num_epochs', 'num_train_steps'):
+            if key in config:
+                config[key] = ep
+        if getattr(args, 'eval_every', None) is None and 'eval_every' in config and ep > 0:
+            config['eval_every'] = min(int(config['eval_every']), ep)
+        if 'log_every' in config and ep > 0:
+            config['log_every'] = min(int(config['log_every']), ep)
+    if getattr(args, 'eval_every', None) is not None:
+        config['eval_every'] = max(1, int(args.eval_every))
+    if getattr(args, 'rounds', None) is not None:
+        config['fed_rounds'] = int(args.rounds)
+    if getattr(args, 'local_epochs', None) is not None:
+        config['local_epochs'] = int(args.local_epochs)
+    prev_nc = int(config['num_clients']) if config.get('num_clients') is not None else None
+    prev_cpr = int(config['clients_per_round']) if config.get('clients_per_round') is not None else None
+    if getattr(args, 'num_clients', None) is not None:
+        nc = int(args.num_clients)
+        if nc < 1:
+            raise ValueError(f"num_clients={nc} must be >= 1")
+        config['num_clients'] = nc
+        if getattr(args, 'clients_per_round', None) is None and getattr(args, 'fraction_fit', None) is None:
+            if prev_cpr is None or prev_cpr == prev_nc:
+                config['clients_per_round'] = nc
+            else:
+                config['clients_per_round'] = min(prev_cpr, nc)
+    if getattr(args, 'clients_per_round', None) is not None:
+        cpr = int(args.clients_per_round)
+        nc_eff = int(config.get('num_clients', max(1, cpr)))
+        if cpr < 1 or cpr > nc_eff:
+            raise ValueError(f"clients_per_round={cpr} must be in [1, num_clients={nc_eff}]")
+        config['clients_per_round'] = cpr
+        config.pop('fraction_fit', None)
+    if getattr(args, 'fraction_fit', None) is not None:
+        ff = float(args.fraction_fit)
+        if ff <= 0.0 or ff > 1.0:
+            raise ValueError(f"fraction_fit={ff} must be in (0.0, 1.0]")
+        config['fraction_fit'] = ff
+    if 'num_clients' in config or getattr(args, 'clients_per_round', None) is not None or getattr(args, 'fraction_fit', None) is not None:
+        resolve_client_participation(config)
+    if getattr(args, 'fl_strategy', None) is not None:
+        config['fl_strategy'] = str(args.fl_strategy).strip().lower()
+        if getattr(args, 'fedprox_mu', None) is None:
+            config.pop('fedprox_mu', None)
+    if getattr(args, 'fedprox_mu', None) is not None:
+        mu_val = float(args.fedprox_mu)
+        if mu_val < 0.0:
+            raise ValueError(f"fedprox_mu={mu_val} must be >= 0.0")
+        config['fedprox_mu'] = mu_val
+        if getattr(args, 'fl_strategy', None) is None and mu_val > 0.0:
+            config['fl_strategy'] = 'fedprox'
+    if 'fl_strategy' in config or 'fedprox_mu' in config or hasattr(args, 'fl_strategy'):
+        config['fl_strategy'] = effective_fl_strategy(config)
+        config['fedprox_mu'] = effective_fedprox_mu(config)
+    if getattr(args, 'q_angle_agg', None) is not None:
+        config['q_angle_agg'] = effective_q_angle_agg({'q_angle_agg': args.q_angle_agg})
+    elif hasattr(args, 'q_angle_agg') or 'q_angle_agg' in config:
+        config['q_angle_agg'] = effective_q_angle_agg(config)
+    if getattr(args, 'comm_compression', None) is not None:
+        config['comm_compression'] = effective_comm_compression({'comm_compression': args.comm_compression})
+    elif hasattr(args, 'comm_compression') or 'comm_compression' in config:
+        config['comm_compression'] = effective_comm_compression(config)
+    if hasattr(args, 'ckpt_every'):
+        config['ckpt_every'] = max(1, int(args.ckpt_every))
+        config['resume'] = not bool(getattr(args, 'no_resume', False))
+        stop = getattr(args, 'debug_stop_after_round', None)
+        if stop is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_ROUND'):
+            stop = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_ROUND'])
+        config['debug_stop_after_round'] = stop
+    if hasattr(args, 'debug_stop_after_epoch'):
+        stop_ep = getattr(args, 'debug_stop_after_epoch', None)
+        if stop_ep is None and os.environ.get('QUAFFLE_DEBUG_STOP_AFTER_EPOCH'):
+            stop_ep = int(os.environ['QUAFFLE_DEBUG_STOP_AFTER_EPOCH'])
+        config['debug_stop_after_epoch'] = stop_ep
+    return config
+
+
+# ---------------------------------------------------------------------------
+# Seeding
+# ---------------------------------------------------------------------------
+
+def seed_everything(seed, deterministic=True):
+    """Seed python, numpy, torch and cuda once at the start of a run."""
+    import torch
+    seed = int(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
+def derive_seed(*parts):
+    """Deterministic 32-bit seed from integer parts (seed, client, round, ...)."""
+    ss = np.random.SeedSequence([int(p) for p in parts])
+    return int(ss.generate_state(1, dtype=np.uint32)[0])
+
+
+def _seed_worker(worker_id):
+    import torch
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+    info = torch.utils.data.get_worker_info()
+    if info is not None and hasattr(info, 'dataset'):
+        ds = info.dataset
+        while ds is not None:
+            if isinstance(ds, DihedralAugmentDataset):
+                ds.reseed(derive_seed(worker_seed, int(worker_id) + 1))
+                break
+            ds = getattr(ds, 'dataset', None)
+
+
+def apply_dihedral_transform(image, mask, k: int = 0, flip=None):
+    """Apply dihedral D4 transform (k * 90-deg counter-clockwise rotation + optional
+    horizontal reflection) jointly to (image, mask) (#25).
+
+    If `flip` is None, `k` in {0..7} encodes both rotation (`k % 4`) and horizontal
+    reflection (`(k // 4) % 2 == 1`).
+    """
+    import torch
+    k_int = int(k)
+    k_mod = k_int % 4
+    do_flip = bool((k_int // 4) % 2) if flip is None else bool(flip)
+    img_out = image
+    mask_out = mask
+    if k_mod != 0:
+        img_out = torch.rot90(img_out, k=k_mod, dims=(-2, -1))
+        mask_out = torch.rot90(mask_out, k=k_mod, dims=(-2, -1))
+    if do_flip:
+        img_out = torch.flip(img_out, dims=(-1,))
+        mask_out = torch.flip(mask_out, dims=(-1,))
+    return img_out, mask_out
+
+
+class DihedralAugmentDataset:
+    """Seed-reproducible D4 dihedral geometric augmentation wrapper for training splits (#25).
+
+    Applies one of the 8 D4 symmetry transformations (k in {0,1,2,3} 90-deg rotations
+    and flip in {False, True} horizontal reflections) jointly to `(image, mask)` using
+    a dedicated seeded `torch.Generator`. Validation and test splits must never be wrapped.
+    """
+
+    def __init__(self, dataset, seed: int = 42):
+        import torch
+        self.dataset = dataset
+        self.seed = int(seed)
+        self.generator = torch.Generator()
+        self.generator.manual_seed(derive_seed(self.seed, 25))
+
+    def reseed(self, seed: int):
+        import torch
+        self.seed = int(seed)
+        self.generator = torch.Generator()
+        self.generator.manual_seed(derive_seed(self.seed, 25))
+        return self
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        import torch
+        image, mask = self.dataset[idx]
+        k = int(torch.randint(0, 4, (1,), generator=self.generator).item())
+        flip = bool(torch.randint(0, 2, (1,), generator=self.generator).item())
+        return apply_dihedral_transform(image, mask, k=k, flip=flip)
+
+
+def unwrap_dataset(dataset):
+    """Return the underlying unaugmented dataset if wrapped by `DihedralAugmentDataset`."""
+    while isinstance(dataset, DihedralAugmentDataset):
+        dataset = dataset.dataset
+    return dataset
+
+
+def maybe_wrap_augment(dataset, config=None, seed=None):
+    """Wrap `dataset` in `DihedralAugmentDataset` when `config['augment']` is True (#25)."""
+    dataset = unwrap_dataset(dataset)
+    if not isinstance(config, dict) or not bool(config.get('augment', False)):
+        return dataset
+    eff_seed = int(seed if seed is not None else config.get('seed', 42))
+    return DihedralAugmentDataset(dataset, seed=eff_seed)
+
+
+def make_loader(dataset, batch_size, shuffle, seed, num_workers=0):
+    """DataLoader with an explicit seeded generator (and worker seeding)."""
+    import torch
+    from torch.utils.data import DataLoader
+    if shuffle and hasattr(dataset, 'reseed') and callable(dataset.reseed):
+        dataset.reseed(int(seed))
+    g = torch.Generator()
+    g.manual_seed(int(seed))
+    kwargs = dict(batch_size=batch_size, shuffle=shuffle, num_workers=num_workers,
+                  generator=g)
+    if num_workers > 0:
+        kwargs['worker_init_fn'] = _seed_worker
+    return DataLoader(dataset, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Model construction
+# ---------------------------------------------------------------------------
+
+_OPTIONAL_MODEL_KWARGS = ('seed', 'q_ansatz', 'q_layers')
+
+
+def build_model(model_cls, config):
+    """Instantiate model_cls(config, **optional) where optional only holds the
+    kwargs (seed, q_ansatz, q_layers) that the constructor actually accepts."""
+    try:
+        params = inspect.signature(model_cls.__init__).parameters
+    except (TypeError, ValueError):
+        params = {}
+    kwargs = {}
+    for name in _OPTIONAL_MODEL_KWARGS:
+        if name in params and config.get(name) is not None:
+            kwargs[name] = config[name]
+    return model_cls(config, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Data
+# ---------------------------------------------------------------------------
+
+def _supported_kwargs(fn, config):
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return {}
+    kwargs = {}
+    legacy = bool(config.get('legacy_data', False))
+    for name in ('legacy_data', 'legacy'):
+        if name in params:
+            kwargs[name] = legacy
+            break
+    if 'max_samples' in params and config.get('max_samples') is not None:
+        kwargs['max_samples'] = int(config['max_samples'])
+    if 'sample_seed' in params and config.get('seed') is not None:
+        kwargs['sample_seed'] = int(config['seed'])
+    if 'data_root' in params and config.get('data_root') is not None:
+        kwargs['data_root'] = config['data_root']
+    if 'stats_path' in params and config.get('stats_path') is not None:
+        kwargs['stats_path'] = config['stats_path']
+    if 'seed' in params and config.get('seed') is not None:
+        kwargs['seed'] = int(config['seed'])
+    if 'val_fraction' in params and config.get('val_fraction') is not None:
+        kwargs['val_fraction'] = float(config['val_fraction'])
+    if 'fit_only' in params and config.get('fit_only_norm') is not None:
+        kwargs['fit_only'] = bool(config['fit_only_norm'])
+    if 'combined_input_mode' in params and config.get('combined_input_mode') is not None:
+        kwargs['combined_input_mode'] = effective_combined_input_mode(config)
+    return kwargs
+
+
+def load_dataset(images_dir, masks_dir, config):
+    """FloodSegmentationDataset with --legacy-data, --max-samples, --data-root,
+    and fit-only normalization parameters forwarded if supported."""
+    from utilsTorch import FloodSegmentationDataset
+    kwargs = _supported_kwargs(FloodSegmentationDataset.__init__, config)
+    if config.get('legacy_data') and not any(k in kwargs for k in ('legacy', 'legacy_data')):
+        print("WARNING: --legacy-data requested but this FloodSegmentationDataset "
+              "has no legacy switch, the current loader is used as is.")
+    ds = FloodSegmentationDataset(images_dir, masks_dir, config['image_size'], **kwargs)
+    if getattr(ds, 'norm_provenance', None) is not None:
+        config['_resolved_norm_provenance'] = dict(ds.norm_provenance)
+    return ds
+
+
+def canonical_order(dataset):
+    """Index order that does not depend on filesystem listing order when the
+    dataset exposes per-sample paths, else the dataset's own order."""
+    for attr in ('names', 'image_paths', 'paths', 'img_paths', 'files'):
+        paths = getattr(dataset, attr, None)
+        if paths is not None and len(paths) == len(dataset):
+            return sorted(range(len(dataset)), key=lambda i: os.path.basename(str(paths[i])))
+    return list(range(len(dataset)))
+
+
+def cap_samples(dataset, max_samples, seed):
+    """Debug subset: a seeded random subset of at most max_samples items."""
+    from torch.utils.data import Subset
+    if not max_samples or max_samples >= len(dataset):
+        return dataset
+    order = canonical_order(dataset)
+    rng = np.random.default_rng(derive_seed(seed, 7))
+    keep = sorted(rng.permutation(order)[:max_samples].tolist())
+    print(f"--max-samples: using {len(keep)} of {len(dataset)} samples")
+    return Subset(dataset, keep)
+
+
+def flood_labels(dataset, threshold=FLOOD_LABEL_THRESHOLD):
+    """1 if the mask flood fraction exceeds threshold, else 0."""
+    labels = []
+    for i in range(len(dataset)):
+        _, mask = dataset[i]
+        labels.append(1 if float(mask.float().mean()) > threshold else 0)
+    return np.array(labels, dtype=np.int64)
+
+
+def split_train_val(n_or_dataset, val_fraction=VAL_FRACTION, seed=42, labels=None):
+    """Deterministic stratified train/val index split.
+
+    Accepts either an integer sample count `n` or a Dataset/sequence `dataset`.
+    Returns `(train_indices, val_indices)`.
+    """
+    if isinstance(n_or_dataset, (int, np.integer)):
+        n = int(n_or_dataset)
+        order = np.arange(n, dtype=np.int64)
+        if labels is None:
+            labels = np.zeros(n, dtype=np.int64)
+        else:
+            labels = np.asarray(labels, dtype=np.int64)
+    else:
+        n = len(n_or_dataset)
+        order = np.array(canonical_order(n_or_dataset), dtype=np.int64)
+        if labels is None:
+            if (
+                hasattr(n_or_dataset, '__getitem__')
+                and n > 0
+                and isinstance(n_or_dataset[0], tuple)
+                and len(n_or_dataset[0]) == 2
+            ):
+                labels = flood_labels(n_or_dataset)
+            else:
+                labels = np.zeros(n, dtype=np.int64)
+        else:
+            labels = np.asarray(labels, dtype=np.int64)
+
+    if n <= 1 or val_fraction is None or float(val_fraction) <= 0.0:
+        return sorted(order.tolist()), []
+
+    rng = np.random.default_rng(derive_seed(seed, 1))
+    train_idx, val_idx = [], []
+    for c in np.unique(labels):
+        idx = order[labels[order] == c]
+        idx = rng.permutation(idx)
+        n_val = int(round(float(val_fraction) * len(idx)))
+        if len(idx) > 1:
+            n_val = min(max(n_val, 1), len(idx) - 1)
+        val_idx.extend(idx[:n_val].tolist())
+        train_idx.extend(idx[n_val:].tolist())
+    return sorted(train_idx), sorted(val_idx)
+
+
+def holdout_validation(dataset, seed, val_fraction=VAL_FRACTION, labels=None):
+    """Global held-out validation split carved from the training pool BEFORE
+    any client partitioning.
+
+    Stratified on the binarised flood label and determined only by
+    (dataset contents order, seed, val_fraction), so the quantum, classical
+    and ablation runs with the same seed see exactly the same validation set
+    in centralized, random and label-skew Dirichlet modes.
+
+    Returns (train_indices, val_indices, labels) as positions in `dataset`.
+    """
+    if labels is None:
+        labels = flood_labels(dataset)
+    train_idx, val_idx = split_train_val(
+        dataset, val_fraction=val_fraction, seed=seed, labels=labels
+    )
+    pos = sum(labels[i] for i in val_idx)
+    print(f"Global held-out validation: {len(val_idx)} samples "
+          f"({pos} flood-dominant, {len(val_idx) - pos} other), "
+          f"training pool: {len(train_idx)} samples (seed={seed}, fraction={val_fraction})")
+    return train_idx, val_idx, labels
+
+
+def split_random(pool_indices, num_clients, seed):
+    """IID split of pool_indices into num_clients near-equal shards."""
+    rng = np.random.default_rng(derive_seed(seed, 2))
+    perm = rng.permutation(np.asarray(pool_indices, dtype=np.int64))
+    shards = np.array_split(perm, num_clients)
+    sizes = [len(s) for s in shards]
+    print(f"Random IID client sizes: {sizes}")
+    return [sorted(s.tolist()) for s in shards]
+
+
+def split_label_skew_dirichlet(pool_indices, labels, num_clients, alpha, seed,
+                               min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
+    """Label-skew Dirichlet partition over the binarised flood label.
+
+    For each label class the class indices are split across clients with
+    proportions drawn from Dir(alpha). This is label skew only (no feature
+    or geographic skew). Guard: every client receives at least min_samples
+    training samples. If a draw violates the guard, samples are moved one at
+    a time from the currently largest client (taking that client's most
+    represented class, deterministic order) until the guard holds. The whole
+    procedure is a function of (pool, labels, seed, alpha, min_samples).
+    """
+    pool = np.asarray(pool_indices, dtype=np.int64)
+    if num_clients * min_samples > len(pool):
+        raise ValueError(f"min_samples={min_samples} x {num_clients} clients exceeds the "
+                         f"training pool ({len(pool)} samples)")
+    rng = np.random.default_rng(derive_seed(seed, 3))
+    client = [[] for _ in range(num_clients)]
+    pool_labels = labels[pool]
+    for c in np.unique(pool_labels):
+        idx = rng.permutation(pool[pool_labels == c])
+        props = rng.dirichlet(alpha * np.ones(num_clients))
+        cuts = (np.cumsum(props) * len(idx)).astype(int)[:-1]
+        for cid, chunk in enumerate(np.split(idx, cuts)):
+            client[cid].extend(chunk.tolist())
+    raw_sizes = [len(c) for c in client]
+
+    moved = 0
+    for cid in range(num_clients):
+        while len(client[cid]) < min_samples:
+            donor = max(range(num_clients), key=lambda k: (len(client[k]), -k))
+            donor_labels = labels[np.asarray(client[donor])]
+            major = int(np.bincount(donor_labels, minlength=2).argmax())
+            cand = sorted(i for i in client[donor] if labels[i] == major)
+            take = cand[-1]
+            client[donor].remove(take)
+            client[cid].append(take)
+            moved += 1
+
+    sizes = [len(c) for c in client]
+    flood = [int(sum(labels[i] for i in c)) for c in client]
+    print(f"Label-skew Dirichlet (alpha={alpha}) raw client sizes: {raw_sizes}")
+    if moved:
+        print(f"  min-samples guard ({min_samples}) moved {moved} samples")
+    print(f"Label-skew Dirichlet final client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
+    return [sorted(c) for c in client]
+
+
+def sample_modalities(dataset):
+    """Return a list of per-sample modality tags ('optical' or 'sar') for `dataset` (#14).
+
+    Consults `dataset.modalities` (including through `Subset` / `DihedralAugmentDataset`
+    wrappers), falling back to inspecting 6-channel `[Optical(3), SAR(3)]` tensors or
+    defaulting to `'optical'`.
+    """
+    ds = unwrap_dataset(dataset)
+    mods = getattr(ds, 'modalities', None)
+    if mods is not None and len(mods) == len(ds):
+        return [str(m).strip().lower() for m in mods]
+    if hasattr(ds, 'dataset') and hasattr(ds, 'indices'):
+        parent_mods = sample_modalities(ds.dataset)
+        return [parent_mods[int(i)] for i in ds.indices]
+    out = []
+    for i in range(len(ds)):
+        item = ds[i]
+        img = item[0] if isinstance(item, (tuple, list)) else item
+        if hasattr(img, 'shape') and len(img.shape) == 3 and img.shape[0] == 6:
+            opt_energy = float(img[:3].abs().sum())
+            sar_energy = float(img[3:6].abs().sum())
+            out.append('optical' if opt_energy >= sar_energy else 'sar')
+        else:
+            out.append('optical')
+    return out
+
+
+def _enforce_min_client_samples(client, labels, num_clients, min_samples):
+    """Deterministically move samples from the largest client until every client has >= min_samples."""
+    moved = 0
+    for cid in range(num_clients):
+        while len(client[cid]) < min_samples:
+            donor = max(range(num_clients), key=lambda k: (len(client[k]), -k))
+            donor_labels = labels[np.asarray(client[donor])]
+            major = int(np.bincount(donor_labels, minlength=2).argmax())
+            cand = sorted(i for i in client[donor] if labels[i] == major)
+            take = cand[-1]
+            client[donor].remove(take)
+            client[cid].append(take)
+            moved += 1
+    return moved
+
+
+def split_modality_silos(dataset, pool_indices, labels, num_clients, seed,
+                         min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
+    """Cross-sensor modality non-IID partition (`--partition modality`, #14).
+
+    Groups `pool_indices` by sensor modality (`'optical'` vs. `'sar'`) and assigns
+    dedicated clients to each modality silo in proportion to the pool's modality share
+    while constraining the client allocation so that every client receives at least
+    `min_samples` pure single-modality tiles (never transferring samples across
+    modalities). Raises `ValueError` if a pure single-modality allocation is infeasible.
+    """
+    pool = np.asarray(pool_indices, dtype=np.int64)
+    min_samples = max(1, int(min_samples))
+    if num_clients < 1:
+        raise ValueError(f"num_clients={num_clients} must be >= 1")
+    if num_clients * min_samples > len(pool):
+        raise ValueError(
+            f"min_samples={min_samples} x {num_clients} clients exceeds the "
+            f"training pool ({len(pool)} samples)"
+        )
+    mods = sample_modalities(dataset)
+    opt_pool = np.asarray([i for i in pool if mods[int(i)] != 'sar'], dtype=np.int64)
+    sar_pool = np.asarray([i for i in pool if mods[int(i)] == 'sar'], dtype=np.int64)
+    rng = np.random.default_rng(derive_seed(seed, 4))
+
+    if len(opt_pool) > 0 and len(sar_pool) > 0:
+        if num_clients < 2:
+            raise ValueError(
+                f"Cannot partition {len(opt_pool)} optical and {len(sar_pool)} SAR samples "
+                f"into pure single-modality silos with num_clients={num_clients} (< 2)"
+            )
+        max_opt_clients = len(opt_pool) // min_samples
+        max_sar_clients = len(sar_pool) // min_samples
+        low_opt = max(1, num_clients - max_sar_clients)
+        high_opt = min(num_clients - 1, max_opt_clients)
+        if low_opt > high_opt:
+            raise ValueError(
+                f"Infeasible pure modality silos for num_clients={num_clients}, "
+                f"min_samples={min_samples}: optical pool has {len(opt_pool)} samples "
+                f"(max {max_opt_clients} pure clients) and SAR pool has {len(sar_pool)} "
+                f"samples (max {max_sar_clients} pure clients)"
+            )
+        frac_opt = len(opt_pool) / float(len(pool))
+        target_opt = int(round(num_clients * frac_opt))
+        n_opt_clients = max(low_opt, min(high_opt, target_opt))
+        n_sar_clients = num_clients - n_opt_clients
+        opt_shards = np.array_split(rng.permutation(opt_pool), n_opt_clients)
+        sar_shards = np.array_split(rng.permutation(sar_pool), n_sar_clients)
+        client = [s.tolist() for s in opt_shards] + [s.tolist() for s in sar_shards]
+        silo_roles = (['optical'] * n_opt_clients) + (['sar'] * n_sar_clients)
+    else:
+        perm = rng.permutation(pool)
+        shards = np.array_split(perm, num_clients)
+        client = [s.tolist() for s in shards]
+        active_mod = 'sar' if len(sar_pool) > len(opt_pool) else 'optical'
+        silo_roles = [active_mod] * num_clients
+
+    sizes = [len(c) for c in client]
+    flood = [int(sum(labels[i] for i in c)) for c in client]
+    print(f"Modality non-IID silos ({silo_roles}) client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
+    return [sorted(c) for c in client]
+
+
+def _canonical_three_channel_tensor(img, modality=None):
+    """Extract the canonical 3-channel physical tile (3, H, W) invariant to combined_input_mode (#14)."""
+    import torch
+    t = img.detach().float().cpu() if isinstance(img, torch.Tensor) else torch.as_tensor(img, dtype=torch.float32)
+    if t.ndim == 2:
+        t = t.unsqueeze(0)
+    c = int(t.shape[0])
+    if c == 4:
+        # dual_stem: channels 0..2 are physical [C0, C1, C2]; channel 3 is modality indicator
+        return t[:3]
+    if c == 6:
+        # concat6: [Optical(3), SAR(3)] zero-padded on the inactive sensor
+        mod = str(modality).strip().lower() if modality is not None else None
+        if mod == 'sar':
+            return t[3:6]
+        if mod == 'optical':
+            return t[:3]
+        opt_energy = float(t[:3].abs().sum())
+        sar_energy = float(t[3:6].abs().sum())
+        return t[3:6] if sar_energy > opt_energy else t[:3]
+    if c >= 3:
+        return t[:3]
+    reps = (3 + c - 1) // max(1, c)
+    return t.repeat(reps, 1, 1)[:3]
+
+
+def _sample_geo_feature_vector(img, mask, modality=None):
+    """Extract a canonical 7-D per-tile topographic/spectral/flood feature vector (#14).
+
+    Returns `[c0_mean, c1_mean, c2_mean, c0_std, c1_std, c2_std, flood_fraction]` (shape `(7,)`),
+    computed on the canonical 3-channel physical tile so partitions are 100% invariant
+    across `--combined-input-mode {shared3,concat6,dual_stem}`.
+    """
+    import torch
+    t = _canonical_three_channel_tensor(img, modality=modality)
+    m = mask.detach().float().cpu() if isinstance(mask, torch.Tensor) else torch.as_tensor(mask, dtype=torch.float32)
+    ch_means = t.mean(dim=(-2, -1)).numpy().astype(np.float64)
+    ch_stds = t.std(dim=(-2, -1), unbiased=False).numpy().astype(np.float64)
+    flood_frac = np.array([float(m.mean())], dtype=np.float64)
+    return np.concatenate([ch_means, ch_stds, flood_frac], axis=0)
+
+
+def split_geo_cluster_silos(dataset, pool_indices, labels, num_clients, seed,
+                            min_samples=DEFAULT_MIN_CLIENT_SAMPLES):
+    """Geolocation / topographic feature-cluster non-IID partition (`--partition geo_cluster`, #14).
+
+    Extracts deterministic 7-D per-tile spectral/elevation/flood feature vectors
+    for `pool_indices`, standardizes them, and runs seeded k-means++ clustering into
+    `num_clients` regional/feature silos followed by the `min_samples` guard.
+    """
+    pool = np.asarray(pool_indices, dtype=np.int64)
+    if num_clients * min_samples > len(pool):
+        raise ValueError(
+            f"min_samples={min_samples} x {num_clients} clients exceeds the "
+            f"training pool ({len(pool)} samples)"
+        )
+    if num_clients == 1:
+        return [sorted(pool.tolist())]
+
+    ds = unwrap_dataset(dataset)
+    mods = sample_modalities(ds)
+    feats = np.stack([
+        _sample_geo_feature_vector(
+            *ds[int(i)],
+            modality=(mods[int(i)] if int(i) < len(mods) else None),
+        )
+        for i in pool
+    ], axis=0)
+    mean = feats.mean(axis=0, keepdims=True)
+    std = np.maximum(feats.std(axis=0, keepdims=True), 1e-6)
+    x = (feats - mean) / std
+
+    rng = np.random.default_rng(derive_seed(seed, 5))
+    n = len(pool)
+    # Seeded k-means++ initialization
+    centers = np.empty((num_clients, x.shape[1]), dtype=np.float64)
+    first_idx = int(rng.integers(0, n))
+    centers[0] = x[first_idx]
+    closest_dist_sq = np.sum((x - centers[0]) ** 2, axis=1)
+    for cid in range(1, num_clients):
+        total_d = float(closest_dist_sq.sum())
+        if total_d <= 1e-12:
+            pick = int(rng.integers(0, n))
+        else:
+            probs = closest_dist_sq / total_d
+            pick = int(rng.choice(n, p=probs))
+        centers[cid] = x[pick]
+        dist_sq = np.sum((x - centers[cid]) ** 2, axis=1)
+        closest_dist_sq = np.minimum(closest_dist_sq, dist_sq)
+
+    assign = np.zeros(n, dtype=np.int64)
+    for _ in range(25):
+        dists = np.sum((x[:, None, :] - centers[None, :, :]) ** 2, axis=2)
+        new_assign = np.argmin(dists, axis=1)
+        # Ensure no empty cluster during Lloyd updates
+        for cid in range(num_clients):
+            if not np.any(new_assign == cid):
+                farthest = int(np.argmax(np.min(dists, axis=1)))
+                new_assign[farthest] = cid
+                dists[farthest, cid] = 0.0
+        if np.array_equal(new_assign, assign):
+            break
+        assign = new_assign
+        for cid in range(num_clients):
+            pts = x[assign == cid]
+            if len(pts) > 0:
+                centers[cid] = pts.mean(axis=0)
+
+    # Order clusters deterministically by first principal coordinate / feature mean
+    cluster_order = np.argsort([float(centers[c].sum()) for c in range(num_clients)])
+    client = [pool[assign == int(c)].tolist() for c in cluster_order]
+    raw_sizes = [len(c) for c in client]
+    moved = _enforce_min_client_samples(client, labels, num_clients, min_samples)
+    sizes = [len(c) for c in client]
+    flood = [int(sum(labels[i] for i in c)) for c in client]
+    print(f"Geo/feature cluster non-IID raw client sizes: {raw_sizes}")
+    if moved:
+        print(f"  min-samples guard ({min_samples}) moved {moved} samples")
+    print(f"Geo/feature cluster non-IID final client sizes: {sizes}, "
+          f"flood-dominant per client: {flood}")
+    return [sorted(c) for c in client]
+
+
+def build_federated_split(dataset, config):
+    """Global validation holdout followed by client partitioning.
+
+    Returns (client_index_lists, val_indices, info_lines) with indices into
+    `dataset`. info_lines are human readable lines for summary.txt.
+    """
+    seed = config['seed']
+    train_idx, val_idx, labels = holdout_validation(
+        dataset, seed, config.get('val_fraction', VAL_FRACTION))
+    n = int(config['num_clients'])
+    min_s = int(config.get('min_client_samples', DEFAULT_MIN_CLIENT_SAMPLES))
+    part_mode = str(config.get('partition', 'random') or 'random').strip().lower()
+    if part_mode not in PARTITION_CHOICES:
+        raise ValueError(
+            f"Unknown partition={part_mode!r}; expected one of {PARTITION_CHOICES}"
+        )
+    if part_mode == 'dirichlet':
+        clients = split_label_skew_dirichlet(
+            train_idx, labels, n, config['dirichlet_alpha'], seed, min_s)
+        part = (f"label-skew Dirichlet (alpha={config['dirichlet_alpha']}, "
+                f"min {min_s} per client)")
+    elif part_mode == 'modality':
+        clients = split_modality_silos(dataset, train_idx, labels, n, seed, min_s)
+        part = f"cross-sensor modality silos (min {min_s} per client)"
+    elif part_mode == 'geo_cluster':
+        clients = split_geo_cluster_silos(dataset, train_idx, labels, n, seed, min_s)
+        part = f"geo/topographic feature clusters (k={n}, min {min_s} per client)"
+    else:
+        clients = split_random(train_idx, n, seed)
+        part = "random IID"
+    info = [
+        f"Partitioning: {part}",
+        f"Client training sizes: {[len(c) for c in clients]}",
+        f"Global validation set: {len(val_idx)} samples "
+        f"({config.get('val_fraction', VAL_FRACTION)} of the training pool, stratified)",
+    ]
+    return clients, val_idx, info
+
+
+# ---------------------------------------------------------------------------
+# Federated helpers
+# ---------------------------------------------------------------------------
+
+def fit_config_fn(server_round):
+    """on_fit_config_fn: lets clients reseed their shuffle every round."""
+    return {"server_round": int(server_round)}
+
+
+def client_round_seed(seed, client_id, server_round):
+    return derive_seed(seed, 1000 + int(client_id), int(server_round))
+
+
+def seed_client_round(seed, client_id, fit_config=None):
+    """Seed python, numpy, torch, cuda and CuDNN deterministically for one
+    federated client fit() call, and return the derived round_seed."""
+    import torch
+    server_round = int(fit_config.get('server_round', 0)) if fit_config else 0
+    if server_round == 0:
+        print(f"Client {client_id}: no server_round in fit config, "
+              f"shuffle seed falls back to round 0")
+    round_seed = client_round_seed(seed, client_id, server_round)
+    random.seed(round_seed)
+    np.random.seed(round_seed)
+    torch.manual_seed(round_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(round_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    return round_seed
+
+
+# ---------------------------------------------------------------------------
+# Quantum knockout evaluation
+# ---------------------------------------------------------------------------
+
+def _call_set_mode(obj, mode, knockout_seed):
+    try:
+        params = inspect.signature(obj.set_quantum_mode).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if 'knockout_seed' in params:
+        obj.set_quantum_mode(mode, knockout_seed=knockout_seed)
+    else:
+        obj.set_quantum_mode(mode)
+
+
+def set_quantum_mode(model, mode, knockout_seed=0):
+    """Switch the quantum bottleneck between 'on', 'zero' and 'random'.
+
+    Uses set_quantum_mode() on the wrapper or inner model when it has one,
+    else on any submodule, falling back to a `quantum_mode` attribute.
+    Returns True if the switch was applied somewhere.
+    """
+    for obj in (model, getattr(model, '_model', None)):
+        if obj is not None and hasattr(obj, 'set_quantum_mode'):
+            _call_set_mode(obj, mode, knockout_seed)
+            return True
+    inner = getattr(model, '_model', None) or model
+    applied = False
+    if hasattr(inner, 'modules'):
+        for m in inner.modules():
+            if m is inner:
+                continue
+            if hasattr(m, 'set_quantum_mode'):
+                _call_set_mode(m, mode, knockout_seed)
+                applied = True
+            elif hasattr(m, 'quantum_mode'):
+                m.quantum_mode = mode
+                applied = True
+    return applied
+
+
+def knockout_eval(model, loader, device, evaluate_fn, knockout_seed=0):
+    """Evaluate with the quantum block in 'zero' and 'random' mode, then
+    restore 'on'.
+
+    Returns {mode: metrics or None}. None means the model build has no
+    knockout switch.
+    """
+    out = {}
+    for mode in ('zero', 'random'):
+        if not set_quantum_mode(model, mode, knockout_seed):
+            print("Quantum knockout eval: this model build has no quantum mode switch, skipped")
+            return {'zero': None, 'random': None}
+        out[mode] = evaluate_fn(model, loader, device)
+        print(f"Knockout '{mode}' test: IoU={out[mode]['iou']:.4f} Dice={out[mode]['dice']:.4f} "
+              f"AUC={out[mode]['auc']:.4f}")
+    set_quantum_mode(model, 'on', knockout_seed)
+    return out
+
+
+def format_knockout(knock):
+    if not knock:
+        return ""
+    lines = []
+    for mode in ('zero', 'random'):
+        m = knock.get(mode)
+        if m is None:
+            lines.append(f"Quantum Knockout ({mode}): unavailable in this model build\n")
+            continue
+        # Deliberately not "Test Results:" so analyze_results.py never parses
+        # a knockout block as the run's headline test metrics.
+        lines.append(f"Quantum Knockout ({mode}) test metrics:\n")
+        for k, name in (('loss', 'Loss'), ('accuracy', 'Accuracy'), ('auc', 'AUC'),
+                        ('iou', 'IoU'), ('dice', 'Dice')):
+            lines.append(f"  {name}: {m[k]:.4f}\n")
+    return "".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint compatibility
+# ---------------------------------------------------------------------------
+
+# Bumped whenever the split, seeding or data pipeline changes so that a rerun
+# never silently resumes a checkpoint produced by older code in the same
+# results directory.
+RUN_FORMAT = "split-v3"
+
+
+def checkpoint_compatible(ckpt):
+    fmt = ckpt.get('run_format') if isinstance(ckpt, dict) else None
+    if fmt != RUN_FORMAT:
+        print(f"Ignoring existing checkpoint (run_format={fmt!r}, expected {RUN_FORMAT!r}), "
+              f"starting from scratch")
+        return False
+    return True
+
+
+def normalization_provenance(config):
+    """Structured normalization provenance recorded in checkpoint fingerprints."""
+    legacy = bool(config.get('legacy_data', False))
+    if legacy:
+        return {
+            'mode': 'legacy_per_image_p2_p98',
+            'fit_only': False,
+            'seed': None,
+            'val_fraction': None,
+            'stats_path': None,
+        }
+    fit_only_cfg = config.get('fit_only_norm')
+    eff_seed = int(config['seed'])
+    val_frac = float(config.get('val_fraction', VAL_FRACTION))
+    img_sz = int(config['image_size']) if config.get('image_size') is not None else 128
+    max_s = int(config['max_samples']) if config.get('max_samples') is not None else None
+    stats_path = (
+        os.path.abspath(config['stats_path'])
+        if config.get('stats_path') is not None
+        else None
+    )
+
+    resolved = config.get('_resolved_norm_provenance')
+    if (
+        isinstance(resolved, dict)
+        and resolved.get('seed') == eff_seed
+        and (resolved.get('val_fraction') is None or abs(float(resolved['val_fraction']) - val_frac) < 1e-6)
+        and (resolved.get('image_size') in (None, img_sz))
+        and resolved.get('max_samples') == max_s
+    ):
+        out = dict(resolved)
+        out['stats_path'] = stats_path
+        return out
+
+    try:
+        import flood_data
+        ds_folder = DATASET_FOLDER_NAMES.get(config.get('dataset', 'optical'), 'flood_optical')
+        st = flood_data.load_stats(
+            ds_folder,
+            stats_path=stats_path,
+            seed=eff_seed if fit_only_cfg is not False else None,
+            val_fraction=val_frac if fit_only_cfg is not False else None,
+            fit_only=fit_only_cfg,
+            data_root=config.get('data_root'),
+            image_size=img_sz,
+            max_samples=max_s,
+            sample_seed=eff_seed,
+        )
+        out = flood_data.stats_provenance(st)
+        out['stats_path'] = stats_path
+        return out
+    except (FileNotFoundError, KeyError, ValueError):
+        return {
+            'mode': (
+                'unresolved_fit_only'
+                if (fit_only_cfg is not False and val_frac > 0.0)
+                else 'unresolved_full_train'
+            ),
+            'fit_only': False,
+            'seed': eff_seed,
+            'val_fraction': val_frac,
+            'image_size': img_sz,
+            'max_samples': max_s,
+            'stats_path': stats_path,
+        }
+
+
+def select_metric_name(config=None):
+    """Return validated validation selection metric name (default 'iou')."""
+    metric = DEFAULT_SELECT_METRIC
+    if isinstance(config, dict) and config.get('select_metric') is not None:
+        metric = str(config['select_metric']).strip().lower()
+    elif isinstance(config, str) and config.strip():
+        metric = config.strip().lower()
+    if metric not in SELECT_METRIC_CHOICES:
+        raise ValueError(
+            f"Unknown select_metric={metric!r}; expected one of {SELECT_METRIC_CHOICES}"
+        )
+    return metric
+
+
+def initial_best_val_score(select_metric=DEFAULT_SELECT_METRIC):
+    """Initial sentinel best validation score (+inf for 'loss', -inf otherwise)."""
+    metric = select_metric_name(select_metric)
+    return float('inf') if metric == 'loss' else float('-inf')
+
+
+def extract_val_score(metrics, select_metric=DEFAULT_SELECT_METRIC):
+    """Extract float score for `select_metric` from a validation metrics dict."""
+    metric = select_metric_name(select_metric)
+    if not isinstance(metrics, dict) or metric not in metrics or metrics[metric] is None:
+        return float('nan')
+    try:
+        return float(metrics[metric])
+    except (TypeError, ValueError):
+        return float('nan')
+
+
+def is_better_val_score(candidate_score, best_score, select_metric=DEFAULT_SELECT_METRIC):
+    """Return True if `candidate_score` strictly improves on `best_score`
+    (or if `best_score` is still at its initial sentinel / NaN)."""
+    metric = select_metric_name(select_metric)
+    try:
+        cand = float(candidate_score)
+    except (TypeError, ValueError):
+        return False
+    if cand != cand:  # NaN candidate never wins
+        return False
+    if best_score is None:
+        return True
+    try:
+        best = float(best_score)
+    except (TypeError, ValueError):
+        return True
+    if best != best:  # NaN best
+        return True
+    if metric == 'loss':
+        return cand < best
+    return cand > best
+
+
+def clone_state_dict_cpu(state_dict):
+    """Deep-clone a PyTorch state_dict onto CPU so later optimizer steps
+    never mutate the snapshot in-place."""
+    if state_dict is None:
+        return None
+    return {
+        k: (v.detach().cpu().clone() if hasattr(v, 'detach') else copy.deepcopy(v))
+        for k, v in state_dict.items()
+    }
+
+
+def effective_skip_modulation(config):
+    """Resolve and normalize the effective skip modulation ('affine' or 'additive'),
+    consulting `skip_modulation` first and falling back to `q_residual_mode`."""
+    from utilsTorch.unetTorch import normalize_skip_modulation
+    if not isinstance(config, dict):
+        return normalize_skip_modulation(config)
+    raw = config.get('skip_modulation')
+    if raw is None:
+        raw = config.get('q_residual_mode', DEFAULT_SKIP_MODULATION)
+    return normalize_skip_modulation(raw)
+
+
+def effective_q_spatial_mode(config):
+    """Resolve and normalize `q_spatial_mode` ('global' default, or 'pixel', 'patch2x2', 'patch4x4', 'se_gate')."""
+    from utilsTorch.unetTorch import normalize_q_spatial_mode
+    if not isinstance(config, dict):
+        return normalize_q_spatial_mode(config)
+    return normalize_q_spatial_mode(config.get('q_spatial_mode', DEFAULT_Q_SPATIAL_MODE))
+
+
+def effective_hqunet_grid(config):
+    """Resolve and normalize `hqunet_grid` (2 default, or 4)."""
+    from utilsTorch.unetTorch import normalize_hqunet_grid
+    if not isinstance(config, dict):
+        return normalize_hqunet_grid(config)
+    return normalize_hqunet_grid(config.get('hqunet_grid', DEFAULT_HQUNET_GRID))
+
+
+def effective_n_qubits(config):
+    """Resolve and normalize `n_qubits` (4 default, or 2, 8, 12, 16, #39)."""
+    from utilsTorch.unetTorch import normalize_n_qubits
+    if not isinstance(config, dict):
+        return normalize_n_qubits(config)
+    return normalize_n_qubits(config.get('n_qubits', DEFAULT_N_QUBITS))
+
+
+def _effective_fingerprint_n_qubits(config, model_type):
+    """Effective `n_qubits` recorded in fingerprints and `metrics.json` (#39)."""
+    if model_type not in ('quantum', 'ablation'):
+        return None
+    return effective_n_qubits(config)
+
+
+def bottleneck_param_counts(config, model_type, model=None):
+    """Return `(bottleneck_target_params, bottleneck_actual_params)` for quantum/ablation runs (#39).
+
+    Returns `(None, None)` for classical runs.
+    """
+    if model_type not in ('quantum', 'ablation'):
+        return None, None
+    if model is not None:
+        root = getattr(model, 'model', None) or getattr(model, '_model', None) or model
+        if hasattr(root, 'modules'):
+            seen = set()
+            targets, actuals = [], []
+            for m in root.modules():
+                if hasattr(m, 'bottleneck_target_params') and hasattr(m, 'bottleneck_actual_params'):
+                    if id(m) not in seen:
+                        seen.add(id(m))
+                        targets.append(int(m.bottleneck_target_params))
+                        actuals.append(int(m.bottleneck_actual_params))
+            if targets:
+                return sum(targets), sum(actuals)
+    if not isinstance(config, dict):
+        return None, None
+    if config.get('local_spatial_kernel') is not None:
+        from utilsTorch.local_spatial import build_local_spatial_block
+        block = build_local_spatial_block(config, model_type)
+        n_blocks = 1 if bool(config.get('q_share_blocks', True)) else 2
+        return block.bottleneck_target_params * n_blocks, block.bottleneck_actual_params * n_blocks
+    qc = int(config.get('quantum_channels', 32) if config.get('quantum_channels') is not None else 32)
+    n_blocks = 1 if bool(config.get('q_share_blocks', True)) else 2
+    if qc <= 0:
+        return 0, 0
+    ansatz, layers = effective_q_variant(config)
+    n_q = effective_n_qubits(config)
+    q_sp = effective_q_spatial_mode(config)
+    grid = effective_hqunet_grid(config)
+    if model_type == 'ablation':
+        from utilsTorch.unetTorch import ClassicalBottleneckBlock
+        abl_mode = effective_ablation_mode(config)
+        eff_layers = effective_ablation_q_layers(config)
+        eff_nq = 4 if (ansatz == 'hqunet' or abl_mode == 'hqunet_spatial') else n_q
+        blk = ClassicalBottleneckBlock(
+            quantum_channels=qc,
+            q_ansatz=ansatz,
+            q_layers=eff_layers,
+            spatial_mode=q_sp,
+            ablation_mode=abl_mode,
+            ablation_mlp_mode=effective_ablation_mlp_mode(config),
+            ablation_mlp_hidden=effective_ablation_mlp_hidden(config),
+            hqunet_grid=grid,
+            n_qubits=eff_nq,
+        )
+        return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
+    q_family = config.get('quantum_backend', 'pennylane')
+    if q_family == 'ptlayer':
+        per_block = (qc // 4) * 144
+        total = int(per_block) * n_blocks
+        return total, total
+    from utilsTorch.unetTorch import QuantumBlock
+    eff_nq = 4 if ansatz == 'hqunet' else n_q
+    blk = QuantumBlock(
+        quantum_channels=qc,
+        backend='pennylane',
+        q_ansatz=ansatz,
+        q_layers=layers or (1 if ansatz == 'legacy' else 2),
+        q_backend='torch',
+        q_spatial_mode=q_sp,
+        hqunet_grid=grid,
+        n_qubits=eff_nq,
+    )
+    return int(blk.bottleneck_target_params) * n_blocks, int(blk.bottleneck_actual_params) * n_blocks
+
+
+def effective_ablation_mode(config):
+    """Resolve and normalize `ablation_mode` ('auto' default, or 'linear', 'mlp', 'conv1x1', 'depthwise3x3', 'lowrank', 'hqunet_spatial')."""
+    from utilsTorch.unetTorch import normalize_ablation_mode
+    if not isinstance(config, dict):
+        return normalize_ablation_mode(config)
+    return normalize_ablation_mode(config.get('ablation_mode', DEFAULT_ABLATION_MODE))
+
+
+def effective_ablation_mlp_mode(config):
+    """Resolve and normalize `ablation_mlp_mode` ('param_matched' default, or 'full_rank', #44)."""
+    from utilsTorch.unetTorch import normalize_ablation_mlp_mode
+    if not isinstance(config, dict):
+        return normalize_ablation_mlp_mode(config)
+    return normalize_ablation_mlp_mode(config.get('ablation_mlp_mode', DEFAULT_ABLATION_MLP_MODE))
+
+
+def effective_ablation_mlp_hidden(config):
+    """Resolve and normalize optional `ablation_mlp_hidden` (None default, or int >= 1, #44)."""
+    from utilsTorch.unetTorch import normalize_ablation_mlp_hidden
+    if not isinstance(config, dict):
+        return normalize_ablation_mlp_hidden(config)
+    return normalize_ablation_mlp_hidden(config.get('ablation_mlp_hidden'))
+
+
+def effective_backbone_conv_mode(config):
+    """Resolve and normalize `backbone_conv_mode` ('ws_conv' default, 'standard', or 'depthwise_sep')."""
+    from utilsTorch.unetTorch import normalize_backbone_conv_mode
+    if not isinstance(config, dict):
+        return normalize_backbone_conv_mode(config)
+    return normalize_backbone_conv_mode(config.get('backbone_conv_mode', DEFAULT_BACKBONE_CONV_MODE))
+
+
+def effective_combined_input_mode(config):
+    """Resolve and normalize `combined_input_mode` ('shared3' default, 'concat6', or 'dual_stem', #14)."""
+    from utilsTorch.unetTorch import normalize_combined_input_mode
+    if not isinstance(config, dict):
+        return normalize_combined_input_mode(config)
+    return normalize_combined_input_mode(config.get('combined_input_mode', DEFAULT_COMBINED_INPUT_MODE))
+
+
+def effective_decoder_skip_gate(config):
+    """Resolve and normalize `decoder_skip_gate` ('none' default, 'se', or 'affine', #43)."""
+    from utilsTorch.unetTorch import normalize_decoder_skip_gate
+    if not isinstance(config, dict):
+        return normalize_decoder_skip_gate(config)
+    return normalize_decoder_skip_gate(config.get('decoder_skip_gate', DEFAULT_DECODER_SKIP_GATE))
+
+
+def effective_fl_strategy(config):
+    """Resolve and normalize federated strategy ('fedavg' default, or 'fedprox', #15)."""
+    if not isinstance(config, dict):
+        raw = str(config).strip().lower() if config is not None else DEFAULT_FL_STRATEGY
+    else:
+        raw = config.get('fl_strategy')
+        if raw is None:
+            mu = float(config.get('fedprox_mu', 0.0) or 0.0)
+            raw = 'fedprox' if mu > 0.0 else DEFAULT_FL_STRATEGY
+        else:
+            raw = str(raw).strip().lower()
+    if raw not in FL_STRATEGY_CHOICES:
+        raise ValueError(
+            f"Unknown fl_strategy={raw!r}; expected one of {FL_STRATEGY_CHOICES}"
+        )
+    return raw
+
+
+def effective_fedprox_mu(config):
+    """Resolve and validate FedProx proximal penalty coefficient `fedprox_mu` (#15).
+
+    Returns 0.0 when `fl_strategy == 'fedavg'`. When `fl_strategy == 'fedprox'` and
+    `fedprox_mu` is unset (`None`), defaults to `DEFAULT_FEDPROX_MU` (0.01); an
+    explicit `fedprox_mu=0.0` is preserved as 0.0.
+    """
+    if not isinstance(config, dict):
+        return 0.0
+    strat = effective_fl_strategy(config)
+    raw = config.get('fedprox_mu')
+    if raw is None:
+        return DEFAULT_FEDPROX_MU if strat == 'fedprox' else 0.0
+    val = float(raw)
+    if val < 0.0:
+        raise ValueError(f"fedprox_mu={val} must be >= 0.0")
+    if strat == 'fedavg':
+        return 0.0
+    return val
+
+
+def effective_q_angle_agg(config):
+    """Resolve and normalize quantum angle aggregation mode ('linear' default, or 'circular', #15)."""
+    if not isinstance(config, dict):
+        raw = str(config).strip().lower() if config is not None else DEFAULT_Q_ANGLE_AGG
+    else:
+        raw = str(config.get('q_angle_agg', DEFAULT_Q_ANGLE_AGG) or DEFAULT_Q_ANGLE_AGG).strip().lower()
+    if raw not in Q_ANGLE_AGG_CHOICES:
+        raise ValueError(
+            f"Unknown q_angle_agg={raw!r}; expected one of {Q_ANGLE_AGG_CHOICES}"
+        )
+    return raw
+
+
+def resolve_client_participation(config):
+    """Resolve `(num_clients, clients_per_round, fraction_fit)` and normalize `config` (#15)."""
+    if not isinstance(config, dict):
+        return 4, 4, 1.0
+    nc = int(config.get('num_clients', 4))
+    if nc < 1:
+        raise ValueError(f"num_clients={nc} must be >= 1")
+    if config.get('fraction_fit') is not None:
+        ff_raw = float(config['fraction_fit'])
+        if ff_raw <= 0.0 or ff_raw > 1.0:
+            raise ValueError(f"fraction_fit={ff_raw} must be in (0.0, 1.0]")
+        cpr = max(1, min(nc, int(round(ff_raw * nc))))
+    elif config.get('clients_per_round') is not None:
+        cpr = int(config['clients_per_round'])
+    else:
+        cpr = nc
+    if cpr < 1 or cpr > nc:
+        raise ValueError(f"clients_per_round={cpr} must be in [1, num_clients={nc}]")
+    ff = float(cpr) / float(nc)
+    config['num_clients'] = nc
+    config['clients_per_round'] = cpr
+    config['fraction_fit'] = ff
+    return nc, cpr, ff
+
+
+def is_periodic_quantum_param_name(name: str) -> bool:
+    """Return True if `name` is a periodic PQC rotation parameter on S^1 = [-pi, pi] (#15).
+
+    Matches `quantum_params` (`legacy` and `reupload` ansatze) and `hqunet_weights`
+    (`hqunet` ansatz). Excludes unbounded Euclidean parameters (`input_scales`,
+    `pre_q_conv`, `post_q_proj`, and classical backbone layers).
+    """
+    s = str(name)
+    return ('quantum_params' in s) or ('hqunet_weights' in s)
+
+
+def quantum_periodic_param_indices(model_or_state_keys):
+    """Return sorted set of state_dict parameter indices holding periodic PQC angles (#15)."""
+    if model_or_state_keys is None:
+        return set()
+    if isinstance(model_or_state_keys, dict):
+        keys = list(model_or_state_keys.keys())
+    elif isinstance(model_or_state_keys, (list, tuple)):
+        keys = [str(k) for k in model_or_state_keys]
+    elif hasattr(model_or_state_keys, 'state_dict'):
+        keys = list(model_or_state_keys.state_dict().keys())
+    elif hasattr(model_or_state_keys, 'model') and hasattr(model_or_state_keys.model, 'state_dict'):
+        keys = list(model_or_state_keys.model.state_dict().keys())
+    else:
+        return set()
+    return {idx for idx, name in enumerate(keys) if is_periodic_quantum_param_name(name)}
+
+
+def circular_mean_angles(arrays, weights):
+    """Weighted circular mean on S^1 = [-pi, pi] via atan2(sum w_k sin theta_k, sum w_k cos theta_k) (#15).
+
+    If the resultant vector length R = sqrt(S^2 + C^2) < 1e-12 (exact antipodal
+    cancellation), falls back to the wrapped linear weighted mean in [-pi, pi].
+    """
+    if not arrays:
+        raise ValueError("circular_mean_angles requires at least one array")
+    first = np.asarray(arrays[0])
+    ref_shape = first.shape
+    for idx, arr in enumerate(arrays[1:], start=1):
+        arr_np = np.asarray(arr)
+        if arr_np.shape != ref_shape:
+            raise ValueError(
+                f"circular_mean_angles shape mismatch at index {idx}: "
+                f"expected {ref_shape}, got {arr_np.shape}"
+            )
+    orig_dtype = first.dtype
+    w = np.asarray(weights, dtype=np.float64)
+    if w.ndim != 1 or len(w) != len(arrays):
+        raise ValueError(
+            f"circular_mean_angles weights length mismatch: expected {len(arrays)}, got {w.shape}"
+        )
+    w_sum = float(w.sum())
+    if w_sum <= 0.0:
+        w = np.ones(len(arrays), dtype=np.float64) / float(len(arrays))
+    else:
+        w = w / w_sum
+    sin_sum = np.zeros_like(first, dtype=np.float64)
+    cos_sum = np.zeros_like(first, dtype=np.float64)
+    lin_sum = np.zeros_like(first, dtype=np.float64)
+    for arr, wk in zip(arrays, w):
+        theta = np.asarray(arr, dtype=np.float64)
+        sin_sum += wk * np.sin(theta)
+        cos_sum += wk * np.cos(theta)
+        lin_sum += wk * theta
+    r = np.hypot(sin_sum, cos_sum)
+    circ = np.arctan2(sin_sum, cos_sum)
+    wrapped_lin = ((lin_sum + np.pi) % (2.0 * np.pi)) - np.pi
+    out = np.where(r >= 1e-12, circ, wrapped_lin)
+    return out.astype(orig_dtype, copy=False)
+
+
+def aggregate_ndarrays_quantum_aware(results, periodic_indices=None, q_angle_agg=DEFAULT_Q_ANGLE_AGG):
+    """Aggregate `(ndarrays, num_examples)` pairs using circular mean on `periodic_indices`
+    when `q_angle_agg == 'circular'` and standard Euclidean weighted average elsewhere (#15)."""
+    if not results:
+        return []
+    agg_mode = effective_q_angle_agg({'q_angle_agg': q_angle_agg})
+    p_idx = set(periodic_indices or ())
+    weights = [float(num_ex) for _, num_ex in results]
+    w_arr = np.asarray(weights, dtype=np.float64)
+    w_sum = float(w_arr.sum())
+    w_norm = (w_arr / w_sum) if w_sum > 0.0 else (np.ones(len(results), dtype=np.float64) / float(len(results)))
+    num_params = len(results[0][0])
+    for client_idx, (params, _) in enumerate(results[1:], start=1):
+        if len(params) != num_params:
+            raise ValueError(
+                f"Client {client_idx} parameter tensor count mismatch: "
+                f"expected {num_params}, got {len(params)}"
+            )
+    out = []
+    for idx in range(num_params):
+        layer_arrays = [np.asarray(params[idx]) for params, _ in results]
+        ref_shape = layer_arrays[0].shape
+        for client_idx, arr in enumerate(layer_arrays[1:], start=1):
+            if arr.shape != ref_shape:
+                raise ValueError(
+                    f"Client {client_idx} parameter shape mismatch at index {idx}: "
+                    f"expected {ref_shape}, got {arr.shape}"
+                )
+        if agg_mode == 'circular' and idx in p_idx and np.issubdtype(layer_arrays[0].dtype, np.floating):
+            out.append(circular_mean_angles(layer_arrays, weights))
+        else:
+            acc = np.zeros_like(layer_arrays[0], dtype=np.float64)
+            for arr, wk in zip(layer_arrays, w_norm):
+                acc += wk * arr.astype(np.float64)
+            out.append(acc.astype(layer_arrays[0].dtype, copy=False))
+    return out
+
+
+def apply_circular_q_angle_agg_to_fit_result(aggregated_parameters, results, model_or_keys, config=None):
+    """Replace periodic PQC rotation parameters in `aggregated_parameters` with their
+    weighted circular mean when `effective_q_angle_agg(config) == 'circular'` (#15)."""
+    if aggregated_parameters is None or not results:
+        return aggregated_parameters
+    if effective_q_angle_agg(config) != 'circular':
+        return aggregated_parameters
+    p_idx = quantum_periodic_param_indices(model_or_keys)
+    if not p_idx:
+        return aggregated_parameters
+    from flwr.common import ndarrays_to_parameters, parameters_to_ndarrays
+    agg_nd = list(parameters_to_ndarrays(aggregated_parameters))
+    ref_shapes = None
+    if isinstance(model_or_keys, dict) and model_or_keys:
+        first_val = next(iter(model_or_keys.values()))
+        if hasattr(first_val, 'shape'):
+            ref_shapes = [tuple(v.shape) for v in model_or_keys.values()]
+        elif isinstance(first_val, (tuple, list)):
+            ref_shapes = [tuple(int(d) for d in v) for v in model_or_keys.values()]
+    elif hasattr(model_or_keys, 'named_parameters'):
+        ref_shapes = [tuple(p.shape) for _, p in model_or_keys.named_parameters()]
+    elif hasattr(model_or_keys, 'state_dict'):
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.state_dict().values()]
+    elif hasattr(model_or_keys, 'model') and hasattr(model_or_keys.model, 'state_dict'):
+        ref_shapes = [tuple(v.shape) for v in model_or_keys.model.state_dict().values()]
+    if ref_shapes is None:
+        ref_shapes = [np.asarray(a).shape for a in agg_nd]
+    if len(agg_nd) != len(ref_shapes):
+        raise ValueError(
+            f"Aggregated parameter tensor count mismatch: expected {len(ref_shapes)}, got {len(agg_nd)}"
+        )
+    for idx, (arr, exp_shape) in enumerate(zip(agg_nd, ref_shapes)):
+        if np.asarray(arr).shape != exp_shape:
+            raise ValueError(
+                f"Aggregated parameter shape mismatch at index {idx}: "
+                f"expected {exp_shape}, got {np.asarray(arr).shape}"
+            )
+    client_nd_weights = []
+    for client_idx, item in enumerate(results):
+        fit_res = item[1] if isinstance(item, tuple) else item
+        c_nd = parameters_to_ndarrays(fit_res.parameters)
+        if len(c_nd) != len(ref_shapes):
+            raise ValueError(
+                f"Client {client_idx} parameter tensor count mismatch in circular aggregation: "
+                f"expected {len(ref_shapes)}, got {len(c_nd)}"
+            )
+        for idx, (arr, exp_shape) in enumerate(zip(c_nd, ref_shapes)):
+            if np.asarray(arr).shape != exp_shape:
+                raise ValueError(
+                    f"Client {client_idx} parameter shape mismatch at index {idx}: "
+                    f"expected {exp_shape}, got {np.asarray(arr).shape}"
+                )
+        client_nd_weights.append((c_nd, float(fit_res.num_examples)))
+    weights = [w for _, w in client_nd_weights]
+    for idx in sorted(p_idx):
+        if 0 <= idx < len(agg_nd) and np.issubdtype(agg_nd[idx].dtype, np.floating):
+            layer_arrays = [nd[idx] for nd, _ in client_nd_weights]
+            agg_nd[idx] = circular_mean_angles(layer_arrays, weights)
+    return ndarrays_to_parameters(agg_nd)
+
+
+def normalize_comm_compression(mode):
+    """Normalize and validate federated client-to-server update compression mode (#48)."""
+    if mode is None:
+        return DEFAULT_COMM_COMPRESSION
+    m = str(mode).strip().lower()
+    if m not in COMM_COMPRESSION_CHOICES:
+        raise ValueError(
+            f"Unknown comm_compression={mode!r}; expected one of {COMM_COMPRESSION_CHOICES}"
+        )
+    return m
+
+
+def effective_comm_compression(config):
+    """Resolve federated communication compression mode ('none', 'fp16', 'int8', 'topk10'; #48)."""
+    if not isinstance(config, dict):
+        return normalize_comm_compression(config)
+    return normalize_comm_compression(config.get('comm_compression', DEFAULT_COMM_COMPRESSION))
+
+
+def _extract_tensor_specs_for_comm(params_or_count, num_tensors=None):
+    """Return `(float_tensor_sizes, non_float_bytes, explicit_tensor_list)` from a parameter count,
+    sequence of tensors/ndarrays, Flower `Parameters`, or `nn.Module` / model wrapper."""
+    if params_or_count is None:
+        return [], 0, False
+    if isinstance(params_or_count, (int, np.integer)):
+        n_total = int(params_or_count)
+        if n_total < 0:
+            raise ValueError(f"total_params={n_total} must be >= 0")
+        return ([n_total] if n_total > 0 else []), 0, False
+    if hasattr(params_or_count, 'tensors') and hasattr(params_or_count, 'tensor_type'):
+        from flwr.common import parameters_to_ndarrays
+        seq = list(parameters_to_ndarrays(params_or_count))
+    elif hasattr(params_or_count, 'parameters') and callable(params_or_count.parameters):
+        seq = list(params_or_count.parameters())
+    elif hasattr(params_or_count, 'model') and hasattr(params_or_count.model, 'parameters'):
+        seq = list(params_or_count.model.parameters())
+    elif isinstance(params_or_count, dict):
+        seq = list(params_or_count.values())
+    else:
+        seq = list(params_or_count)
+    float_sizes = []
+    non_float_bytes = 0
+    for item in seq:
+        if hasattr(item, 'detach') and hasattr(item, 'numel'):
+            is_flt = bool(item.is_floating_point())
+            nel = int(item.numel())
+            el_sz = int(item.element_size())
+        else:
+            arr = np.asarray(item)
+            is_flt = bool(np.issubdtype(arr.dtype, np.floating))
+            nel = int(arr.size)
+            el_sz = int(arr.dtype.itemsize)
+        if is_flt:
+            if nel > 0:
+                float_sizes.append(nel)
+        else:
+            non_float_bytes += nel * el_sz
+    return float_sizes, int(non_float_bytes), True
+
+
+def compute_comm_compression_telemetry(
+    params_or_count,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+    *,
+    num_tensors=None,
+):
+    """Compute modeled per-client per-round upload payload telemetry under `comm_compression` (#48).
+
+    Reports modeled raw parameter/update payload sizes (excluding Flower/protobuf RPC wire
+    framing), paired with the in-memory pre-aggregation compression simulation in
+    `apply_comm_compression_to_fit_results`. When `params_or_count` is a `torch.nn.Module`,
+    a list/tuple of tensors/ndarrays, or Flower `Parameters`, per-tensor sizes are known
+    (`telemetry_is_exact_per_tensor = True`), so `'int8'` includes exact `4 * num_float_tensors`
+    scale metadata bytes and `'topk10'` sums `max(1, ceil(0.10 * n_i))` per tensor. When
+    `params_or_count` is a scalar parameter count `int`, `telemetry_is_exact_per_tensor = False`
+    and the returned values represent a single-tensor analytical estimate (omitting per-tensor
+    `'int8'` scale metadata unless `num_tensors` is explicitly given, and computing a single
+    global `max(1, ceil(0.10 * N))` for `'topk10'`).
+
+    Returns a dictionary containing:
+      - `comm_compression`: `'none' | 'fp16' | 'int8' | 'topk10'`
+      - `telemetry_is_exact_per_tensor`: `True` when computed from a model or tensor list, `False` for scalar count estimates
+      - `uncompressed_bytes_per_client_round`: modeled uncompressed `float32` upload bytes
+      - `upload_bytes_per_client_round`: modeled compressed upload bytes per client per round
+      - `uncompressed_mib_per_client_round`: `uncompressed_bytes_per_client_round / 2**20`
+      - `upload_mib_per_client_round`: `upload_bytes_per_client_round / 2**20`
+      - `compression_ratio`: `upload_bytes_per_client_round / uncompressed_bytes_per_client_round`
+      - `reduction_fraction`: `1.0 - compression_ratio`
+      - `scale_metadata_bytes_per_client_round`: `int8` per-tensor `float32` scale bytes (`0` for other modes)
+      - `retained_elements_per_client_round`: number of transmitted elements per client per round
+      - `upload_bytes_per_client_round_int16_idx`: theoretical lower-bound `topk10` payload bytes assuming delta-encoded index gaps fit in 16-bit integers (`None` for other modes)
+      - `upload_mib_per_client_round_int16_idx`: theoretical lower-bound `topk10` MiB assuming 16-bit delta indices (`None` for other modes)
+    """
+    mode = effective_comm_compression(comm_compression)
+    float_sizes, non_float_bytes, is_tensor_list = _extract_tensor_specs_for_comm(
+        params_or_count, num_tensors=num_tensors
+    )
+    total_float_elems = int(sum(float_sizes))
+    uncompressed_bytes = 4 * total_float_elems + non_float_bytes
+    scale_meta_bytes = 0
+    int16_idx_bytes = None
+    int16_idx_mib = None
+
+    if mode == 'none':
+        upload_bytes = uncompressed_bytes
+        retained_elems = total_float_elems
+    elif mode == 'fp16':
+        upload_bytes = 2 * total_float_elems + non_float_bytes
+        retained_elems = total_float_elems
+    elif mode == 'int8':
+        if num_tensors is not None:
+            n_scales = max(0, int(num_tensors))
+        elif is_tensor_list:
+            n_scales = len(float_sizes)
+        else:
+            n_scales = 0
+        scale_meta_bytes = 4 * n_scales
+        upload_bytes = total_float_elems + scale_meta_bytes + non_float_bytes
+        retained_elems = total_float_elems
+    elif mode == 'topk10':
+        retained_elems = int(sum(max(1, int(math.ceil(0.10 * n))) for n in float_sizes))
+        # 4-byte float32 value + 4-byte int32 index = 8 bytes per retained entry
+        upload_bytes = 8 * retained_elems + non_float_bytes
+        # Theoretical lower bound: 4-byte float32 value + 2-byte int16 delta index = 6 bytes per retained entry
+        int16_idx_bytes = 6 * retained_elems + non_float_bytes
+        int16_idx_mib = float(int16_idx_bytes) / float(1024 * 1024)
+    else:
+        raise ValueError(f"Unsupported comm_compression={mode!r}")
+
+    mib_denom = float(1024 * 1024)
+    ratio = (float(upload_bytes) / float(uncompressed_bytes)) if uncompressed_bytes > 0 else 1.0
+    return {
+        'comm_compression': mode,
+        'telemetry_is_exact_per_tensor': bool(is_tensor_list),
+        'uncompressed_bytes_per_client_round': int(uncompressed_bytes),
+        'upload_bytes_per_client_round': int(upload_bytes),
+        'uncompressed_mib_per_client_round': float(uncompressed_bytes) / mib_denom,
+        'upload_mib_per_client_round': float(upload_bytes) / mib_denom,
+        'compression_ratio': float(ratio),
+        'reduction_fraction': float(1.0 - ratio),
+        'scale_metadata_bytes_per_client_round': int(scale_meta_bytes),
+        'retained_elements_per_client_round': int(retained_elems),
+        'upload_bytes_per_client_round_int16_idx': int16_idx_bytes,
+        'upload_mib_per_client_round_int16_idx': int16_idx_mib,
+    }
+
+
+def compress_decompress_tensor_update(
+    client_arr,
+    global_arr=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Simulate client-to-server compressed transmission of a single parameter tensor (#48).
+
+    When `global_arr` is provided, compresses the update delta
+    `delta = client_arr.astype(float32) - global_arr.astype(float32)` and reconstructs
+    `global_arr.astype(float32) + C(delta)`. When `global_arr` is None, applies `C` directly
+    to `client_arr`. Raises `ValueError` if any input parameter or update delta contains
+    non-finite (`NaN` or `Inf`) values when compression is active.
+    """
+    mode = effective_comm_compression(comm_compression)
+    c_np = np.asarray(client_arr)
+    if global_arr is not None:
+        g_np = np.asarray(global_arr)
+        if g_np.shape != c_np.shape:
+            raise ValueError(
+                f"Shape mismatch in compress_decompress_tensor_update: "
+                f"client shape {c_np.shape} != global shape {g_np.shape}"
+            )
+    if mode == 'none' or not np.issubdtype(c_np.dtype, np.floating) or c_np.size == 0:
+        return np.array(c_np, copy=True)
+
+    c_f32 = c_np.astype(np.float32, copy=False)
+    if not np.all(np.isfinite(c_f32)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) client parameter values encountered in compress_decompress_tensor_update"
+        )
+    if global_arr is not None:
+        base_f32 = np.asarray(global_arr).astype(np.float32, copy=False)
+        if not np.all(np.isfinite(base_f32)):
+            raise ValueError(
+                "Non-finite (NaN or Inf) global parameter values encountered in compress_decompress_tensor_update"
+            )
+        delta = c_f32 - base_f32
+    else:
+        base_f32 = None
+        delta = np.array(c_f32, copy=True)
+    if not np.all(np.isfinite(delta)):
+        raise ValueError(
+            "Non-finite (NaN or Inf) update delta encountered in compress_decompress_tensor_update"
+        )
+
+    if mode == 'fp16':
+        f16_max = float(np.finfo(np.float16).max)
+        comp_delta = np.clip(delta, -f16_max, f16_max).astype(np.float16).astype(np.float32)
+    elif mode == 'int8':
+        amax = float(np.max(np.abs(delta)))
+        if amax > 0.0 and np.isfinite(amax):
+            scale = np.float32(amax / 127.0)
+            if float(scale) > 0.0:
+                q = np.clip(np.rint(delta / scale), -127.0, 127.0).astype(np.int8)
+                comp_delta = q.astype(np.float32) * scale
+            else:
+                comp_delta = np.zeros_like(delta, dtype=np.float32)
+        else:
+            comp_delta = np.zeros_like(delta, dtype=np.float32)
+    elif mode == 'topk10':
+        flat = delta.reshape(-1)
+        n = int(flat.size)
+        k = max(1, int(math.ceil(0.10 * n)))
+        if k >= n:
+            comp_delta = delta.copy()
+        else:
+            abs_flat = np.abs(flat)
+            tau = float(np.partition(abs_flat, n - k)[n - k])
+            strict_mask = abs_flat > tau
+            n_strict = int(np.count_nonzero(strict_mask))
+            out_flat = np.where(strict_mask, flat, np.float32(0.0))
+            if n_strict < k:
+                rem = k - n_strict
+                tie_idx = np.flatnonzero(abs_flat == tau)[:rem]
+                out_flat[tie_idx] = flat[tie_idx]
+            comp_delta = out_flat.reshape(delta.shape)
+    else:
+        raise ValueError(f"Unsupported comm_compression={mode!r}")
+
+    if base_f32 is not None:
+        recon = base_f32 + comp_delta
+    else:
+        recon = comp_delta
+    return np.array(recon.astype(c_np.dtype, copy=False), copy=True)
+
+
+def compress_decompress_client_update(
+    client_ndarrays,
+    global_ndarrays=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Apply `compress_decompress_tensor_update` across a full client parameter tensor list (#48)."""
+    mode = effective_comm_compression(comm_compression)
+    c_list = parameters_to_ndarrays_safe(client_ndarrays)
+    if c_list is None:
+        return []
+    g_list = parameters_to_ndarrays_safe(global_ndarrays) if global_ndarrays is not None else None
+    if g_list is not None:
+        if len(c_list) != len(g_list):
+            raise ValueError(
+                f"Parameter tensor count mismatch in compress_decompress_client_update: "
+                f"client has {len(c_list)}, global has {len(g_list)}"
+            )
+        return [
+            compress_decompress_tensor_update(c_arr, g_arr, mode)
+            for c_arr, g_arr in zip(c_list, g_list)
+        ]
+    return [compress_decompress_tensor_update(c_arr, None, mode) for c_arr in c_list]
+
+
+def apply_comm_compression_to_fit_results(
+    results,
+    global_parameters=None,
+    comm_compression=DEFAULT_COMM_COMPRESSION,
+):
+    """Simulate client-to-server update compression on `FitRes.parameters` before server aggregation (#48).
+
+    Compression and reconstruction are applied in-memory after Flower delivers dense
+    `FitRes.parameters` and before `aggregate_fit` averages client updates, enabling
+    controlled accuracy/IoU retention ablations without altering Flower's protobuf wire
+    transport. When `effective_comm_compression(comm_compression) == 'none'` or `results`
+    is empty, returns `results` unchanged. Otherwise returns a new list of `(ClientProxy, FitRes)`
+    (or `FitRes`) objects with compressed-and-reconstructed `FitRes.parameters`.
+    """
+    mode = effective_comm_compression(comm_compression)
+    if not results or mode == 'none':
+        return results
+    from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
+    g_nd = parameters_to_ndarrays_safe(global_parameters) if global_parameters is not None else None
+    compressed_results = []
+    for item in results:
+        if isinstance(item, tuple) and len(item) == 2:
+            proxy, fit_res = item
+            is_tuple = True
+        else:
+            proxy, fit_res = None, item
+            is_tuple = False
+        c_nd = parameters_to_ndarrays(fit_res.parameters)
+        comp_nd = compress_decompress_client_update(c_nd, g_nd, mode)
+        new_fit_res = FitRes(
+            status=fit_res.status,
+            parameters=ndarrays_to_parameters(comp_nd),
+            num_examples=fit_res.num_examples,
+            metrics=dict(fit_res.metrics) if fit_res.metrics is not None else {},
+        )
+        compressed_results.append((proxy, new_fit_res) if is_tuple else new_fit_res)
+    return compressed_results
+
+
+def _uses_hqunet_grid(config, model_type=None):
+    """Return True when `hqunet_grid` affects the model architecture for `(config, model_type)`."""
+    ansatz, _ = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if quantum and ansatz == 'hqunet':
+        return True
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return True
+    return False
+
+
+def effective_ablation_q_layers(config):
+    """Effective layer count when `ablation_mode == 'hqunet_spatial'` (even if `q_ansatz == 'legacy'`)."""
+    layers = config.get('q_layers') if isinstance(config, dict) else None
+    return int(layers) if layers is not None else default_q_layers()
+
+
+def _effective_fingerprint_q_layers(config, model_type):
+    """Effective `q_layers` recorded in fingerprints and `metrics.json`."""
+    _, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    if model_type == 'ablation' and effective_ablation_mode(config) == 'hqunet_spatial':
+        return effective_ablation_q_layers(config)
+    return layers if quantum else None
+
+
+def _normalize_saved_fingerprint(saved, model_type=None):
+    """Fill in historical Wave 2/3 default values for keys absent from older
+    checkpoint fingerprints so default-config runs can resume older checkpoints."""
+    if not isinstance(saved, dict):
+        return saved
+    out = dict(saved)
+    eff_model_type = model_type or out.get('model_type')
+    quantum = eff_model_type in ('quantum', 'ablation')
+    ansatz = out.get('q_ansatz') or ('reupload' if quantum else None)
+    abl_mode = out.get('ablation_mode', DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None)
+    uses_grid = (quantum and ansatz == 'hqunet') or (eff_model_type == 'ablation' and abl_mode == 'hqunet_spatial')
+    is_fed = 'fed_rounds' in out or 'partition' in out
+    defaults = {
+        'q_training_control': 'trainable' if eff_model_type == 'quantum' else None,
+        'local_spatial_kernel': None,
+        'local_spatial_readout': None,
+        'local_spatial_channels': None,
+        'n_qubits': DEFAULT_N_QUBITS if quantum else None,
+        'q_spatial_mode': DEFAULT_Q_SPATIAL_MODE if quantum else None,
+        'hqunet_grid': DEFAULT_HQUNET_GRID if uses_grid else None,
+        'ablation_mode': DEFAULT_ABLATION_MODE if eff_model_type == 'ablation' else None,
+        'ablation_mlp_mode': DEFAULT_ABLATION_MLP_MODE if eff_model_type == 'ablation' else None,
+        'ablation_mlp_hidden': None,
+        'backbone_conv_mode': DEFAULT_BACKBONE_CONV_MODE,
+        'combined_input_mode': DEFAULT_COMBINED_INPUT_MODE,
+        'decoder_skip_gate': DEFAULT_DECODER_SKIP_GATE,
+        'loss': DEFAULT_LOSS_MODE,
+        'use_time_emb': True,
+        'augment': False,
+    }
+    if is_fed:
+        defaults.update({
+            'fl_strategy': DEFAULT_FL_STRATEGY,
+            'fedprox_mu': 0.0,
+            'q_angle_agg': DEFAULT_Q_ANGLE_AGG if eff_model_type == 'quantum' else None,
+            'comm_compression': DEFAULT_COMM_COMPRESSION,
+        })
+    for k, default_val in defaults.items():
+        if k not in out:
+            out[k] = default_val
+    return out
+
+
+def effective_loss_mode(config):
+    """Resolve and normalize segmentation loss mode ('ce' default, 'dice_ce', 'focal_dice')."""
+    from utilsTorch.utilsTorch import normalize_loss_mode
+    if not isinstance(config, dict):
+        return normalize_loss_mode(config)
+    return normalize_loss_mode(config.get('loss', DEFAULT_LOSS_MODE))
+
+
+def effective_use_time_emb(config):
+    """Resolve whether diffusion time_mlp layers are enabled (True default)."""
+    if not isinstance(config, dict):
+        return bool(config) if config is not None else True
+    if config.get('no_time_emb'):
+        return False
+    return bool(config.get('use_time_emb', True))
+
+
+def ndarrays_equal(a, b):
+    """Return True if two sequences of numpy arrays have identical shapes and values."""
+    if a is None or b is None or len(a) != len(b):
+        return False
+    return all(
+        a_arr.shape == b_arr.shape and np.array_equal(a_arr, b_arr)
+        for a_arr, b_arr in zip(a, b)
+    )
+
+
+def clone_ndarrays(ndarrays):
+    """Deep-copy a sequence of numpy parameter arrays."""
+    if ndarrays is None:
+        return None
+    return [np.array(arr, copy=True) for arr in ndarrays]
+
+
+def parameters_to_ndarrays_safe(params):
+    """Convert Flower `Parameters` or a sequence of numpy arrays into a list of numpy arrays."""
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return [np.array(arr, copy=True) for arr in params]
+    from flwr.common import parameters_to_ndarrays
+    return clone_ndarrays(parameters_to_ndarrays(params))
+
+
+def clone_flower_parameters(params):
+    """Deep-copy Flower `Parameters` (or a sequence of numpy arrays)."""
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return clone_ndarrays(params)
+    return copy.deepcopy(params)
+
+
+def select_federated_eval_parameters(strategy):
+    """Return (selected_ndarrays, final_ndarrays, used_best) from a federated strategy,
+    preferring `strategy.best_parameters` and falling back to `strategy.final_parameters`
+    (or `strategy._current_parameters`) when no validation round ran."""
+    best_p = getattr(strategy, 'best_parameters', None)
+    final_p = getattr(strategy, 'final_parameters', None)
+    if final_p is None:
+        final_p = getattr(strategy, '_current_parameters', None)
+    if best_p is not None:
+        return parameters_to_ndarrays_safe(best_p), parameters_to_ndarrays_safe(final_p), True
+    if final_p is not None:
+        nd = parameters_to_ndarrays_safe(final_p)
+        return nd, nd, False
+    return None, None, False
+
+
+def maybe_stop_after_centralized_step(config, current, total, label='epoch'):
+    """Simulate an interrupted centralized job right after saving checkpoint `current`."""
+    stop = config.get('debug_stop_after_epoch')
+    if stop is not None and int(current) == int(stop) and int(current) < int(total):
+        print(f"DEBUG: stopping after {label} {current} (--debug-stop-after-epoch / "
+              f"QUAFFLE_DEBUG_STOP_AFTER_EPOCH), simulating an interrupted job")
+        sys.stdout.flush()
+        raise SystemExit(75)
+
+
+def effective_q_training_control(config):
+    from utilsTorch.unetTorch import normalize_q_training_control
+    return normalize_q_training_control(config.get('q_training_control'))
+
+
+def effective_local_spatial_options(config, model_type):
+    from utilsTorch.local_spatial import local_spatial_options
+    return local_spatial_options(config if model_type in ('quantum', 'ablation') else {})
+
+
+def centralized_fingerprint(config, model_type):
+    """Settings that must match for a centralized checkpoint to be resumed."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    epochs_or_steps = config.get('num_epochs', config.get('num_train_steps'))
+    base_channels = config.get('base_channels')
+    init_dim = config.get('init_dim', base_channels)
+    out_dim = config.get('out_dim', 2)
+    dim_mults = [int(m) for m in config.get('dim_mults', (1, 2, 4, 8))]
+    resnet_block_groups = int(config.get('resnet_block_groups', 8))
+    data_root = config.get('data_root')
+    skip_mod = effective_skip_modulation(config) if quantum else None
+    return {
+        'model_type': model_type,
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
+        'dataset': config.get('dataset', 'optical'),
+        'data_root': os.path.abspath(data_root) if data_root is not None else None,
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
+        'skip_modulation': skip_mod,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
+        'quantum_channels': (int(config['quantum_channels'])
+                             if quantum and config.get('quantum_channels') is not None else None),
+        'quantum_backend': (config.get('quantum_backend', 'pennylane')
+                            if model_type == 'quantum' else None),
+        'ptlayer_config': (config.get('ptlayer_config', None)
+                           if model_type == 'quantum' else None),
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
+        'q_sim_device': (config.get('q_sim_device', DEFAULT_Q_SIM_DEVICE)
+                         if model_type == 'quantum' else None),
+        'q_share_blocks': bool(config.get('q_share_blocks', True)) if quantum else None,
+        'select_metric': select_metric_name(config),
+        'epochs_or_steps': int(epochs_or_steps) if epochs_or_steps is not None else None,
+        'batch_size': int(config['batch_size']),
+        'learning_rate': float(config['learning_rate']),
+        'base_channels': int(base_channels) if base_channels is not None else None,
+        'init_dim': int(init_dim) if init_dim is not None else None,
+        'out_dim': int(out_dim) if out_dim is not None else None,
+        'dim_mults': dim_mults,
+        'resnet_block_groups': resnet_block_groups,
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
+        'max_samples': config.get('max_samples'),
+        'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
+        'legacy_data': bool(config.get('legacy_data', False)),
+        'norm_provenance': normalization_provenance(config),
+    }
+
+
+def checkpoint_matches_centralized(ckpt, config, model_type, path=None):
+    """Validate run_format, q_backend (if quantum), and centralized_fingerprint.
+    Moves incompatible checkpoints aside when `path` is provided."""
+    if not isinstance(ckpt, dict):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    if not checkpoint_compatible(ckpt):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    if model_type == 'quantum' and not checkpoint_matches_q_backend(ckpt, config):
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    want = centralized_fingerprint(config, model_type)
+    saved = ckpt.get('fingerprint')
+    if not isinstance(saved, dict):
+        print("Rejecting centralized checkpoint (missing fingerprint from older code), "
+              "starting from scratch")
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    saved = _normalize_saved_fingerprint(saved, model_type)
+    diff = {k: (saved.get(k), v) for k, v in want.items() if saved.get(k) != v}
+    if diff:
+        print("Rejecting centralized checkpoint, config differs (saved, current): "
+              + ", ".join(f"{k}={a!r}->{b!r}" for k, (a, b) in sorted(diff.items())))
+        if path and os.path.exists(path):
+            move_aside(path, 'incompatible')
+        return False
+    return True
+
+
+def checkpoint_q_backend(ckpt):
+    """q_backend recorded in a checkpoint dict. A checkpoint without the key
+    was written before the q_backend option was recorded, when the model
+    always used the torch statevector simulator."""
+    if not isinstance(ckpt, dict):
+        return None
+    return ckpt.get('q_backend', LEGACY_Q_BACKEND)
+
+
+def checkpoint_matches_q_backend(ckpt, config):
+    """True if a quantum checkpoint was produced with the circuit simulator
+    of this run (config['q_backend']). A missing key counts as 'torch'."""
+    want = config.get('q_backend', DEFAULT_Q_BACKEND)
+    have = checkpoint_q_backend(ckpt)
+    if have != want:
+        print(f"Ignoring existing checkpoint (q_backend={have!r}"
+              f"{' (not recorded, older code)' if 'q_backend' not in ckpt else ''}, "
+              f"this run uses {want!r}), starting from scratch")
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Run naming (variant tag)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_Q_LAYERS = 2
+
+
+def default_q_layers():
+    """Default q_layers of the quantum block constructor (falls back to 2)."""
+    try:
+        from utilsTorch.unetTorch import QuantumBlock
+        p = inspect.signature(QuantumBlock.__init__).parameters.get('q_layers')
+        if p is not None and p.default is not inspect.Parameter.empty:
+            return int(p.default)
+    except Exception:
+        pass
+    return _DEFAULT_Q_LAYERS
+
+
+def effective_q_variant(config):
+    """(q_ansatz, q_layers) actually used by the quantum bottleneck.
+
+    q_layers is None for the legacy ansatz (it has a single fixed layer)."""
+    ansatz = config.get('q_ansatz') or 'reupload'
+    if ansatz == 'legacy':
+        return ansatz, None
+    layers = config.get('q_layers')
+    return ansatz, int(layers) if layers is not None else default_q_layers()
+
+
+def classical_variant_tag(config):
+    """Directory suffix for non-default backbone, input mode, loss, time_emb, or augmentation flags."""
+    if not isinstance(config, dict):
+        return ''
+    parts = []
+    bb = effective_backbone_conv_mode(config)
+    if bb != DEFAULT_BACKBONE_CONV_MODE:
+        parts.append(bb)
+    cim = effective_combined_input_mode(config)
+    if cim != DEFAULT_COMBINED_INPUT_MODE:
+        parts.append(f'in-{cim}')
+    dsg = effective_decoder_skip_gate(config)
+    if dsg != DEFAULT_DECODER_SKIP_GATE:
+        parts.append(f'skipgate-{dsg}')
+    loss_mode = effective_loss_mode(config)
+    if loss_mode != DEFAULT_LOSS_MODE:
+        parts.append(loss_mode)
+    if not effective_use_time_emb(config):
+        parts.append('notime')
+    if bool(config.get('augment', False)):
+        parts.append('aug')
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
+def partition_tag(config):
+    """Short directory tag for federated partitioning mode (#14)."""
+    if not isinstance(config, dict):
+        return 'iid'
+    part = str(config.get('partition', 'random') or 'random').strip().lower()
+    if part == 'dirichlet':
+        return f"dir{config['dirichlet_alpha']}"
+    if part == 'modality':
+        return 'modality'
+    if part == 'geo_cluster':
+        return 'geocluster'
+    return 'iid'
+
+
+def federated_variant_tag(config, quantum=False):
+    """Directory suffix for non-default federated strategy, angle aggregation, or client participation (#15)."""
+    if not isinstance(config, dict):
+        return ''
+    parts = []
+    fl_strat = effective_fl_strategy(config)
+    if fl_strat == 'fedprox':
+        mu = effective_fedprox_mu(config)
+        parts.append(f"fedprox{mu:g}")
+    if quantum:
+        q_agg = effective_q_angle_agg(config)
+        if q_agg != DEFAULT_Q_ANGLE_AGG:
+            parts.append(f"qagg-{q_agg}")
+    comm_comp = effective_comm_compression(config)
+    if comm_comp != DEFAULT_COMM_COMPRESSION:
+        parts.append(f"comm-{comm_comp}")
+    nc = int(config.get('num_clients', 4))
+    cpr = int(config.get('clients_per_round', nc))
+    if nc != 4 or cpr != nc:
+        parts.append(f"K{nc}C{cpr}")
+    return ('_' + '_'.join(parts)) if parts else ''
+
+
+def variant_tag(config):
+    """Directory suffix that separates quantum ansatz variants, e.g.
+    '_reupload_L2' or '_legacy' (plus non-default n_qubits/spatial/ablation/backbone/loss/aug tags).
+    Used for quantum runs and the ablation (whose classical bottleneck is matched to
+    the quantum variant)."""
+    ansatz, layers = effective_q_variant(config)
+    n_q = effective_n_qubits(config) if isinstance(config, dict) else DEFAULT_N_QUBITS
+    nq_suffix = f'_nq{n_q}' if (ansatz in ('reupload', 'legacy') and n_q != DEFAULT_N_QUBITS) else ''
+    if ansatz == 'legacy':
+        tag = f'_legacy{nq_suffix}'
+    elif ansatz == 'hqunet':
+        grid = effective_hqunet_grid(config)
+        tag = f'_hqunet_G{grid}_L{layers}'
+    else:
+        tag = f'_{ansatz}_L{layers}{nq_suffix}'
+    if isinstance(config, dict):
+        q_sp = effective_q_spatial_mode(config)
+        abl = effective_ablation_mode(config)
+        if q_sp != DEFAULT_Q_SPATIAL_MODE and (ansatz != 'hqunet' or abl in ('linear', 'mlp')):
+            tag += f'_{q_sp}'
+        if abl != DEFAULT_ABLATION_MODE:
+            if abl == 'hqunet_spatial' and ansatz != 'hqunet':
+                if ansatz == 'legacy':
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}_L{effective_ablation_q_layers(config)}'
+                else:
+                    tag += f'_abl-{abl}_G{effective_hqunet_grid(config)}'
+            else:
+                tag += f'_abl-{abl}'
+        mlp_h = effective_ablation_mlp_hidden(config)
+        mlp_mode = effective_ablation_mlp_mode(config)
+        if mlp_h is not None:
+            tag += f'_mlph{mlp_h}'
+        elif mlp_mode != DEFAULT_ABLATION_MLP_MODE:
+            tag += f'_mlp-{mlp_mode}'
+        local = effective_local_spatial_options(config, 'quantum')
+        if local['local_spatial_kernel'] is not None:
+            tag += (f"_local2x2-{local['local_spatial_kernel']}"
+                    f"-{local['local_spatial_readout']}-c{local['local_spatial_channels']}")
+            if local['local_spatial_kernel'] == 'quantum':
+                tag += '_' + effective_q_training_control(config)
+        elif effective_q_training_control(config) != 'trainable':
+            tag += '_' + effective_q_training_control(config)
+        tag += classical_variant_tag(config)
+    return tag
+
+
+_BACKEND_TAGS = {'pennylane': '', 'torch': '_qtorch', 'pennylane_pergroup': '_qpergroup'}
+
+
+def backend_tag(config):
+    """Directory suffix for the quantum circuit simulator, appended after
+    variant_tag in the quantum demos only. '' for the default 'pennylane' so
+    PennyLane runs keep the canonical directory names; '_qtorch' and
+    '_qpergroup' keep cross-check runs (and their checkpoints) apart."""
+    qb = config.get('q_backend', DEFAULT_Q_BACKEND)
+    if qb not in _BACKEND_TAGS:
+        raise ValueError(f"Unknown q_backend {qb!r}, expected one of {sorted(_BACKEND_TAGS)}")
+    return _BACKEND_TAGS[qb]
+
+
+def quantum_simulator_info(model, config=None):
+    """Dict describing the circuit simulator the model was actually built with.
+
+    Uses model.quantum_simulator_info() (QVUNetSegmentation) or
+    simulator_info() of the first QuantumBlock when the model code provides
+    them. Older model code without those methods falls back to the q_backend
+    attribute of the instantiated quantum block, then to config['q_backend'],
+    and marks the dict with 'source' so the summary says where it came from.
+    """
+    config = config or {}
+    for obj in (model, getattr(model, '_model', None)):
+        fn = getattr(obj, 'quantum_simulator_info', None) if obj is not None else None
+        if callable(fn):
+            try:
+                info = fn()
+                if info:
+                    return dict(info)
+            except Exception as e:
+                print(f"WARNING: quantum_simulator_info() failed ({type(e).__name__}: {e})")
+    inner = getattr(model, 'model', None) if model is not None else None
+    inner = inner if inner is not None else model
+    if inner is not None and hasattr(inner, 'modules'):
+        for m in inner.modules():
+            fn = getattr(m, 'simulator_info', None)
+            if callable(fn):
+                try:
+                    info = fn()
+                    if info:
+                        return dict(info)
+                except Exception as e:
+                    print(f"WARNING: simulator_info() failed ({type(e).__name__}: {e})")
+                break
+        for m in inner.modules():
+            if hasattr(m, 'q_backend') and getattr(m, 'backend', None) is not None:
+                info = {'q_backend': getattr(m, 'q_backend'), 'family': getattr(m, 'backend'),
+                        'source': 'quantum block attribute (model code has no simulator_info)'}
+                if info['q_backend'] == 'torch':
+                    info.update(device='exact torch statevector simulator',
+                                diff_method='torch autograd', sim_device='model')
+                return info
+    return {'q_backend': config.get('q_backend', DEFAULT_Q_BACKEND),
+            'family': config.get('quantum_backend'),
+            'source': 'config (model code does not report its simulator)'}
+
+
+def format_quantum_simulator(info):
+    """One-line description of quantum_simulator_info() for summary.txt."""
+    if not info:
+        return 'unknown'
+    qb = info.get('q_backend')
+    if qb is None:
+        return f"none (quantum family: {info.get('family')})"
+    if qb == 'torch':
+        text = 'exact torch statevector simulator (q_backend=torch)'
+    elif info.get('device'):
+        parts = [f"PennyLane {info['device']}"]
+        if info.get('diff_method'):
+            parts.append(str(info['diff_method']))
+        if info.get('interface'):
+            parts.append(f"{info['interface']} interface")
+        if info.get('broadcast'):
+            parts.append(f"broadcast over {info['broadcast']}"
+                         if info['broadcast'].startswith('batch') else str(info['broadcast']))
+        if info.get('sim_device'):
+            parts.append(f"on {info['sim_device']}")
+        text = ', '.join(parts) + f" (q_backend={qb}"
+        if info.get('pennylane_version'):
+            text += f", PennyLane {info['pennylane_version']}"
+        text += ')'
+    else:
+        text = f"q_backend={qb}"
+    if info.get('source'):
+        text += f" [from {info['source']}]"
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Atomic writes
+# ---------------------------------------------------------------------------
+
+def _fsync_dir(path):
+    try:
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+
+
+def _tmp_name(path):
+    return f"{path}.tmp.{socket.gethostname()}.{os.getpid()}"
+
+
+def atomic_torch_save(obj, path):
+    """torch.save to a temp file in the same directory, then os.replace, so a
+    kill during the write never leaves a truncated checkpoint behind."""
+    import torch
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = _tmp_name(path)
+    try:
+        with open(tmp, 'wb') as f:
+            torch.save(obj, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        _fsync_dir(d)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+
+
+def _json_default(o):
+    if isinstance(o, (np.integer,)):
+        return int(o)
+    if isinstance(o, (np.floating,)):
+        return float(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    if hasattr(o, 'item'):
+        try:
+            return o.item()
+        except Exception:
+            pass
+    return str(o)
+
+
+def atomic_write_json(obj, path):
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    tmp = _tmp_name(path)
+    with open(tmp, 'w') as f:
+        json.dump(obj, f, indent=2, default=_json_default, sort_keys=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def move_aside(path, tag):
+    """Rename path to path.<tag>-<timestamp> (kept for inspection)."""
+    base = f"{path}.{tag}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    dst, n = base, 1
+    while os.path.exists(dst):
+        dst = f"{base}.{n}"
+        n += 1
+    try:
+        os.replace(path, dst)
+        print(f"Moved {path} aside to {dst}")
+    except OSError as e:
+        print(f"WARNING: could not move {path} aside: {e}")
+    return dst
+
+
+def safe_torch_load(path, map_location=None):
+    """torch.load that returns None (and keeps the file aside) when the
+    checkpoint is unreadable instead of crashing the run."""
+    import torch
+    if not os.path.exists(path):
+        return None
+    try:
+        return torch.load(path, map_location=map_location)
+    except Exception as e:
+        print(f"WARNING: checkpoint {path} is unreadable ({type(e).__name__}: {e}), "
+              f"starting without it")
+        move_aside(path, 'corrupt')
+        return None
+
+
+def rng_state(loader=None):
+    """Python / numpy / torch (and loader / augmentation generator) RNG state for checkpoints."""
+    import torch
+    st = {'python': random.getstate(), 'numpy': np.random.get_state(),
+          'torch': torch.get_rng_state()}
+    if torch.cuda.is_available():
+        try:
+            st['cuda'] = torch.cuda.get_rng_state_all()
+        except Exception:
+            pass
+    gen = getattr(loader, 'generator', None) if loader is not None else None
+    if gen is not None:
+        st['loader'] = gen.get_state()
+    ds = getattr(loader, 'dataset', None) if loader is not None else None
+    aug_gen = getattr(ds, 'generator', None) if ds is not None else None
+    if aug_gen is not None:
+        st['augment_generator'] = aug_gen.get_state()
+    return st
+
+
+def restore_rng_state(st, loader=None):
+    """Best effort inverse of rng_state()."""
+    import torch
+    if not st:
+        return
+    try:
+        random.setstate(st['python'])
+        np.random.set_state(st['numpy'])
+        torch.set_rng_state(st['torch'].cpu() if hasattr(st['torch'], 'cpu') else st['torch'])
+        if 'cuda' in st and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all([s.cpu() for s in st['cuda']])
+        gen = getattr(loader, 'generator', None) if loader is not None else None
+        if gen is not None and 'loader' in st:
+            gen.set_state(st['loader'].cpu())
+        ds = getattr(loader, 'dataset', None) if loader is not None else None
+        aug_gen = getattr(ds, 'generator', None) if ds is not None else None
+        if aug_gen is not None and 'augment_generator' in st:
+            aug_gen.set_state(st['augment_generator'].cpu())
+        print("Restored RNG and data loader state from checkpoint")
+    except Exception as e:
+        print(f"WARNING: could not restore RNG state from checkpoint ({e})")
+
+
+# ---------------------------------------------------------------------------
+# Federated checkpoint / resume
+# ---------------------------------------------------------------------------
+
+def run_fingerprint(config, model_type):
+    """Settings that must match for a federated checkpoint to be resumed."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    data_root = config.get('data_root')
+    skip_mod = effective_skip_modulation(config) if quantum else None
+    fp = {
+        'model_type': model_type,
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
+        'dataset': config.get('dataset', 'optical'),
+        'data_root': os.path.abspath(data_root) if data_root is not None else None,
+        'partition': config.get('partition', 'random'),
+        'dirichlet_alpha': (float(config['dirichlet_alpha'])
+                            if config.get('partition') == 'dirichlet' else None),
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
+        'skip_modulation': skip_mod,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
+        'quantum_channels': config.get('quantum_channels') if quantum else None,
+        'quantum_backend': config.get('quantum_backend') if quantum else None,
+        # Circuit simulator: a checkpoint written with another simulator (or
+        # before q_backend was recorded) is never resumed.
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
+        'select_metric': select_metric_name(config),
+        'fl_strategy': effective_fl_strategy(config),
+        'fedprox_mu': effective_fedprox_mu(config),
+        'q_angle_agg': (effective_q_angle_agg(config)
+                        if model_type == 'quantum' else None),
+        'comm_compression': effective_comm_compression(config),
+        'fed_rounds': int(config['fed_rounds']),
+        'local_epochs': int(config['local_epochs']),
+        'num_clients': int(config['num_clients']),
+        'clients_per_round': int(config.get('clients_per_round', config['num_clients'])),
+        'batch_size': int(config['batch_size']),
+        'learning_rate': float(config['learning_rate']),
+        'base_channels': config.get('base_channels'),
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
+        'max_samples': config.get('max_samples'),
+        'val_fraction': float(config.get('val_fraction', VAL_FRACTION)),
+        'min_client_samples': config.get('min_client_samples'),
+        'legacy_data': bool(config.get('legacy_data', False)),
+        'norm_provenance': normalization_provenance(config),
+    }
+    return fp
+
+
+def _run_inprocess_flower_simulation(*, client_fn, num_clients, config, strategy, **kwargs):
+    """Run Flower's Server + SimpleClientManager in-process without spawning Ray actors.
+
+    Exercises the exact same Flower Server.fit(), Strategy (configure_fit,
+    aggregate_fit, configure_evaluate, aggregate_evaluate, evaluate),
+    RoundOffsetMixin, client_fn(cid).to_client(), and checkpointing logic.
+    """
+    from flwr.common import DisconnectRes
+    from flwr.server.client_manager import SimpleClientManager
+    from flwr.server.client_proxy import ClientProxy
+    from flwr.server.server import Server
+
+    class _InProcessClientProxy(ClientProxy):
+        def __init__(self, cid):
+            super().__init__(str(cid))
+            self._cid = str(cid)
+
+        def _client(self):
+            c = client_fn(self._cid)
+            return c.to_client() if hasattr(c, 'to_client') else c
+
+        def get_properties(self, ins, timeout, group_id):
+            return self._client().get_properties(ins)
+
+        def get_parameters(self, ins, timeout, group_id):
+            return self._client().get_parameters(ins)
+
+        def fit(self, ins, timeout, group_id):
+            return self._client().fit(ins)
+
+        def evaluate(self, ins, timeout, group_id):
+            return self._client().evaluate(ins)
+
+        def reconnect(self, ins, timeout, group_id):
+            return DisconnectRes(reason='UNKNOWN')
+
+    cm = SimpleClientManager()
+    for cid in range(int(num_clients)):
+        cm.register(_InProcessClientProxy(str(cid)))
+    server = Server(client_manager=cm, strategy=strategy)
+    if hasattr(server, 'set_max_workers'):
+        server.set_max_workers(1)
+    num_rounds = int(getattr(config, 'num_rounds', 1))
+    round_timeout = getattr(config, 'round_timeout', None)
+    res = server.fit(num_rounds=num_rounds, timeout=round_timeout)
+    return res[0] if isinstance(res, tuple) else res
+
+
+def start_flower_simulation(**kwargs):
+    """Run flwr.simulation.start_simulation, optionally using an in-process
+    Flower Server (QUAFFLE_INPROCESS_FED=1) or keeping a single-worker Ray
+    runtime initialized across calls (QUAFFLE_KEEP_RAY=1)."""
+    if os.environ.get('QUAFFLE_INPROCESS_FED', '0').lower() in ('1', 'true', 'yes'):
+        return _run_inprocess_flower_simulation(**kwargs)
+    import flwr as fl
+    os.environ.setdefault('RAY_memory_monitor_refresh_ms', '0')
+    if os.environ.get('QUAFFLE_KEEP_RAY', '0').lower() in ('1', 'true', 'yes'):
+        try:
+            params = inspect.signature(fl.simulation.start_simulation).parameters
+            if 'keep_initialised' in params:
+                kwargs.setdefault('keep_initialised', True)
+            if 'ray_init_args' in params:
+                num_gpus = 1 if kwargs.get('client_resources', {}).get('num_gpus', 0) > 0 else 0
+                kwargs.setdefault(
+                    'ray_init_args',
+                    {
+                        'num_cpus': 1,
+                        'num_gpus': num_gpus,
+                        'include_dashboard': False,
+                        'ignore_reinit_error': True,
+                    },
+                )
+        except (TypeError, ValueError):
+            pass
+    return fl.simulation.start_simulation(**kwargs)
+
+
+def fed_checkpoint_path(output_dir):
+    return os.path.join(output_dir, FED_CKPT_NAME)
+
+
+def load_fed_checkpoint(output_dir, fingerprint, resume=True):
+    """Return a compatible resumable checkpoint dict or None.
+
+    Incompatible (other run_format or fingerprint) or unreadable checkpoints
+    are moved aside, never deleted, and the run starts from round 0."""
+    path = fed_checkpoint_path(output_dir)
+    if not os.path.exists(path):
+        print(f"No resumable federated checkpoint at {path}, starting from round 0")
+        return None
+    if not resume:
+        print("--no-resume given, ignoring the existing federated checkpoint")
+        move_aside(path, 'ignored')
+        return None
+    ckpt = safe_torch_load(path, map_location='cpu')
+    if ckpt is None:
+        return None
+    if not checkpoint_compatible(ckpt):
+        move_aside(path, 'incompatible')
+        return None
+    saved = _normalize_saved_fingerprint(ckpt.get('fingerprint') or {}, fingerprint.get('model_type'))
+    diff = {k: (saved.get(k), v) for k, v in fingerprint.items() if saved.get(k) != v}
+    if diff:
+        print("Rejecting federated checkpoint, config differs (saved, current): "
+              + ", ".join(f"{k}={a!r}->{b!r}" for k, (a, b) in sorted(diff.items())))
+        move_aside(path, 'incompatible')
+        return None
+    print(f"Resuming federated run from checkpoint: {ckpt['completed_round']}/"
+          f"{fingerprint['fed_rounds']} rounds completed")
+    return ckpt
+
+
+def apply_fed_resume(strategy, ckpt):
+    """Restore history into a strategy before start_simulation.
+
+    Returns (initial_parameters or None, remaining_rounds)."""
+    from flwr.common import ndarrays_to_parameters
+    total = int(strategy.config['fed_rounds'])
+    select_metric = select_metric_name(strategy.config)
+    strategy.select_metric = select_metric
+    if ckpt is None:
+        strategy.round_offset = 0
+        strategy.resumed_from_round = 0
+        if not hasattr(strategy, 'best_val_score') or strategy.best_val_score is None:
+            strategy.best_val_score = initial_best_val_score(select_metric)
+        return None, total
+    done = int(ckpt['completed_round'])
+    strategy.round_offset = done
+    strategy.resumed_from_round = done
+    strategy.round_metrics = list(ckpt.get('round_metrics', []))
+    strategy.selected_clients_by_round = {
+        int(k): [str(c) for c in v]
+        for k, v in dict(ckpt.get('selected_clients_by_round', {}) or {}).items()
+    }
+    strategy.best_performance = float(ckpt.get('best_performance', 0.0))
+    strategy.select_metric = select_metric_name(ckpt.get('select_metric', select_metric))
+    raw_best_score = ckpt.get('best_val_score')
+    strategy.best_val_score = (
+        float(raw_best_score)
+        if raw_best_score is not None
+        else initial_best_val_score(strategy.select_metric)
+    )
+    strategy.best_round = ckpt.get('best_round')
+    strategy.best_val_metrics = ckpt.get('best_val_metrics')
+    raw_final_round = ckpt.get('final_round')
+    strategy.final_round = int(raw_final_round) if raw_final_round is not None else done
+    params = ndarrays_to_parameters(ckpt['parameters'])
+    strategy._current_parameters = params
+    final_nd = ckpt.get('final_parameters') or ckpt['parameters']
+    strategy.final_parameters = ndarrays_to_parameters(final_nd)
+    best_nd = ckpt.get('best_parameters')
+    if best_nd is not None:
+        strategy.best_parameters = ndarrays_to_parameters(best_nd)
+    elif getattr(strategy, 'round_metrics', None):
+        # Fallback for checkpoints written without explicit best_parameters
+        strategy.best_parameters = ndarrays_to_parameters(ckpt['parameters'])
+    else:
+        strategy.best_parameters = None
+    log = getattr(strategy, 'eval_log_path', None) or getattr(strategy, 'eval_log', None)
+    if log:
+        with open(log, 'a') as f:
+            f.write(f"Resumed from checkpoint after round {done}\n")
+    return params, max(0, total - done)
+
+
+def fed_round_end(strategy, server_round):
+    """Call at the end of aggregate_evaluate (server_round already offset).
+
+    Writes the resumable checkpoint every config['ckpt_every'] rounds and on
+    the last round, unless a round has failed: then the last good checkpoint
+    is kept so a rerun can retry from before the failure while this process
+    still exits non-zero via fail_run."""
+    cfg = strategy.config
+    every = int(cfg.get('ckpt_every', DEFAULT_CKPT_EVERY))
+    total = int(cfg['fed_rounds'])
+    curr_p = getattr(strategy, '_current_parameters', None) or getattr(strategy, 'final_parameters', None)
+    if curr_p is None:
+        return
+    if strategy.failed_rounds:
+        print(f"Round {server_round}: not writing a resumable checkpoint after a failed round")
+    elif server_round % every == 0 or server_round == total:
+        curr_nd = parameters_to_ndarrays_safe(curr_p)
+        final_p = getattr(strategy, 'final_parameters', None) or curr_p
+        final_nd = parameters_to_ndarrays_safe(final_p)
+        best_p = getattr(strategy, 'best_parameters', None)
+        best_nd = parameters_to_ndarrays_safe(best_p) if best_p is not None else None
+        atomic_torch_save({
+            'run_format': RUN_FORMAT,
+            'fingerprint': strategy.fingerprint,
+            'completed_round': int(server_round),
+            'final_round': int(getattr(strategy, 'final_round', None) or server_round),
+            'parameters': curr_nd,
+            'final_parameters': final_nd,
+            'best_parameters': best_nd,
+            'select_metric': getattr(strategy, 'select_metric', select_metric_name(cfg)),
+            'best_val_score': getattr(strategy, 'best_val_score', None),
+            'best_round': getattr(strategy, 'best_round', None),
+            'best_val_metrics': getattr(strategy, 'best_val_metrics', None),
+            'round_metrics': strategy.round_metrics,
+            'selected_clients_by_round': dict(getattr(strategy, 'selected_clients_by_round', {}) or {}),
+            'best_performance': strategy.best_performance,
+            'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }, fed_checkpoint_path(strategy.output_dir))
+        print(f"Resumable checkpoint saved after round {server_round}/{total}")
+    stop = cfg.get('debug_stop_after_round')
+    if stop is not None and int(server_round) == int(stop) and server_round < total:
+        print(f"DEBUG: stopping after round {server_round} (--debug-stop-after-round / "
+              f"QUAFFLE_DEBUG_STOP_AFTER_ROUND), simulating an interrupted job")
+        sys.stdout.flush()
+        # SystemExit is not caught by Flower's `except Exception`, so the
+        # simulation unwinds and the process exits with this code.
+        raise SystemExit(75)
+
+
+def _logical_client_id(cid, proxy):
+    """Return the stable logical client identity (`partition_id` in Flower Ray simulation,
+    falling back to `proxy_state.node_config['partition-id']` or `cid`)."""
+    part_id = getattr(proxy, 'partition_id', None)
+    if part_id is not None:
+        return str(part_id)
+    proxy_state = getattr(proxy, 'proxy_state', None)
+    node_cfg = getattr(proxy_state, 'node_config', None)
+    if isinstance(node_cfg, dict) and 'partition-id' in node_cfg:
+        return str(node_cfg['partition-id'])
+    return str(getattr(proxy, 'cid', cid))
+
+
+class RoundOffsetMixin:
+    """Mixin for FedAvg subclasses: Flower always counts rounds from 1, so a
+    resumed run shifts every server_round by round_offset. This keeps the
+    on_fit_config_fn round (and therefore the per (seed, client, round)
+    shuffle seed), deterministic partial-participation client sampling over
+    stable logical partition IDs, logs, and checkpoints numbered as in an
+    uninterrupted run.
+    aggregate_fit / aggregate_evaluate apply the offset in the subclass."""
+    round_offset = 0
+
+    def configure_fit(self, server_round, parameters, client_manager):
+        self._round_start_parameters = parameters
+        if getattr(self, '_current_parameters', None) is None:
+            self._current_parameters = parameters
+        global_round = int(server_round) + int(self.round_offset)
+        all_clients = client_manager.all() if hasattr(client_manager, 'all') else None
+        if isinstance(all_clients, dict) and hasattr(self, 'num_fit_clients'):
+            from flwr.common import FitIns
+            fit_cfg = {}
+            if getattr(self, 'on_fit_config_fn', None) is not None:
+                fit_cfg = self.on_fit_config_fn(global_round)
+            fit_ins = FitIns(parameters, fit_cfg)
+            sample_size, min_num_clients = self.num_fit_clients(client_manager.num_available())
+            if hasattr(client_manager, 'wait_for'):
+                client_manager.wait_for(min_num_clients)
+                all_clients = client_manager.all()
+            if isinstance(all_clients, dict) and len(all_clients) >= sample_size:
+                logical_to_proxy = {
+                    _logical_client_id(cid, proxy): proxy
+                    for cid, proxy in all_clients.items()
+                }
+                if len(logical_to_proxy) == len(all_clients):
+                    sorted_lids = sorted(
+                        logical_to_proxy.keys(),
+                        key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                    )
+                    cfg_dict = getattr(self, 'config', None)
+                    base_seed = int(cfg_dict.get('seed', 42)) if isinstance(cfg_dict, dict) else 42
+                    if sample_size >= len(sorted_lids):
+                        chosen_lids = list(sorted_lids)
+                    else:
+                        rng = random.Random(derive_seed(base_seed, 7000 + global_round))
+                        chosen_lids = sorted(
+                            rng.sample(sorted_lids, sample_size),
+                            key=lambda k: (0, int(k)) if str(k).isdigit() else (1, str(k)),
+                        )
+                    if not hasattr(self, 'selected_clients_by_round') or self.selected_clients_by_round is None:
+                        self.selected_clients_by_round = {}
+                    self.selected_clients_by_round[int(global_round)] = [str(c) for c in chosen_lids]
+                    return [(logical_to_proxy[lid], fit_ins) for lid in chosen_lids]
+        return super().configure_fit(global_round, parameters, client_manager)
+
+    def configure_evaluate(self, server_round, parameters, client_manager):
+        return super().configure_evaluate(server_round + self.round_offset, parameters,
+                                          client_manager)
+
+    def evaluate(self, server_round, parameters):
+        r = server_round + self.round_offset if server_round > 0 else server_round
+        return super().evaluate(r, parameters)
+
+
+# ---------------------------------------------------------------------------
+# Per-run metrics.json and tracker isolation
+# ---------------------------------------------------------------------------
+
+def _clean_metrics(m):
+    if not m:
+        return None
+    return {k: _json_default(v) if not isinstance(v, (int, float, str, type(None))) else v
+            for k, v in dict(m).items()}
+
+
+def write_metrics_json(output_dir, *, script, training, model_type, config, val_metrics,
+                       test_metrics, history=None, total_params=None, best_val_auc=None,
+                       knockout=None, provenance=None, extra=None,
+                       q_simulator=None, best_val_metrics=None, final_val_metrics=None,
+                       best_val_test_metrics=None, final_test_metrics=None,
+                       best_val_score=None, best_epoch=None, best_step=None,
+                       best_round=None):
+    """Canonical machine-readable result: <output_dir>/results/metrics.json.
+
+    Written right after summary.txt and before the Excel tracker so analysis
+    never depends on the shared workbook."""
+    ansatz, layers = effective_q_variant(config)
+    quantum = model_type in ('quantum', 'ablation')
+    sel_metric = select_metric_name(config)
+    b_target, b_actual = bottleneck_param_counts(config, model_type)
+    eff_best_val = best_val_metrics if best_val_metrics is not None else val_metrics
+    eff_final_val = final_val_metrics if final_val_metrics is not None else val_metrics
+    eff_best_test = best_val_test_metrics if best_val_test_metrics is not None else test_metrics
+    eff_final_test = final_test_metrics if final_test_metrics is not None else test_metrics
+    if best_val_score is None and isinstance(eff_best_val, dict):
+        s_val = extract_val_score(eff_best_val, sel_metric)
+        if s_val == s_val and abs(s_val) != float('inf'):
+            best_val_score = s_val
+    elif best_val_score is not None:
+        try:
+            f_best = float(best_val_score)
+            best_val_score = f_best if (f_best == f_best and abs(f_best) != float('inf')) else None
+        except (TypeError, ValueError):
+            best_val_score = None
+    payload = {
+        'schema': 'quaffle-metrics-v1',
+        'q_training_control': effective_q_training_control(config) if model_type == 'quantum' else None,
+        **effective_local_spatial_options(config, model_type),
+        'run_dir': os.path.basename(os.path.normpath(output_dir)),
+        'script': script,
+        'training': training,
+        'model_type': model_type,
+        'dataset': config.get('dataset', 'optical'),
+        'partition': config.get('partition', 'centralized') if training == 'federated'
+        else 'centralized',
+        'dirichlet_alpha': config.get('dirichlet_alpha') if config.get('partition') == 'dirichlet'
+        else None,
+        'seed': int(config['seed']),
+        'q_ansatz': ansatz if quantum else None,
+        'q_layers': _effective_fingerprint_q_layers(config, model_type),
+        'n_qubits': _effective_fingerprint_n_qubits(config, model_type),
+        'q_spatial_mode': effective_q_spatial_mode(config) if quantum else None,
+        'hqunet_grid': effective_hqunet_grid(config) if _uses_hqunet_grid(config, model_type) else None,
+        'ablation_mode': effective_ablation_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_mode': effective_ablation_mlp_mode(config) if model_type == 'ablation' else None,
+        'ablation_mlp_hidden': effective_ablation_mlp_hidden(config) if model_type == 'ablation' else None,
+        'skip_modulation': effective_skip_modulation(config) if quantum else None,
+        'backbone_conv_mode': effective_backbone_conv_mode(config),
+        'combined_input_mode': effective_combined_input_mode(config),
+        'decoder_skip_gate': effective_decoder_skip_gate(config),
+        'loss': effective_loss_mode(config),
+        'use_time_emb': effective_use_time_emb(config),
+        'augment': bool(config.get('augment', False)),
+        'quantum_channels': config.get('quantum_channels') if quantum else None,
+        'bottleneck_target_params': b_target,
+        'bottleneck_actual_params': b_actual,
+        # Circuit simulator (quantum runs only). The ablation has no circuit.
+        'q_backend': (config.get('q_backend', DEFAULT_Q_BACKEND)
+                      if model_type == 'quantum' else None),
+        'q_simulator': q_simulator if model_type == 'quantum' else None,
+        'select_metric': sel_metric,
+        'fl_strategy': effective_fl_strategy(config) if training == 'federated' else None,
+        'fedprox_mu': effective_fedprox_mu(config) if training == 'federated' else None,
+        'q_angle_agg': (effective_q_angle_agg(config)
+                        if (training == 'federated' and model_type == 'quantum') else None),
+        'comm_compression': effective_comm_compression(config) if training == 'federated' else None,
+        'upload_bytes_per_client_round': None,
+        'uncompressed_bytes_per_client_round': None,
+        'upload_mib_per_client_round': None,
+        'compression_ratio': None,
+        'best_val_score': best_val_score,
+        'best_epoch': best_epoch,
+        'best_step': best_step if best_step is not None else best_epoch,
+        'best_round': best_round,
+        'total_params': total_params,
+        'fed_rounds': config.get('fed_rounds') if training == 'federated' else None,
+        'local_epochs': config.get('local_epochs') if training == 'federated' else None,
+        'num_clients': config.get('num_clients') if training == 'federated' else None,
+        'clients_per_round': (int(config.get('clients_per_round', config['num_clients']))
+                              if (training == 'federated' and config.get('num_clients') is not None) else None),
+        'fraction_fit': (float(config.get('fraction_fit', 1.0))
+                         if training == 'federated' else None),
+        'epochs_or_steps': (config.get('num_epochs') or config.get('num_train_steps'))
+        if training != 'federated' else None,
+        'base_channels': int(config['base_channels']) if config.get('base_channels') is not None else None,
+        'image_size': int(config['image_size']) if config.get('image_size') is not None else None,
+        'batch_size': int(config['batch_size']) if config.get('batch_size') is not None else None,
+        'data_root': os.path.abspath(config['data_root']) if config.get('data_root') is not None else None,
+        'max_samples': config.get('max_samples'),
+        'is_mini_run': bool(scale_tag(config)),
+        'norm_provenance': normalization_provenance(config),
+        'val': _clean_metrics(eff_best_val),
+        'best_val_metrics': _clean_metrics(eff_best_val),
+        'final_val_metrics': _clean_metrics(eff_final_val),
+        'test': _clean_metrics(eff_best_test),
+        'best_val_test_metrics': _clean_metrics(eff_best_test),
+        'final_test_metrics': _clean_metrics(eff_final_test),
+        'best_val_auc': best_val_auc,
+        'knockout': {k: _clean_metrics(v) for k, v in knockout.items()} if knockout else None,
+        'history': [_clean_metrics(h) for h in (history or [])],
+        'provenance': provenance,
+        'written_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+    if training == 'federated' and total_params is not None:
+        # Count-only analytical fallback; federated entrypoints override this with exact
+        # per-tensor telemetry via `extra=comm_telemetry`.
+        comm_tel = compute_comm_compression_telemetry(total_params, config)
+        payload['telemetry_is_exact_per_tensor'] = comm_tel['telemetry_is_exact_per_tensor']
+        payload['upload_bytes_per_client_round'] = comm_tel['upload_bytes_per_client_round']
+        payload['uncompressed_bytes_per_client_round'] = comm_tel['uncompressed_bytes_per_client_round']
+        payload['upload_mib_per_client_round'] = comm_tel['upload_mib_per_client_round']
+        payload['compression_ratio'] = comm_tel['compression_ratio']
+    if extra:
+        payload.update(extra)
+    path = os.path.join(output_dir, 'results', 'metrics.json')
+    atomic_write_json(payload, path)
+    print(f"Metrics JSON saved to: {path}")
+    return path
+
+
+def safe_tracker_call(fn, *args, **kwargs):
+    """Run the shared Excel tracker. Any failure is logged as a warning and
+    never propagates: the run's summary.txt and metrics.json are already on
+    disk, so the process must still exit 0."""
+    if os.environ.get('QUAFFLE_SKIP_EXCEL_TRACKER', '0').lower() in ('1', 'true', 'yes'):
+        return True
+    try:
+        fn(*args, **kwargs)
+        return True
+    except Exception as e:
+        import traceback
+        print(f"WARNING: results tracker failed ({type(e).__name__}: {e}). "
+              f"summary.txt and metrics.json are written, the run is still complete.")
+        traceback.print_exc()
+        sys.stdout.flush()
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Failure handling
+# ---------------------------------------------------------------------------
+
+def fail_run(output_dir, reason):
+    """Record a failed run and exit non-zero so SLURM marks the job FAILED.
+
+    No summary.txt and no tracker row are written for failed runs.
+    """
+    msg = f"RUN FAILED: {reason}"
+    print("=" * 60)
+    print(msg)
+    print("No summary.txt or tracker row written.")
+    print("=" * 60)
+    if output_dir:
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+            with open(os.path.join(output_dir, "FAILED.txt"), "a") as f:
+                f.write(msg + "\n")
+        except OSError:
+            pass
+    sys.stdout.flush()
+    sys.exit(1)

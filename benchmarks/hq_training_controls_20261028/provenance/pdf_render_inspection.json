@@ -1,0 +1,101 @@
+{
+  "scope": "Direct visual inspection of renders made from all three actual release PDFs, not their separately exported PNGs",
+  "resources": {
+    "MemoryMax": "1G",
+    "MemorySwapMax": 0,
+    "numerical_threads": 2
+  },
+  "artifacts": [
+    {
+      "name": "learning_curves",
+      "pdf_path": "/tmp/quaffle-hq-training-controls-release-20261028/plots/learning_curves.pdf",
+      "pdf_sha256": "9d099719a6c79878986949ff222cdd6b705b2ddba79f87936db35021069299c4",
+      "pdf_size_bytes": 37972,
+      "pages": 1,
+      "rendered_png": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/preflight/pdf_rendering/learning_curves.png",
+      "rendered_png_sha256": "ffcc861a9fc7758c6ceff917da8c117e1741def134bb40bd7e39be122b59c638",
+      "original_pdf_unchanged": true,
+      "regeneration_inventory_hash_matches": true,
+      "directly_viewed_render": true,
+      "inspection": {
+        "layout": "Five model rows, two columns (training Dice+CE and validation IoU); all labels and epoch ticks readable.",
+        "coverage": "Four labeled fit trajectories per model: three primary seeds at LR0.003 plus dashed seed42 auxiliary LR0.001, representing all20fits in both columns. Curves naturally overlap at some epochs.",
+        "titles_axes_ticks_legends_readable": true,
+        "clipped_or_overlapping_labels": false,
+        "findings": []
+      }
+    },
+    {
+      "name": "paired_iou",
+      "pdf_path": "/tmp/quaffle-hq-training-controls-release-20261028/plots/paired_iou.pdf",
+      "pdf_sha256": "e8ca109a8bae90e39c3395c40baea156185be8c705e87b8283ca34503d39e4aa",
+      "pdf_size_bytes": 26997,
+      "pages": 1,
+      "rendered_png": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/preflight/pdf_rendering/paired_iou.png",
+      "rendered_png_sha256": "39c15093c245646a0934ef894dc239434c942c4694410afe3a7091cead4200f4",
+      "original_pdf_unchanged": true,
+      "regeneration_inventory_hash_matches": true,
+      "directly_viewed_render": true,
+      "inspection": {
+        "layout": "Six panels: validation and descriptive test rows, pooled/Optical/SAR columns.",
+        "coverage": "All five control labels and three colored seed trajectories are visible in every panel; bottom seed legend is clear and separate from tick labels.",
+        "titles_axes_ticks_legends_readable": true,
+        "clipped_or_overlapping_labels": false,
+        "findings": []
+      }
+    },
+    {
+      "name": "contrasts",
+      "pdf_path": "/tmp/quaffle-hq-training-controls-release-20261028/plots/contrasts.pdf",
+      "pdf_sha256": "ea414cd1258f51ea17e5b9565a6b5057ee8c1bed4b73fb7e9f5b774419387ee1",
+      "pdf_size_bytes": 21891,
+      "pages": 1,
+      "rendered_png": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/preflight/pdf_rendering/contrasts.png",
+      "rendered_png_sha256": "2f3d139fce0ed5bce65b1be14b31558750eb0d18f6934d3bb3c2514b9c76a22c",
+      "original_pdf_unchanged": true,
+      "regeneration_inventory_hash_matches": true,
+      "directly_viewed_render": true,
+      "inspection": {
+        "layout": "Validation and descriptive test panels, each with frozen quantum, zero bottleneck, compact affine and MLP comparison groups.",
+        "coverage": "All three offset seed points, black mean/error bars, zero reference lines and quantum-minus-control IoU-point axis labels are visible. Seed legend is separate from x-axis labels.",
+        "titles_axes_ticks_legends_readable": true,
+        "clipped_or_overlapping_labels": false,
+        "findings": [
+          "README states paired differences and mean\u00b1sampleSD generally, but does not explicitly say black bars depict mean\u00b1sampleSD. This is a caption-clarity observation, not a rendering defect."
+        ]
+      }
+    }
+  ],
+  "status": "PASS_WITH_CAPTION_NOTE",
+  "inspected_at_utc": "2026-10-28T15:47:09.289379+00:00",
+  "pages_total": 3,
+  "layout_issues": [],
+  "caption_observations": [
+    "README defines mean\u00b1sampleSD and paired units; the explicit visual mapping of black bars to mean\u00b1sampleSD is not stated."
+  ],
+  "statistical_caption_check": {
+    "general_paired_mean_sample_sd_definition_present": true,
+    "black_bar_mapping_explicit": false
+  },
+  "regeneration_record": "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/preflight/release_regeneration.json",
+  "render_command": [
+    "pdftoppm",
+    "-r",
+    "150",
+    "-singlefile",
+    "-png",
+    "INPUT.pdf",
+    "OUTPUT_PREFIX"
+  ],
+  "native_render_scope": {
+    "unit": "run-rabec9e68b8d54e0782c2b547a1c2d1d7.scope",
+    "invocation_id": "fc47557f9eaf41ae8a4401c74ca49f74",
+    "exit_code": 0,
+    "MemoryMax": "1G",
+    "MemorySwapMax": 0,
+    "numerical_threads": 2
+  },
+  "review_scope": "Artifact QA only; not the formal Astra results review or a new scientific experiment",
+  "original_pdf_bytes_preserved": true,
+  "commands_running": false
+}

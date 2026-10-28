@@ -1,0 +1,9 @@
+Running as unit: run-r717f45fc95764014bcdcc0ca0982f4db.scope; invocation ID: 79df1b26cee0422fa31d74972d7863a7
+{
+  "status": "PASS",
+  "output": "/tmp/quaffle-hq-training-controls-evidence/independent_numeric_audit.json",
+  "sha256": "616e948caf93cb7c45c1a61fb46fb8043f6c603171a7e0c48fe35d33c8b73a71",
+  "assertions": 21736,
+  "errors": [],
+  "incomplete_reason": null
+}

@@ -1,0 +1,42 @@
+{
+  "quantum": {
+    "total": 344480,
+    "trainable": 344480,
+    "core_total": 8,
+    "core_trainable": 8,
+    "bottleneck_total": 270539,
+    "bottleneck_trainable": 270539
+  },
+  "frozen_quantum": {
+    "total": 344480,
+    "trainable": 344472,
+    "core_total": 8,
+    "core_trainable": 0,
+    "bottleneck_total": 270539,
+    "bottleneck_trainable": 270531
+  },
+  "zero_bottleneck": {
+    "total": 344480,
+    "trainable": 73941,
+    "core_total": 8,
+    "core_trainable": 0,
+    "bottleneck_total": 270539,
+    "bottleneck_trainable": 0
+  },
+  "compact_affine": {
+    "total": 346040,
+    "trainable": 346040,
+    "core_total": 1568,
+    "core_trainable": 1568,
+    "bottleneck_total": 272099,
+    "bottleneck_trainable": 272099
+  },
+  "mlp": {
+    "total": 349688,
+    "trainable": 349688,
+    "core_total": 5216,
+    "core_trainable": 5216,
+    "bottleneck_total": 275747,
+    "bottleneck_trainable": 275747
+  }
+}

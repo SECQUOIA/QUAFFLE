@@ -1,0 +1,3195 @@
+{
+  "id": "hq_compact_affine",
+  "kind": "compact_affine",
+  "seed": 123,
+  "learning_rate": 0.003,
+  "model_config": {
+    "control": "compact_affine",
+    "seed": 123,
+    "base_channels": 8,
+    "image_size": 128
+  },
+  "settings": {
+    "kind": "compact_affine",
+    "seed": 123,
+    "learning_rate": 0.003,
+    "epochs": 60,
+    "batch_size": 8,
+    "eval_every": 2,
+    "fit_cap": 128,
+    "image_size": 128,
+    "base_channels": 8,
+    "augment": true,
+    "loss": "dice_ce",
+    "dataset": "combined",
+    "data_root": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset",
+    "max_samples": null,
+    "fit_only_norm": true,
+    "val_fraction": 0.15,
+    "legacy_data": false,
+    "combined_input_mode": "shared3",
+    "_resolved_norm_provenance": {
+      "mode": "fit_only_train_split",
+      "fit_only": true,
+      "seed": 123,
+      "val_fraction": 0.15,
+      "image_size": 128,
+      "max_samples": null,
+      "n_manifest_train_tiles": 1533,
+      "n_fit_train_tiles": 1303,
+      "n_excluded_val_tiles": 230,
+      "fit_names_sha256": "dad9f2297bc59c73",
+      "stats_sha256": "20d8672f34ca7bdc"
+    }
+  },
+  "parameter_counts": {
+    "total": 346040,
+    "trainable": 346040,
+    "core_total": 1568,
+    "core_trainable": 1568,
+    "bottleneck_total": 272099,
+    "bottleneck_trainable": 272099
+  },
+  "trainability": {
+    "stem.0.weight": true,
+    "stem.1.weight": true,
+    "stem.2.weight": true,
+    "stem.2.bias": true,
+    "stem.4.weight": true,
+    "stem.5.weight": true,
+    "stem.6.weight": true,
+    "stem.6.bias": true,
+    "down1.1.0.weight": true,
+    "down1.1.1.weight": true,
+    "down1.1.2.weight": true,
+    "down1.1.2.bias": true,
+    "down1.1.4.weight": true,
+    "down1.1.5.weight": true,
+    "down1.1.6.weight": true,
+    "down1.1.6.bias": true,
+    "down2.1.0.weight": true,
+    "down2.1.1.weight": true,
+    "down2.1.2.weight": true,
+    "down2.1.2.bias": true,
+    "down2.1.4.weight": true,
+    "down2.1.5.weight": true,
+    "down2.1.6.weight": true,
+    "down2.1.6.bias": true,
+    "down3.1.0.weight": true,
+    "down3.1.1.weight": true,
+    "down3.1.2.weight": true,
+    "down3.1.2.bias": true,
+    "down3.1.4.weight": true,
+    "down3.1.5.weight": true,
+    "down3.1.6.weight": true,
+    "down3.1.6.bias": true,
+    "bottleneck.pre_projection.weight": true,
+    "bottleneck.pre_projection.bias": true,
+    "bottleneck.core.1.weight": true,
+    "bottleneck.core.1.bias": true,
+    "bottleneck.post_projection.weight": true,
+    "bottleneck.post_projection.bias": true,
+    "up1.up.weight": true,
+    "up1.up.bias": true,
+    "up1.conv.0.weight": true,
+    "up1.conv.1.weight": true,
+    "up1.conv.2.weight": true,
+    "up1.conv.2.bias": true,
+    "up1.conv.4.weight": true,
+    "up1.conv.5.weight": true,
+    "up1.conv.6.weight": true,
+    "up1.conv.6.bias": true,
+    "up2.up.weight": true,
+    "up2.up.bias": true,
+    "up2.conv.0.weight": true,
+    "up2.conv.1.weight": true,
+    "up2.conv.2.weight": true,
+    "up2.conv.2.bias": true,
+    "up2.conv.4.weight": true,
+    "up2.conv.5.weight": true,
+    "up2.conv.6.weight": true,
+    "up2.conv.6.bias": true,
+    "up3.up.weight": true,
+    "up3.up.bias": true,
+    "up3.conv.0.weight": true,
+    "up3.conv.1.weight": true,
+    "up3.conv.2.weight": true,
+    "up3.conv.2.bias": true,
+    "up3.conv.4.weight": true,
+    "up3.conv.5.weight": true,
+    "up3.conv.6.weight": true,
+    "up3.conv.6.bias": true,
+    "up4.up.weight": true,
+    "up4.up.bias": true,
+    "up4.conv.0.weight": true,
+    "up4.conv.1.weight": true,
+    "up4.conv.2.weight": true,
+    "up4.conv.2.bias": true,
+    "up4.conv.4.weight": true,
+    "up4.conv.5.weight": true,
+    "up4.conv.6.weight": true,
+    "up4.conv.6.bias": true,
+    "head.weight": true,
+    "head.bias": true
+  },
+  "total_params": 346040,
+  "trainable_params": 346040,
+  "core_params": 1568,
+  "initial_state_sha256": "92027aac025510839b231f81e0013136aadc96934f57168eaad8f18013c85adb",
+  "initial_shared_state_sha256": "0956e5bf87202b44a5118be8ebd714d7dd5ee29a5194d01e3f2f0bf41715512d",
+  "selected_state_sha256": "6175ab72ee7b0e3961da4f4cf56b6620c9d5994e871a4e93f5eddf6e3c2b0cdd",
+  "best_epoch": 28,
+  "val": {
+    "loss": 0.5993246342824853,
+    "accuracy": 0.9532168181046196,
+    "auc": 0.9337554667230787,
+    "iou": 0.5805110657951407,
+    "dice": 0.7345865250277015,
+    "optical_subset_tp": 140607,
+    "optical_subset_fp": 14676,
+    "optical_subset_fn": 70568,
+    "optical_subset_tn": 511429,
+    "optical_subset_n_samples": 45,
+    "optical_subset_iou": 0.6225653196133735,
+    "optical_subset_dice": 0.7673839839763357,
+    "optical_subset_accuracy": 0.8843804253472223,
+    "optical_subset_auc": 0.8605191192623018,
+    "sar_subset_tp": 103358,
+    "sar_subset_fp": 30138,
+    "sar_subset_fn": 60912,
+    "sar_subset_tn": 2836632,
+    "sar_subset_n_samples": 185,
+    "sar_subset_iou": 0.5316550759228015,
+    "sar_subset_dice": 0.6942229804611675,
+    "sar_subset_accuracy": 0.9699608055320946,
+    "sar_subset_auc": 0.9424137636376616
+  },
+  "history": [
+    {
+      "epoch": 0,
+      "train_loss": null,
+      "train_schedule": null,
+      "gradient_norms": {},
+      "val": {
+        "loss": 1.4701264650925345,
+        "accuracy": 0.9003680685292119,
+        "auc": 0.3025884120179303,
+        "iou": 0.0,
+        "dice": 0.0,
+        "optical_subset_tp": 0,
+        "optical_subset_fp": 0,
+        "optical_subset_fn": 211175,
+        "optical_subset_tn": 526105,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.0,
+        "optical_subset_dice": 0.0,
+        "optical_subset_accuracy": 0.7135755750868056,
+        "optical_subset_auc": 0.44752746872683774,
+        "sar_subset_tp": 0,
+        "sar_subset_fp": 0,
+        "sar_subset_fn": 164270,
+        "sar_subset_tn": 2866770,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.0,
+        "sar_subset_dice": 0.0,
+        "sar_subset_accuracy": 0.9458040804476351,
+        "sar_subset_auc": 0.2945788994756199
+      }
+    },
+    {
+      "epoch": 1,
+      "train_loss": 1.372178092598915,
+      "train_schedule": {
+        "sha256": "9a72a9109cba58e18fbd4793e073c9e4c276cef32afc426c8955ccb5d3366470",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 4.795600663673284e-05,
+          "max": 0.0002017848047638421,
+          "mean": 0.00012884477074427147,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.5771661765242861,
+          "max": 1.3098459375805962,
+          "mean": 0.8061192253607211,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 2,
+      "train_loss": 1.1829085052013397,
+      "train_schedule": {
+        "sha256": "3f23c29ac7e1cbd1d78c2b64c401872fbd3dcf350dc4d2e9dca7e6cd8233aca9",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 7.453534103815874e-05,
+          "max": 0.0007046608189201271,
+          "mean": 0.00028772758706420806,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.5123328572493027,
+          "max": 1.6236522391756594,
+          "mean": 0.7816263916054518,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 1.2660964488983155,
+        "accuracy": 0.9003680685292119,
+        "auc": 0.8746516880180081,
+        "iou": 0.0,
+        "dice": 0.0,
+        "optical_subset_tp": 0,
+        "optical_subset_fp": 0,
+        "optical_subset_fn": 211175,
+        "optical_subset_tn": 526105,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.0,
+        "optical_subset_dice": 0.0,
+        "optical_subset_accuracy": 0.7135755750868056,
+        "optical_subset_auc": 0.7846506305145402,
+        "sar_subset_tp": 0,
+        "sar_subset_fp": 0,
+        "sar_subset_fn": 164270,
+        "sar_subset_tn": 2866770,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.0,
+        "sar_subset_dice": 0.0,
+        "sar_subset_accuracy": 0.9458040804476351,
+        "sar_subset_auc": 0.8659784340684276
+      }
+    },
+    {
+      "epoch": 3,
+      "train_loss": 1.0045430362224579,
+      "train_schedule": {
+        "sha256": "4d010f0f75c14745994f3c255b0754b7a1ddcbf7e0a1f99cfbad62432f0d59a9",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 9.316501740459988e-05,
+          "max": 0.0008076999825299881,
+          "mean": 0.0002600430825628428,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.6013204267963219,
+          "max": 1.019796317199845,
+          "mean": 0.797205306483384,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.9062151834368706,
+      "train_schedule": {
+        "sha256": "54827bb7f2ebfdc87867e011ed00124df29d0915586a7dcc9eabac1fd9aab393",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00012476548045539754,
+          "max": 0.001389667650152433,
+          "mean": 0.0005788878745533145,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.5914443482292657,
+          "max": 6.581715403553775,
+          "mean": 1.337743020118911,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.973708899124809,
+        "accuracy": 0.9111354662024457,
+        "auc": 0.8715402321241186,
+        "iou": 0.3481481193098978,
+        "dice": 0.5164834847496,
+        "optical_subset_tp": 111589,
+        "optical_subset_fp": 89396,
+        "optical_subset_fn": 99586,
+        "optical_subset_tn": 436709,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.37125670806564837,
+        "optical_subset_dice": 0.5414838897515528,
+        "optical_subset_accuracy": 0.7436767578125,
+        "optical_subset_auc": 0.7401200187235898,
+        "sar_subset_tp": 67262,
+        "sar_subset_fp": 48880,
+        "sar_subset_fn": 97008,
+        "sar_subset_tn": 2817890,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.31556181093126906,
+        "sar_subset_dice": 0.4797369584753862,
+        "sar_subset_accuracy": 0.9518686655405405,
+        "sar_subset_auc": 0.8878309885222215
+      }
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.8135973587632179,
+      "train_schedule": {
+        "sha256": "bd53139707788c0733e6dc01c70a0f242769f17c3cac6f739f2a6d00fc2d8c67",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00013779050312237538,
+          "max": 0.006919185524519266,
+          "mean": 0.0026060902886894345,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.47817741656868207,
+          "max": 1.5165756597436635,
+          "mean": 0.8762711089208804,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.6734869796782732,
+      "train_schedule": {
+        "sha256": "a86d1d0d34acf02ac7f8e412cbfcc51c0b0d26008f7ac05869308722850d7ad1",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.000650666606722114,
+          "max": 0.014105935825835695,
+          "mean": 0.002073363910797502,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.44684308709931797,
+          "max": 1.1388853589237369,
+          "mean": 0.796885052546876,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.7283822723056959,
+        "accuracy": 0.9470034391983696,
+        "auc": 0.8983405653884469,
+        "iou": 0.5504886580024219,
+        "dice": 0.7100840824100527,
+        "optical_subset_tp": 143535,
+        "optical_subset_fp": 40178,
+        "optical_subset_fn": 67640,
+        "optical_subset_tn": 485927,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5710494802130868,
+        "optical_subset_dice": 0.7269656206316728,
+        "optical_subset_accuracy": 0.8537624782986111,
+        "optical_subset_auc": 0.8559214048474906,
+        "sar_subset_tp": 101035,
+        "sar_subset_fp": 28655,
+        "sar_subset_fn": 63235,
+        "sar_subset_tn": 2838115,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5237009200466503,
+        "sar_subset_dice": 0.6874064498571234,
+        "sar_subset_accuracy": 0.9696836729307432,
+        "sar_subset_auc": 0.9223636169259632
+      }
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.6671819109469652,
+      "train_schedule": {
+        "sha256": "17c7e9c49c66b64fc9eaf59e2d201c262ac84b2b276f0e0a9be54442d984f09a",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0015542213552548264,
+          "max": 0.00795470578547946,
+          "mean": 0.004468133740826635,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.5401785799145885,
+          "max": 2.412410466544944,
+          "mean": 1.020141882699048,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.6980254985392094,
+      "train_schedule": {
+        "sha256": "8d8c37ecfdeeee60b08fcf2a0b5633d1feb71924d480cb9fdf8ca5a6be306a66",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0001387353252707552,
+          "max": 0.006867130712025031,
+          "mean": 0.0020515883926058493,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.4566860105384067,
+          "max": 4.345103969191853,
+          "mean": 1.3394571531218267,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.7016540418500485,
+        "accuracy": 0.9505166758661685,
+        "auc": 0.8629508347432184,
+        "iou": 0.5655114884812277,
+        "dice": 0.7224622657095356,
+        "optical_subset_tp": 138686,
+        "optical_subset_fp": 13194,
+        "optical_subset_fn": 72489,
+        "optical_subset_tn": 512911,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6181156933444459,
+        "optical_subset_dice": 0.7639944361047224,
+        "optical_subset_accuracy": 0.8837849934895833,
+        "optical_subset_auc": 0.8664693049857697,
+        "sar_subset_tp": 104014,
+        "sar_subset_fp": 40530,
+        "sar_subset_fn": 60256,
+        "sar_subset_tn": 2826240,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.507880859375,
+        "sar_subset_dice": 0.6736352626500094,
+        "sar_subset_accuracy": 0.9667487067145271,
+        "sar_subset_auc": 0.9301228088612752
+      }
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.5555747486650944,
+      "train_schedule": {
+        "sha256": "27aad8069872a076a5d38e6b865b7ed24373fec60e8fb29fab4a510d44dbc9b4",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00015279043472481594,
+          "max": 0.0018900978272118956,
+          "mean": 0.000809036485263657,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.4065939938646065,
+          "max": 2.446685786454663,
+          "mean": 0.8030623809303341,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.5482011782005429,
+      "train_schedule": {
+        "sha256": "7107c8685d81342196e04554f00096b3bad88011203c60ae890b2fcf98020d99",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00035178025081713713,
+          "max": 0.005551911851316695,
+          "mean": 0.0018373618403337698,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.305246851793615,
+          "max": 1.4330468749894711,
+          "mean": 0.6601790212253181,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6645088351291158,
+        "accuracy": 0.9519881538722826,
+        "auc": 0.9122359365200007,
+        "iou": 0.5602578311847402,
+        "dice": 0.7181605757547435,
+        "optical_subset_tp": 139097,
+        "optical_subset_fp": 16828,
+        "optical_subset_fn": 72078,
+        "optical_subset_tn": 509277,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6100665342122691,
+        "optical_subset_dice": 0.7578153091800599,
+        "optical_subset_accuracy": 0.8794135199652777,
+        "optical_subset_auc": 0.867932404343827,
+        "sar_subset_tp": 91411,
+        "sar_subset_fp": 19159,
+        "sar_subset_fn": 72859,
+        "sar_subset_tn": 2847611,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.4983454088502908,
+        "sar_subset_dice": 0.6651942948624654,
+        "sar_subset_accuracy": 0.9696414432010135,
+        "sar_subset_auc": 0.9101550155466077
+      }
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.5411907220259309,
+      "train_schedule": {
+        "sha256": "d9e0a982567acbeddcfddb60a50e37a935a1f21e51c796944bb5591946076ac8",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0007595464487767346,
+          "max": 0.008906941490413404,
+          "mean": 0.004524827754991212,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.21826065165175906,
+          "max": 2.337636997221731,
+          "mean": 0.8412456808262413,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.6328984824940562,
+      "train_schedule": {
+        "sha256": "a5de121b1c3150571398abbba1e7a3ee853fcbea453d18c570757856ac4899bb",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0009298662603506727,
+          "max": 0.010202985716748957,
+          "mean": 0.003320800153681669,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.25215462537399697,
+          "max": 5.955992214384937,
+          "mean": 0.9699903465701432,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6670151767523392,
+        "accuracy": 0.9529740043308423,
+        "auc": 0.9291887320889594,
+        "iou": 0.5622480336745583,
+        "dice": 0.7197935558953422,
+        "optical_subset_tp": 131843,
+        "optical_subset_fp": 9191,
+        "optical_subset_fn": 79332,
+        "optical_subset_tn": 516914,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5982910249312507,
+        "optical_subset_dice": 0.7486634356305489,
+        "optical_subset_accuracy": 0.8799329969618056,
+        "optical_subset_auc": 0.8525203199709588,
+        "sar_subset_tp": 95764,
+        "sar_subset_fp": 20180,
+        "sar_subset_fn": 68506,
+        "sar_subset_tn": 2846590,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5191867714827867,
+        "sar_subset_dice": 0.6835061774215421,
+        "sar_subset_accuracy": 0.9707407358530405,
+        "sar_subset_auc": 0.91761034508599
+      }
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.6076624095439911,
+      "train_schedule": {
+        "sha256": "2d9bdab8780d9f7e86ee4a9ead56152da39742509f4c37ce3fb6c445cc46ee21",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0005195576588722465,
+          "max": 0.009640343451639983,
+          "mean": 0.0023155256741147334,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.448610910830948,
+          "max": 6.137100315391943,
+          "mean": 1.160822201472891,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.5457743890583515,
+      "train_schedule": {
+        "sha256": "abe22251ec1fa423be3aa81064ec679486e9f613bf680ce846e7895fc78d42c2",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0006663359997672851,
+          "max": 0.009370381782030689,
+          "mean": 0.00310748303971879,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.35880106199875267,
+          "max": 3.179478421552582,
+          "mean": 0.9124216147869505,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.609048853231513,
+        "accuracy": 0.9520709493885869,
+        "auc": 0.9271371297803422,
+        "iou": 0.5794459113961189,
+        "dice": 0.733733149347203,
+        "optical_subset_tp": 139789,
+        "optical_subset_fp": 16413,
+        "optical_subset_fn": 71386,
+        "optical_subset_tn": 509692,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.614219554633812,
+        "optical_subset_dice": 0.7610111683638333,
+        "optical_subset_accuracy": 0.8809149848090277,
+        "optical_subset_auc": 0.8684042022791298,
+        "sar_subset_tp": 109061,
+        "sar_subset_fp": 37604,
+        "sar_subset_fn": 55209,
+        "sar_subset_tn": 2829166,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5402429238039569,
+        "sar_subset_dice": 0.7015035296766206,
+        "sar_subset_accuracy": 0.9693791569890202,
+        "sar_subset_auc": 0.9353731474242295
+      }
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.5690829521045089,
+      "train_schedule": {
+        "sha256": "3e392b0fee14d1315c462ee68ef0a8f69126c620d96079df36fe21f3ea523a50",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00239827943013113,
+          "max": 0.011404645823343437,
+          "mean": 0.00565015884057077,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.44114069321676647,
+          "max": 2.907036129772082,
+          "mean": 1.190704794743006,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.5780055103823543,
+      "train_schedule": {
+        "sha256": "195908e3f105e63c5d06dc8d1a1bf6accdf15ef484bff9a315c36a9c1912784a",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0010570250082066106,
+          "max": 0.013490850900297977,
+          "mean": 0.006130515417579331,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2503805447730448,
+          "max": 1.7058096856542644,
+          "mean": 0.7895630177947676,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.7315555271895036,
+        "accuracy": 0.951633884595788,
+        "auc": 0.8938450149757495,
+        "iou": 0.5303498817235888,
+        "dice": 0.6931093184079853,
+        "optical_subset_tp": 128263,
+        "optical_subset_fp": 4973,
+        "optical_subset_fn": 82912,
+        "optical_subset_tn": 521132,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5934035938338545,
+        "optical_subset_dice": 0.7448252233523319,
+        "optical_subset_accuracy": 0.88079833984375,
+        "optical_subset_auc": 0.8686097856101633,
+        "sar_subset_tp": 77552,
+        "sar_subset_fp": 7656,
+        "sar_subset_fn": 86718,
+        "sar_subset_tn": 2859114,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.45107778928143505,
+        "sar_subset_dice": 0.6217141391224877,
+        "sar_subset_accuracy": 0.9688641522381757,
+        "sar_subset_auc": 0.911898407497771
+      }
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.5619161855429411,
+      "train_schedule": {
+        "sha256": "2fb978c2b806eb1f9a5c7c19b6a3505bbe72a6b30d3c50cabeaa50e07b2c65e3",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.002097094679629643,
+          "max": 0.016546116689617325,
+          "mean": 0.009522808935641669,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.323554138089212,
+          "max": 4.530431793344482,
+          "mean": 1.2803607375656638,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.5275832684710622,
+      "train_schedule": {
+        "sha256": "fb19b4deefb67d80c90822f6a8ba4843fa712dcbe0422f4a51aea29f87ec46aa",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0019007471975937293,
+          "max": 0.024344730154098368,
+          "mean": 0.012527420030831043,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.19231894417138443,
+          "max": 1.7313921633991283,
+          "mean": 0.7197101878721223,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6012513163297073,
+        "accuracy": 0.9510811183763587,
+        "auc": 0.9396199951749455,
+        "iou": 0.5733653641421576,
+        "dice": 0.728839438326866,
+        "optical_subset_tp": 145693,
+        "optical_subset_fp": 28198,
+        "optical_subset_fn": 65482,
+        "optical_subset_tn": 497907,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6086442497691886,
+        "optical_subset_dice": 0.7567170303272686,
+        "optical_subset_accuracy": 0.8729383680555556,
+        "optical_subset_auc": 0.8659682646250124,
+        "sar_subset_tp": 102049,
+        "sar_subset_fp": 28441,
+        "sar_subset_fn": 62221,
+        "sar_subset_tn": 2838329,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.529544239820249,
+        "sar_subset_dice": 0.6924209526394355,
+        "sar_subset_accuracy": 0.9700888144003378,
+        "sar_subset_auc": 0.9356036756337079
+      }
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.4929647818207741,
+      "train_schedule": {
+        "sha256": "b6b99a620282763ef607392778bb2763b0ae36eed524d594e80d5508a786847b",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0037824943501805876,
+          "max": 0.031024911740503994,
+          "mean": 0.012394216711795022,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.38771847411399935,
+          "max": 4.3667995786516824,
+          "mean": 1.0435129824007034,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.4701395705342293,
+      "train_schedule": {
+        "sha256": "0ee811fba1faecc1c40d9533f37717290f18f07f80033c3a8aa5d9a2dbec48ba",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.002572169415307477,
+          "max": 0.01750718551102429,
+          "mean": 0.008757917939634348,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.25437310233884797,
+          "max": 2.6363379878636217,
+          "mean": 0.8038793454475952,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.7078493781711744,
+        "accuracy": 0.9528068210767663,
+        "auc": 0.8720922159915212,
+        "iou": 0.5465303666229786,
+        "dice": 0.7067825869030797,
+        "optical_subset_tp": 130349,
+        "optical_subset_fp": 4938,
+        "optical_subset_fn": 80826,
+        "optical_subset_tn": 521167,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6031520547121182,
+        "optical_subset_dice": 0.752457700988853,
+        "optical_subset_accuracy": 0.8836751302083333,
+        "optical_subset_auc": 0.8492697663399276,
+        "sar_subset_tp": 83986,
+        "sar_subset_fp": 11791,
+        "sar_subset_fn": 80284,
+        "sar_subset_tn": 2854979,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.47702784830257694,
+        "sar_subset_dice": 0.6459293896872489,
+        "sar_subset_accuracy": 0.9696226377744932,
+        "sar_subset_auc": 0.9119021580952034
+      }
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.5387443425133824,
+      "train_schedule": {
+        "sha256": "6da08acbaf96557b15829e84016034d01e9242d5133cfd852bf1407ee6e07999",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007197380445356724,
+          "max": 0.04674717795630898,
+          "mean": 0.020351194694591918,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.30335040304946365,
+          "max": 1.9128410077385642,
+          "mean": 0.7989722826203659,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.5293878130614758,
+      "train_schedule": {
+        "sha256": "4bd4f1b2afff8078b5f9e2a916d8ce44d88f07e1f6497f69ad77c552f0b83c91",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.010131209605507056,
+          "max": 0.0611492430852826,
+          "mean": 0.029018126571836233,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.3991255184165311,
+          "max": 3.767023594764846,
+          "mean": 1.137123890037637,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6258999487628107,
+        "accuracy": 0.9520192021908968,
+        "auc": 0.9238620384665911,
+        "iou": 0.5681251433157533,
+        "dice": 0.7245915872689469,
+        "optical_subset_tp": 142706,
+        "optical_subset_fp": 21631,
+        "optical_subset_fn": 68469,
+        "optical_subset_tn": 504474,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6129824832693316,
+        "optical_subset_dice": 0.7600609301433776,
+        "optical_subset_accuracy": 0.8777940538194444,
+        "optical_subset_auc": 0.8599620721239617,
+        "sar_subset_tp": 95143,
+        "sar_subset_fp": 21580,
+        "sar_subset_fn": 69127,
+        "sar_subset_tn": 2845190,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5119343556631692,
+        "sar_subset_dice": 0.6771912467570367,
+        "sar_subset_accuracy": 0.9700739680109798,
+        "sar_subset_auc": 0.9325252705552685
+      }
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.5744549762457609,
+      "train_schedule": {
+        "sha256": "ea271b3ab017c5aa0a943be7d4bacf1eb4319e0d35be0a91a64aa91e03528d41",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00407757089355951,
+          "max": 0.06065968491123427,
+          "mean": 0.01658810355865407,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2835196590148548,
+          "max": 11.750295947070319,
+          "mean": 1.8059456525044568,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.4313519485294819,
+      "train_schedule": {
+        "sha256": "32e849ab0c362a0e76ad110c0cb38067e6e741448115b6e05657fee6146536cc",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0027196408771545124,
+          "max": 0.03246201046687864,
+          "mean": 0.011709237860118914,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2249358490472517,
+          "max": 1.3372379206564449,
+          "mean": 0.636721722335641,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6225435194761857,
+        "accuracy": 0.9522784689198369,
+        "auc": 0.9001647275607382,
+        "iou": 0.5768676014183629,
+        "dice": 0.7316626974889728,
+        "optical_subset_tp": 139727,
+        "optical_subset_fp": 14870,
+        "optical_subset_fn": 71448,
+        "optical_subset_tn": 511235,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6181379813753899,
+        "optical_subset_dice": 0.7640114606913596,
+        "optical_subset_accuracy": 0.8829237196180556,
+        "optical_subset_auc": 0.8603967495758421,
+        "sar_subset_tp": 105440,
+        "sar_subset_fp": 34682,
+        "sar_subset_fn": 58830,
+        "sar_subset_tn": 2832088,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.529977079898669,
+        "sar_subset_dice": 0.6927908749244396,
+        "sar_subset_accuracy": 0.9691485430743243,
+        "sar_subset_auc": 0.9396977862883429
+      }
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.5441430704668164,
+      "train_schedule": {
+        "sha256": "fa273a5caad157734746e7e95b993d8a752d23a6bbd7af0b43670910c3b445ae",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0073489914507539,
+          "max": 0.0542337483621535,
+          "mean": 0.027554459134979805,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.4456773571074049,
+          "max": 2.0466548914474734,
+          "mean": 0.9371839581728877,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.5304808430373669,
+      "train_schedule": {
+        "sha256": "f1f9edc93d05a37efb1b09c35d66acc896da539a392c1278f92d6b9c6540f090",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00766145940254841,
+          "max": 0.03581130228142527,
+          "mean": 0.019252899018373154,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.44662940790371175,
+          "max": 1.928574011367695,
+          "mean": 0.9898149584066872,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.653527697791224,
+        "accuracy": 0.953617527173913,
+        "auc": 0.9197011611977861,
+        "iou": 0.5638153182717719,
+        "dice": 0.7210766024403243,
+        "optical_subset_tp": 133567,
+        "optical_subset_fp": 7116,
+        "optical_subset_fn": 77608,
+        "optical_subset_tn": 518989,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6118758904398257,
+        "optical_subset_dice": 0.7592096811782025,
+        "optical_subset_accuracy": 0.8850857204861111,
+        "optical_subset_auc": 0.8551309975977804,
+        "sar_subset_tp": 92360,
+        "sar_subset_fp": 18150,
+        "sar_subset_fn": 71910,
+        "sar_subset_tn": 2848620,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.506304133318715,
+        "sar_subset_dice": 0.6722468884198267,
+        "sar_subset_accuracy": 0.970287426097973,
+        "sar_subset_auc": 0.9255970940006344
+      }
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.6824279930442572,
+      "train_schedule": {
+        "sha256": "7dc1d679c184c0fba60da959722799a972dfb87645d6c2e9b7b6ba408ea81af3",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.00436040713493399,
+          "max": 0.08951972545398557,
+          "mean": 0.01822701552575159,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.41334701956798636,
+          "max": 11.704793051391993,
+          "mean": 1.686325875379307,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.5705384900793433,
+      "train_schedule": {
+        "sha256": "affcca8a904c137008ae218485f1e2a794f27e54bf6ad8062ff1e3b84ae582dc",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0028423094544681045,
+          "max": 0.03228104042312658,
+          "mean": 0.014657822493359939,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.361287972633977,
+          "max": 2.467044778333055,
+          "mean": 0.9241919932368823,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.5993246342824853,
+        "accuracy": 0.9532168181046196,
+        "auc": 0.9337554667230787,
+        "iou": 0.5805110657951407,
+        "dice": 0.7345865250277015,
+        "optical_subset_tp": 140607,
+        "optical_subset_fp": 14676,
+        "optical_subset_fn": 70568,
+        "optical_subset_tn": 511429,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6225653196133735,
+        "optical_subset_dice": 0.7673839839763357,
+        "optical_subset_accuracy": 0.8843804253472223,
+        "optical_subset_auc": 0.8605191192623018,
+        "sar_subset_tp": 103358,
+        "sar_subset_fp": 30138,
+        "sar_subset_fn": 60912,
+        "sar_subset_tn": 2836632,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5316550759228015,
+        "sar_subset_dice": 0.6942229804611675,
+        "sar_subset_accuracy": 0.9699608055320946,
+        "sar_subset_auc": 0.9424137636376616
+      }
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.6107932953163981,
+      "train_schedule": {
+        "sha256": "00288220b0ffe7acb335954f01b52537cc38708db2566831049651e59be19179",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0017724434245169648,
+          "max": 0.024381086435607206,
+          "mean": 0.010911616607556926,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.36329789021450376,
+          "max": 9.723203732266695,
+          "mean": 1.6551393325925912,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.47355095483362675,
+      "train_schedule": {
+        "sha256": "dfa275678cb12c9fd742319d9863867809fdbb454670366e0d8dc3ec722d6fb6",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0046410512852384615,
+          "max": 0.03607119702379899,
+          "mean": 0.014758189523959157,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2853488705366891,
+          "max": 1.3355880555201851,
+          "mean": 0.7230444736052202,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6371264167453932,
+        "accuracy": 0.9533418074898098,
+        "auc": 0.9257718939797233,
+        "iou": 0.566973620370758,
+        "dice": 0.7236543270417121,
+        "optical_subset_tp": 138010,
+        "optical_subset_fp": 12849,
+        "optical_subset_fn": 73165,
+        "optical_subset_tn": 513256,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6160500660643502,
+        "optical_subset_dice": 0.7624145798460918,
+        "optical_subset_accuracy": 0.8833360460069445,
+        "optical_subset_auc": 0.8663287772800123,
+        "sar_subset_tp": 92200,
+        "sar_subset_fp": 17739,
+        "sar_subset_fn": 72070,
+        "sar_subset_tn": 2849031,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5065683565098429,
+        "sar_subset_dice": 0.6724797508469816,
+        "sar_subset_accuracy": 0.9703702359586148,
+        "sar_subset_auc": 0.9177294034889211
+      }
+    },
+    {
+      "epoch": 31,
+      "train_loss": 0.5926270158961415,
+      "train_schedule": {
+        "sha256": "ecd080ba31c1fdf49b393d3bd1cc5ad51f9210e7e5f7498d3e3195c5b0e29ad6",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.005966266154663809,
+          "max": 0.08923395932432944,
+          "mean": 0.03259399844320267,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.38300017066841013,
+          "max": 5.144271899525083,
+          "mean": 0.9845161075801871,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 32,
+      "train_loss": 0.474840528331697,
+      "train_schedule": {
+        "sha256": "02f2a53a60eebc033e07b55104dfbbed1bea9f0c28b166f8cdabc506bf45213b",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.003654851977096783,
+          "max": 0.03658353521736908,
+          "mean": 0.014129648030193342,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.4953842750171161,
+          "max": 2.0361010884139414,
+          "mean": 0.864229935983769,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6991965490838755,
+        "accuracy": 0.9514775815217391,
+        "auc": 0.9149563915426336,
+        "iou": 0.5298280260018102,
+        "dice": 0.6926635111876076,
+        "optical_subset_tp": 127667,
+        "optical_subset_fp": 5193,
+        "optical_subset_fn": 83508,
+        "optical_subset_tn": 520912,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5900456629446129,
+        "optical_subset_dice": 0.7421744880608078,
+        "optical_subset_accuracy": 0.8796915690104167,
+        "optical_subset_auc": 0.8721385282048268,
+        "sar_subset_tp": 78381,
+        "sar_subset_fp": 8258,
+        "sar_subset_fn": 85889,
+        "sar_subset_tn": 2858512,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.45430886580728924,
+        "sar_subset_dice": 0.6247763133247513,
+        "sar_subset_accuracy": 0.9689390440244933,
+        "sar_subset_auc": 0.9312312729142942
+      }
+    },
+    {
+      "epoch": 33,
+      "train_loss": 0.44047209341078997,
+      "train_schedule": {
+        "sha256": "f6b7261068e1d7ce03ee31e562f8ae15081d5091bc717865d976007ac91aa1c4",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.008837055291749706,
+          "max": 0.05979758878177481,
+          "mean": 0.019704382251217664,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.26602331766538323,
+          "max": 1.3425438879128184,
+          "mean": 0.7396594910728999,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 34,
+      "train_loss": 0.5869887825101614,
+      "train_schedule": {
+        "sha256": "ba303ca46fbd992a95684f8ef71b41735bbec1d2dc0afe6f5561c395cbd9f9b4",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.014849695766032395,
+          "max": 0.04373902404405168,
+          "mean": 0.02672649433377593,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.35346367979513055,
+          "max": 4.327962234006824,
+          "mean": 1.038799816313117,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.623036940201469,
+        "accuracy": 0.9539980681046195,
+        "auc": 0.938385727054656,
+        "iou": 0.5687070666358156,
+        "dice": 0.7250647093156039,
+        "optical_subset_tp": 136061,
+        "optical_subset_fp": 9353,
+        "optical_subset_fn": 75114,
+        "optical_subset_tn": 516752,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6169783428861642,
+        "optical_subset_dice": 0.7631250543342616,
+        "optical_subset_accuracy": 0.8854342990451389,
+        "optical_subset_auc": 0.8697365846272764,
+        "sar_subset_tp": 92520,
+        "sar_subset_fp": 17133,
+        "sar_subset_fn": 71750,
+        "sar_subset_tn": 2849637,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5100246412683362,
+        "sar_subset_dice": 0.6755183025886837,
+        "sar_subset_accuracy": 0.9706757416596283,
+        "sar_subset_auc": 0.9313083815682559
+      }
+    },
+    {
+      "epoch": 35,
+      "train_loss": 0.5525106862187386,
+      "train_schedule": {
+        "sha256": "45de983240ac6714791c27275ab7a89826cdec18f755419567970a43971804a2",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0055400029917226385,
+          "max": 0.036853704483078356,
+          "mean": 0.019791296629954814,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.33290969706739554,
+          "max": 2.537780784982456,
+          "mean": 1.0141870476321997,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 36,
+      "train_loss": 0.5267808903008699,
+      "train_schedule": {
+        "sha256": "30f62658fe1561ad95f18e7ffd1296f00b37cd8615817e9ec00f0ff7b017730d",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.006723772505718262,
+          "max": 0.041274807659355976,
+          "mean": 0.017918078452728532,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.33373849898589797,
+          "max": 6.53859825178507,
+          "mean": 1.2163155896994582,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6073091307412023,
+        "accuracy": 0.9537870987601902,
+        "auc": 0.9324365366105556,
+        "iou": 0.5784312301495081,
+        "dice": 0.7329191403476215,
+        "optical_subset_tp": 140833,
+        "optical_subset_fp": 14551,
+        "optical_subset_fn": 70342,
+        "optical_subset_tn": 511554,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6239112906798507,
+        "optical_subset_dice": 0.7684056318355299,
+        "optical_subset_accuracy": 0.8848564995659722,
+        "optical_subset_auc": 0.8533987108511518,
+        "sar_subset_tp": 98110,
+        "sar_subset_fp": 23092,
+        "sar_subset_fn": 66160,
+        "sar_subset_tn": 2843678,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5236387314396729,
+        "sar_subset_dice": 0.687352875238202,
+        "sar_subset_accuracy": 0.9705540012668918,
+        "sar_subset_auc": 0.9407977514447604
+      }
+    },
+    {
+      "epoch": 37,
+      "train_loss": 0.47129928041249514,
+      "train_schedule": {
+        "sha256": "cf013969a51403f01dab158732540909f4b7c6b3ffc886320e9575bda608f31a",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.005779171650498725,
+          "max": 0.042016357945033486,
+          "mean": 0.01982953499695379,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.32769364952614927,
+          "max": 1.793018632257998,
+          "mean": 0.7944459388436644,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 38,
+      "train_loss": 0.5362055702134967,
+      "train_schedule": {
+        "sha256": "021b625e1a5dddd3e52234df12a0a2776ab886eebe23566940eaf03204a20369",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0106589496101006,
+          "max": 0.10036388164012332,
+          "mean": 0.029000649031449926,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.46539127459024215,
+          "max": 5.123139410551021,
+          "mean": 1.2859663440887177,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.638892440173937,
+        "accuracy": 0.9536464525305707,
+        "auc": 0.9327870123821925,
+        "iou": 0.5665374612880172,
+        "dice": 0.7232989638462989,
+        "optical_subset_tp": 138483,
+        "optical_subset_fp": 12532,
+        "optical_subset_fn": 72692,
+        "optical_subset_tn": 513573,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6190374016012016,
+        "optical_subset_dice": 0.764698086639609,
+        "optical_subset_accuracy": 0.8844075520833333,
+        "optical_subset_auc": 0.8567230541313031,
+        "sar_subset_tp": 89818,
+        "sar_subset_fp": 14999,
+        "sar_subset_fn": 74452,
+        "sar_subset_tn": 2851771,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5010236014034775,
+        "sar_subset_dice": 0.6675759141095631,
+        "sar_subset_accuracy": 0.9704883472339527,
+        "sar_subset_auc": 0.9267676461451142
+      }
+    },
+    {
+      "epoch": 39,
+      "train_loss": 0.5272584818303585,
+      "train_schedule": {
+        "sha256": "b841be324d1d097b98cf6c458f5cbc1c610c393f1e9180ac2442c8d53d8ccbcc",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.006656136083064779,
+          "max": 0.03186304594375185,
+          "mean": 0.016024065560710333,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.30285950253085403,
+          "max": 2.1311674322962397,
+          "mean": 0.8228718742807335,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 40,
+      "train_loss": 0.5495642479509115,
+      "train_schedule": {
+        "sha256": "b13e97309278dc367ea0f3a3a93a62e7434cc9d51ccb58525a7ecafe211109ef",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.006383241614824788,
+          "max": 0.0741060454799398,
+          "mean": 0.01995143307535226,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.19801792555847544,
+          "max": 11.949592268938423,
+          "mean": 1.5593598428466933,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6302206930906876,
+        "accuracy": 0.9518679411514945,
+        "auc": 0.9356498450752955,
+        "iou": 0.5704796366374758,
+        "dice": 0.7265037041281464,
+        "optical_subset_tp": 143950,
+        "optical_subset_fp": 22012,
+        "optical_subset_fn": 67225,
+        "optical_subset_tn": 504093,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6173157165708208,
+        "optical_subset_dice": 0.7633830676915816,
+        "optical_subset_accuracy": 0.8789645724826389,
+        "optical_subset_auc": 0.8637745185226545,
+        "sar_subset_tp": 96951,
+        "sar_subset_fp": 24821,
+        "sar_subset_fn": 67319,
+        "sar_subset_tn": 2841949,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5127213881147172,
+        "sar_subset_dice": 0.6778794722453346,
+        "sar_subset_accuracy": 0.9696011929898649,
+        "sar_subset_auc": 0.9426305839085356
+      }
+    },
+    {
+      "epoch": 41,
+      "train_loss": 0.4716257257387042,
+      "train_schedule": {
+        "sha256": "e7c30ffba12bef45593fea16377db03fde932e31db8d418ba91bea1e9bae1605",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.0028622382801105056,
+          "max": 0.0526024612887684,
+          "mean": 0.02391879079916642,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.24257130101441032,
+          "max": 2.083560825491785,
+          "mean": 0.6754857919177217,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 42,
+      "train_loss": 0.44830656331032515,
+      "train_schedule": {
+        "sha256": "6b13f7eea03f59ea5a08d3e45f210f0207ba1239e1de59e11a0c2fdbcd44df83",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.015285418061930383,
+          "max": 0.051837252498954746,
+          "mean": 0.03501230303021934,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2703908728532749,
+          "max": 1.3081892491641904,
+          "mean": 0.6712635069139016,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6673291273739027,
+        "accuracy": 0.9516813858695652,
+        "auc": 0.920801691938125,
+        "iou": 0.54777563631306,
+        "dice": 0.707823050655986,
+        "optical_subset_tp": 132669,
+        "optical_subset_fp": 13163,
+        "optical_subset_fn": 78506,
+        "optical_subset_tn": 512942,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5913799712933163,
+        "optical_subset_dice": 0.7432291243589061,
+        "optical_subset_accuracy": 0.8756659613715277,
+        "optical_subset_auc": 0.8538441129709384,
+        "sar_subset_tp": 87883,
+        "sar_subset_fp": 14024,
+        "sar_subset_fn": 76387,
+        "sar_subset_tn": 2852746,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.4929105858862329,
+        "sar_subset_dice": 0.6603350402175996,
+        "sar_subset_accuracy": 0.9701716242609797,
+        "sar_subset_auc": 0.943901528111159
+      }
+    },
+    {
+      "epoch": 43,
+      "train_loss": 0.3822092292830348,
+      "train_schedule": {
+        "sha256": "119f9509bf353c8e97c8baa8264632a2ec97168bb76a266c6e5a4a96dde2a13b",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007962288994605075,
+          "max": 0.04560200382168201,
+          "mean": 0.021966794833569996,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2718779107490588,
+          "max": 2.1405199204701097,
+          "mean": 0.6448142257380556,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 44,
+      "train_loss": 0.465671269223094,
+      "train_schedule": {
+        "sha256": "87b19c354444c3232c878168ac1ee1edd38aa0eca06d16ea9e16b0633c602f93",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007460782164993402,
+          "max": 0.07537254868774713,
+          "mean": 0.03365194428692161,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.30977494310233294,
+          "max": 1.8158424334195293,
+          "mean": 0.7966522170942906,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6415254090143286,
+        "accuracy": 0.9527579929517663,
+        "auc": 0.9362872865216043,
+        "iou": 0.5609530527084217,
+        "dice": 0.7187314848900903,
+        "optical_subset_tp": 137926,
+        "optical_subset_fp": 15567,
+        "optical_subset_fn": 73249,
+        "optical_subset_tn": 510538,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6082948902276596,
+        "optical_subset_dice": 0.7564469599745522,
+        "optical_subset_accuracy": 0.8795355902777777,
+        "optical_subset_auc": 0.8632184295102008,
+        "sar_subset_tp": 89527,
+        "sar_subset_fp": 14464,
+        "sar_subset_fn": 74743,
+        "sar_subset_tn": 2852306,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5008951850235546,
+        "sar_subset_dice": 0.6674619120930735,
+        "sar_subset_accuracy": 0.97056884765625,
+        "sar_subset_auc": 0.9332675787205845
+      }
+    },
+    {
+      "epoch": 45,
+      "train_loss": 0.5292284497991204,
+      "train_schedule": {
+        "sha256": "4e9f2bca81300d082823c25ffa19e7e7120553ee7111c7dc731faed6b92fd103",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.004325040612528658,
+          "max": 0.054244976747115134,
+          "mean": 0.030097062981306124,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.18599369835189475,
+          "max": 2.4014732560241288,
+          "mean": 0.9529039911039949,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 46,
+      "train_loss": 0.49260419979691505,
+      "train_schedule": {
+        "sha256": "464569cf777c67a914880abfec6281204a38554a05950a92b737b4a96f466327",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.009327562879283243,
+          "max": 0.0954484451122738,
+          "mean": 0.04005141494503699,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2644780636049454,
+          "max": 4.001817222434031,
+          "mean": 1.0631574763286054,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6059650390044503,
+        "accuracy": 0.9522025730298913,
+        "auc": 0.9392051403265052,
+        "iou": 0.5705357930552675,
+        "dice": 0.7265492395373764,
+        "optical_subset_tp": 143494,
+        "optical_subset_fp": 24131,
+        "optical_subset_fn": 67681,
+        "optical_subset_tn": 501974,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6098187041554401,
+        "optical_subset_dice": 0.757624076029567,
+        "optical_subset_accuracy": 0.8754720052083333,
+        "optical_subset_auc": 0.8680344608848092,
+        "sar_subset_tp": 95787,
+        "sar_subset_fp": 19821,
+        "sar_subset_fn": 68483,
+        "sar_subset_tn": 2846949,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5203241874942284,
+        "sar_subset_dice": 0.6844910996934379,
+        "sar_subset_accuracy": 0.9708667652027027,
+        "sar_subset_auc": 0.9498781984364837
+      }
+    },
+    {
+      "epoch": 47,
+      "train_loss": 0.4681998882442713,
+      "train_schedule": {
+        "sha256": "e2b352e5e11f0b37458dbaac1e387be60a1d5376ce68dd1d117f9b90fec9f38e",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.010195170144210083,
+          "max": 0.07178552952219101,
+          "mean": 0.027712667326383448,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.37273977331427466,
+          "max": 2.170790557965963,
+          "mean": 0.9810372652500025,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 48,
+      "train_loss": 0.461240136064589,
+      "train_schedule": {
+        "sha256": "92950cfcf697b676b63b1c0f9f199dc8bc7a9283cf44a84ef46e884d6529a3a0",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.005415226139919565,
+          "max": 0.03515894706058398,
+          "mean": 0.01524049675843751,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.25831551430400246,
+          "max": 1.8227753764253736,
+          "mean": 0.9314801554133897,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.765523626493371,
+        "accuracy": 0.9454873789911685,
+        "auc": 0.9295512937090726,
+        "iou": 0.4682661917618159,
+        "dice": 0.6378491780157786,
+        "optical_subset_tp": 105885,
+        "optical_subset_fp": 3312,
+        "optical_subset_fn": 105290,
+        "optical_subset_tn": 522793,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.4936662828050185,
+        "optical_subset_dice": 0.6610128225937347,
+        "optical_subset_accuracy": 0.8526991102430556,
+        "optical_subset_auc": 0.8489122079859184,
+        "sar_subset_tp": 75017,
+        "sar_subset_fp": 7566,
+        "sar_subset_fn": 89253,
+        "sar_subset_tn": 2859204,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.4365616052515189,
+        "sar_subset_dice": 0.6077868204964088,
+        "sar_subset_accuracy": 0.9680574984163851,
+        "sar_subset_auc": 0.9372502917957785
+      }
+    },
+    {
+      "epoch": 49,
+      "train_loss": 0.47336033545434475,
+      "train_schedule": {
+        "sha256": "0f318f3e7d9025cdc4eebf71f0605b1d358b5ebac619c2d0a84085c467465bd6",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007837705227250302,
+          "max": 0.09199507495942881,
+          "mean": 0.04788774319718372,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.38052583533456685,
+          "max": 2.1860531183074228,
+          "mean": 0.9166119378489773,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 50,
+      "train_loss": 0.4471943313255906,
+      "train_schedule": {
+        "sha256": "2200af1dd05fba8f6c3e5aa0de6fc4d6eb5dd07b507e9716dd228c80eb9f2df6",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007345480568747997,
+          "max": 0.07854753491431415,
+          "mean": 0.030122422554640534,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.40765063322917816,
+          "max": 1.3961540399479944,
+          "mean": 0.8130462385359738,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6421096262724503,
+        "accuracy": 0.9529901919157608,
+        "auc": 0.9318807885661764,
+        "iou": 0.5617242258030198,
+        "dice": 0.7193641700911542,
+        "optical_subset_tp": 138955,
+        "optical_subset_fp": 14722,
+        "optical_subset_fn": 72220,
+        "optical_subset_tn": 511383,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6151254775406491,
+        "optical_subset_dice": 0.7617061164526986,
+        "optical_subset_accuracy": 0.8820773654513889,
+        "optical_subset_auc": 0.8648929065620791,
+        "sar_subset_tp": 88090,
+        "sar_subset_fp": 14026,
+        "sar_subset_fn": 76180,
+        "sar_subset_tn": 2852744,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.49406604747162025,
+        "sar_subset_dice": 0.6613710930754619,
+        "sar_subset_accuracy": 0.9702392578125,
+        "sar_subset_auc": 0.9390137927280265
+      }
+    },
+    {
+      "epoch": 51,
+      "train_loss": 0.4707599375396967,
+      "train_schedule": {
+        "sha256": "a2e6637c6228283318efb96853cd459cb7519fb149a89513863407e3dcb2ae78",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.010305440086796569,
+          "max": 0.08023358299970557,
+          "mean": 0.040984903258634076,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.21923744901429018,
+          "max": 2.009888996866453,
+          "mean": 0.7907510232388307,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 52,
+      "train_loss": 0.43243467900902033,
+      "train_schedule": {
+        "sha256": "8dd0c32d8a8729c52c6fe62b36e7a561890f482d59b64c3656471f0987936b46",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007548541566247366,
+          "max": 0.09215899560219092,
+          "mean": 0.04095797246619373,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.32079904047687846,
+          "max": 2.2488939947858775,
+          "mean": 0.8472682416728113,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.659152601076209,
+        "accuracy": 0.9514308763586956,
+        "auc": 0.906298486094675,
+        "iou": 0.5599051635832006,
+        "dice": 0.7178707740117523,
+        "optical_subset_tp": 141387,
+        "optical_subset_fp": 23131,
+        "optical_subset_fn": 69788,
+        "optical_subset_tn": 502974,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.603428849453279,
+        "optical_subset_dice": 0.7526730601847785,
+        "optical_subset_accuracy": 0.8739705403645833,
+        "optical_subset_auc": 0.8325689428524967,
+        "sar_subset_tp": 91463,
+        "sar_subset_fp": 17298,
+        "sar_subset_fn": 72807,
+        "sar_subset_tn": 2849472,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5037396457525555,
+        "sar_subset_dice": 0.669982529456362,
+        "sar_subset_accuracy": 0.9702725797086149,
+        "sar_subset_auc": 0.9253613373617489
+      }
+    },
+    {
+      "epoch": 53,
+      "train_loss": 0.4481713976711035,
+      "train_schedule": {
+        "sha256": "39377031a13e257b0545c18426b91e15f0fd2083dc40080dbe6715b85fe961d2",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.013949863336664245,
+          "max": 0.15252203732284111,
+          "mean": 0.06804306513781876,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.26614722445205785,
+          "max": 2.360584637350431,
+          "mean": 1.1915261232506245,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 54,
+      "train_loss": 0.46563182305544615,
+      "train_schedule": {
+        "sha256": "3808fd17faf07eb8aea33374d4a22746322b55407d84fee314254b9133982daa",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.014900927803601157,
+          "max": 0.12629954543762867,
+          "mean": 0.05940804178716901,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.36602594305015584,
+          "max": 3.6592778240257693,
+          "mean": 1.1793729084061306,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.611341771353846,
+        "accuracy": 0.9543374766474185,
+        "auc": 0.9288598520845907,
+        "iou": 0.5747837110513089,
+        "dice": 0.7299843235838265,
+        "optical_subset_tp": 136944,
+        "optical_subset_fp": 10174,
+        "optical_subset_fn": 74231,
+        "optical_subset_tn": 515931,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.61867909952157,
+        "optical_subset_dice": 0.7644246468672288,
+        "optical_subset_accuracy": 0.8855183919270834,
+        "optical_subset_auc": 0.865458425767094,
+        "sar_subset_tp": 95652,
+        "sar_subset_fp": 19048,
+        "sar_subset_fn": 68618,
+        "sar_subset_tn": 2847722,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5217818217523648,
+        "sar_subset_dice": 0.6857511560382837,
+        "sar_subset_accuracy": 0.9710772540118243,
+        "sar_subset_auc": 0.948047811434709
+      }
+    },
+    {
+      "epoch": 55,
+      "train_loss": 0.4503773245960474,
+      "train_schedule": {
+        "sha256": "0e3a9029c90738452238799a69a176065eeac5bd0d8aac64c08291f5e08b2105",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.009198348100840135,
+          "max": 0.04177820381003972,
+          "mean": 0.022419587665831707,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.32935395150374397,
+          "max": 2.8016360089384302,
+          "mean": 1.1144998561070951,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 56,
+      "train_loss": 0.543220603838563,
+      "train_schedule": {
+        "sha256": "c7c1957eb79fa90d4767134518ae676e55ab5ab79bf476a6778f9917def6123e",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.005995968815982716,
+          "max": 0.10068659661648872,
+          "mean": 0.03886517154006295,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.25299841846224697,
+          "max": 3.921244350177567,
+          "mean": 1.2973518897008687,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.6273961702118749,
+        "accuracy": 0.9517219875169837,
+        "auc": 0.8965606924566402,
+        "iou": 0.5804643954994823,
+        "dice": 0.7345491580226774,
+        "optical_subset_tp": 139405,
+        "optical_subset_fp": 13490,
+        "optical_subset_fn": 71770,
+        "optical_subset_tn": 512615,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6205016357688113,
+        "optical_subset_dice": 0.765814266487214,
+        "optical_subset_accuracy": 0.8843587239583334,
+        "optical_subset_auc": 0.8418626928615749,
+        "sar_subset_tp": 112307,
+        "sar_subset_fp": 44704,
+        "sar_subset_fn": 51963,
+        "sar_subset_tn": 2822066,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5374209231770459,
+        "sar_subset_dice": 0.6991200849100943,
+        "sar_subset_accuracy": 0.9681076462204392,
+        "sar_subset_auc": 0.9532002497794614
+      }
+    },
+    {
+      "epoch": 57,
+      "train_loss": 0.4617559192702174,
+      "train_schedule": {
+        "sha256": "661369f3bb25c06d1eca8ffae058b9e0efdea61df55a9c388900618d0fa82efb",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.007213335789468223,
+          "max": 0.06610426351109495,
+          "mean": 0.03237698291081866,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.4594430921289712,
+          "max": 3.021750865037652,
+          "mean": 1.0700156726897139,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 58,
+      "train_loss": 0.48174840305000544,
+      "train_schedule": {
+        "sha256": "68c4dc12b66374cc4d66f236378c4dd6098003806ce373b932349210c3537d3b",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.015429394800925108,
+          "max": 0.12473482393986453,
+          "mean": 0.05082465062060253,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.31736516989292474,
+          "max": 2.645592367135515,
+          "mean": 1.1218989531280097,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.627616196093352,
+        "accuracy": 0.9536432680876359,
+        "auc": 0.9414961507992083,
+        "iou": 0.5676556629690679,
+        "dice": 0.7242096289104127,
+        "optical_subset_tp": 137494,
+        "optical_subset_fp": 11544,
+        "optical_subset_fn": 73681,
+        "optical_subset_tn": 514561,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.6173429298802527,
+        "optical_subset_dice": 0.7634038749295555,
+        "optical_subset_accuracy": 0.8844061957465278,
+        "optical_subset_auc": 0.8702919221875958,
+        "sar_subset_tp": 91865,
+        "sar_subset_fp": 17057,
+        "sar_subset_fn": 72405,
+        "sar_subset_tn": 2849713,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.5066261505456993,
+        "sar_subset_dice": 0.6725306743974934,
+        "sar_subset_accuracy": 0.970484718116554,
+        "sar_subset_auc": 0.9455896912409095
+      }
+    },
+    {
+      "epoch": 59,
+      "train_loss": 0.4312206646427512,
+      "train_schedule": {
+        "sha256": "adbfaf1d89226a966996d0b3c35746f6c08746017932fca515c2f11613c5b80f",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.010884780539623346,
+          "max": 0.06848084137850155,
+          "mean": 0.03272907950277124,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.2750235853933731,
+          "max": 2.118362132614737,
+          "mean": 0.7638103741325827,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      }
+    },
+    {
+      "epoch": 60,
+      "train_loss": 0.4576733373105526,
+      "train_schedule": {
+        "sha256": "4e2489350f200db2cd4f05a9b8c465dbf9c1c16a155514168c72a8635c998957",
+        "n_samples": 128
+      },
+      "gradient_norms": {
+        "core": {
+          "min": 0.021052888226628125,
+          "max": 0.0938777769466307,
+          "mean": 0.0527880299886424,
+          "steps": 16,
+          "nonzero_steps": 16
+        },
+        "common": {
+          "min": 0.28668633590365944,
+          "max": 1.4392123404957264,
+          "mean": 0.8709728262167973,
+          "steps": 16,
+          "nonzero_steps": 16
+        }
+      },
+      "val": {
+        "loss": 0.7282323645508808,
+        "accuracy": 0.9502698815387228,
+        "auc": 0.92773533109267,
+        "iou": 0.5185787464484075,
+        "dice": 0.6829790653415099,
+        "optical_subset_tp": 124108,
+        "optical_subset_fp": 6606,
+        "optical_subset_fn": 87067,
+        "optical_subset_tn": 519499,
+        "optical_subset_n_samples": 45,
+        "optical_subset_iou": 0.5698752416418329,
+        "optical_subset_dice": 0.7260134137102978,
+        "optical_subset_accuracy": 0.8729478624131944,
+        "optical_subset_auc": 0.8617892168256859,
+        "sar_subset_tp": 77755,
+        "sar_subset_fp": 7211,
+        "sar_subset_fn": 86515,
+        "sar_subset_tn": 2859559,
+        "sar_subset_n_samples": 185,
+        "sar_subset_iou": 0.45343215866480835,
+        "sar_subset_dice": 0.623946781363848,
+        "sar_subset_accuracy": 0.9690779402449324,
+        "sar_subset_auc": 0.9332381386008721
+      }
+    }
+  ],
+  "diagnostics": {
+    "initial_angle_probes": [
+      {
+        "n_angles": 384,
+        "min_radians": -0.11707174777984619,
+        "max_radians": 0.006911248899996281,
+        "mean_abs_radians": 0.061905648559331894,
+        "saturation_fraction": 0.0
+      }
+    ],
+    "selected_angle_probes": [
+      {
+        "n_angles": 384,
+        "min_radians": -0.9999300241470337,
+        "max_radians": 0.9999998807907104,
+        "mean_abs_radians": 0.6667771339416504,
+        "saturation_fraction": 0.1223958358168602
+      }
+    ],
+    "angle_probe_scope": "active_fixed_probe",
+    "movement": {
+      "core": {
+        "l2": 3.5589263799363082,
+        "relative_l2": 1.076387061696245
+      },
+      "common": {
+        "l2": 48.21600158489752,
+        "relative_l2": 0.7892356950962012
+      }
+    },
+    "probe_names": [
+      "79",
+      "82",
+      "104",
+      "121",
+      "172 copy",
+      "173 copy",
+      "181 copy",
+      "196"
+    ],
+    "gradient_norms": {
+      "core": {
+        "min": 4.795600663673284e-05,
+        "max": 0.15252203732284111,
+        "mean": 0.02045183539763553,
+        "steps": 960,
+        "nonzero_steps": 960
+      },
+      "common": {
+        "min": 0.18599369835189475,
+        "max": 11.949592268938423,
+        "mean": 0.9873273042402388,
+        "steps": 960,
+        "nonzero_steps": 960
+      }
+    },
+    "frozen_parameters": {
+      "initial_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "selected_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "unchanged": true
+    }
+  },
+  "elapsed_s": 121.97201326099457,
+  "fit_indices": [
+    8,
+    11,
+    33,
+    50,
+    110,
+    112,
+    128,
+    156,
+    159,
+    178,
+    189,
+    201,
+    221,
+    234,
+    239,
+    243,
+    259,
+    274,
+    293,
+    304,
+    325,
+    347,
+    360,
+    369,
+    375,
+    382,
+    391,
+    393,
+    399,
+    404,
+    409,
+    420,
+    424,
+    440,
+    448,
+    449,
+    455,
+    466,
+    479,
+    480,
+    489,
+    494,
+    517,
+    525,
+    545,
+    558,
+    559,
+    578,
+    609,
+    611,
+    614,
+    615,
+    619,
+    631,
+    654,
+    658,
+    669,
+    675,
+    690,
+    706,
+    761,
+    769,
+    772,
+    800,
+    803,
+    806,
+    809,
+    815,
+    831,
+    848,
+    861,
+    867,
+    885,
+    890,
+    894,
+    897,
+    903,
+    906,
+    923,
+    930,
+    944,
+    948,
+    959,
+    961,
+    1002,
+    1013,
+    1044,
+    1051,
+    1062,
+    1070,
+    1079,
+    1091,
+    1094,
+    1097,
+    1104,
+    1154,
+    1163,
+    1165,
+    1166,
+    1177,
+    1178,
+    1183,
+    1187,
+    1200,
+    1202,
+    1212,
+    1215,
+    1227,
+    1267,
+    1271,
+    1299,
+    1357,
+    1390,
+    1397,
+    1412,
+    1421,
+    1426,
+    1429,
+    1438,
+    1448,
+    1451,
+    1456,
+    1457,
+    1474,
+    1488,
+    1519,
+    1526,
+    1528
+  ],
+  "val_indices": [
+    1,
+    3,
+    14,
+    17,
+    18,
+    27,
+    49,
+    56,
+    57,
+    59,
+    60,
+    61,
+    74,
+    77,
+    79,
+    87,
+    88,
+    100,
+    104,
+    115,
+    119,
+    127,
+    132,
+    135,
+    138,
+    162,
+    164,
+    168,
+    170,
+    171,
+    177,
+    209,
+    219,
+    223,
+    232,
+    237,
+    238,
+    240,
+    262,
+    270,
+    273,
+    285,
+    291,
+    295,
+    305,
+    311,
+    315,
+    316,
+    321,
+    326,
+    330,
+    332,
+    335,
+    336,
+    344,
+    348,
+    349,
+    356,
+    358,
+    361,
+    362,
+    381,
+    384,
+    396,
+    398,
+    401,
+    406,
+    408,
+    411,
+    415,
+    416,
+    444,
+    445,
+    450,
+    458,
+    467,
+    471,
+    476,
+    490,
+    491,
+    495,
+    497,
+    499,
+    500,
+    510,
+    513,
+    514,
+    515,
+    519,
+    538,
+    547,
+    555,
+    568,
+    574,
+    577,
+    583,
+    584,
+    588,
+    595,
+    596,
+    602,
+    625,
+    633,
+    648,
+    659,
+    660,
+    665,
+    677,
+    689,
+    703,
+    714,
+    716,
+    741,
+    748,
+    751,
+    759,
+    762,
+    763,
+    771,
+    778,
+    784,
+    790,
+    792,
+    810,
+    817,
+    825,
+    830,
+    840,
+    844,
+    849,
+    851,
+    853,
+    868,
+    872,
+    881,
+    899,
+    900,
+    909,
+    913,
+    918,
+    931,
+    936,
+    940,
+    943,
+    947,
+    950,
+    954,
+    956,
+    963,
+    966,
+    971,
+    978,
+    982,
+    988,
+    995,
+    1000,
+    1019,
+    1020,
+    1026,
+    1036,
+    1043,
+    1053,
+    1076,
+    1082,
+    1090,
+    1092,
+    1100,
+    1118,
+    1120,
+    1127,
+    1129,
+    1134,
+    1135,
+    1136,
+    1151,
+    1162,
+    1164,
+    1176,
+    1180,
+    1181,
+    1186,
+    1194,
+    1201,
+    1224,
+    1231,
+    1262,
+    1263,
+    1265,
+    1274,
+    1277,
+    1291,
+    1294,
+    1303,
+    1305,
+    1323,
+    1326,
+    1332,
+    1335,
+    1340,
+    1341,
+    1358,
+    1361,
+    1367,
+    1374,
+    1404,
+    1405,
+    1407,
+    1413,
+    1433,
+    1434,
+    1437,
+    1440,
+    1443,
+    1460,
+    1461,
+    1466,
+    1467,
+    1469,
+    1470,
+    1471,
+    1473,
+    1478,
+    1486,
+    1487,
+    1498,
+    1499,
+    1506,
+    1514,
+    1524,
+    1529
+  ],
+  "fit_names": [
+    "79",
+    "82",
+    "104",
+    "121",
+    "172 copy",
+    "173 copy",
+    "181 copy",
+    "196",
+    "197 copy",
+    "207",
+    "212 copy",
+    "218 copy",
+    "229",
+    "235 copy",
+    "238 copy",
+    "240 copy",
+    "248 copy",
+    "256 copy",
+    "266",
+    "271 copy",
+    "282",
+    "293 copy",
+    "300",
+    "304 copy",
+    "310",
+    "317",
+    "326",
+    "329",
+    "335",
+    "340",
+    "345",
+    "356",
+    "360",
+    "377",
+    "385",
+    "386",
+    "392",
+    "403",
+    "417",
+    "418",
+    "427",
+    "432",
+    "459",
+    "467",
+    "487",
+    "501",
+    "502",
+    "521",
+    "555",
+    "557",
+    "560",
+    "561",
+    "565",
+    "578",
+    "601",
+    "605",
+    "617",
+    "623",
+    "640",
+    "662",
+    "728",
+    "737",
+    "740",
+    "772",
+    "775",
+    "778",
+    "781",
+    "789",
+    "808",
+    "826",
+    "839",
+    "846",
+    "869",
+    "875",
+    "879",
+    "882",
+    "888",
+    "894",
+    "913",
+    "921",
+    "935",
+    "941",
+    "955",
+    "958",
+    "1003",
+    "1015",
+    "1053",
+    "1062",
+    "1074",
+    "1082",
+    "1093",
+    "1106",
+    "1109",
+    "1112",
+    "1121",
+    "1174",
+    "1185",
+    "1187",
+    "1188",
+    "1200",
+    "1201",
+    "1207",
+    "1212",
+    "1227",
+    "1229",
+    "1242",
+    "1246",
+    "1259",
+    "1311",
+    "1316",
+    "1351",
+    "1419",
+    "1461",
+    "1469",
+    "1485",
+    "1494",
+    "1499",
+    "1503",
+    "1516",
+    "1527",
+    "1530",
+    "1535",
+    "1536",
+    "1558",
+    "1575",
+    "1614",
+    "1623",
+    "1625"
+  ],
+  "val_names": [
+    "72",
+    "74",
+    "85",
+    "88",
+    "89",
+    "98",
+    "120",
+    "127",
+    "128",
+    "130",
+    "131",
+    "132",
+    "145",
+    "148",
+    "150",
+    "158",
+    "159",
+    "167 copy",
+    "169 copy",
+    "175",
+    "177",
+    "181",
+    "183 copy",
+    "185",
+    "186 copy",
+    "199",
+    "200",
+    "202",
+    "203",
+    "203 copy",
+    "206 copy",
+    "223",
+    "228",
+    "230",
+    "234 copy",
+    "237 copy",
+    "238",
+    "239",
+    "250",
+    "254 copy",
+    "256",
+    "262",
+    "265",
+    "267",
+    "272",
+    "275",
+    "277",
+    "277 copy",
+    "280",
+    "282 copy",
+    "284 copy",
+    "285 copy",
+    "287",
+    "287 copy",
+    "292",
+    "294",
+    "294 copy",
+    "298",
+    "299",
+    "300 copy",
+    "301",
+    "316",
+    "319",
+    "332",
+    "334",
+    "337",
+    "342",
+    "344",
+    "347",
+    "351",
+    "352",
+    "381",
+    "382",
+    "387",
+    "395",
+    "404",
+    "408",
+    "414",
+    "428",
+    "429",
+    "434",
+    "436",
+    "438",
+    "439",
+    "451",
+    "454",
+    "455",
+    "456",
+    "461",
+    "480",
+    "489",
+    "498",
+    "511",
+    "517",
+    "520",
+    "527",
+    "528",
+    "534",
+    "541",
+    "542",
+    "548",
+    "572",
+    "580",
+    "595",
+    "606",
+    "607",
+    "613",
+    "625",
+    "639",
+    "657",
+    "672",
+    "676",
+    "707",
+    "714",
+    "717",
+    "726",
+    "729",
+    "730",
+    "739",
+    "749",
+    "755",
+    "761",
+    "764",
+    "782",
+    "793",
+    "802",
+    "807",
+    "818",
+    "822",
+    "827",
+    "829",
+    "831",
+    "847",
+    "851",
+    "864",
+    "884",
+    "885",
+    "897",
+    "901",
+    "907",
+    "922",
+    "927",
+    "931",
+    "934",
+    "939",
+    "944",
+    "949",
+    "951",
+    "960",
+    "964",
+    "970",
+    "978",
+    "982",
+    "989",
+    "996",
+    "1001",
+    "1022",
+    "1023",
+    "1030",
+    "1043",
+    "1052",
+    "1064",
+    "1090",
+    "1096",
+    "1105",
+    "1107",
+    "1117",
+    "1135",
+    "1137",
+    "1147",
+    "1149",
+    "1154",
+    "1155",
+    "1156",
+    "1171",
+    "1184",
+    "1186",
+    "1198",
+    "1204",
+    "1205",
+    "1210",
+    "1220",
+    "1228",
+    "1255",
+    "1264",
+    "1303",
+    "1304",
+    "1307",
+    "1323",
+    "1326",
+    "1342",
+    "1346",
+    "1356",
+    "1358",
+    "1383",
+    "1386",
+    "1392",
+    "1395",
+    "1400",
+    "1401",
+    "1420",
+    "1423",
+    "1434",
+    "1442",
+    "1476",
+    "1477",
+    "1479",
+    "1486",
+    "1508",
+    "1509",
+    "1515",
+    "1518",
+    "1521",
+    "1540",
+    "1541",
+    "1546",
+    "1548",
+    "1551",
+    "1552",
+    "1555",
+    "1557",
+    "1563",
+    "1573",
+    "1574",
+    "1591",
+    "1592",
+    "1600",
+    "1609",
+    "1621",
+    "1626"
+  ],
+  "normalization": {
+    "mode": "fit_only_train_split",
+    "fit_only": true,
+    "seed": 123,
+    "val_fraction": 0.15,
+    "image_size": 128,
+    "max_samples": null,
+    "n_manifest_train_tiles": 1533,
+    "n_fit_train_tiles": 1303,
+    "n_excluded_val_tiles": 230,
+    "fit_names_sha256": "dad9f2297bc59c73",
+    "stats_sha256": "20d8672f34ca7bdc"
+  },
+  "n_global_fit": 1303,
+  "fit_sensor_counts": {
+    "optical": 10,
+    "sar": 118
+  }
+}
