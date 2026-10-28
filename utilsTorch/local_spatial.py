@@ -106,6 +106,9 @@ class LocalSpatialBottleneckBlock(nn.Module):
             raise ValueError('The local spatial block requires positive integer quantum_channels')
         if isinstance(q_layers, bool) or not isinstance(q_layers, int) or q_layers < 1:
             raise ValueError('The local spatial block requires a positive integer q_layers')
+        # Classical checkpoint fingerprints mark quantum-only controls as null.
+        if q_training_control is None:
+            q_training_control = 'trainable'
         if q_training_control not in ('trainable', 'frozen', 'no_entanglement'):
             raise ValueError('Unknown q_training_control')
         if kind != 'quantum' and q_training_control != 'trainable':
@@ -158,11 +161,20 @@ class LocalSpatialBottleneckBlock(nn.Module):
         return self
 
     def simulator_info(self):
-        return dict(backend='pennylane' if self.kind == 'quantum' else 'classical',
-            device='cpu' if self.kind == 'quantum' else 'model', n_qubits=4 if self.kind == 'quantum' else None,
+        quantum = self.kind == 'quantum'
+        info = dict(backend='pennylane' if quantum else 'classical',
+            q_backend='pennylane' if quantum else None,
+            family='pennylane' if quantum else 'classical',
+            device='default.qubit' if quantum else None,
+            sim_device='cpu' if quantum else 'model', n_qubits=4 if quantum else None,
             local_spatial_kernel=self.kind, local_spatial_readout=self.readout,
             local_spatial_channels=self.feature_channels, q_training_control=self.q_training_control,
             core_shared_over='locations and projected channels', max_tokens=self._MAX_TOKENS)
+        if quantum:
+            info.update(interface='torch', diff_method='backprop',
+                broadcast='batch of local 2x2 windows',
+                readout_method='exact expectations derived from the statevector')
+        return info
 
     def _tokens(self, x):
         projected = self.pre_q_conv(x)
