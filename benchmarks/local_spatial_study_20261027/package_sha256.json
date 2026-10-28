@@ -67,6 +67,8 @@
   "provenance/federated_compatibility_original.py.txt": "7662301d530ba8aebb3b11d52878789f6e40eb5f25dc629ab840b084581af928",
   "provenance/federated_evidence_sha256.json": "6cb6c5a0158e436dcdf711994727983f3deb340e5c748867dbbf524073a710b6",
   "provenance/figure_inspection.json": "1b1b58cf0d4a4ecc0a3979b6f9171d9bb2c6ce63ab9519f3d8e87e48a3f03d12",
+  "provenance/final_full_suite.log": "a077da4159cc5afe89f409855f6fcaff33bcbbbc5eba5652e95b67c6d477be0f",
+  "provenance/final_full_suite_source.json": "0cc306eb410fe4ff1df15da31b8c897f7b75008bf6830a2b7af74863893a5af4",
   "provenance/final_retention.log": "95deccb170a48c8b11e6c298f9824c8005405a469f1409d794f49cf6e57de280",
   "provenance/full_gpu_probe_dispositions.md": "9dbcfbdde9af212cd921bf76c2832621945fe38cdef65deb10e075802f1fc146",
   "provenance/full_model_config_audit.json": "e96aa165420fda454c34cfe030a8b8b2059dcc39148fdaed4b6c76a4254cb05c",
