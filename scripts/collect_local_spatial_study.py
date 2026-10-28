@@ -210,7 +210,7 @@ def audit_checkpoint(path, row):
     from tools import training_common as tc
     from utilsTorch.utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation
     checkpoint = torch.load(path, map_location='cpu', weights_only=False)
-    require(checkpoint['settings'] == row['settings'] and checkpoint['model_type'] == row['model_type']
+    require(canonical(checkpoint['settings']) == canonical(row['settings']) and checkpoint['model_type'] == row['model_type']
             and checkpoint['best_epoch'] == row['best_epoch'], 'Checkpoint metadata differ from fit record: ' + str(path))
     state = checkpoint['best_state_dict']
     require(isinstance(state, dict) and all(torch.is_tensor(value) and bool(torch.isfinite(value).all())

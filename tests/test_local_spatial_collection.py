@@ -228,7 +228,7 @@ def test_collection_writes_tables_plots_and_hashes(campaign, tmp_path, monkeypat
     assert 'n=1' in text and 'not independent replication' in text
 
 
-@pytest.mark.parametrize('damage', [None, 'nonfinite', 'alias', 'metadata', 'movement'])
+@pytest.mark.parametrize('damage', [None, 'nonfinite', 'alias', 'metadata', 'architecture', 'model_type', 'best_epoch', 'movement'])
 def test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases(tmp_path, damage):
     import torch
     from tools import training_common as tc
@@ -236,7 +236,8 @@ def test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases(tmp_
     cfg = dict(study.study_specs()[0]['config'], seed=42)
     tc.seed_everything(42)
     model = tc.build_model(QVUNetSegmentation, cfg)
-    row = dict(settings=cfg, model_type='quantum', best_epoch=0, seed=42,
+    # Fit JSON contains lists, whereas torch.save preserves native config tuples.
+    row = dict(settings=collect.canonical(cfg), model_type='quantum', best_epoch=0, seed=42,
         initial_parameter_sha256=collect.initial_parameter_digest(model),
         total_params=sum(p.numel() for p in model.parameters()),
         trainable_params=sum(p.numel() for p in model.parameters() if p.requires_grad), diagnostics={'movement': {}})
@@ -247,6 +248,8 @@ def test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases(tmp_
             row['diagnostics']['movement'][name] = dict(l2=0., relative_l2=0. if squared else None)
     state = {key: value.detach().clone() for key, value in model.state_dict().items()}
     checkpoint = dict(settings=copy.deepcopy(cfg), model_type='quantum', best_epoch=0, best_state_dict=state)
+    assert isinstance(checkpoint['settings']['dim_mults'], tuple)
+    assert isinstance(row['settings']['dim_mults'], list)
     if damage == 'nonfinite':
         next(iter(state.values())).flatten()[0] = float('nan')
     elif damage == 'alias':
@@ -255,11 +258,21 @@ def test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases(tmp_
         state[keys[0]].flatten()[0] += .1
     elif damage == 'metadata':
         checkpoint['settings']['local_spatial_readout'] = 'xz_zz'
+    elif damage == 'architecture':
+        checkpoint['settings']['dim_mults'] = (1, 2, 4, 16)
+    elif damage == 'model_type':
+        checkpoint['model_type'] = 'ablation'
+    elif damage == 'best_epoch':
+        checkpoint['best_epoch'] = 2
     elif damage == 'movement':
         row['diagnostics']['movement']['circuit_angles']['l2'] = 1.0
     path = tmp_path / 'checkpoint.pt'; torch.save(checkpoint, path)
     if damage:
-        with pytest.raises(ValueError):
+        expected = dict(nonfinite='invalid/nonfinite weights', alias='inconsistent aliases',
+                        metadata='Checkpoint metadata differ', architecture='Checkpoint metadata differ',
+                        model_type='Checkpoint metadata differ', best_epoch='Checkpoint metadata differ',
+                        movement='Recorded parameter movement differs')
+        with pytest.raises(ValueError, match=expected[damage]):
             collect.audit_checkpoint(path, row)
     else:
         details = collect.audit_checkpoint(path, row)
