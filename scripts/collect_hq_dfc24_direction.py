@@ -352,8 +352,8 @@ def report(result, contrasts, rows):
     lines = ['# HQ-style direction screen on DFC24', '',
         'Architecture-transfer pilot, not a reproduction of the five-class LandCover.ai paper. Validation is primary; the previously exposed test split is descriptive.', '',
         'All eight planned fits and checkpoints were audited, including both losing learning rates. Six selected saved test replays were checked for exact record/identity consistency and count-derived metrics; collection does not independently repeat inference.', '',
-        '128px inputs; 128 optimization tiles per seed; 1,303 fit images used for normalization, excluding 230 validation images; all 205 test images (71 Optical/134 SAR). Three paired seeds, 60 epochs, batch8, Adam, Dice+CE and deterministic training-only D4 augmentation.', '',
-        'The MLP deliberately has more core parameters (5,216 versus8); total parameters are349,688 versus344,480. Interfaces and initial non-core state, including BatchNorm buffers, are identical per seed. This is not exact parameter-count matching.', '',
+        '128-pixel inputs; 128 optimization tiles per seed; 1,303 fit images used for normalization, excluding 230 validation images; all 205 test images (71 Optical/134 SAR). Three paired seeds, 60 epochs, batch size 8, Adam, Dice+CE and deterministic training-only D4 augmentation.', '',
+        'The MLP deliberately has more core parameters (5,216 versus 8); total parameters are 349,688 versus 344,480. Interfaces and initial non-core state, including BatchNorm buffers, are identical per seed. This is not exact parameter-count matching.', '',
         '| Model | Selected LR | Validation IoU mean ± sample SD | Descriptive test IoU mean ± sample SD | Optical test | SAR test |',
         '| --- | ---: | ---: | ---: | ---: | ---: |']
     for row in rows['summary']:
@@ -366,7 +366,7 @@ def report(result, contrasts, rows):
     for row in contrasts['knockouts']:
         lines.append(f"| {row['id']} | {row['mode']} | {row['mean']:+.3f} ± {row['std']:.3f} |")
     lines += ['', '`zero_core` retains reconstruction bias; `zero_bottleneck` also removes that bias. `random_core` replaces only core coefficients. Drops measure dependence on an information path, not quantum superiority. Ordinary U-Net skips remain.', '',
-        'Angles are tanh-bounded radians without pi scaling. Gradient/movement summaries establish observed optimization activity, not parameter importance or an accuracy mechanism. Curves retain all eight fits and every training loss; incomplete convergence remains a limitation.', '',
+        'Angles are tanh-bounded radians without pi scaling. Each angle probe contains 384 values from the first eight unaugmented optimization images for its seed, measured at initialization and the selected checkpoint. Gradient/movement summaries establish observed optimization activity, not parameter importance or an accuracy mechanism. Curves retain all eight fits and every training loss; incomplete convergence remains a limitation.', '',
         'Three seeds and one classical control establish neither significance, equivalence, quantum advantage nor a general impossibility result. This local centralized screen makes no Anvil, hardware or throughput claim.', '',
         'Figures: [all learning curves](plots/learning_curves.png), [paired pooled/sensor outcomes](plots/paired_iou.png), [knockouts](plots/knockouts.png), [angle/core diagnostics](plots/diagnostics.png). Each has a PDF export. [Reproduction and provenance](REPRODUCTION.md).', '']
     return '\n'.join(lines)
@@ -418,14 +418,17 @@ def plot_results(result, contrasts, out_dir):
         for i, mode in enumerate(study.MODES):
             row = next(row for row in contrasts['knockouts'] if row['id'] == name and row['mode'] == mode)
             for offset, seed in zip((-.12, 0, .12), SEEDS):
-                ax.scatter(i + offset, row['differences_pp'][str(seed)], color=colors[seed])
+                ax.scatter(i + offset, row['differences_pp'][str(seed)], color=colors[seed],
+                           label=f'seed{seed}' if i == 0 else None)
             ax.errorbar(i, row['mean'], yerr=row['std'], color='black', fmt='_', capsize=4)
         ax.axhline(0, color='grey', linewidth=.8)
         ax.set(xticks=range(3), xticklabels=study.MODES, ylabel='On − diagnostic IoU (points)', title=name + ' — descriptive test')
+    handles, seed_labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, seed_labels, loc='lower center', bbox_to_anchor=(.5, -.02), ncol=3)
     save(fig, 'knockouts')
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     fits = sorted(result['fits'], key=lambda entry: identity(entry['record']))
-    labels = [f"{entry['record']['kind']} s{entry['record']['seed']}\nLR{entry['record']['learning_rate']}" for entry in fits]
+    labels = [f"{'Q' if entry['record']['kind'] == 'quantum' else 'MLP'} s{entry['record']['seed']}\nLR{entry['record']['learning_rate']}" for entry in fits]
     for index, entry in enumerate(fits):
         row = entry['record']
         for ax, key, scale in ((axes[0, 0], 'saturation_fraction', 100), (axes[0, 1], 'mean_abs_radians', 1)):
@@ -433,8 +436,8 @@ def plot_results(result, contrasts, out_dir):
             ax.plot([index-.12, index+.12], values, 'o-', color=colors[row['seed']])
         axes[1, 0].scatter(index, row['diagnostics']['movement']['core']['l2'], color=colors[row['seed']])
         axes[1, 1].scatter(index, row['diagnostics']['gradient_norms']['core']['mean'], color=colors[row['seed']])
-    for ax, title, ylabel in ((axes[0, 0], 'Initial → selected (left → right)', 'Angles with |tanh| ≥ .95 (%)'),
-                              (axes[0, 1], 'Initial → selected (left → right)', 'Mean absolute angle (radians)'),
+    for ax, title, ylabel in ((axes[0, 0], 'Eight fixed training images\nInitial → selected (left → right)', 'Angles with |tanh| ≥ .95 (%)'),
+                              (axes[0, 1], 'Eight fixed training images\nInitial → selected (left → right)', 'Mean absolute angle (radians)'),
                               (axes[1, 0], 'Selected parameter movement', 'Core L2 movement'),
                               (axes[1, 1], 'All training batches', 'Mean core gradient norm')):
         ax.set(xticks=range(len(fits)), xticklabels=labels, title=title, ylabel=ylabel)
