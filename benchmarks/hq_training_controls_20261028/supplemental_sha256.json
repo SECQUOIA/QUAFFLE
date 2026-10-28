@@ -26,5 +26,7 @@
   "provenance/resource_profile_initial.json": "809b5e8f68bfac1efa110895359a53e5bff3381f08c1cb719fcbb695a080f008",
   "provenance/runner_tests.log": "489646b3e30dc7b790c7159673d60fcaa8d34507eb5cb549905db0357a5e3106",
   "reviews/astra-preflight-1.md": "4708669566a10b65f3dd9eb609c744ef916374e32fb48cd43bbbd6777208d922",
-  "reviews/astra-preflight-verification-1.md": "c0caacbba706eec6ffa7a7bdd38b84f849bbd90c580ec5ac132f9a061387b71f"
+  "reviews/astra-preflight-verification-1.md": "c0caacbba706eec6ffa7a7bdd38b84f849bbd90c580ec5ac132f9a061387b71f",
+  "reviews/astra-results-full-2.md": "f784c62495fb4479d9cbbb514dda213fd0d3f1f48aab396cd424b57a5e50d230",
+  "reviews/astra-r2-numeric-reaudit.json": "992528e42472489c8d7079efdabc1774b267b7431e872dd9feceb3cd2f0e08d2"
 }
