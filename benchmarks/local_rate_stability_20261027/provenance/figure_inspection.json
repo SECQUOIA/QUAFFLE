@@ -1,0 +1,37 @@
+{
+  "method": "Coordinator viewed all three original PNGs and all three actual PDF rasters produced by pdftoppm at scale-to1600. Visual/semantic checks, not PNG-versus-PDF pixel identity.",
+  "figures": [
+    {
+      "figure": "validation_curves_120ep",
+      "png_sha256": "a01d1ef090d7efeb7435318f5cb203fd773db479bf062cbd067bfeb6361e55cc",
+      "pdf_sha256": "f92156de601a84535ddedd4b8bd2567f3f08cfd75f11f1344f186ec5f07da22c",
+      "pdf_pages": 1,
+      "pdf_raster_sha256": "1e378993dc79dd844d632f322d3d13b91ca8805940be6294a4613671c3d62931",
+      "render_exit_code": 0
+    },
+    {
+      "figure": "training_loss_curves_120ep",
+      "png_sha256": "5be683725f839689b232e3307f20fee87d38ffc53f1946115b78dffbb8af62bd",
+      "pdf_sha256": "288a17a112e90526e2c2981bb689bc60cdabe8bf4d574fa79330853c7067fdd6",
+      "pdf_pages": 1,
+      "pdf_raster_sha256": "51813335eb7c9c41b4ced75cf5c5600c0a622ea940aeae910ba85a67b905f4d5",
+      "render_exit_code": 0
+    },
+    {
+      "figure": "paired_entanglement_60_120",
+      "png_sha256": "13df55b8a793f0d9377eefbf085df51e702dbfc91154700dd206f31bba79f250",
+      "pdf_sha256": "db1c1f4285f93cce521e3f5f3aa6a0811afaf536d44dfc2d2a880c8dc1318be1",
+      "pdf_pages": 1,
+      "pdf_raster_sha256": "802e383026a67bdbb002148e1f37c39946722c68a391122430f2413068b79079",
+      "render_exit_code": 0
+    }
+  ],
+  "observations": [
+    "All axis titles, tick labels and legends are visible and legible; no clipped labels observed.",
+    "Validation and loss panels cover every planned epoch and seed, with dashed epoch60 boundary.",
+    "Loss axes are independent and linear; large high-rate spikes remain visible, with small values documented in STABILITY.md.",
+    "Paired plot shows every seed, outlined mean diamonds, percentage-point units, zero reference and separate fixed-rate/budget groups.",
+    "Previously exposed test panel is explicitly labelled descriptive."
+  ],
+  "generated_figures_changed_during_inspection": false
+}

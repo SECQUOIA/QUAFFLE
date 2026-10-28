@@ -1,0 +1,182 @@
+{
+  "settings": {
+    "seeds": [
+      42,
+      77,
+      123
+    ],
+    "learning_rates": [
+      0.001,
+      0.003
+    ],
+    "epochs": 60,
+    "eval_every": 2,
+    "fit_cap": 128,
+    "batch_size": 16,
+    "image_size": 64,
+    "device": "cuda",
+    "specs": null
+  },
+  "specs": [
+    {
+      "id": "quantum_frozen_global",
+      "model_type": "quantum",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "q_training_control": "frozen"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "model_type": "quantum",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "q_training_control": "no_entanglement"
+      }
+    }
+  ],
+  "source_hashes": {
+    "scripts/run_real_spatial_pilot.py": "949dc0addf836dc8f37e37feb35af1b37494dd11c6baeafc49d8cb364fe07c66",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+    "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+    "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "scripts/run_quantum_training_controls.py": "6b9804df7f8bb769c696335a4af995b3f233cab787802813eb1e331158ca07e8",
+    "scripts/check_spatial_control_trigger.py": "d8dd59bfa6b5aa7b93eca8d3e3267e2e57563dcbd8a59c1c49a9552a4d5a7e78"
+  },
+  "experiment_context": {
+    "baseline_plan_sha256": "4e524eaaa16d880aa30f2d73ba9e2c85fc8cde646612bbfbd0f4fe52ec6cc65d",
+    "baseline_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+    "baseline_input_identity": {
+      "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+      "verified_files": 3476,
+      "stats_files_sha256": {
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+    },
+    "validation_control_decision": {
+      "ready": true,
+      "selected_mode": "global",
+      "modes": {
+        "global": {
+          "ready": true,
+          "differences": {
+            "42": 0.012024620261758101,
+            "77": 0.0003247228758085363,
+            "123": 0.01124497653847012
+          },
+          "mean": 0.007864773225345586,
+          "wins": 3,
+          "all_circuits_moved": true,
+          "qualifies": true
+        },
+        "patch4x4": {
+          "ready": true,
+          "differences": {
+            "42": -0.0009816075613063857,
+            "77": 0.000769631801650128,
+            "123": 0.011633430685965562
+          },
+          "mean": 0.0038071516421031015,
+          "wins": 2,
+          "all_circuits_moved": true,
+          "qualifies": false
+        }
+      },
+      "rule": "Mean paired validation gain >=0.005; wins in >=2/3 seeds; nonzero selected circuit movement in every seed; prioritize largest mean gain"
+    },
+    "policy": "Same rate grid, three seeds, fit cap, normalization, epochs and evaluation schedule; no test input to selection"
+  },
+  "source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+  "python": "3.11.14",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "numpy": "2.4.6",
+    "rasterio": "1.4.3"
+  },
+  "input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "normalization_policy": "All global fit images; validation excluded; optimization capped separately",
+  "test_policy": "No trained-model test evaluation until all validation tuning and replication fits finish",
+  "device": "cuda",
+  "gpu": "NVIDIA RTX A1000",
+  "gpu_allocator_fraction": 0.12,
+  "threads": 2
+}

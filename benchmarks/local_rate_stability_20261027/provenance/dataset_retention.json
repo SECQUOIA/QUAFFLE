@@ -1,0 +1,34 @@
+{
+  "original_root": "/tmp/quaffle-dfc24-real",
+  "archived_root": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset",
+  "verified_input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "retained_files": 7752,
+  "limitations": "This retains files if temporary directory names are removed. It is not an independent backup: an in-place write to an image changes both linked names.",
+  "command_scope": {
+    "MemoryMax": "1G",
+    "MemorySwapMax": 0,
+    "cuda_visible_devices": ""
+  },
+  "file_counts_by_suffix": {
+    ".tif": 3874,
+    ".png": 3874,
+    ".json": 4
+  },
+  "storage_methods": {
+    "tiff_hardlinks": 3874,
+    "independent_copies": 3878
+  },
+  "logical_file_bytes": 10533074022,
+  "storage": "Persistent hardlinks retain TIFF image inputs on the same filesystem; PNG masks and JSON metadata are independently copied. All original source bytes and paths remain unchanged.",
+  "initial_record_note": "The initial stdout field independent_metadata_copies counted all non-TIFF files (PNG masks plus JSON), not JSON alone. This audited record corrects the label; original stdout and JSON remain preserved.",
+  "initial_record_sha256": "92a1db1525df3776cdecb9c7cc4b09a3988ffaa3d36fcc1f6f3c9ffe47eb9adc",
+  "independent_copy_bytes_verified": true,
+  "hardlink_inode_identity_verified": true
+}
