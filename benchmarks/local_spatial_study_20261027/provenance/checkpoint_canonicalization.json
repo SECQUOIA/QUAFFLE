@@ -1,0 +1,29 @@
+{
+  "revision": "281a35ee558e503f576334797e0b6b306978e298",
+  "base_revision": "6dd95980341e3503b63439efc750e8061ea75f20",
+  "scope": "One-line settings representation canonicalization plus real Torch-serialization regression tests; no producer-file or raw-artifact changes.",
+  "red": "1 failed in5.82s",
+  "green": "35 passed in17.73s",
+  "resources": {
+    "MemoryMax": "4G",
+    "MemorySwapMax": 0,
+    "threads": 2,
+    "cuda_visible_devices": ""
+  },
+  "collector_sha256": "7bd29ac9d81862073de9343f70f8a17b8c7a13c51f70f3b5c43daaf6a88ea576",
+  "fitting_sources_unchanged": true,
+  "preserved_guards": [
+    "genuine architecture/readout changes",
+    "model_type",
+    "best_epoch",
+    "source/runtime identity",
+    "finite weights",
+    "state aliases",
+    "parameter movement",
+    "cohorts/metrics"
+  ],
+  "evidence_sha256": {
+    "checkpoint_canonical_red.log": "200c3f8c53c311ae64928805eb41b72353c1bb51c1b625062fc618e37aacd8d7",
+    "checkpoint_canonical_green.log": "983e11d9cb18d77e9834c8cfba8c2da2a63f1239bff16e315db513b935501007"
+  }
+}

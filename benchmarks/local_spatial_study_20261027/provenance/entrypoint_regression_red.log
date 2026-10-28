@@ -1,0 +1,159 @@
+Running as unit: run-r03e432a482f3425fab3dd6ca865d5084.scope; invocation ID: 7c6284b21d1740ed961ef943a753c461
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+__ test_ablation_parameter_probe_accepts_the_local_classical_cli_config[mlp] ___
+
+kind = 'mlp'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    def test_ablation_parameter_probe_accepts_the_local_classical_cli_config(kind):
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        requested = dict(spec['config'], seed=42)
+>       config, classical_params, quantum_params = ablation_studies._find_matched_torch_config(
+            'pennylane', requested)
+
+tests/test_local_spatial_entrypoints.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+ablation_studies.py:120: in _find_matched_torch_config
+    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, qcfg))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ablation_studies.py:103: in _count_torch_params
+    return sum(p.numel() for p in model.parameters())
+                                  ^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:233: in parameters
+    self._initialize_model()
+utilsTorch/utilsTorch.py:207: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:185: in build
+    quantum_block = make_block(0)
+                    ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:169: in make_block
+    return build_local_spatial_block(self.config, 'quantum',
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = {'ablation_mlp_mode': 'full_rank', 'ablation_mode': 'mlp', 'augment': False, 'backbone_conv_mode': 'ws_conv', ...}
+model_type = 'quantum', seed = 42
+
+    def build_local_spatial_block(config, model_type, seed=None):
+        options = local_spatial_options(config)
+        kind = options['local_spatial_kernel']
+        if kind is None:
+            raise ValueError('local_spatial_kernel must select a local core')
+        if model_type not in ('quantum', 'ablation') or (model_type == 'quantum') != (kind == 'quantum'):
+>           raise ValueError('local quantum core requires model_type quantum; classical local cores require ablation')
+E           ValueError: local quantum core requires model_type quantum; classical local cores require ablation
+
+utilsTorch/local_spatial.py:230: ValueError
+__ test_ablation_parameter_probe_accepts_the_local_classical_cli_config[conv] __
+
+kind = 'conv'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    def test_ablation_parameter_probe_accepts_the_local_classical_cli_config(kind):
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        requested = dict(spec['config'], seed=42)
+>       config, classical_params, quantum_params = ablation_studies._find_matched_torch_config(
+            'pennylane', requested)
+
+tests/test_local_spatial_entrypoints.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+ablation_studies.py:120: in _find_matched_torch_config
+    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, qcfg))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ablation_studies.py:103: in _count_torch_params
+    return sum(p.numel() for p in model.parameters())
+                                  ^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:233: in parameters
+    self._initialize_model()
+utilsTorch/utilsTorch.py:207: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:185: in build
+    quantum_block = make_block(0)
+                    ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:169: in make_block
+    return build_local_spatial_block(self.config, 'quantum',
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = {'ablation_mlp_mode': 'full_rank', 'ablation_mode': 'mlp', 'augment': False, 'backbone_conv_mode': 'ws_conv', ...}
+model_type = 'quantum', seed = 42
+
+    def build_local_spatial_block(config, model_type, seed=None):
+        options = local_spatial_options(config)
+        kind = options['local_spatial_kernel']
+        if kind is None:
+            raise ValueError('local_spatial_kernel must select a local core')
+        if model_type not in ('quantum', 'ablation') or (model_type == 'quantum') != (kind == 'quantum'):
+>           raise ValueError('local quantum core requires model_type quantum; classical local cores require ablation')
+E           ValueError: local quantum core requires model_type quantum; classical local cores require ablation
+
+utilsTorch/local_spatial.py:230: ValueError
+_ test_ablation_parameter_probe_accepts_the_local_classical_cli_config[sincos] _
+
+kind = 'sincos'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv', 'sincos'])
+    def test_ablation_parameter_probe_accepts_the_local_classical_cli_config(kind):
+        spec = next(spec for spec in study_specs() if spec['id'] == 'local_' + kind)
+        requested = dict(spec['config'], seed=42)
+>       config, classical_params, quantum_params = ablation_studies._find_matched_torch_config(
+            'pennylane', requested)
+
+tests/test_local_spatial_entrypoints.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+ablation_studies.py:120: in _find_matched_torch_config
+    q_params = _count_torch_params(tc.build_model(QVUNetSegmentation, qcfg))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ablation_studies.py:103: in _count_torch_params
+    return sum(p.numel() for p in model.parameters())
+                                  ^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:233: in parameters
+    self._initialize_model()
+utilsTorch/utilsTorch.py:207: in _initialize_model
+    self._model = _build_seeded(self.seed, build)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:79: in _build_seeded
+    return build_fn()
+           ^^^^^^^^^^
+utilsTorch/utilsTorch.py:185: in build
+    quantum_block = make_block(0)
+                    ^^^^^^^^^^^^^
+utilsTorch/utilsTorch.py:169: in make_block
+    return build_local_spatial_block(self.config, 'quantum',
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = {'ablation_mlp_mode': 'full_rank', 'ablation_mode': 'mlp', 'augment': False, 'backbone_conv_mode': 'ws_conv', ...}
+model_type = 'quantum', seed = 42
+
+    def build_local_spatial_block(config, model_type, seed=None):
+        options = local_spatial_options(config)
+        kind = options['local_spatial_kernel']
+        if kind is None:
+            raise ValueError('local_spatial_kernel must select a local core')
+        if model_type not in ('quantum', 'ablation') or (model_type == 'quantum') != (kind == 'quantum'):
+>           raise ValueError('local quantum core requires model_type quantum; classical local cores require ablation')
+E           ValueError: local quantum core requires model_type quantum; classical local cores require ablation
+
+utilsTorch/local_spatial.py:230: ValueError
+=============================== warnings summary ===============================
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_local_spatial_entrypoints.py::test_ablation_parameter_probe_accepts_the_local_classical_cli_config[mlp]
+FAILED tests/test_local_spatial_entrypoints.py::test_ablation_parameter_probe_accepts_the_local_classical_cli_config[conv]
+FAILED tests/test_local_spatial_entrypoints.py::test_ablation_parameter_probe_accepts_the_local_classical_cli_config[sincos]
+3 failed, 2 warnings in 11.09s

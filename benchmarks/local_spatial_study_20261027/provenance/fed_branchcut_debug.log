@@ -1,0 +1,4 @@
+Running as unit: run-r55483b058e0d49c4b686a7b697bee0c6.scope; invocation ID: 73cc3ed959d7428dbf0f0ca1353cb1b8
+[93mWARNING [0m:   No fit_metrics_aggregation_fn provided
+90 vertex.qresblock1.quantum_block.quantum_params.0 float32 -3.1343941688537598 scale_expected 3.3333333333333335 scale_delta -6.467727502187094
+91 vertex.qresblock1.quantum_block.input_scales.0 float32 3.3333334922790527 scale_expected 3.3333333333333335 scale_delta 1.5894571925301193e-07

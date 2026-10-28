@@ -1,0 +1,376 @@
+{
+  "status": "passed",
+  "first_generated_dir": "/tmp/quaffle-local-spatial-kernel-20261027/benchmarks/local_spatial_study_20261027",
+  "second_generated_dir": "/tmp/quaffle-local-spatial-recollection-20261028",
+  "expected_file_count": 29,
+  "manifest_entry_count": 28,
+  "complete_inventories_equal": true,
+  "both_artifact_manifests_cover_and_hash_all_generator_files": true,
+  "files": {
+    "README.md": {
+      "first_sha256": "cda492bf5a8b31a451ae7bb1e7feb80bfddfc06f1a807463c783a309b103711b",
+      "second_sha256": "cda492bf5a8b31a451ae7bb1e7feb80bfddfc06f1a807463c783a309b103711b",
+      "first_bytes": 7386,
+      "second_bytes": 7386,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "comparison.json": {
+      "first_sha256": "fb54c49bc71a33c55e90de5dd37f6d548c03211a6d88e42fc4e9ea665b20249a",
+      "second_sha256": "fb54c49bc71a33c55e90de5dd37f6d548c03211a6d88e42fc4e9ea665b20249a",
+      "first_bytes": 22673,
+      "second_bytes": 22673,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "duration_evidence.json": {
+      "first_sha256": "08648e7313d001973fb6f67843e834ba96b650d658dd3ca07fb7d379d005c74a",
+      "second_sha256": "08648e7313d001973fb6f67843e834ba96b650d658dd3ca07fb7d379d005c74a",
+      "first_bytes": 4059,
+      "second_bytes": 4059,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/all_fits.json": {
+      "first_sha256": "3a6f40910daeb426d166d2bb311657e7d69c07c9dd3c12129abeb0bb258f67a9",
+      "second_sha256": "3a6f40910daeb426d166d2bb311657e7d69c07c9dd3c12129abeb0bb258f67a9",
+      "first_bytes": 739167,
+      "second_bytes": 739167,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/checkpoint_audit.json": {
+      "first_sha256": "097c4f2f48ed1f768f9580edd2b679bbdf780b4560f7d9b1923bcd9627e9e21d",
+      "second_sha256": "097c4f2f48ed1f768f9580edd2b679bbdf780b4560f7d9b1923bcd9627e9e21d",
+      "first_bytes": 3905,
+      "second_bytes": 3905,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/fixed_rate_readout.json": {
+      "first_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "second_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "first_bytes": 3,
+      "second_bytes": 3,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/paired_analysis.json": {
+      "first_sha256": "cf20134b0e463f63513a530fe17c3d39ecac3c76bee8e8d4bda6204dc6ad04bf",
+      "second_sha256": "cf20134b0e463f63513a530fe17c3d39ecac3c76bee8e8d4bda6204dc6ad04bf",
+      "first_bytes": 754,
+      "second_bytes": 754,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/plan.json": {
+      "first_sha256": "72d06a4b71bd1a0cbbd72e1ce20353bdb65b031fcb4f0081c2b21691777814b8",
+      "second_sha256": "72d06a4b71bd1a0cbbd72e1ce20353bdb65b031fcb4f0081c2b21691777814b8",
+      "first_bytes": 5024,
+      "second_bytes": 5024,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/summary.json": {
+      "first_sha256": "16f297ee24d706c462082c73dbd14eaa2ef11d9fa227a91eb8e6bf152fd239c9",
+      "second_sha256": "16f297ee24d706c462082c73dbd14eaa2ef11d9fa227a91eb8e6bf152fd239c9",
+      "first_bytes": 594669,
+      "second_bytes": 594669,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "extend120/tuning_candidates.json": {
+      "first_sha256": "b90ec0adaf3334eb76a6b6859d0a26f89228247eb7db83214e9d2f9ddfc14391",
+      "second_sha256": "b90ec0adaf3334eb76a6b6859d0a26f89228247eb7db83214e9d2f9ddfc14391",
+      "first_bytes": 343478,
+      "second_bytes": 343478,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "individual_angle_audit.json": {
+      "first_sha256": "441abf3b50b9cb530da2091d0b0483e151b6a9874f343839da935c361d9a9891",
+      "second_sha256": "441abf3b50b9cb530da2091d0b0483e151b6a9874f343839da935c361d9a9891",
+      "first_bytes": 91803,
+      "second_bytes": 91803,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "per_seed.csv": {
+      "first_sha256": "f437df8fca6bcab082060204f6fc117afb8a7948446712a574a73890b754e920",
+      "second_sha256": "f437df8fca6bcab082060204f6fc117afb8a7948446712a574a73890b754e920",
+      "first_bytes": 4658,
+      "second_bytes": 4658,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/all_fits.json": {
+      "first_sha256": "babde3552d31c56ddaecbba8a4e4d51969fead1051e3119029b5a9bf5968221b",
+      "second_sha256": "babde3552d31c56ddaecbba8a4e4d51969fead1051e3119029b5a9bf5968221b",
+      "first_bytes": 1548598,
+      "second_bytes": 1548598,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/checkpoint_audit.json": {
+      "first_sha256": "250c01fee6e26c998a3e7bbd691470344220b18bda7b3aac32db018018921806",
+      "second_sha256": "250c01fee6e26c998a3e7bbd691470344220b18bda7b3aac32db018018921806",
+      "first_bytes": 13732,
+      "second_bytes": 13732,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/fixed_rate_readout.json": {
+      "first_sha256": "4eab523505c8f8eb856d1ca6591f129b742c00c3581575ccbef74c7abdd14d2a",
+      "second_sha256": "4eab523505c8f8eb856d1ca6591f129b742c00c3581575ccbef74c7abdd14d2a",
+      "first_bytes": 588,
+      "second_bytes": 588,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/paired_analysis.json": {
+      "first_sha256": "989a4d5b37bc9f89f78ed11ee7c9319dc38e249fe988ba6f259aacf4f6b79f10",
+      "second_sha256": "989a4d5b37bc9f89f78ed11ee7c9319dc38e249fe988ba6f259aacf4f6b79f10",
+      "first_bytes": 6837,
+      "second_bytes": 6837,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/plan.json": {
+      "first_sha256": "610973e9e8ee168f4e5bc44802521ea3411883b5f2fcf41e4e9d27ef3303580e",
+      "second_sha256": "610973e9e8ee168f4e5bc44802521ea3411883b5f2fcf41e4e9d27ef3303580e",
+      "first_bytes": 11008,
+      "second_bytes": 11008,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/summary.json": {
+      "first_sha256": "2668d7cf43b89ef5ea65a383d6d2073929e9557d2635ff5070cca9201d32c689",
+      "second_sha256": "2668d7cf43b89ef5ea65a383d6d2073929e9557d2635ff5070cca9201d32c689",
+      "first_bytes": 1295400,
+      "second_bytes": 1295400,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "pilot60/tuning_candidates.json": {
+      "first_sha256": "e06213c65ba9a80315e93d576fa09430bcb207532c2ab90f231b6f4a57baed72",
+      "second_sha256": "e06213c65ba9a80315e93d576fa09430bcb207532c2ab90f231b6f4a57baed72",
+      "first_bytes": 710952,
+      "second_bytes": 710952,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "plots/input_angle_saturation.pdf": {
+      "first_sha256": "617b752facfb519948c4e20d3132e8eeddb6769838185f6238cadc56ccc8c669",
+      "second_sha256": "32d4a1e90f32f16e36d91dc3245a6a75a7858f27648f51c22e10365282badaa6",
+      "first_bytes": 26076,
+      "second_bytes": 26076,
+      "equality_layer": "byte identity after only PDF Info /CreationDate value normalization",
+      "whole_file_byte_identity": false,
+      "normalized_fields_per_file": 1,
+      "first_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 24201,
+        "value_byte_end": 24224,
+        "original_value": "D:20261027225021-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 87,
+          "generation": 0
+        },
+        "normalized_sha256": "9d40dabaa6b1d5581994148740ac82998a5d79dbfb059eddc6208eb895354e16"
+      },
+      "second_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 24201,
+        "value_byte_end": 24224,
+        "original_value": "D:20261027225129-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 87,
+          "generation": 0
+        },
+        "normalized_sha256": "9d40dabaa6b1d5581994148740ac82998a5d79dbfb059eddc6208eb895354e16"
+      }
+    },
+    "plots/input_angle_saturation.png": {
+      "first_sha256": "16d978329261753bfe55070cc785e0d85e7f839c64b9d54c8f5ac96d8bd62374",
+      "second_sha256": "16d978329261753bfe55070cc785e0d85e7f839c64b9d54c8f5ac96d8bd62374",
+      "first_bytes": 171423,
+      "second_bytes": 171423,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "plots/paired_quantum_classical.pdf": {
+      "first_sha256": "64ed978078f1e3115ea119b1c5678cec4c252ab0fbf8766b4cc236c4108cf399",
+      "second_sha256": "96696ebd3c8b01e1a30d7b96f5cef1e654be101fd1ab97cad9bc3b8b96b423e2",
+      "first_bytes": 21687,
+      "second_bytes": 21687,
+      "equality_layer": "byte identity after only PDF Info /CreationDate value normalization",
+      "whole_file_byte_identity": false,
+      "normalized_fields_per_file": 1,
+      "first_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 20192,
+        "value_byte_end": 20215,
+        "original_value": "D:20261027225018-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 68,
+          "generation": 0
+        },
+        "normalized_sha256": "dc8438c4314c7726f17f955aa869c959c856fbe65c124ed79b08507c743144f8"
+      },
+      "second_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 20192,
+        "value_byte_end": 20215,
+        "original_value": "D:20261027225126-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 68,
+          "generation": 0
+        },
+        "normalized_sha256": "dc8438c4314c7726f17f955aa869c959c856fbe65c124ed79b08507c743144f8"
+      }
+    },
+    "plots/paired_quantum_classical.png": {
+      "first_sha256": "d6f6eabfbe6829916987813766d69311c141f8d37d9b31073c5b65e984b230c4",
+      "second_sha256": "d6f6eabfbe6829916987813766d69311c141f8d37d9b31073c5b65e984b230c4",
+      "first_bytes": 170612,
+      "second_bytes": 170612,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "plots/validation_curves.pdf": {
+      "first_sha256": "1a206d13ba8e248322cb1b623c6197c42ec7580622eba93f3653b0c7d013891f",
+      "second_sha256": "83e026b305666736921a8da391f8a0626be8a9b987cd9fa412801fdf1975a4b1",
+      "first_bytes": 37370,
+      "second_bytes": 37370,
+      "equality_layer": "byte identity after only PDF Info /CreationDate value normalization",
+      "whole_file_byte_identity": false,
+      "normalized_fields_per_file": 1,
+      "first_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 35955,
+        "value_byte_end": 35978,
+        "original_value": "D:20261027225021-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 64,
+          "generation": 0
+        },
+        "normalized_sha256": "115a09f4de02d56d655288295240c5cbde3b2f142576999eb290707406250c79"
+      },
+      "second_normalization": {
+        "field": "/CreationDate",
+        "field_count": 1,
+        "value_byte_start": 35955,
+        "value_byte_end": 35978,
+        "original_value": "D:20261027225128-04'00'",
+        "replacement_value": "D:19700101000000Z",
+        "info_object": {
+          "number": 64,
+          "generation": 0
+        },
+        "normalized_sha256": "115a09f4de02d56d655288295240c5cbde3b2f142576999eb290707406250c79"
+      }
+    },
+    "plots/validation_curves.png": {
+      "first_sha256": "3bb6f6a5a137f5925e8c930068bf65a720d7d60e61b8260d64e9f7d4c3e17e26",
+      "second_sha256": "3bb6f6a5a137f5925e8c930068bf65a720d7d60e61b8260d64e9f7d4c3e17e26",
+      "first_bytes": 553204,
+      "second_bytes": 553204,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "provenance.json": {
+      "first_sha256": "06eb385576022e77d99bf366a8da38d6fd9591cdb0955629052fd10f8cd4c71f",
+      "second_sha256": "06eb385576022e77d99bf366a8da38d6fd9591cdb0955629052fd10f8cd4c71f",
+      "first_bytes": 3278,
+      "second_bytes": 3278,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "summary.csv": {
+      "first_sha256": "0d2bd84fa40dc0edd324f0e876f5e835fb85d3c2ba6eb933b8abaaf469452b37",
+      "second_sha256": "0d2bd84fa40dc0edd324f0e876f5e835fb85d3c2ba6eb933b8abaaf469452b37",
+      "first_bytes": 3074,
+      "second_bytes": 3074,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "tuning.csv": {
+      "first_sha256": "780220619fb0f1040869352b0692b7bb410621f6ccb4e6b341f70ca7a677fe55",
+      "second_sha256": "780220619fb0f1040869352b0692b7bb410621f6ccb4e6b341f70ca7a677fe55",
+      "first_bytes": 1304,
+      "second_bytes": 1304,
+      "equality_layer": "whole-file byte identity",
+      "whole_file_byte_identity": true
+    },
+    "artifact_sha256.json": {
+      "first_sha256": "879220544e45c524427eb577ddab913abcf0d47ad5216988485589d6d3f2524d",
+      "second_sha256": "8d005f12322ea18bfbda235d860773a64c3227b3670c5a892aae27fcf0c71d19",
+      "first_bytes": 2748,
+      "second_bytes": 2748,
+      "whole_file_byte_identity": false,
+      "equality_layer": "byte identity after only verified PDF digest value normalization",
+      "changed_digest_entries": [
+        "plots/input_angle_saturation.pdf",
+        "plots/paired_quantum_classical.pdf",
+        "plots/validation_curves.pdf"
+      ],
+      "first_pdf_digest_fields": [
+        {
+          "name": "plots/input_angle_saturation.pdf",
+          "digest": "617b752facfb519948c4e20d3132e8eeddb6769838185f6238cadc56ccc8c669",
+          "value_byte_start": 1898,
+          "value_byte_end": 1962
+        },
+        {
+          "name": "plots/paired_quantum_classical.pdf",
+          "digest": "64ed978078f1e3115ea119b1c5678cec4c252ab0fbf8766b4cc236c4108cf399",
+          "value_byte_start": 2112,
+          "value_byte_end": 2176
+        },
+        {
+          "name": "plots/validation_curves.pdf",
+          "digest": "1a206d13ba8e248322cb1b623c6197c42ec7580622eba93f3653b0c7d013891f",
+          "value_byte_start": 2321,
+          "value_byte_end": 2385
+        }
+      ],
+      "second_pdf_digest_fields": [
+        {
+          "name": "plots/input_angle_saturation.pdf",
+          "digest": "32d4a1e90f32f16e36d91dc3245a6a75a7858f27648f51c22e10365282badaa6",
+          "value_byte_start": 1898,
+          "value_byte_end": 1962
+        },
+        {
+          "name": "plots/paired_quantum_classical.pdf",
+          "digest": "96696ebd3c8b01e1a30d7b96f5cef1e654be101fd1ab97cad9bc3b8b96b423e2",
+          "value_byte_start": 2112,
+          "value_byte_end": 2176
+        },
+        {
+          "name": "plots/validation_curves.pdf",
+          "digest": "83e026b305666736921a8da391f8a0626be8a9b987cd9fa412801fdf1975a4b1",
+          "value_byte_start": 2321,
+          "value_byte_end": 2385
+        }
+      ]
+    }
+  },
+  "pdf_count": 3,
+  "pdfs_requiring_creation_date_normalization": 3,
+  "creation_date_values_replaced_per_pdf_per_directory": 1,
+  "total_creation_date_value_replacements": 6,
+  "pdf_creation_date_replacement": "D:19700101000000Z",
+  "equality_scope": "All non-PDF outputs except the hash manifest have whole-file byte identity. Each PDF has either whole-file byte identity or byte identity after only its named Info /CreationDate value is normalized. The manifests differ only in actual verified PDF digests; other manifest bytes are identical. A normalized PDF is not claimed to have whole-file byte identity. No numeric tolerances or output rewrites were used.",
+  "verifier_sha256": "97efe7d0668f22854ba1558b163dc89f3281e63d80189a11910e2b7e6bc2b8f1"
+}

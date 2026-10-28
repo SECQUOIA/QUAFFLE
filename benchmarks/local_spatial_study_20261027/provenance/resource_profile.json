@@ -1,0 +1,80 @@
+{
+  "device": "cuda",
+  "batch_size": 16,
+  "image_size": 64,
+  "threads": 2,
+  "gpu_allocator_fraction": 0.12,
+  "policy": "Two instrumented random-tensor steps; not a controlled throughput benchmark",
+  "records": [
+    {
+      "id": "local_quantum_z",
+      "total_params": 503294,
+      "trainable_params": 503294,
+      "core_params": 16,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 6.784780764020979,
+      "peak_allocated_mib": 710.501953125,
+      "finite_loss": true
+    },
+    {
+      "id": "local_quantum_xz_zz",
+      "total_params": 503294,
+      "trainable_params": 503294,
+      "core_params": 16,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 1.476879341993481,
+      "peak_allocated_mib": 710.501953125,
+      "finite_loss": true
+    },
+    {
+      "id": "local_quantum_frozen",
+      "total_params": 503294,
+      "trainable_params": 503278,
+      "core_params": 16,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 1.451011203986127,
+      "peak_allocated_mib": 710.5,
+      "finite_loss": true
+    },
+    {
+      "id": "local_quantum_no_entanglement",
+      "total_params": 503294,
+      "trainable_params": 503294,
+      "core_params": 16,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 1.320919090998359,
+      "peak_allocated_mib": 711.4375,
+      "finite_loss": true
+    },
+    {
+      "id": "local_mlp",
+      "total_params": 503562,
+      "trainable_params": 503562,
+      "core_params": 284,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 0.3669397769845091,
+      "peak_allocated_mib": 713.37939453125,
+      "finite_loss": true
+    },
+    {
+      "id": "local_conv",
+      "total_params": 503338,
+      "trainable_params": 503338,
+      "core_params": 60,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 0.3355756389792077,
+      "peak_allocated_mib": 712.75,
+      "finite_loss": true
+    },
+    {
+      "id": "local_sincos",
+      "total_params": 503438,
+      "trainable_params": 503438,
+      "core_params": 160,
+      "shared_initial_parameter_sha256": "5c8a86fa88f06f4fc4dccdbcaedd55cfa8ea03808d46872e63825d525bb89ce5",
+      "two_step_elapsed_s": 0.44529394700657576,
+      "peak_allocated_mib": 713.1279296875,
+      "finite_loss": true
+    }
+  ]
+}

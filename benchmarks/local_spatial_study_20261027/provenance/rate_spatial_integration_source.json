@@ -1,0 +1,18 @@
+{
+  "head": "6dd95980341e3503b63439efc750e8061ea75f20",
+  "merged_main": "ed86f5a6a9d3b51bfb218d60fa8cf6ba56ca528c",
+  "pilot_source": "211c2852f470a7b006704f591652939089d4a41f",
+  "extension_source": "057e38e582b39e91190a7ab0f9fc19ed46fa1e7c",
+  "unchanged_fit_source_hashes": {
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "tools/checkpoint_evaluation.py": "5ff0165e804c4a0e7dcfcc72c3464e06bc1f91d908b9bdfc47d32540c6327065",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "scripts/run_local_spatial_study.py": "c2f79bc3462bd7392a4fdbbaef0aaa7602f5df24f09239d39c62539eadb0e9fb",
+    "utilsTorch/local_spatial.py": "1b2526bf606ba2fedcc95b3601284e5a313fd350ff01224f92d5c85285c7f825"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "datasets": [
+    {
+      "id": "60ep seed 42",
+      "checkpoints": {
+        "classical": {
+          "path": "/tmp/quaffle-real-spatial-runs-60ep-20261027/tuning/unet_width7/0.001/seed42/checkpoint.pt"
+        },
+        "ablation": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/tuning/local_sincos/0.001/seed42/checkpoint.pt"
+        },
+        "quantum": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/tuning/local_quantum_z/0.003/seed42/checkpoint.pt"
+        }
+      }
+    },
+    {
+      "id": "60ep seed 77",
+      "checkpoints": {
+        "classical": {
+          "path": "/tmp/quaffle-real-spatial-runs-60ep-20261027/replication/unet_width7/seed77/checkpoint.pt"
+        },
+        "ablation": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/replication/local_sincos/seed77/checkpoint.pt"
+        },
+        "quantum": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/replication/local_quantum_z/seed77/checkpoint.pt"
+        }
+      }
+    },
+    {
+      "id": "60ep seed 123",
+      "checkpoints": {
+        "classical": {
+          "path": "/tmp/quaffle-real-spatial-runs-60ep-20261027/replication/unet_width7/seed123/checkpoint.pt"
+        },
+        "ablation": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/replication/local_sincos/seed123/checkpoint.pt"
+        },
+        "quantum": {
+          "path": "/tmp/quaffle-local-spatial-pilot60-20261027/replication/local_quantum_z/seed123/checkpoint.pt"
+        }
+      }
+    }
+  ],
+  "selection_policy": "Frozen finalist_specs uses all three paired validation scores only",
+  "model_ids": {
+    "classical": "unet_width7",
+    "ablation": "local_sincos",
+    "quantum": "local_quantum_z"
+  },
+  "phase": "60-epoch spatial pilot",
+  "saved_summary_sha256": {
+    "pilot": "2668d7cf43b89ef5ea65a383d6d2073929e9557d2635ff5070cca9201d32c689",
+    "reference": "4df4299f64baa3412bfdad34190c5174f6067c351fc57487a8b1acc4ceaec99b"
+  }
+}

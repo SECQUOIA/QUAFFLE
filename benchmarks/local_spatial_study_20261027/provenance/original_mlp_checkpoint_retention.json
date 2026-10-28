@@ -1,0 +1,18 @@
+{
+  "original_evidence": {
+    "path": "/tmp/quaffle-local-spatial-federated-probe-runs-attempt3/local_mlp/fed_resume.pt",
+    "sha256": "60c493f4813f6a6b64d99b55a5ecc20ccace4df3bf9249e12e51f9db6a7e7afc",
+    "failing_source_revision": "f990aa7564ecb436f9818a1bea461220d6ff455f",
+    "verification_source_revision": "e33f22c53213587b47fb75546dd00a7d267a8ef5",
+    "strict_restore": true,
+    "saved_control_is_null": true,
+    "effective_classical_parameters_trainable": true,
+    "selected_parameters_byte_equal": true,
+    "original_artifact_unchanged": true
+  },
+  "archived_root": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027",
+  "archived_relative_path": "proofs/original_failed_mlp_fed_resume.pt",
+  "sha256": "60c493f4813f6a6b64d99b55a5ecc20ccace4df3bf9249e12e51f9db6a7e7afc",
+  "bytes": 9132576,
+  "scope": "Exact originally failed synthetic MLP checkpoint; local retention only, unchanged original bytes. Repaired strict loader and source revisions are documented in the seven-case compatibility proof."
+}

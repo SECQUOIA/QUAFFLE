@@ -1,0 +1,76 @@
+Running as unit: run-r9d0adf1ba68f491d9dda36c7d1c03dc6.scope; invocation ID: 6ac670b5600c41198c1237929fbe5f1b
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases[None] _
+
+tmp_path = PosixPath('/tmp/pytest-of-bernalde/pytest-307/test_real_checkpoint_audit_rej0')
+damage = None
+
+    @pytest.mark.parametrize('damage', [None, 'nonfinite', 'alias', 'metadata', 'architecture', 'model_type', 'best_epoch', 'movement'])
+    def test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases(tmp_path, damage):
+        import torch
+        from tools import training_common as tc
+        from utilsTorch.utilsTorch import QVUNetSegmentation
+        cfg = dict(study.study_specs()[0]['config'], seed=42)
+        tc.seed_everything(42)
+        model = tc.build_model(QVUNetSegmentation, cfg)
+        # Fit JSON contains lists, whereas torch.save preserves native config tuples.
+        row = dict(settings=collect.canonical(cfg), model_type='quantum', best_epoch=0, seed=42,
+            initial_parameter_sha256=collect.initial_parameter_digest(model),
+            total_params=sum(p.numel() for p in model.parameters()),
+            trainable_params=sum(p.numel() for p in model.parameters() if p.requires_grad), diagnostics={'movement': {}})
+        groups, _ = pilot.parameter_groups(model)
+        for name, parameters in groups.items():
+            if parameters:
+                squared = sum(float(parameter.detach().square().sum()) for _, parameter in parameters)
+                row['diagnostics']['movement'][name] = dict(l2=0., relative_l2=0. if squared else None)
+        state = {key: value.detach().clone() for key, value in model.state_dict().items()}
+        checkpoint = dict(settings=copy.deepcopy(cfg), model_type='quantum', best_epoch=0, best_state_dict=state)
+        assert isinstance(checkpoint['settings']['dim_mults'], tuple)
+        assert isinstance(row['settings']['dim_mults'], list)
+        if damage == 'nonfinite':
+            next(iter(state.values())).flatten()[0] = float('nan')
+        elif damage == 'alias':
+            keys = [key for key in state if key.endswith('quantum_params.0')]
+            assert len(keys) >= 2
+            state[keys[0]].flatten()[0] += .1
+        elif damage == 'metadata':
+            checkpoint['settings']['local_spatial_readout'] = 'xz_zz'
+        elif damage == 'architecture':
+            checkpoint['settings']['dim_mults'] = (1, 2, 4, 16)
+        elif damage == 'model_type':
+            checkpoint['model_type'] = 'ablation'
+        elif damage == 'best_epoch':
+            checkpoint['best_epoch'] = 2
+        elif damage == 'movement':
+            row['diagnostics']['movement']['circuit_angles']['l2'] = 1.0
+        path = tmp_path / 'checkpoint.pt'; torch.save(checkpoint, path)
+        if damage:
+            expected = dict(nonfinite='invalid/nonfinite weights', alias='inconsistent aliases',
+                            metadata='Checkpoint metadata differ', architecture='Checkpoint metadata differ',
+                            model_type='Checkpoint metadata differ', best_epoch='Checkpoint metadata differ',
+                            movement='Recorded parameter movement differs')
+            with pytest.raises(ValueError, match=expected[damage]):
+                collect.audit_checkpoint(path, row)
+        else:
+>           details = collect.audit_checkpoint(path, row)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_local_spatial_collection.py:278: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/collect_local_spatial_study.py:213: in audit_checkpoint
+    require(checkpoint['settings'] == row['settings'] and checkpoint['model_type'] == row['model_type']
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+condition = False
+message = 'Checkpoint metadata differ from fit record: /tmp/pytest-of-bernalde/pytest-307/test_real_checkpoint_audit_rej0/checkpoint.pt'
+
+    def require(condition, message):
+        if not condition:
+>           raise ValueError(message)
+E           ValueError: Checkpoint metadata differ from fit record: /tmp/pytest-of-bernalde/pytest-307/test_real_checkpoint_audit_rej0/checkpoint.pt
+
+scripts/collect_local_spatial_study.py:43: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_local_spatial_collection.py::test_real_checkpoint_audit_rejects_corrupt_weights_metadata_and_aliases[None]
+1 failed in 5.82s

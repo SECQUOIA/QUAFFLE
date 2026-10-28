@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+"""One instrumented CUDA optimizer step per full-size spatial configuration.
+
+Run only under the coordinator's externally imposed host-memory/no-swap scope.
+This checks batch-1 mechanics, not accuracy, training throughput or batch-8 fit.
+"""
+import argparse
+import copy
+from datetime import datetime, timezone
+import gc
+import hashlib
+import importlib.metadata
+import json
+import math
+from pathlib import Path
+import resource
+import subprocess
+import sys
+import time
+import traceback
+
+EXPECTED_REVISION = 'e33f22c53213587b47fb75546dd00a7d267a8ef5'
+GPU_FRACTION = 0.12
+PROBE_SHAPE = (1, 3, 128, 128)
+OUTPUT_SHAPE = (1, 2, 128, 128)
+SOURCE_FILES = (
+    'centralized_demoTorchQ.py', 'ablation_studies.py',
+    'scripts/run_local_spatial_study.py', 'scripts/run_parameter_budget_comparison.py',
+    'scripts/collect_local_spatial_study.py', 'scripts/run_real_spatial_pilot.py',
+    'utilsTorch/local_spatial.py', 'utilsTorch/utilsTorch.py', 'utilsTorch/unetTorch.py',
+    'tools/training_common.py', 'tools/checkpoint_evaluation.py', 'tools/provenance.py',
+)
+
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def git_state(root):
+    return dict(head=subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip(),
+        status=subprocess.check_output(['git', '--no-optional-locks', '-C', str(root),
+            'status', '--porcelain=v1', '--untracked-files=all'], text=True))
+
+
+def cgroup_limits():
+    """Record the external limit where Linux exposes unified cgroups."""
+    try:
+        paths = [line.split(':', 2)[2] for line in Path('/proc/self/cgroup').read_text().splitlines()
+                 if line.startswith('0::')]
+        directory = Path('/sys/fs/cgroup') / paths[0].lstrip('/')
+        return dict(path=str(directory), memory_max=(directory / 'memory.max').read_text().strip(),
+                    memory_swap_max=(directory / 'memory.swap.max').read_text().strip())
+    except (OSError, IndexError) as error:
+        return dict(observation_unavailable=type(error).__name__,
+                    requirement='Caller must impose MemoryMax=4G or 6G and MemorySwapMax=0')
+
+
+def parameter_digest(named_parameters):
+    return hashlib.sha256(b''.join(name.encode() + parameter.detach().cpu().numpy().tobytes()
+                                  for name, parameter in named_parameters)).hexdigest()
+
+
+def production_config(spec, quantum_entry, classical_entry, tc):
+    """Parse the original full-size CLI rather than inventing a parallel config."""
+    common = ['--dataset', 'combined', '--seed', '42', '--base-channels', '32',
+        '--image-size', '128', '--batch-size', '8', '--quantum_channels', '256',
+        '--q-ansatz', 'reupload', '--q-layers', '1', '--n-qubits', '4',
+        '--q-backend', 'pennylane', '--q-sim-device', 'cpu', '--local-spatial-channels', '4',
+        '--decoder-skip-gate', 'none', '--skip-modulation', 'affine', '--no-time-emb',
+        '--loss', 'dice_ce', '--epochs', '120', '--learning-rate', '0.001',
+        '--eval-every', '2', '--no-save-samples', '--data-root', 'DATA_ROOT',
+        '--results-dir', 'results_spatial_confirmation']
+    options = spec['config']
+    flags = [*common, '--local-spatial-kernel', options['local_spatial_kernel'],
+        '--local-spatial-readout', options['local_spatial_readout'],
+        '--q-training-control', options.get('q_training_control', 'trainable')]
+    old_argv = sys.argv
+    try:
+        if spec['model_type'] == 'quantum':
+            script = 'centralized_demoTorchQ.py'
+            sys.argv = [script, *flags]
+            parsed = quantum_entry.parse_args()
+            config = dict(quantum_entry.get_config(), seed=parsed.seed, dataset=parsed.dataset)
+            tc.apply_common_args(config, parsed)
+            references = {}
+        else:
+            script = 'ablation_studies.py'
+            flags = ['--framework', 'torch', '--mode', 'centralized',
+                '--quantum-backend', 'pennylane', '--ablation-mlp-mode', 'full_rank', *flags]
+            sys.argv = [script, *flags]
+            parsed = classical_entry.parse_args()
+            config, classical_count, quantum_count = classical_entry._find_matched_torch_config(
+                parsed.quantum_backend, classical_entry._torch_overrides(parsed))
+            references = dict(parsed_classical_parameter_count=classical_count,
+                              parsed_quantum_reference_parameter_count=quantum_count)
+    finally:
+        sys.argv = old_argv
+    expected = dict(base_channels=32, init_dim=32, quantum_channels=256, resnet_block_groups=4,
+        image_size=128, batch_size=8, local_spatial_channels=4, q_layers=1,
+        n_qubits=4, use_time_emb=False, decoder_skip_gate='none', q_sim_device='cpu',
+        q_backend='pennylane', q_ansatz='reupload', loss='dice_ce')
+    for key, value in expected.items():
+        require(config.get(key) == value, 'Production geometry differs: ' + key)
+    require(bool(config.get('q_share_blocks', True)), 'The probe requires one shared bottleneck')
+    require(tuple(config['dim_mults']) == (1, 2, 4, 8) and config.get('out_dim', 2) == 2,
+            'Encoder/decoder geometry differs')
+    return config, ['python', script, *flags], references
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--repo-root', type=Path, required=True)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--device', choices=['cuda'], default='cuda')
+    args = parser.parse_args(argv)
+    root, output = args.repo_root.resolve(), args.output.resolve()
+    require(not output.exists(), 'Output already exists; refusing to overwrite')
+    require(not output.with_name(output.name + '.tmp').exists(), 'Temporary output already exists; refusing to overwrite')
+    require(not output.is_relative_to(root), 'Write probe output outside the repository')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    # Reserve the output atomically before any optional/heavy imports. A SIGKILL
+    # cannot be caught; its last saved stage stays explicitly incomplete.
+    with output.open('x') as stream:
+        stream.write('{}\n')
+    result = dict(status='running', started_at=datetime.now(timezone.utc).isoformat(),
+        expected_source_revision=EXPECTED_REVISION, repo_root=str(root), device=args.device,
+        probe_source_sha256=digest(__file__), threads=2, cuda_allocator_fraction=GPU_FRACTION,
+        probe_batch_size=1, configured_production_batch_size=8, input_shape=list(PROBE_SHAPE),
+        output_shape=list(OUTPUT_SHAPE), external_host_limits=cgroup_limits(),
+        scope='Mechanical batch-1 full-size CUDA forward/backward/one-Adam-step feasibility only; random tensors, no data/accuracy/Anvil/batch-8 claim',
+        timing_scope='Instrumented elapsed times include synchronization and finite/gradient checks; not a throughput benchmark',
+        failure_policy='Abort on any failure. Never lower geometry, batch size or allocator cap; no retry or training run.',
+        uncatchable_kill_policy='A host OOM/SIGKILL can leave status running/incomplete; caller must retain the OS exit status and scope log.',
+        stage='source_preflight', records=[])
+
+    def save():
+        temporary = output.with_name(output.name + '.tmp')
+        with temporary.open('x') as stream:
+            stream.write(json.dumps(result, indent=2, allow_nan=False) + '\n')
+        temporary.replace(output)
+
+    torch = None
+    try:
+        save()
+        before = git_state(root)
+        result['git_before'] = before
+        require(before['head'] == EXPECTED_REVISION, 'The metadata candidate revision differs')
+        require(before['status'] == '', 'Use the clean pinned candidate worktree')
+        source_hashes = {name: digest(root / name) for name in SOURCE_FILES}
+        result['source_hashes'] = source_hashes
+        result['stage'] = 'heavy_imports'
+        save()
+        sys.path.insert(0, str(root))
+        import torch
+        import centralized_demoTorchQ as quantum_entry
+        import ablation_studies as classical_entry
+        from scripts.run_local_spatial_study import study_specs
+        from scripts.collect_local_spatial_study import shared_parameter_digest
+        from tools import training_common as tc
+        from utilsTorch.local_spatial import LocalSpatialBottleneckBlock
+        from utilsTorch.utilsTorch import QVUNetSegmentation, ClassicalAblationUNetSegmentation, segmentation_loss
+        require(Path(tc.__file__).resolve() == root / 'tools/training_common.py', 'Unexpected source import')
+        torch.set_num_threads(2)
+        torch.set_num_interop_threads(2)
+        require(torch.cuda.is_available(), 'CUDA is unavailable; CPU fallback is forbidden')
+        device = torch.device('cuda:0')
+        torch.cuda.set_per_process_memory_fraction(GPU_FRACTION, device)
+        result['runtime'] = dict(python=sys.version, executable=sys.executable,
+            packages={name: importlib.metadata.version(name) for name in ('torch', 'pennylane', 'numpy', 'flwr')},
+            torch_cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version(),
+            gpu_name=torch.cuda.get_device_name(device),
+            gpu_total_bytes=torch.cuda.get_device_properties(device).total_memory,
+            torch_threads=torch.get_num_threads(), torch_interop_threads=torch.get_num_interop_threads(),
+            cuda_visible_devices=__import__('os').environ.get('CUDA_VISIBLE_DEVICES'),
+            numerical_threads={name: __import__('os').environ.get(name)
+                for name in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS')})
+        result['runtime_sha256'] = hashlib.sha256(json.dumps(result['runtime'], sort_keys=True).encode()).hexdigest()
+        expected_shared = expected_backbone = expected_projections = None
+        specs = study_specs()
+        require(len(specs) == 7 and len({spec['id'] for spec in specs}) == 7, 'Expected all seven production variants')
+        for spec in specs:
+            started = time.perf_counter()
+            record = dict(id=spec['id'], model_type=spec['model_type'], status='running',
+                          configured_batch_size=8, probe_batch_size=1, optimizer_steps=0,
+                          forward_calls=0, backward_calls=0)
+            result['records'].append(record)
+            result['current_variant'] = spec['id']
+            result['stage'] = 'parse_production_config'
+            save()
+            cfg, command, references = production_config(spec, quantum_entry, classical_entry, tc)
+            record.update(production_command=command, parsed_config=cfg, **references)
+            tc.seed_everything(42)
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats(device)
+            torch.cuda.synchronize(device)
+            result['stage'] = 'model_construction'
+            save()
+            cls = QVUNetSegmentation if spec['model_type'] == 'quantum' else ClassicalAblationUNetSegmentation
+            model = tc.build_model(cls, copy.deepcopy(cfg)).to(device).train()
+            named = list(model.named_parameters())
+            blocks = [module for module in model.modules() if isinstance(module, LocalSpatialBottleneckBlock)]
+            require(len(blocks) == 1, 'Expected one shared local spatial block')
+            block = blocks[0]
+            projection_ids = {id(parameter) for layer in (block.pre_q_conv, block.post_q_proj)
+                              for parameter in layer.parameters()}
+            local_ids = {id(parameter) for parameter in block.parameters()}
+            core_ids = local_ids - projection_ids
+            shared, core_count = shared_parameter_digest(model)
+            backbone_hash = parameter_digest([(name, parameter) for name, parameter in named if id(parameter) not in local_ids])
+            projection_hash = parameter_digest([(name, parameter) for name, parameter in named if id(parameter) in projection_ids])
+            if expected_shared is not None:
+                require(shared == expected_shared and backbone_hash == expected_backbone
+                        and projection_hash == expected_projections,
+                        'Production variants have different initial backbone/projection parameters')
+            expected_shared, expected_backbone, expected_projections = shared, backbone_hash, projection_hash
+            initial = {name: parameter.detach().cpu().clone() for name, parameter in named}
+            frozen_names = [name for name, parameter in named if not parameter.requires_grad]
+            expected_frozen = [name for name, parameter in named if id(parameter) in core_ids]
+            require(frozen_names == (expected_frozen if spec['id'] == 'local_quantum_frozen' else []),
+                    'Unexpected frozen parameter flags')
+            record.update(total_params=sum(parameter.numel() for _, parameter in named),
+                trainable_params=sum(parameter.numel() for _, parameter in named if parameter.requires_grad),
+                core_params=core_count, shared_initial_parameter_sha256=shared,
+                backbone_initial_parameter_sha256=backbone_hash,
+                projection_initial_parameter_sha256=projection_hash,
+                frozen_parameter_names=frozen_names, simulator_info=tc.quantum_simulator_info(model, cfg))
+            if spec['model_type'] == 'ablation':
+                require(record['total_params'] == references['parsed_classical_parameter_count'],
+                        'Parsed classical parameter count differs from actual model')
+            generator = torch.Generator().manual_seed(123)
+            images = torch.randn(PROBE_SHAPE, generator=generator).to(device)
+            masks = torch.randint(0, 2, (1, 128, 128), generator=generator, dtype=torch.long).to(device)
+            optimizer = torch.optim.Adam(model.parameters(), lr=cfg['learning_rate'])
+            optimizer.zero_grad(set_to_none=True)
+            result['stage'] = 'instrumented_forward_backward_step'
+            save()
+            torch.cuda.synchronize(device)
+            step_started = time.perf_counter()
+            logits = model(images)
+            record['forward_calls'] = 1
+            require(tuple(logits.shape) == OUTPUT_SHAPE and bool(torch.isfinite(logits).all()),
+                    'Forward output shape or finite check failed')
+            loss = segmentation_loss(logits, masks, loss_mode='dice_ce')
+            require(bool(torch.isfinite(loss)), 'Nonfinite Dice plus cross-entropy loss')
+            loss.backward()
+            record['backward_calls'] = 1
+            gradient_groups = dict(backbone=[], projections=[], core=[])
+            missing_gradients = []
+            for name, parameter in named:
+                if parameter.grad is None:
+                    if parameter.requires_grad:
+                        missing_gradients.append(name)
+                    continue
+                require(bool(torch.isfinite(parameter.grad).all()), 'Nonfinite gradient: ' + name)
+                group = 'core' if id(parameter) in core_ids else 'projections' if id(parameter) in projection_ids else 'backbone'
+                gradient_groups[group].append(float(parameter.grad.detach().double().square().sum()))
+            require(gradient_groups['backbone'] and gradient_groups['projections'], 'Backbone/projection gradients are absent')
+            record['gradient_norms'] = {name: dict(l2=math.sqrt(sum(values)), tensors=len(values))
+                                        for name, values in gradient_groups.items()}
+            record['trainable_parameter_names_without_grad'] = missing_gradients
+            require(all(math.isfinite(group['l2']) for group in record['gradient_norms'].values()),
+                    'Nonfinite accumulated gradient norm')
+            core_parameters = [(name, parameter) for name, parameter in named if id(parameter) in core_ids]
+            if spec['id'] == 'local_quantum_frozen':
+                require(all(parameter.grad is None for _, parameter in core_parameters),
+                        'A frozen core tensor received a gradient')
+                record['core_gradient_contract'] = dict(frozen=True, gradient_tensors=0,
+                    all_core_gradients_absent=True, group_l2=record['gradient_norms']['core']['l2'])
+            else:
+                require(all(parameter.requires_grad and parameter.grad is not None
+                            for _, parameter in core_parameters),
+                        'A trainable core tensor has no gradient; the core may be detached')
+                require(record['gradient_norms']['core']['l2'] > 0,
+                        'The trainable core group has zero gradient norm')
+                record['core_gradient_contract'] = dict(frozen=False,
+                    gradient_tensors=len(core_parameters), all_trainable_core_tensors_have_gradients=True,
+                    group_l2=record['gradient_norms']['core']['l2'])
+            optimizer.step()
+            record['optimizer_steps'] = 1
+            torch.cuda.synchronize(device)
+            record['instrumented_forward_backward_step_s'] = time.perf_counter() - step_started
+            record['loss'] = float(loss.detach())
+            record['actual_output_shape'] = list(logits.shape)
+            result['stage'] = 'post_step_checks'
+            save()
+            movement = dict(backbone=[], projections=[], core=[])
+            for name, parameter in named:
+                require(bool(torch.isfinite(parameter).all()), 'Nonfinite post-step parameter: ' + name)
+                group = 'core' if id(parameter) in core_ids else 'projections' if id(parameter) in projection_ids else 'backbone'
+                movement[group].append(float((parameter.detach().cpu().double() - initial[name].double()).square().sum()))
+                if name in frozen_names:
+                    require(torch.equal(parameter.detach().cpu(), initial[name]), 'Frozen core parameter changed: ' + name)
+            require(all(bool(torch.isfinite(value).all()) for value in model.state_dict().values()),
+                    'Nonfinite post-step state tensor')
+            record['parameter_movement_l2'] = {name: math.sqrt(sum(values)) for name, values in movement.items()}
+            if spec['id'] == 'local_quantum_frozen':
+                require(record['parameter_movement_l2']['core'] == 0,
+                        'The frozen core group changed during the optimizer step')
+            else:
+                require(record['parameter_movement_l2']['core'] > 0,
+                        'The trainable core group did not move during the optimizer step')
+            record.update(status='passed', gradients_finite=True, parameters_finite_after_step=True,
+                state_finite_after_step=True, frozen_core_exactly_unchanged=True if frozen_names else None,
+                peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated(device),
+                peak_cuda_reserved_bytes=torch.cuda.max_memory_reserved(device),
+                cuda_allocated_after_step_bytes=torch.cuda.memory_allocated(device),
+                cuda_reserved_after_step_bytes=torch.cuda.memory_reserved(device),
+                host_process_peak_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+                instrumented_variant_wall_s=time.perf_counter() - started)
+            save()
+            print(json.dumps(record, allow_nan=False), flush=True)
+            del model, block, blocks, named, core_parameters, optimizer, logits, loss, images, masks, initial
+            gc.collect()
+            torch.cuda.empty_cache()
+        result['git_after'] = git_state(root)
+        result['source_hashes_after'] = {name: digest(root / name) for name in SOURCE_FILES}
+        require(result['git_after'] == before, 'Repository HEAD/status changed during probe')
+        require(result['source_hashes_after'] == source_hashes, 'Execution source changed during probe')
+        require(digest(__file__) == result['probe_source_sha256'], 'The probe helper changed during execution')
+        require(all(record['forward_calls'] == record['backward_calls'] == record['optimizer_steps'] == 1
+                    for record in result['records']), 'The exact one-step probe contract was not met')
+        result.update(status='passed', stage='complete', completed_at=datetime.now(timezone.utc).isoformat(),
+                      completed_variants=len(result['records']), shared_initialization_equal=True)
+        save()
+        print('FULL-SIZE BATCH-1 CUDA MECHANICS COMPLETE', str(output), flush=True)
+        return 0
+    except BaseException as error:
+        current = result['records'][-1] if result['records'] else None
+        if current is not None and current['status'] == 'running':
+            current['status'] = 'failed'
+        result.update(status='failed', failed_at=datetime.now(timezone.utc).isoformat(),
+            error_type=type(error).__name__, error=str(error), traceback=traceback.format_exc(),
+            completed_variants=sum(record['status'] == 'passed' for record in result['records']))
+        if torch is not None and torch.cuda.is_initialized():
+            result['cuda_at_failure'] = dict(allocated_bytes=torch.cuda.memory_allocated(),
+                reserved_bytes=torch.cuda.memory_reserved(), peak_allocated_bytes=torch.cuda.max_memory_allocated(),
+                peak_reserved_bytes=torch.cuda.max_memory_reserved())
+        try:
+            result['git_after'] = git_state(root)
+        except Exception as observation_error:
+            result['git_after_observation_error'] = str(observation_error)
+        save()
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

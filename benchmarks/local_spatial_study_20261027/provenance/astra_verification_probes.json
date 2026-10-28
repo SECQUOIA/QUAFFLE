@@ -1,0 +1,18 @@
+{
+  "source_revision": "211c2852f470a7b006704f591652939089d4a41f",
+  "source_tree": "28e755071bd156abf6baa624e99543e845e2c5cd",
+  "imported_source": "/tmp/quaffle-spatial-astra-verify-211c285",
+  "pilot_report_common_rates_pp": [
+    3.0,
+    -2.0
+  ],
+  "different_selected_rates_preserved": true,
+  "duration_report_without_comparison": "passed",
+  "output_probe_all_four_kinds": {
+    "quantum": "actual saturated angles retained",
+    "sincos": "actual saturated angles retained",
+    "mlp": "inapplicable angles omitted",
+    "conv": "inapplicable angles omitted"
+  },
+  "cpu_only": true
+}

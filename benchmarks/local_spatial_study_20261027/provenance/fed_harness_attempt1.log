@@ -1,0 +1,43 @@
+Running as unit: run-r174ce8407023426eb135cf668365d40e.scope; invocation ID: 6c239101b73749ac883271383041fb74
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      configure_fit: strategy sampled 2 clients (out of 2)
+[92mINFO [0m:      aggregate_fit: received 2 results and 0 failures
+[93mWARNING [0m:   No fit_metrics_aggregation_fn provided
+[92mINFO [0m:      configure_evaluate: strategy sampled 2 clients (out of 2)
+Client 0: GPU not available, using CPU
+Client 0 initialized with 2 samples on cpu
+Client 0 starting local training...
+Client 0 completed training: Loss=1.3105, Acc=0.5171
+Client 1: GPU not available, using CPU
+Client 1 initialized with 4 samples on cpu
+Client 1 starting local training...
+Client 1 completed training: Loss=1.3323, Acc=0.5081
+Client 0: GPU not available, using CPU
+Client 0 initialized with 2 samples on cpu
+Evaluating:   0%|          | 0/1 [00:00<?, ?it/s]Evaluating: 100%|██████████| 1/1 [00:00<00:00, 10.65it/s]
+Client 1: GPU not available, using CPU
+Client 1 initialized with 4 samples on cpu
+Evaluating:   0%|          | 0/1 [00:00<?, ?it/s]Evaluating: 100%|██████████| 1/1 [00:00<00:00,  7.96it/s]Evaluating: 100%|██████████| 1/1 [00:00<00:00,  7.90it/s]
+[92mINFO [0m:      aggregate_evaluate: received 2 results and 0 failures
+[93mWARNING [0m:   No evaluate_metrics_aggregation_fn provided
+Evaluating:   0%|          | 0/2 [00:00<?, ?it/s]Evaluating:  50%|█████     | 1/2 [00:00<00:00,  9.23it/s]Evaluating: 100%|██████████| 2/2 [00:00<00:00, 10.15it/s]
+/tmp/quaffle-local-spatial-kernel-20261027/tools/training_common.py:2751: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  return torch.load(path, map_location=map_location)
+Global evaluation - Round 1: Loss=1.2310, Acc=0.5545, AUC=0.5610, IoU=0.3436, Dice=0.5115
+Resumable checkpoint saved after round 1/1
+Resuming federated run from checkpoint: 1/1 rounds completed
+Traceback (most recent call last):
+  File "/tmp/quaffle-local-spatial-fed-probe.py", line 282, in <module>
+    main()
+  File "/tmp/quaffle-local-spatial-fed-probe.py", line 199, in main
+    selected_arrays = parameters_to_ndarrays(selected)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/flwr/compat/common/parameter.py", line 34, in parameters_to_ndarrays
+    return [bytes_to_ndarray(tensor) for tensor in parameters.tensors]
+                                                   ^^^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'tensors'

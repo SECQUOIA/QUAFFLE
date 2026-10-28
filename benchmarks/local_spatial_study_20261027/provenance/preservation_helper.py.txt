@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Preserve completed local runs without changing their original evidence."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import shutil
+
+
+def inventory(root):
+    result = {}
+    for path in sorted(root.rglob('*')):
+        if path.is_symlink():
+            raise ValueError('Refuse an unexpected run-artifact symlink: ' + str(path))
+        if path.is_file():
+            digest = hashlib.sha256()
+            with path.open('rb') as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    digest.update(block)
+            result[str(path.relative_to(root))] = dict(bytes=path.stat().st_size, sha256=digest.hexdigest())
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--destination', type=Path, required=True)
+    parser.add_argument('--source', type=Path, action='append', required=True)
+    args = parser.parse_args()
+    sources = [path.resolve() for path in args.source]
+    if len({path.name for path in sources}) != len(sources):
+        parser.error('Run basenames must be unique')
+    for source in sources:
+        if not (source / 'summary.json').is_file():
+            parser.error('Completed run summary required: ' + str(source))
+        if args.destination.resolve().is_relative_to(source):
+            parser.error('Archive destination cannot be inside a source')
+    args.destination.mkdir(parents=True, exist_ok=True)
+    manifest_path = args.destination / 'run_inventory.json'
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else dict(
+        purpose='Persistent local copies of completed experimental runs; original bytes retained',
+        path_note='Original absolute paths inside evidence remain unchanged. Restore those paths or supply equivalent roots before replay.',
+        runs={})
+    (args.destination / 'runs').mkdir(exist_ok=True)
+    for source in sources:
+        expected = inventory(source)
+        target = args.destination / 'runs' / source.name
+        if target.exists():
+            if inventory(target) != expected:
+                raise ValueError('Existing archive differs; no overwrite permitted: ' + str(target))
+        else:
+            staging = target.with_name('.' + target.name + '.copying')
+            if staging.exists():
+                raise ValueError('An incomplete archive attempt requires inspection: ' + str(staging))
+            shutil.copytree(source, staging)
+            if inventory(staging) != expected or inventory(source) != expected:
+                raise ValueError('Source/copy bytes changed during preservation: ' + str(source))
+            staging.rename(target)
+        manifest['runs'][source.name] = dict(original_root=str(source),
+            archived_root=str(target.relative_to(args.destination)), files=expected,
+            checkpoint_files=sum(name.endswith('.pt') for name in expected),
+            total_bytes=sum(row['bytes'] for row in expected.values()))
+        temporary = manifest_path.with_suffix('.json.writing')
+        temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True) + '\n')
+        temporary.replace(manifest_path)
+        print(json.dumps(dict(source=str(source), archived=str(target), files=len(expected),
+                              checkpoints=manifest['runs'][source.name]['checkpoint_files'], verified=True)), flush=True)
+
+
+if __name__ == '__main__':
+    main()

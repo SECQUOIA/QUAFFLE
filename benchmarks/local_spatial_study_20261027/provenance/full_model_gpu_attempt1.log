@@ -1,0 +1,13 @@
+Running as unit: run-rc04bd2e39b2f484ea33a8f5605576c32.scope; invocation ID: 947fd4677a0747938652c5a640686a01
+Traceback (most recent call last):
+  File "/tmp/quaffle-local-spatial-full-gpu-probe.py", line 172, in main
+    torch.cuda.set_per_process_memory_fraction(GPU_FRACTION, device)
+  File "/home/bernalde/miniconda3/envs/qpinn-tc/lib/python3.11/site-packages/torch/cuda/memory.py", line 171, in set_per_process_memory_fraction
+    device = _get_device_index(device)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bernalde/miniconda3/envs/qpinn-tc/lib/python3.11/site-packages/torch/cuda/_utils.py", line 38, in _get_device_index
+    return _torch_get_device_index(device, optional, allow_cpu)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bernalde/miniconda3/envs/qpinn-tc/lib/python3.11/site-packages/torch/_utils.py", line 814, in _get_device_index
+    raise ValueError(
+ValueError: Expected a torch.device with a specified index or an integer, but got:cuda

@@ -1,0 +1,16 @@
+{
+  "original_producer_revision": "211c2852f470a7b006704f591652939089d4a41f",
+  "fix_base": "f990aa7564ecb436f9818a1bea461220d6ff455f",
+  "original_module_sha256": "1b2526bf606ba2fedcc95b3601284e5a313fd350ff01224f92d5c85285c7f825",
+  "fixed_module_sha256": "6609f1bf429a6ad084a5bfbb3ee92a881de7c0eb3fda7ff44068d647a5592388",
+  "module_AST_equal_after_excluding": [
+    "LocalSpatialBottleneckBlock.simulator_info",
+    "__init__: explicit None maps to trainable"
+  ],
+  "all_producing_configs_have_explicit_nonnull_controls": [
+    "frozen",
+    "no_entanglement",
+    "trainable"
+  ],
+  "scope": "Reporting and production checkpoint null-default compatibility only. The None branch is unreachable for every recorded fitting configuration; circuit/readout/initialization/forward/gradient code otherwise matches the frozen producer. No current fitting file was edited."
+}

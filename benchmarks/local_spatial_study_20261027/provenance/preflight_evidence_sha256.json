@@ -1,0 +1,66 @@
+{
+  "astra_preflight.md": {
+    "sha256": "9d4e8a238c382c5064e3a363fc028bbed5f8ec71a481e6ae8aed232ef7ecd02a",
+    "bytes": 8909
+  },
+  "astra_preflight_verification.md": {
+    "sha256": "b43ed79a9f694ee3d69ae936010ddfc9b6b177dd30d94748134c2f9c1ef5e9b8",
+    "bytes": 6466
+  },
+  "astra_preflight_probes.json": {
+    "sha256": "1dd6468c0e241926f1de15c3f3c62fa850472ae7d3c134c310ad831a085a0636",
+    "bytes": 528
+  },
+  "astra_verification_probes.json": {
+    "sha256": "87e17c0a47ffced2d4574a931885b3a709f0cd5bed08d83ba8aeda74dbcabb90",
+    "bytes": 595
+  },
+  "reporting_regression_red.log": {
+    "sha256": "beb65a85c6d752ba077c0d815a31047b4aa55b00f3261bd1bd92fba1d7384354",
+    "bytes": 8163
+  },
+  "reporting_regression_green.log": {
+    "sha256": "d73f03d498a4384a76f8590597c46c94d1a1828079c06cf3696a916fa1e0f3d8",
+    "bytes": 210
+  },
+  "reporting_final_study_tests.log": {
+    "sha256": "781d7bab6a312ee6aad2b533be84bd03a6c7f07c32f1ffb9ca13e628b4a2dc45",
+    "bytes": 209
+  },
+  "entrypoint_regression_red.log": {
+    "sha256": "cf1b0247b4f7f69b50c894eca11b8ea8764050cf08fa09a0b9ea8744849e1c37",
+    "bytes": 9094
+  },
+  "entrypoint_regression_green.log": {
+    "sha256": "711f15034cb43c1cf7eaf6411d9d49cea9d5be24fa0e632d4dae1c779f8f4ed9",
+    "bytes": 1315
+  },
+  "full_suite.log": {
+    "sha256": "f0f377c1b855637118fd5a12fb0cc3e099dd59c04f0088156f6c7c0cb49e4a2e",
+    "bytes": 7948
+  },
+  "collection_tests.log": {
+    "sha256": "0b55146111aa199e0525b07b470acbde2590696501918f02cefb84b3214ac371",
+    "bytes": 210
+  },
+  "resource_profile.json": {
+    "sha256": "552e0dd45c19bb27237d3901f2d0f00e8010ddf246a8fa8a688e38f1e6525499",
+    "bytes": 2727
+  },
+  "resource_profile.log": {
+    "sha256": "dc88f6dddd1642cb7f6649643d2f65c20ace0e5c589413cef14e56b1c6de6e57",
+    "bytes": 110
+  },
+  "full_model_config_audit.json": {
+    "sha256": "e96aa165420fda454c34cfe030a8b8b2059dcc39148fdaed4b6c76a4254cb05c",
+    "bytes": 14116
+  },
+  "full_model_config_probe.py.txt": {
+    "sha256": "fa773356a6749a7eea124f325996bf9e7064916cfd6191646cd4a017e255e508",
+    "bytes": 4893
+  },
+  "full_model_config_probe.log": {
+    "sha256": "4cfc5024b619339a1ca3595d8371239f5ce908e9dd865e6d0130df94d0ba42bc",
+    "bytes": 8815
+  }
+}

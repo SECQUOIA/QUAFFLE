@@ -1,0 +1,141 @@
+Running as unit: run-rf0fcfd20deb74f2e8bf0d9e067f98a8e.scope; invocation ID: 7e93d7233f6f46379af20ab9925b4209
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+________ test_common_rate_readout_contrasts_use_only_seed42_validation _________
+
+    def test_common_rate_readout_contrasts_use_only_seed42_validation():
+        records = tuning_records()
+        for row in records:
+            row['test']['iou'] = 1.0 if row['id'] == 'local_quantum_xz_zz' else 0.0
+>       result = study.fixed_rate_readout_contrasts(records)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'scripts.run_local_spatial_study' has no attribute 'fixed_rate_readout_contrasts'
+
+tests/test_local_spatial_study.py:100: AttributeError
+______ test_common_rate_readout_contrasts_reject_invalid_pairing[missing] ______
+
+damage = 'missing'
+
+    @pytest.mark.parametrize('damage', ['missing', 'duplicate', 'cohort', 'initial'])
+    def test_common_rate_readout_contrasts_reject_invalid_pairing(damage):
+        records = tuning_records()
+        target = next(row for row in records if row['id'] == 'local_quantum_xz_zz')
+        if damage == 'missing':
+            records.remove(target)
+        elif damage == 'duplicate':
+            records.append(copy.deepcopy(target))
+        elif damage == 'cohort':
+            target['val_names'] = ['different']
+        else:
+            target['initial_parameter_sha256'] = 'different'
+        with pytest.raises(ValueError):
+>           study.fixed_rate_readout_contrasts(records)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'scripts.run_local_spatial_study' has no attribute 'fixed_rate_readout_contrasts'
+
+tests/test_local_spatial_study.py:119: AttributeError
+_____ test_common_rate_readout_contrasts_reject_invalid_pairing[duplicate] _____
+
+damage = 'duplicate'
+
+    @pytest.mark.parametrize('damage', ['missing', 'duplicate', 'cohort', 'initial'])
+    def test_common_rate_readout_contrasts_reject_invalid_pairing(damage):
+        records = tuning_records()
+        target = next(row for row in records if row['id'] == 'local_quantum_xz_zz')
+        if damage == 'missing':
+            records.remove(target)
+        elif damage == 'duplicate':
+            records.append(copy.deepcopy(target))
+        elif damage == 'cohort':
+            target['val_names'] = ['different']
+        else:
+            target['initial_parameter_sha256'] = 'different'
+        with pytest.raises(ValueError):
+>           study.fixed_rate_readout_contrasts(records)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'scripts.run_local_spatial_study' has no attribute 'fixed_rate_readout_contrasts'
+
+tests/test_local_spatial_study.py:119: AttributeError
+______ test_common_rate_readout_contrasts_reject_invalid_pairing[cohort] _______
+
+damage = 'cohort'
+
+    @pytest.mark.parametrize('damage', ['missing', 'duplicate', 'cohort', 'initial'])
+    def test_common_rate_readout_contrasts_reject_invalid_pairing(damage):
+        records = tuning_records()
+        target = next(row for row in records if row['id'] == 'local_quantum_xz_zz')
+        if damage == 'missing':
+            records.remove(target)
+        elif damage == 'duplicate':
+            records.append(copy.deepcopy(target))
+        elif damage == 'cohort':
+            target['val_names'] = ['different']
+        else:
+            target['initial_parameter_sha256'] = 'different'
+        with pytest.raises(ValueError):
+>           study.fixed_rate_readout_contrasts(records)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'scripts.run_local_spatial_study' has no attribute 'fixed_rate_readout_contrasts'
+
+tests/test_local_spatial_study.py:119: AttributeError
+______ test_common_rate_readout_contrasts_reject_invalid_pairing[initial] ______
+
+damage = 'initial'
+
+    @pytest.mark.parametrize('damage', ['missing', 'duplicate', 'cohort', 'initial'])
+    def test_common_rate_readout_contrasts_reject_invalid_pairing(damage):
+        records = tuning_records()
+        target = next(row for row in records if row['id'] == 'local_quantum_xz_zz')
+        if damage == 'missing':
+            records.remove(target)
+        elif damage == 'duplicate':
+            records.append(copy.deepcopy(target))
+        elif damage == 'cohort':
+            target['val_names'] = ['different']
+        else:
+            target['initial_parameter_sha256'] = 'different'
+        with pytest.raises(ValueError):
+>           study.fixed_rate_readout_contrasts(records)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'scripts.run_local_spatial_study' has no attribute 'fixed_rate_readout_contrasts'
+
+tests/test_local_spatial_study.py:119: AttributeError
+______ test_unbounded_classical_cores_have_no_input_angle_diagnostic[mlp] ______
+
+kind = 'mlp'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv'])
+    def test_unbounded_classical_cores_have_no_input_angle_diagnostic(kind):
+        from scripts.run_real_spatial_pilot import output_probe
+        block = LocalSpatialBottleneckBlock(1, kind=kind, feature_channels=1)
+        images = torch.randn(1, 1, 2, 2)
+>       assert block.angle_diagnostics(images) is None
+E       AssertionError: assert {'max_abs_tanh': 0.8494179844856262, 'mean_abs_tanh': 0.6595563888549805, 'n_angles': 16, 'saturation_fraction': 0.0} is None
+E        +  where {'max_abs_tanh': 0.8494179844856262, 'mean_abs_tanh': 0.6595563888549805, 'n_angles': 16, 'saturation_fraction': 0.0} = angle_diagnostics(tensor([[[[ 0.5393, -0.1914],\n          [-1.0820,  0.7262]]]]))
+E        +    where angle_diagnostics = LocalSpatialBottleneckBlock(\n  (pre_q_conv): Conv2d(1, 1, kernel_size=(1, 1), stride=(1, 1))\n  (post_q_proj): Conv2d(1...atures=4, out_features=16, bias=True)\n    (1): SiLU()\n    (2): Linear(in_features=16, out_features=12, bias=True)\n  )\n).angle_diagnostics
+
+tests/test_local_spatial_kernel.py:243: AssertionError
+_____ test_unbounded_classical_cores_have_no_input_angle_diagnostic[conv] ______
+
+kind = 'conv'
+
+    @pytest.mark.parametrize('kind', ['mlp', 'conv'])
+    def test_unbounded_classical_cores_have_no_input_angle_diagnostic(kind):
+        from scripts.run_real_spatial_pilot import output_probe
+        block = LocalSpatialBottleneckBlock(1, kind=kind, feature_channels=1)
+        images = torch.randn(1, 1, 2, 2)
+>       assert block.angle_diagnostics(images) is None
+E       AssertionError: assert {'max_abs_tanh': 0.6978154182434082, 'mean_abs_tanh': 0.585425078868866, 'n_angles': 16, 'saturation_fraction': 0.0} is None
+E        +  where {'max_abs_tanh': 0.6978154182434082, 'mean_abs_tanh': 0.585425078868866, 'n_angles': 16, 'saturation_fraction': 0.0} = angle_diagnostics(tensor([[[[-0.8924, -0.0449],\n          [ 1.4007,  1.6152]]]]))
+E        +    where angle_diagnostics = LocalSpatialBottleneckBlock(\n  (pre_q_conv): Conv2d(1, 1, kernel_size=(1, 1), stride=(1, 1))\n  (post_q_proj): Conv2d(1..., stride=(1, 1))\n  (core): Sequential(\n    (0): Linear(in_features=4, out_features=12, bias=True)\n    (1): SiLU()\n  )\n).angle_diagnostics
+
+tests/test_local_spatial_kernel.py:243: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_local_spatial_study.py::test_common_rate_readout_contrasts_use_only_seed42_validation
+FAILED tests/test_local_spatial_study.py::test_common_rate_readout_contrasts_reject_invalid_pairing[missing]
+FAILED tests/test_local_spatial_study.py::test_common_rate_readout_contrasts_reject_invalid_pairing[duplicate]
+FAILED tests/test_local_spatial_study.py::test_common_rate_readout_contrasts_reject_invalid_pairing[cohort]
+FAILED tests/test_local_spatial_study.py::test_common_rate_readout_contrasts_reject_invalid_pairing[initial]
+FAILED tests/test_local_spatial_kernel.py::test_unbounded_classical_cores_have_no_input_angle_diagnostic[mlp]
+FAILED tests/test_local_spatial_kernel.py::test_unbounded_classical_cores_have_no_input_angle_diagnostic[conv]
+7 failed, 38 deselected in 7.13s

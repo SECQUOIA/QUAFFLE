@@ -1,0 +1,34 @@
+[
+  {
+    "left": "local_quantum_z",
+    "right": "local_sincos",
+    "split": "val",
+    "unit": "IoU percentage points",
+    "differences": {
+      "42": -0.13624432220614713,
+      "77": 1.1324805192304166,
+      "123": -0.3556450911441078
+    },
+    "mean": 0.21353036862672056,
+    "std": 0.8033593273396151,
+    "wins": 1,
+    "n": 3,
+    "same_learning_rates": false
+  },
+  {
+    "left": "local_quantum_z",
+    "right": "local_sincos",
+    "split": "test",
+    "unit": "IoU percentage points",
+    "differences": {
+      "42": 4.300605561294857,
+      "77": 2.713601929418752,
+      "123": -0.010340455238211366
+    },
+    "mean": 2.334622345158466,
+    "std": 2.1803171864043445,
+    "wins": 2,
+    "n": 3,
+    "same_learning_rates": false
+  }
+]

@@ -1,0 +1,21 @@
+Running as unit: run-r34728f9e55974ac0bda62dda54325f65.scope; invocation ID: 2dcb0bf6d48041a89174daa8793b9a33
+Traceback (most recent call last):
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/audit_local_spatial_angles.py", line 149, in <module>
+    main()
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/audit_local_spatial_angles.py", line 141, in main
+    result = audit_angles(args.pilot_dir, args.extension_dir, args.data_root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/audit_local_spatial_angles.py", line 91, in audit_angles
+    result = collection.audit_study(pilot_dir, extension_dir)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/collect_local_spatial_study.py", line 356, in audit_study
+    short = audit_phase(pilot_dir, 60, study.study_specs())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/collect_local_spatial_study.py", line 286, in audit_phase
+    details = audit_checkpoint(checkpoint, row)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/collect_local_spatial_study.py", line 213, in audit_checkpoint
+    require(checkpoint['settings'] == row['settings'] and checkpoint['model_type'] == row['model_type']
+  File "/tmp/quaffle-local-spatial-kernel-20261027/scripts/collect_local_spatial_study.py", line 43, in require
+    raise ValueError(message)
+ValueError: Checkpoint metadata differ from fit record: /tmp/quaffle-local-spatial-pilot60-20261027/tuning/local_conv/0.001/seed42/checkpoint.pt

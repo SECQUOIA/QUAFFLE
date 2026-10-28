@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Compare two generated spatial packages without changing either package.
+
+All non-PDF generator outputs must be byte-identical. For different PDFs the
+only permitted normalization is the value of the single /CreationDate field in
+the uncompressed PDF Info object emitted by Matplotlib. No PDF stream, numeric
+result, other metadata, cross-reference entry or arbitrary whitespace is changed.
+"""
+import argparse
+from datetime import datetime
+import hashlib
+import json
+from pathlib import Path
+import re
+
+MANIFEST = 'artifact_sha256.json'
+PHASE_FILES = ('summary.json', 'plan.json', 'all_fits.json', 'tuning_candidates.json',
+               'paired_analysis.json', 'fixed_rate_readout.json', 'checkpoint_audit.json')
+EXPECTED = {phase + '/' + name for phase in ('pilot60', 'extend120') for name in PHASE_FILES}
+EXPECTED |= {'comparison.json', 'duration_evidence.json', 'summary.csv', 'per_seed.csv',
+             'tuning.csv', 'README.md', 'individual_angle_audit.json', 'provenance.json', MANIFEST}
+EXPECTED |= {'plots/' + stem + '.' + suffix for stem in
+             ('paired_quantum_classical', 'validation_curves', 'input_angle_saturation')
+             for suffix in ('png', 'pdf')}
+PDFS = {name for name in EXPECTED if name.endswith('.pdf')}
+CANONICAL_CREATION_DATE = b'D:19700101000000Z'
+DATE_FIELD = re.compile(rb"/CreationDate[\x00\t\n\f\r ]*\((?P<date>D:[0-9]{14}(?:Z|[+-][0-9]{2}'[0-9]{2}')?)\)")
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def inventory(root):
+    entries = list(root.rglob('*'))
+    require(not any(path.is_symlink() for path in entries), 'Generated package contains a symlink: ' + str(root))
+    files = {path.relative_to(root).as_posix() for path in entries if path.is_file()}
+    require(files == EXPECTED and len(files) == 29,
+            'Generated package inventory differs: missing=' + str(sorted(EXPECTED - files)) +
+            '; unexpected=' + str(sorted(files - EXPECTED)))
+    return files
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        require(key not in result, 'Duplicate artifact-manifest key: ' + str(key))
+        result[key] = value
+    return result
+
+
+def audit_manifest(root):
+    inventory(root)
+    raw = (root / MANIFEST).read_bytes()
+    declared = json.loads(raw, object_pairs_hook=unique_object)
+    require(isinstance(declared, dict) and set(declared) == EXPECTED - {MANIFEST},
+            'Artifact manifest does not cover every generator output except itself')
+    actual = {}
+    for name in sorted(declared):
+        expected = declared[name]
+        require(isinstance(expected, str) and re.fullmatch('[0-9a-f]{64}', expected) is not None,
+                'Invalid artifact digest: ' + name)
+        actual[name] = sha((root / name).read_bytes())
+        require(actual[name] == expected, 'Artifact digest differs from file bytes: ' + name)
+    return raw, declared, actual
+
+
+def normalize_pdf_creation_date(data, name):
+    require(data.startswith(b'%PDF-'), 'Invalid PDF header: ' + name)
+    fields = list(DATE_FIELD.finditer(data))
+    require(len(fields) == 1 and len(re.findall(rb'/CreationDate\b', data)) == 1,
+            'Expected exactly one supported /CreationDate field: ' + name)
+    match = fields[0]
+    value = match.group('date')
+    datetime.strptime(value[2:16].decode('ascii'), '%Y%m%d%H%M%S')
+    offset = value[16:]
+    if offset and offset != b'Z':
+        require(int(offset[1:3]) <= 23 and int(offset[4:6]) <= 59, 'Invalid PDF date timezone: ' + name)
+    # Restrict the permitted token to the actual uncompressed Info object, not
+    # a similarly named string in a content/image stream or another dictionary.
+    startxref = data.rfind(b'startxref')
+    trailer = data.rfind(b'trailer', 0, startxref)
+    require(startxref >= 0 and trailer >= 0, 'Unsupported PDF trailer: ' + name)
+    info = re.findall(rb'/Info[\x00\t\n\f\r ]+([0-9]+)[\x00\t\n\f\r ]+([0-9]+)[\x00\t\n\f\r ]+R\b',
+                      data[trailer:startxref])
+    require(len(info) == 1, 'Expected one PDF Info reference: ' + name)
+    number, generation = info[0]
+    object_pattern = rb'(?m)^[ \t]*' + number + rb'[ \t]+' + generation + rb'[ \t]+obj\b'
+    objects = list(re.finditer(object_pattern, data))
+    require(len(objects) == 1, 'Unsupported or duplicate PDF Info object: ' + name)
+    object_start = objects[0].start()
+    object_end = data.find(b'endobj', objects[0].end())
+    require(object_end >= 0 and object_start < match.start() < match.end() <= object_end,
+            '/CreationDate is not inside the PDF Info object: ' + name)
+    require(re.search(rb'\bstream\b', data[objects[0].end():object_end]) is None,
+            'Compressed/stream PDF Info is unsupported: ' + name)
+    begin, end = match.span('date')
+    normalized = data[:begin] + CANONICAL_CREATION_DATE + data[end:]
+    return normalized, dict(field='/CreationDate', field_count=1, value_byte_start=begin, value_byte_end=end,
+        original_value=value.decode('ascii'), replacement_value=CANONICAL_CREATION_DATE.decode('ascii'),
+        info_object=dict(number=int(number), generation=int(generation)), normalized_sha256=sha(normalized))
+
+
+def normalize_manifest_pdf_digests(raw, declared):
+    changes = []
+    normalized = raw
+    for name in sorted(PDFS):
+        encoded_key = json.dumps(name).encode('ascii')
+        pattern = re.compile(re.escape(encoded_key) + rb'[ \t\r\n]*:[ \t\r\n]*"(?P<digest>[0-9a-f]{64})"')
+        matches = list(pattern.finditer(normalized))
+        require(len(matches) == 1 and matches[0].group('digest').decode('ascii') == declared[name],
+                'Cannot identify the exact PDF digest field in artifact manifest: ' + name)
+        begin, end = matches[0].span('digest')
+        normalized = normalized[:begin] + b'0' * 64 + normalized[end:]
+        changes.append(dict(name=name, digest=declared[name], value_byte_start=begin, value_byte_end=end))
+    return normalized, changes
+
+
+def verify(first, second):
+    first_raw, first_declared, first_hashes = audit_manifest(first)
+    second_raw, second_declared, second_hashes = audit_manifest(second)
+    files, normalized_pdf_count = {}, 0
+    for name in sorted(EXPECTED - {MANIFEST}):
+        before, after = (first / name).read_bytes(), (second / name).read_bytes()
+        require(sha(before) == first_hashes[name] and sha(after) == second_hashes[name],
+                'Artifact changed during verification: ' + name)
+        entry = dict(first_sha256=sha(before), second_sha256=sha(after),
+                     first_bytes=len(before), second_bytes=len(after))
+        if before == after:
+            entry.update(equality_layer='whole-file byte identity', whole_file_byte_identity=True)
+        else:
+            require(name in PDFS, 'Non-PDF generator output is not byte-identical: ' + name)
+            before_normalized, before_detail = normalize_pdf_creation_date(before, name + ' (first)')
+            after_normalized, after_detail = normalize_pdf_creation_date(after, name + ' (second)')
+            require(before_detail['original_value'] != after_detail['original_value'],
+                    'PDF differs without a changed /CreationDate value: ' + name)
+            require(before_normalized == after_normalized,
+                    'PDF has differences beyond its /CreationDate metadata value: ' + name)
+            entry.update(equality_layer='byte identity after only PDF Info /CreationDate value normalization',
+                whole_file_byte_identity=False, normalized_fields_per_file=1,
+                first_normalization=before_detail, second_normalization=after_detail)
+            normalized_pdf_count += 1
+        files[name] = entry
+    changed_digests = sorted(name for name in first_declared if first_declared[name] != second_declared[name])
+    require(set(changed_digests) <= PDFS, 'Artifact manifests differ in a non-PDF digest entry')
+    first_normalized, first_fields = normalize_manifest_pdf_digests(first_raw, first_declared)
+    second_normalized, second_fields = normalize_manifest_pdf_digests(second_raw, second_declared)
+    require(first_normalized == second_normalized,
+            'Artifact manifests differ beyond the verified PDF digest value bytes')
+    files[MANIFEST] = dict(first_sha256=sha(first_raw), second_sha256=sha(second_raw),
+        first_bytes=len(first_raw), second_bytes=len(second_raw), whole_file_byte_identity=first_raw == second_raw,
+        equality_layer=('whole-file byte identity' if first_raw == second_raw else
+            'byte identity after only verified PDF digest value normalization'), changed_digest_entries=changed_digests,
+        first_pdf_digest_fields=first_fields, second_pdf_digest_fields=second_fields)
+    # Bind the proof to stable complete packages, including the two manifests.
+    require(inventory(first) == inventory(second) == EXPECTED, 'Artifact inventory changed during verification')
+    for name, entry in files.items():
+        require(sha((first / name).read_bytes()) == entry['first_sha256'] and
+                sha((second / name).read_bytes()) == entry['second_sha256'], 'Artifact changed before proof completion: ' + name)
+    return dict(status='passed', first_generated_dir=str(first), second_generated_dir=str(second),
+        expected_file_count=29, manifest_entry_count=28, complete_inventories_equal=True,
+        both_artifact_manifests_cover_and_hash_all_generator_files=True, files=files,
+        pdf_count=3, pdfs_requiring_creation_date_normalization=normalized_pdf_count,
+        creation_date_values_replaced_per_pdf_per_directory=1 if normalized_pdf_count else 0,
+        total_creation_date_value_replacements=2 * normalized_pdf_count,
+        pdf_creation_date_replacement=CANONICAL_CREATION_DATE.decode('ascii'),
+        equality_scope=('All non-PDF outputs except the hash manifest have whole-file byte identity. '
+            'Each PDF has either whole-file byte identity or byte identity after only its named Info /CreationDate value is normalized. '
+            'The manifests differ only in actual verified PDF digests; other manifest bytes are identical. '
+            'A normalized PDF is not claimed to have whole-file byte identity. No numeric tolerances or output rewrites were used.'))
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('first_generated_dir', type=Path)
+    parser.add_argument('second_generated_dir', type=Path)
+    parser.add_argument('external_proof_json', type=Path)
+    args = parser.parse_args(argv)
+    first, second, proof_path = (path.resolve() for path in
+        (args.first_generated_dir, args.second_generated_dir, args.external_proof_json))
+    require(first.is_dir() and second.is_dir(), 'Both actual generated directories must exist')
+    require(first != second and not first.is_relative_to(second) and not second.is_relative_to(first),
+            'Use distinct, nonnested generated directories')
+    require(not proof_path.is_relative_to(first) and not proof_path.is_relative_to(second),
+            'Proof JSON must be external to both generated directories')
+    require(not proof_path.exists(), 'Refusing to overwrite an existing proof')
+    verifier_hash = sha(Path(__file__).read_bytes())
+    result = verify(first, second)
+    require(sha(Path(__file__).read_bytes()) == verifier_hash, 'Verifier source changed during execution')
+    result['verifier_sha256'] = verifier_hash
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    with proof_path.open('x') as stream:
+        stream.write(json.dumps(result, indent=2, allow_nan=False) + '\n')
+    print('VERIFIED:29 generator files; PDFs needing /CreationDate normalization:',
+          result['pdfs_requiring_creation_date_normalization'], '; proof:', proof_path)
+    return result
+
+
+if __name__ == '__main__':
+    main()

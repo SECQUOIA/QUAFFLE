@@ -1,0 +1,150 @@
+{
+  "settings": {
+    "seeds": [
+      42,
+      77,
+      123
+    ],
+    "learning_rates": [
+      0.001,
+      0.003
+    ],
+    "epochs": 120,
+    "eval_every": 2,
+    "fit_cap": 128,
+    "batch_size": 16,
+    "image_size": 64,
+    "device": "cuda",
+    "specs": null
+  },
+  "specs": [
+    {
+      "id": "local_quantum_z",
+      "model_type": "quantum",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 1,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "local_spatial_channels": 4,
+        "local_spatial_readout": "z",
+        "local_spatial_kernel": "quantum",
+        "q_training_control": "trainable"
+      }
+    },
+    {
+      "id": "local_sincos",
+      "model_type": "ablation",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 1,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "local_spatial_channels": 4,
+        "local_spatial_readout": "xz_zz",
+        "local_spatial_kernel": "sincos",
+        "q_training_control": "trainable"
+      }
+    }
+  ],
+  "source_hashes": {
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "tools/checkpoint_evaluation.py": "5ff0165e804c4a0e7dcfcc72c3464e06bc1f91d908b9bdfc47d32540c6327065",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "scripts/run_local_spatial_study.py": "c2f79bc3462bd7392a4fdbbaef0aaa7602f5df24f09239d39c62539eadb0e9fb",
+    "utilsTorch/local_spatial.py": "1b2526bf606ba2fedcc95b3601284e5a313fd350ff01224f92d5c85285c7f825"
+  },
+  "experiment_context": {
+    "phase": "extend",
+    "protocol": "local-spatial-two-finalists-v1",
+    "baseline_summary_sha256": "2668d7cf43b89ef5ea65a383d6d2073929e9557d2635ff5070cca9201d32c689",
+    "selection_policy": "Mean paired validation IoU; Q tie Z; classical tie smaller core then MLP/conv/sincos"
+  },
+  "source_revision": "057e38e582b39e91190a7ab0f9fc19ed46fa1e7c",
+  "python": "3.11.14",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "numpy": "2.4.6",
+    "rasterio": "1.4.3"
+  },
+  "input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "normalization_policy": "All global fit images; validation excluded; optimization capped separately",
+  "test_policy": "No trained-model test evaluation until all validation tuning and replication fits finish",
+  "device": "cuda",
+  "gpu": "NVIDIA RTX A1000",
+  "gpu_allocator_fraction": 0.12,
+  "threads": 2
+}
