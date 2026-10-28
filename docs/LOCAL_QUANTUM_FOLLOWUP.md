@@ -91,3 +91,12 @@ independent Astra review, address findings within the workflow's bounds, and
 merge only after live gates pass. State the observed quantum benefits and
 failures equally. A claim about data efficiency, robustness, Anvil accuracy or
 physical quantum hardware requires additional evidence beyond this protocol.
+
+## Recorded rate-study outcomes
+
+The protocol above was committed before the fits at
+`e621dded38bfd96c654a9ea41c5a804f074d843b`; these result links were added afterward.
+Read the [interpretation](../benchmarks/local_rate_stability_20261027/INTERPRETATION.md),
+[complete generated results](../benchmarks/local_rate_stability_20261027/README.md)
+and [reproduction instructions](../benchmarks/local_rate_stability_20261027/REPRODUCTION.md).
+The original protocol bytes are retained with the result provenance.

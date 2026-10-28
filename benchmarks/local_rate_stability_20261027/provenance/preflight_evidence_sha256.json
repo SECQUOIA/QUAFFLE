@@ -1,0 +1,30 @@
+{
+  "astra_preflight.md": {
+    "sha256": "0ff53c4215387cdca559332e1a9406ff4a288654ff5b9cc4e7d8a05997cfc1a4",
+    "bytes": 7232
+  },
+  "astra_preflight_verification.md": {
+    "sha256": "562be6485c2e4ced7f0faccf3d8b6b9979f3d045ef8246c4da09142159251e53",
+    "bytes": 3827
+  },
+  "schedule_regression_red.log": {
+    "sha256": "e192d88d9911165237a1f69b6f98780d970f7288c75fae1f336166deee0e1934",
+    "bytes": 1797
+  },
+  "schedule_regression_green.log": {
+    "sha256": "5c27ba2971388c458924f62273ed14b6812cef320ec1e713e0bb0591ce348a18",
+    "bytes": 209
+  },
+  "full_suite.log": {
+    "sha256": "42e4af1752572a5a445090d0b0b068fd13ac50b2bb8c148c0f024029b69b4455",
+    "bytes": 7868
+  },
+  "collection_tests.log": {
+    "sha256": "a74a99aa573b5a9db8fc343e9ef63533a0d92fdf7d4a971c057754fedf82717d",
+    "bytes": 210
+  },
+  "historical_source_compatibility.json": {
+    "sha256": "8f93d0c103ec7dfcef19c6d5fcf08b22932361b036cbc4239c9fcee78ffa885d",
+    "bytes": 1271
+  }
+}

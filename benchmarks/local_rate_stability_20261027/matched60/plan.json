@@ -1,0 +1,473 @@
+{
+  "phase": "matched60",
+  "specs": [
+    {
+      "id": "quantum_global",
+      "model_type": "quantum",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "q_training_control": "trainable"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "model_type": "quantum",
+      "config": {
+        "base_channels": 8,
+        "init_dim": 8,
+        "dim_mults": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "out_dim": 2,
+        "resnet_block_groups": 1,
+        "quantum_channels": 64,
+        "quantum_backend": "pennylane",
+        "q_ansatz": "reupload",
+        "q_layers": 2,
+        "n_qubits": 4,
+        "q_backend": "pennylane",
+        "q_sim_device": "cpu",
+        "q_share_blocks": true,
+        "q_spatial_mode": "global",
+        "skip_modulation": "affine",
+        "decoder_skip_gate": "none",
+        "use_time_emb": false,
+        "backbone_conv_mode": "ws_conv",
+        "combined_input_mode": "shared3",
+        "ablation_mode": "mlp",
+        "ablation_mlp_mode": "full_rank",
+        "loss": "dice_ce",
+        "dataset": "combined",
+        "val_fraction": 0.15,
+        "fit_only_norm": true,
+        "augment": false,
+        "select_metric": "iou",
+        "max_samples": null,
+        "legacy_data": false,
+        "q_training_control": "no_entanglement"
+      }
+    }
+  ],
+  "seeds": [
+    42,
+    77,
+    123
+  ],
+  "learning_rates": [
+    0.001,
+    0.003
+  ],
+  "epochs": 60,
+  "eval_every": 2,
+  "fit_cap": 128,
+  "batch_size": 16,
+  "image_size": 64,
+  "validation_only": false,
+  "source_revision": "a707b00937faf82ce6c4a72d13c337568bf1fe93",
+  "source_hashes": {
+    "scripts/run_local_rate_stability.py": "83d9ca35f6bd050a69a79a2593d8da4cacb8c14efe016ecd86bf72aa2950ce76",
+    "scripts/run_real_spatial_pilot.py": "2a00e79e175407609dc797c7c1b9976b39db05e98d56974c7ef6080e0d7638f5",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+    "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+    "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+  },
+  "input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "historical_fits": [
+    {
+      "id": "quantum_global",
+      "seed": 42,
+      "learning_rate": 0.001,
+      "directory": "/tmp/quaffle-real-spatial-runs-60ep-20261027/tuning/quantum_global/0.001/seed42",
+      "metrics_sha256": "e37a812512a92ae35c9a1f42571f16963f401ee42129c15c56aad42a62beb92a",
+      "checkpoint_sha256": "70943401d173a68b0dcff8c9c403c37b4c66e5d8d983027e019a402c6f24ab29",
+      "producer_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "badc7270454526c530d79c73563b60e9a991da7cf81c45185159bc50a5e97691",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+        "utilsTorch/utilsTorch.py": "0c7d06b4091bdf046736fd97d2ae81506462ee4f26c1203af7c7f9c2eb612b26",
+        "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "producer_plan_sha256": "4e524eaaa16d880aa30f2d73ba9e2c85fc8cde646612bbfbd0f4fe52ec6cc65d",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_global",
+      "seed": 42,
+      "learning_rate": 0.003,
+      "directory": "/tmp/quaffle-real-spatial-runs-60ep-20261027/tuning/quantum_global/0.003/seed42",
+      "metrics_sha256": "ab19e0d495690c03253a04703e48961b016d694c3c595c872bdb6592ae0bc7ed",
+      "checkpoint_sha256": "5e66db9c264ee69cdc23cdb00898a10722ef5cce9faf6a47864380e97921bdbf",
+      "producer_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "badc7270454526c530d79c73563b60e9a991da7cf81c45185159bc50a5e97691",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+        "utilsTorch/utilsTorch.py": "0c7d06b4091bdf046736fd97d2ae81506462ee4f26c1203af7c7f9c2eb612b26",
+        "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "producer_plan_sha256": "4e524eaaa16d880aa30f2d73ba9e2c85fc8cde646612bbfbd0f4fe52ec6cc65d",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_global",
+      "seed": 77,
+      "learning_rate": 0.001,
+      "directory": "/tmp/quaffle-real-spatial-runs-60ep-20261027/replication/quantum_global/seed77",
+      "metrics_sha256": "f4615821c0b1ea9640b590be1ba265d862927c21f11155ae5556b65a6a97bd14",
+      "checkpoint_sha256": "dfaebcb3812c9d7bff2f62d3903e95ff58e5fbd18b475f55ec95047e2863e524",
+      "producer_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "badc7270454526c530d79c73563b60e9a991da7cf81c45185159bc50a5e97691",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+        "utilsTorch/utilsTorch.py": "0c7d06b4091bdf046736fd97d2ae81506462ee4f26c1203af7c7f9c2eb612b26",
+        "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "producer_plan_sha256": "4e524eaaa16d880aa30f2d73ba9e2c85fc8cde646612bbfbd0f4fe52ec6cc65d",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_global",
+      "seed": 123,
+      "learning_rate": 0.001,
+      "directory": "/tmp/quaffle-real-spatial-runs-60ep-20261027/replication/quantum_global/seed123",
+      "metrics_sha256": "d390151ede01a73b6ca2d537f6d8536c012270ce552ed6c7107893a6d1afa09f",
+      "checkpoint_sha256": "47254834101ac221bc0338e905197069f44a73f99fbb2210b9c3289326574b97",
+      "producer_source_revision": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "badc7270454526c530d79c73563b60e9a991da7cf81c45185159bc50a5e97691",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "be4ecb026525e5dd51f3613efd4beaeefaf572e3b215edb618c52a4834bea3a3",
+        "utilsTorch/utilsTorch.py": "0c7d06b4091bdf046736fd97d2ae81506462ee4f26c1203af7c7f9c2eb612b26",
+        "tools/training_common.py": "65e0ee698842ff0a9712347b64205b8fe62b4877656ed311313cd86f80fb3926",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "producer_plan_sha256": "4e524eaaa16d880aa30f2d73ba9e2c85fc8cde646612bbfbd0f4fe52ec6cc65d",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "seed": 42,
+      "learning_rate": 0.001,
+      "directory": "/tmp/quaffle-real-quantum-controls-20261027/tuning/quantum_no_entanglement_global/0.001/seed42",
+      "metrics_sha256": "d124d888784abbaedc0918368d08b3e361c5b34dd5d6e0f030567867dd805911",
+      "checkpoint_sha256": "f581721e9aa15f1189e056842209d552508567537b4e333f85d62b27a2e60757",
+      "producer_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "949dc0addf836dc8f37e37feb35af1b37494dd11c6baeafc49d8cb364fe07c66",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+        "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+        "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+        "scripts/run_quantum_training_controls.py": "6b9804df7f8bb769c696335a4af995b3f233cab787802813eb1e331158ca07e8",
+        "scripts/check_spatial_control_trigger.py": "d8dd59bfa6b5aa7b93eca8d3e3267e2e57563dcbd8a59c1c49a9552a4d5a7e78"
+      },
+      "producer_plan_sha256": "9b73951bd114763b16ff7c24c2508d8f0b90a261353cce1060d09222dff8ef5b",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "seed": 42,
+      "learning_rate": 0.003,
+      "directory": "/tmp/quaffle-real-quantum-controls-20261027/tuning/quantum_no_entanglement_global/0.003/seed42",
+      "metrics_sha256": "e73357e5bc61662b7766987d70ca3c3fddbd29a89995b03f9cff6dc68114ddb8",
+      "checkpoint_sha256": "7eb9267577367b00483aebc223feaf554a68030e17328a982d4086f9f325b14c",
+      "producer_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "949dc0addf836dc8f37e37feb35af1b37494dd11c6baeafc49d8cb364fe07c66",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+        "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+        "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+        "scripts/run_quantum_training_controls.py": "6b9804df7f8bb769c696335a4af995b3f233cab787802813eb1e331158ca07e8",
+        "scripts/check_spatial_control_trigger.py": "d8dd59bfa6b5aa7b93eca8d3e3267e2e57563dcbd8a59c1c49a9552a4d5a7e78"
+      },
+      "producer_plan_sha256": "9b73951bd114763b16ff7c24c2508d8f0b90a261353cce1060d09222dff8ef5b",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "seed": 77,
+      "learning_rate": 0.003,
+      "directory": "/tmp/quaffle-real-quantum-controls-20261027/replication/quantum_no_entanglement_global/seed77",
+      "metrics_sha256": "946ff2ba4344975a1f672a3fa6ac033b38cb73d721f70d15a8cf646cffdaf057",
+      "checkpoint_sha256": "e01086bfc34904b6d48175161aeaac638260c4dd4daca9618023b40b43606b12",
+      "producer_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "949dc0addf836dc8f37e37feb35af1b37494dd11c6baeafc49d8cb364fe07c66",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+        "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+        "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+        "scripts/run_quantum_training_controls.py": "6b9804df7f8bb769c696335a4af995b3f233cab787802813eb1e331158ca07e8",
+        "scripts/check_spatial_control_trigger.py": "d8dd59bfa6b5aa7b93eca8d3e3267e2e57563dcbd8a59c1c49a9552a4d5a7e78"
+      },
+      "producer_plan_sha256": "9b73951bd114763b16ff7c24c2508d8f0b90a261353cce1060d09222dff8ef5b",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    },
+    {
+      "id": "quantum_no_entanglement_global",
+      "seed": 123,
+      "learning_rate": 0.003,
+      "directory": "/tmp/quaffle-real-quantum-controls-20261027/replication/quantum_no_entanglement_global/seed123",
+      "metrics_sha256": "7512b27a0f150db980c72d754d0974f7a681d8b108512a28a51d80898c19019d",
+      "checkpoint_sha256": "6c8e340473c54498e7c5a9a0f4961d69709f2d1649121eee0b1f3e953e6e8d3d",
+      "producer_source_revision": "b57572896c821c423fcef1a42ba17de1056ca376",
+      "producer_source_hashes": {
+        "scripts/run_real_spatial_pilot.py": "949dc0addf836dc8f37e37feb35af1b37494dd11c6baeafc49d8cb364fe07c66",
+        "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+        "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+        "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+        "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+        "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+        "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+        "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+        "scripts/run_quantum_training_controls.py": "6b9804df7f8bb769c696335a4af995b3f233cab787802813eb1e331158ca07e8",
+        "scripts/check_spatial_control_trigger.py": "d8dd59bfa6b5aa7b93eca8d3e3267e2e57563dcbd8a59c1c49a9552a4d5a7e78"
+      },
+      "producer_plan_sha256": "9b73951bd114763b16ff7c24c2508d8f0b90a261353cce1060d09222dff8ef5b",
+      "producer_runtime": {
+        "python": "3.11.14",
+        "packages": {
+          "torch": "2.5.1",
+          "pennylane": "0.44.1",
+          "numpy": "2.4.6",
+          "rasterio": "1.4.3"
+        },
+        "device": "cuda",
+        "gpu": "NVIDIA RTX A1000",
+        "gpu_allocator_fraction": 0.12,
+        "threads": 2
+      },
+      "producer_input_identity": {
+        "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+        "verified_files": 3476,
+        "stats_files_sha256": {
+          "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+      }
+    }
+  ],
+  "normalization_policy": "All global fit images; validation excluded; optimization capped separately",
+  "test_policy": "All factorial fits finish first. Previously exposed test split: descriptive only.",
+  "python": "3.11.14",
+  "packages": {
+    "torch": "2.5.1",
+    "pennylane": "0.44.1",
+    "numpy": "2.4.6",
+    "rasterio": "1.4.3"
+  },
+  "device": "cuda",
+  "gpu": "NVIDIA RTX A1000",
+  "gpu_allocator_fraction": 0.12,
+  "threads": 2
+}
