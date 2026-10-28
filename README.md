@@ -92,9 +92,16 @@ Run every command from the repository root. Results go to `results/<run name>_se
 For the completed local 16-qubit HQ controls, see the
 [results and interpretation](benchmarks/hq_training_controls_20261028/INTERPRETATION.md).
 The [DFC24 decision protocol and Alan handoff](docs/HQ_DFC24_DECISION_PROTOCOL.md)
-define the next exploratory full-fit screen and its implementation/profiling
-gates. Its [exposure and metric audit](benchmarks/hq_dfc24_decision_20261028/README.md)
+define the next exploratory full-fit screen and its execution/profiling
+requirements. Its [exposure and metric audit](benchmarks/hq_dfc24_decision_20261028/README.md)
 uses existing data and saved counts; it launches no training or cluster jobs.
+The [fresh execution protocol](docs/HQ_DFC24_FRESH_PROTOCOL.md) provides a separate
+two-epoch rehearsal with 16 training and 16 validation tiles per seed, exercising
+the complete fresh selection flow without test-set evaluation. Its purpose is
+software verification; full-data accuracy and Anvil feasibility remain separate.
+The [completed local rehearsal](benchmarks/hq_dfc24_fresh_rehearsal_20261028/README.md)
+retains 16 fresh fits and 12 validation replays. All selected checkpoints were
+epoch zero, so it supplies no new accuracy evidence for quantum.
 
 ```bash
 # Centralized

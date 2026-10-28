@@ -1,0 +1,131 @@
+[
+  {
+    "epoch": 0,
+    "train_loss": null,
+    "train_schedule": null,
+    "gradient_norms": {},
+    "val": {
+      "loss": 1.4755549430847168,
+      "accuracy": 0.17157363891601562,
+      "auc": 0.6069697473864205,
+      "iou": 0.17157363891601562,
+      "dice": 0.29289433155010564,
+      "optical_subset_tp": 27419,
+      "optical_subset_fp": 54501,
+      "optical_subset_fn": 0,
+      "optical_subset_tn": 0,
+      "optical_subset_n_samples": 5,
+      "optical_subset_iou": 0.33470458984375,
+      "optical_subset_dice": 0.5015410786636059,
+      "optical_subset_accuracy": 0.33470458984375,
+      "optical_subset_auc": 0.6162539787297813,
+      "sar_subset_tp": 17558,
+      "sar_subset_fp": 162666,
+      "sar_subset_fn": 0,
+      "sar_subset_tn": 0,
+      "sar_subset_n_samples": 11,
+      "sar_subset_iou": 0.09742320667613637,
+      "sar_subset_dice": 0.1775490186164565,
+      "sar_subset_accuracy": 0.09742320667613637,
+      "sar_subset_auc": 0.5305349491294046
+    }
+  },
+  {
+    "epoch": 1,
+    "train_loss": 1.4598426222801208,
+    "train_schedule": {
+      "sha256": "c1ee8b4c2b514aa1cc3c968acb2913a729b4605397cf5a294779b2d6580793f7",
+      "n_samples": 16
+    },
+    "gradient_norms": {
+      "core": {
+        "min": 8.044153857169044e-05,
+        "max": 9.614850334189152e-05,
+        "mean": 8.829502095679098e-05,
+        "steps": 2,
+        "nonzero_steps": 2
+      },
+      "common": {
+        "min": 0.8194769892969713,
+        "max": 1.0577234679862284,
+        "mean": 0.9386002286415999,
+        "steps": 2,
+        "nonzero_steps": 2
+      }
+    },
+    "val": {
+      "loss": 1.471387267112732,
+      "accuracy": 0.17157363891601562,
+      "auc": 0.2294614330982309,
+      "iou": 0.17157363891601562,
+      "dice": 0.29289433155010564,
+      "optical_subset_tp": 27419,
+      "optical_subset_fp": 54501,
+      "optical_subset_fn": 0,
+      "optical_subset_tn": 0,
+      "optical_subset_n_samples": 5,
+      "optical_subset_iou": 0.33470458984375,
+      "optical_subset_dice": 0.5015410786636059,
+      "optical_subset_accuracy": 0.33470458984375,
+      "optical_subset_auc": 0.20795865719684659,
+      "sar_subset_tp": 17558,
+      "sar_subset_fp": 162666,
+      "sar_subset_fn": 0,
+      "sar_subset_tn": 0,
+      "sar_subset_n_samples": 11,
+      "sar_subset_iou": 0.09742320667613637,
+      "sar_subset_dice": 0.1775490186164565,
+      "sar_subset_accuracy": 0.09742320667613637,
+      "sar_subset_auc": 0.2408448354548627
+    }
+  },
+  {
+    "epoch": 2,
+    "train_loss": 1.4506970643997192,
+    "train_schedule": {
+      "sha256": "439b72d37b2379fe8b1d09bf2582d878585a7fde43ec34c05110fbb7dceea337",
+      "n_samples": 16
+    },
+    "gradient_norms": {
+      "core": {
+        "min": 9.268041992023548e-05,
+        "max": 0.0001462717786615685,
+        "mean": 0.00011947609929090199,
+        "steps": 2,
+        "nonzero_steps": 2
+      },
+      "common": {
+        "min": 0.8239749112012026,
+        "max": 0.8341835239798067,
+        "mean": 0.8290792175905046,
+        "steps": 2,
+        "nonzero_steps": 2
+      }
+    },
+    "val": {
+      "loss": 1.4671686887741089,
+      "accuracy": 0.17157363891601562,
+      "auc": 0.34504456414094,
+      "iou": 0.17157363891601562,
+      "dice": 0.29289433155010564,
+      "optical_subset_tp": 27419,
+      "optical_subset_fp": 54501,
+      "optical_subset_fn": 0,
+      "optical_subset_tn": 0,
+      "optical_subset_n_samples": 5,
+      "optical_subset_iou": 0.33470458984375,
+      "optical_subset_dice": 0.5015410786636059,
+      "optical_subset_accuracy": 0.33470458984375,
+      "optical_subset_auc": 0.3253850040828001,
+      "sar_subset_tp": 17558,
+      "sar_subset_fp": 162666,
+      "sar_subset_fn": 0,
+      "sar_subset_tn": 0,
+      "sar_subset_n_samples": 11,
+      "sar_subset_iou": 0.09742320667613637,
+      "sar_subset_dice": 0.1775490186164565,
+      "sar_subset_accuracy": 0.09742320667613637,
+      "sar_subset_auc": 0.32608137621793154
+    }
+  }
+]

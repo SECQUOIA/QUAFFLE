@@ -1,0 +1,107 @@
+"""Standard-library oracle for the actual rehearsal and deterministic exports."""
+from pathlib import Path
+import csv
+import hashlib
+import json
+import math
+import statistics
+
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_fresh_runner_20261028')
+ROOT = Path('/tmp/quaffle-hq-fresh-runner-20261028')
+RUN = TASK/'runs/rehearsal_v1'
+A = TASK/'generated_reports/initial_v1'
+B = TASK/'generated_reports/reproduced_v1'
+OUT = TASK/'verification/independent_audit.json'
+assert not OUT.exists(), 'Preserve earlier oracle attempts'
+read = lambda p: json.loads(p.read_text())
+sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+inventory = lambda root: {str(p.relative_to(root)): sha(p) for p in sorted(root.rglob('*')) if p.is_file()}
+def close(a, b):
+    assert math.isclose(float(a), float(b), rel_tol=0, abs_tol=2e-12), (a,b)
+
+assert inventory(A) == inventory(B), 'Regenerated complete file bytes differ'
+for name, expected in read(A/'artifact_sha256.json').items():
+    assert sha(A/name) == expected
+plan, fits, summary = (read(RUN/name) for name in ('plan.json','all_fits.json','summary.json'))
+selection = read(RUN/'selection.json')
+arms = ['quantum','frozen_quantum','zero_bottleneck','compact_affine']
+assert plan['mode'] == 'rehearsal' and plan['replay_split'] == 'validation'
+assert plan['settings']['epochs'] == 2 and plan['settings']['fit_cap'] == plan['settings']['validation_cap'] == 16
+assert len(fits) == len(read(RUN/'checkpoint_audit.json')) == 16 and len(summary['records']) == 12
+assert read(A/'analysis.json')['gate']['status'] == 'not_applicable_rehearsal'
+for name, expected in plan['source_hashes'].items():
+    assert sha(ROOT/name) == expected
+assert sha(ROOT/'docs/HQ_DFC24_FRESH_PROTOCOL.md') == plan['protocol_sha256']
+for seed, cohort in plan['cohorts'].items():
+    assert len(cohort['global_fit_names']) == 1303 and len(cohort['global_validation_names']) == 230
+    assert len(cohort['fit_names']) == len(cohort['validation_names']) == 16
+    assert not set(cohort['global_fit_names']) & set(cohort['global_validation_names'])
+    assert set(cohort['fit_names']) <= set(cohort['global_fit_names'])
+    assert set(cohort['validation_names']) <= set(cohort['global_validation_names'])
+    assert cohort['normalization']['fit_only'] is True
+    assert cohort['normalization']['n_fit_train_tiles'] == 1303
+    assert cohort['normalization']['n_excluded_val_tiles'] == 230
+keys = set()
+for fit in fits:
+    row = fit['record']; key = (row['kind'],row['seed'],row['learning_rate'])
+    assert key not in keys and fit['origin'] == 'fresh'; keys.add(key)
+    for name in ('metrics','history','checkpoint'):
+        suffix = '.pt' if name == 'checkpoint' else '.json'
+        assert sha(RUN/fit['directory']/(name+suffix)) == fit[name+'_sha256']
+    assert 'test' not in row and row['history'][0]['epoch'] == 0
+    validations = [p for p in row['history'] if 'val' in p]
+    best = max(validations, key=lambda p: (p['val']['iou'], -p['epoch']))
+    assert row['best_epoch'] == best['epoch'] and row['val'] == best['val']
+for kind in arms:
+    candidates = [e['record'] for e in fits if e['record']['kind'] == kind and e['record']['seed'] == 42]
+    assert {r['learning_rate'] for r in candidates} == {.001,.003}
+    rate = max(candidates, key=lambda r: (r['val']['iou'], -r['learning_rate']))['learning_rate']
+    assert selection[kind]['learning_rate'] == rate
+    for seed in (77,123):
+        assert (kind,seed,rate) in keys
+
+with (A/'per_seed.csv').open() as f:
+    rows = list(csv.DictReader(f))
+assert len(rows) == 72
+for r in rows:
+    native = next(v for v in summary['records'] if v['kind'] == r['kind'] and v['seed'] == int(r['seed']))
+    saved = native[r['phase']]
+    if r['scope'] == 'pooled':
+        expected_counts = {k: sum(saved[s+'_subset_'+k] for s in ('optical','sar')) for k in ('tp','fp','fn','tn')}
+    else:
+        expected_counts = {k: saved[r['scope']+'_subset_'+k] for k in ('tp','fp','fn','tn')}
+    assert {k:int(r[k]) for k in expected_counts} == expected_counts
+    tp,fp,fn,tn = [int(r[k]) for k in ('tp','fp','fn','tn')]
+    div = lambda n,d: n/d if d else 0.
+    fg,bg = div(tp,tp+fp+fn),div(tn,tn+fp+fn)
+    for key,value in dict(flood_iou=fg,background_iou=bg,binary_macro_iou=(fg+bg)/2,
+                          flood_dice=div(2*tp,2*tp+fp+fn),accuracy=div(tp+tn,tp+fp+fn+tn)).items():
+        close(r[key],value)
+    assert tp+fp+fn+tn == int(r['n_samples'])*128*128
+with (A/'summary.csv').open() as f:
+    summaries = list(csv.DictReader(f))
+for r in summaries:
+    values = [float(v[r['metric']]) for v in rows if all(v[k] == r[k] for k in ('kind','phase','scope'))]
+    assert len(values) == 3
+    close(r['mean'],statistics.mean(values)); close(r['std'],statistics.stdev(values))
+with (A/'paired.csv').open() as f:
+    paired = list(csv.DictReader(f))
+for r in paired:
+    values = []
+    for seed in (42,77,123):
+        get = lambda kind: next(float(v[r['metric']]) for v in rows if v['kind'] == kind and
+                v['seed'] == str(seed) and v['phase'] == r['phase'] and v['scope'] == r['scope'])
+        delta = 100*(get('quantum')-get(r['right'])); values.append(delta)
+        close(r['seed'+str(seed)+'_pp'],delta)
+    close(r['mean'],statistics.mean(values)); close(r['std'],statistics.stdev(values))
+    close(r['followup_mean_pp'],statistics.mean(values[1:])); close(r['followup_std_pp'],statistics.stdev(values[1:]))
+OUT.parent.mkdir(parents=True,exist_ok=True)
+OUT.write_text(json.dumps(dict(status='passed', implementation='Python standard library; no project imports',
+    complete_export_byte_identity=True, export_inventory=inventory(A), fresh_fits=16,
+    selected_validation_replays=12, test_replays=0, scientific_gate='not_applicable_rehearsal',
+    metrics_rows=len(rows), summary_rows=len(summaries), paired_rows=len(paired),
+    checked=['source/protocol/checkpoint/history/metrics bytes','global/capped cohorts and normalization',
+             'fresh typed fit grid','earliest best checkpoint including epoch0','per-arm two-rate selection',
+             'sensor/pooled count metrics','three-seed sampleSD','within-seed percentage-point contrasts',
+             'followup-only contrasts','all output artifact bytes']),indent=2)+'\n')
+print('PASS: independent numeric/identity audit and complete collector whole-file byte identity')
