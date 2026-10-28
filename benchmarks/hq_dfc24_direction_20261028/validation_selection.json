@@ -1,0 +1,12 @@
+{
+  "hq_quantum": {
+    "learning_rate": 0.003,
+    "best_epoch": 58,
+    "val_iou": 0.5719341682931578
+  },
+  "hq_mlp": {
+    "learning_rate": 0.003,
+    "best_epoch": 54,
+    "val_iou": 0.5675216097491852
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "status": "pass",
+  "inspected_by": "coordinator direct visual inspection",
+  "scope": "All4PNGand4PDFexports; byte-identical unchangedPNGs/PDFscarried from prior directviews; finalKOexports directlyviewed",
+  "renderer": "pdftoppm -f1 -singlefile -png -r120,1GiBzeroSwap scopes",
+  "figures": [
+    {
+      "name": "learning_curves",
+      "png_sha256": "5e2f6fd4bafd6e85aa3ab0924bd0b8b1d9d77b29db5cea7442191ab6992e524c",
+      "png_pixels": [
+        1784,
+        1184
+      ],
+      "pdf_sha256": "f13d4a63bac9b4f721014b6085e2aaae0ef178cec67193ad2a2fc42e4aaa0c02",
+      "pdf_pages": 1,
+      "visual_status": "Pass:axes/labels/legend readable, unselected tuning curves and all pairedseeds visible, no clipping/collisions",
+      "pdf_inspection_raster": "/tmp/quaffle-hq-pdf-inspection-20261028/learning_curves.png"
+    },
+    {
+      "name": "paired_iou",
+      "png_sha256": "a8029608448cc70f11a5f69a496b75efeda21342134a3c7ab0052181b0b43cdd",
+      "png_pixels": [
+        1933,
+        1184
+      ],
+      "pdf_sha256": "373f2bc6e8e68e1b8329ff5bda4b510afe425387dd84fc14cb37590a555be867",
+      "pdf_pages": 1,
+      "visual_status": "Pass:axes/labels/legend readable, unselected tuning curves and all pairedseeds visible, no clipping/collisions",
+      "pdf_inspection_raster": "/tmp/quaffle-hq-pdf-inspection-20261028/paired_iou.png"
+    },
+    {
+      "name": "knockouts",
+      "png_sha256": "e923633a5b665b055ce87ca180712ab5cb3d8200cd849b90cc096c9af9e7ed4b",
+      "png_pixels": [
+        1774,
+        590
+      ],
+      "pdf_sha256": "2957a71cf1bd86d46754c7a3a49cf28ced30912bc427f3ef254481a353441560",
+      "pdf_pages": 1,
+      "visual_status": "Pass:axes/labels/legend readable, unselected tuning curves and all pairedseeds visible, no clipping/collisions",
+      "pdf_inspection_raster": "/tmp/quaffle-hq-pdf-inspection-20261028/knockouts_release.png"
+    },
+    {
+      "name": "diagnostics",
+      "png_sha256": "9fe21e8fdba4686b1c6184ae3f6aad757069ac92b83f598c0435338ac0a7f258",
+      "png_pixels": [
+        1782,
+        1184
+      ],
+      "pdf_sha256": "e3d0c26c9bf321b5ce95c7aa09ae872f1ca20726c7919b1f4553f7143b4a9e96",
+      "pdf_pages": 1,
+      "visual_status": "Pass:axes/labels/legend readable, unselected tuning curves and all pairedseeds visible, no clipping/collisions",
+      "pdf_inspection_raster": "/tmp/quaffle-hq-pdf-inspection-20261028/diagnostics.png"
+    }
+  ],
+  "semantic_checks": [
+    "four8-fitloss/validationpanels retain both losingrates",
+    "sixpairedpanels distinguish validationprimary vs exposeddescriptive test and show IoU percentage-point contrasts",
+    "KOon-minus-diagnosticzero line, sampleSDerrorbars, seedlegenddistinctbelowxlabels",
+    "diagnostics identify8fixedunaugtrainingimages and showall8fitlabels; gradientandmovementplotsareactivitymeasures"
+  ],
+  "source_revision": "ef51da45c48e90ad2925275c08c56cdab550f16d"
+}

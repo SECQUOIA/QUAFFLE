@@ -1,0 +1,27 @@
+{
+  "audit_type": "Read-only static active-input-path investigation; no training, inference or dataset reload",
+  "producing_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+  "frozen_plan_sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+  "conclusion": "Sensor manifests are not traversed by the fixed HQ loader path because max_samples is None. No numerical input gap or reason to alter/refit the live campaign was identified.",
+  "scope": "Static control-flow and frozen-source/configuration proof, not a process-level filesystem trace.",
+  "active_path": [
+    "pilot.load_training_data sets max_samples=None explicitly; HQ fit_settings also saves max_samples=None.",
+    "training_common._supported_kwargs omits max_samples when None; FloodSegmentationDataset/load_samples default remains None.",
+    "_slice_pairs_preload returns before _slice_indices_preload when max_samples=None.",
+    "compute_fit_only_names and load_stats enter any preload cap branch only when max_samples is non-None and binding.",
+    "_get_combined_modality_map has one callsite, within _slice_indices_preload after its nonbinding-cap early return.",
+    "HQ optimization fit_cap128 is applied later by pilot.selected_fit_indices to the global fit indices; it does not become loader max_samples.",
+    "Clean loading and modality-specific normalization derive optical/SAR from raw TIFF band count. Dataset.modalities and per-sensor evaluation use those raw-derived values.",
+    "Held-out validation stratification uses mask flood fraction, not the unused sensor-manifest map."
+  ],
+  "remaining_general_loader_risk": "A different future call using a binding max_samples can read local and fallback optical/SAR manifests; the current HQ CLI/path never supplies such a cap. Generic future-input guarding may bind those files, but this does not require changing this campaign or its original frozen input identity.",
+  "angle_probe_scope": "Each initial/selected probe uses the same first eight unaugmented optimization images for its seed (probe_names saved), yielding384 encoded angles. Its tanh saturation is a fixed-eight-image diagnostic, not global/training-set saturation or accumulated gradient coverage.",
+  "original_local_audit_sha256": "5e5b6f0c7f7e701f40ceb00ddb9ddb842e92d864ff7781676ca30a45a4bdc670",
+  "original_retained_locally": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/investigations/sensor_input_path_audit.json",
+  "supplemental_metadata_sha256": {
+    "splits/flood_optical.json": "2fb7b1ee5eaf182e9d09ce9abea8c1c0b11374d5227b75f572c82878c1630e73",
+    "splits/flood_SAR.json": "1f3744013fdf56e22b92b1a8ce1f9658c855837a34147fa2596d2d8db364090b",
+    "splits/flood_combined.json": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "path_note": "Original absolute paths inside evidence remain unchanged. Restore those paths or supply equivalent roots before replay.",
+  "purpose": "Persistent local copies of completed experimental runs; original bytes retained",
+  "runs": {
+    "quaffle-hq-dfc24-direction-runs-20261028": {
+      "archived_root": "runs/quaffle-hq-dfc24-direction-runs-20261028",
+      "checkpoint_files": 8,
+      "files": {
+        "all_fits.json": {
+          "bytes": 739583,
+          "sha256": "fe0679a258e580d158e9607c7d5d450e17a76e0f35360379b816f73f486bb957"
+        },
+        "checkpoint_audit.json": {
+          "bytes": 2685,
+          "sha256": "a5a3cef9d8008578c440404d1f25b2eb46dc6909c95f48983d784e5cda7bcd8e"
+        },
+        "plan.json": {
+          "bytes": 2738,
+          "sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3"
+        },
+        "replication/hq_mlp/seed123/checkpoint.pt": {
+          "bytes": 1440622,
+          "sha256": "028eeaa772de139ad9a9b9ea52ed62432dee94a93d9521651e9aa357d7ba2f70"
+        },
+        "replication/hq_mlp/seed123/history.json": {
+          "bytes": 63773,
+          "sha256": "a162bdb53a1d62269881f490fa962a1041013dae802b2989b47ff1f4333fa6bc"
+        },
+        "replication/hq_mlp/seed123/metrics.json": {
+          "bytes": 79950,
+          "sha256": "038722759d2864fa29c9a9a05d0b09484f60f78c02116e517bac6f48cdd80de9"
+        },
+        "replication/hq_mlp/seed123/selected_test.json": {
+          "bytes": 86001,
+          "sha256": "e12407ecb2d03e1ba58b110b92c386e8a228702a0c3c1fedff1a6ae06e1aa89f"
+        },
+        "replication/hq_mlp/seed77/checkpoint.pt": {
+          "bytes": 1440622,
+          "sha256": "e9f424e432963045fa63f8d7d7c4edf39a6948b77771fe8bb43eb1851764a9d9"
+        },
+        "replication/hq_mlp/seed77/history.json": {
+          "bytes": 63634,
+          "sha256": "2c22e1175dd79fd9d603981867049ce9e78f1dc9b9e24d4a0823f6b054fe1548"
+        },
+        "replication/hq_mlp/seed77/metrics.json": {
+          "bytes": 79848,
+          "sha256": "eab8feb268f6ca5514e874ce2e7e9f66260535015b4792000b3fbcdc4a993a43"
+        },
+        "replication/hq_mlp/seed77/selected_test.json": {
+          "bytes": 85889,
+          "sha256": "39a42f738f73e3cd007a1809132d9c6e2e4c58356e8c2ce89206c6b05fd6990f"
+        },
+        "replication/hq_quantum/seed123/checkpoint.pt": {
+          "bytes": 1418868,
+          "sha256": "08338037830d79866e1499fa9c21ae29c9c3a9cbc8c994902692a380b7bc8d4e"
+        },
+        "replication/hq_quantum/seed123/history.json": {
+          "bytes": 63886,
+          "sha256": "d63257c15b8f9c8d21bea0e39d298631263d83b66d116e3b0550353be0e39bf5"
+        },
+        "replication/hq_quantum/seed123/metrics.json": {
+          "bytes": 80057,
+          "sha256": "0b688b0a8eec200cd5b53ace81d35c072cc1695306768d07296f4d8730e7c6f7"
+        },
+        "replication/hq_quantum/seed123/selected_test.json": {
+          "bytes": 86111,
+          "sha256": "6c088fca64928ef2c9d7662fe857a990c60c252f9af84622a03d485bd3b7c922"
+        },
+        "replication/hq_quantum/seed77/checkpoint.pt": {
+          "bytes": 1418868,
+          "sha256": "9ea1c80a35af774ab3a52e4c8b4fb86eaee9834be9a42d166bacf7df18f6b7f5"
+        },
+        "replication/hq_quantum/seed77/history.json": {
+          "bytes": 63766,
+          "sha256": "b1ebc142e36bc2597a346d96e8ab4d46e8ab3ddf6c86538e5a271250de0421a2"
+        },
+        "replication/hq_quantum/seed77/metrics.json": {
+          "bytes": 79968,
+          "sha256": "0da80e1c8763b5cdf19b1639157fdd504d85cade14d59b4efd0787d5d9cb2d7f"
+        },
+        "replication/hq_quantum/seed77/selected_test.json": {
+          "bytes": 86020,
+          "sha256": "218f921c9fdb6612a5d84171059cd2f78b38062a8fcf116730bdf1f61b397e18"
+        },
+        "summary.json": {
+          "bytes": 603934,
+          "sha256": "489838ee24b3dbf299c03f4362073532e1bd4a3c155a5aa54bd5aa888a6d0b2d"
+        },
+        "tuning/hq_mlp/0.001/seed42/checkpoint.pt": {
+          "bytes": 1440622,
+          "sha256": "c16837364da630817f2e181911811e790904e28c0716875eabccb43c39937873"
+        },
+        "tuning/hq_mlp/0.001/seed42/history.json": {
+          "bytes": 63745,
+          "sha256": "539788e33a980d7c39d2a4158fc03908d39aa29325e726ab0f99e1f175120ef7"
+        },
+        "tuning/hq_mlp/0.001/seed42/metrics.json": {
+          "bytes": 79956,
+          "sha256": "967bd06ce81d15b0c16418d302c2b3a5a4206aa48c612d1afcd4e769d13e4873"
+        },
+        "tuning/hq_mlp/0.003/seed42/checkpoint.pt": {
+          "bytes": 1440622,
+          "sha256": "0311ea5141d79c46c9964bc998a6397908318244a271e5ca57812aebf2bdf492"
+        },
+        "tuning/hq_mlp/0.003/seed42/history.json": {
+          "bytes": 63833,
+          "sha256": "d987fc5b90542e8fc885591c14204f3d4768d4590d1a8f6885d522c2c34f741b"
+        },
+        "tuning/hq_mlp/0.003/seed42/metrics.json": {
+          "bytes": 80002,
+          "sha256": "a397f9f5e57d0e0092cde3f01edbd0060d2d4f9d1392e562701c5a5688b937dd"
+        },
+        "tuning/hq_mlp/0.003/seed42/selected_test.json": {
+          "bytes": 86055,
+          "sha256": "3c162b837b440983c4947e6dc4f1bfa2165052dac3cf9782bdde3edc56044366"
+        },
+        "tuning/hq_quantum/0.001/seed42/checkpoint.pt": {
+          "bytes": 1418868,
+          "sha256": "bccbb2729a8975fb89a919888bb3e0d28eddc2c30eca1b396a8e620d577c9b0d"
+        },
+        "tuning/hq_quantum/0.001/seed42/history.json": {
+          "bytes": 63803,
+          "sha256": "1febadcee84c7b7551bb1e3f4beccc3ca7cb8e14431dfaff730b46f61196b673"
+        },
+        "tuning/hq_quantum/0.001/seed42/metrics.json": {
+          "bytes": 80029,
+          "sha256": "7145325649f89f3e7e968617ff3057f7e467d5cbddf6e8160d2bf084e9e0c839"
+        },
+        "tuning/hq_quantum/0.003/seed42/checkpoint.pt": {
+          "bytes": 1418868,
+          "sha256": "076b652b61df0a83ea4e363d0a73835115c103cd27bf3d5e44731a4505514a3a"
+        },
+        "tuning/hq_quantum/0.003/seed42/history.json": {
+          "bytes": 63811,
+          "sha256": "f15fcd80b24ba8aba9b1692b5a5214877ebf21c521363596d4af4fead6b5fa55"
+        },
+        "tuning/hq_quantum/0.003/seed42/metrics.json": {
+          "bytes": 79996,
+          "sha256": "202ac876eeaba1c2d7e93e3987fa68ca56932ecb3ee57c1b0a51ee67116795bb"
+        },
+        "tuning/hq_quantum/0.003/seed42/selected_test.json": {
+          "bytes": 86049,
+          "sha256": "2561e4c7ae591e5ffdab35712b94564f9748c5fafd3569f32d08ffc02cef1070"
+        },
+        "tuning_candidates.json": {
+          "bytes": 344798,
+          "sha256": "e52fdebd91e1698bf0c24b3b443f301706caaff9ac1a1cdb24072fe4ed806a4a"
+        },
+        "validation_selection.json": {
+          "bytes": 213,
+          "sha256": "788399ccb01facc509050f449c67fc659cc60ac19aa1c45615d709820458600b"
+        }
+      },
+      "original_root": "/tmp/quaffle-hq-dfc24-direction-runs-20261028",
+      "total_bytes": 14798093
+    }
+  }
+}

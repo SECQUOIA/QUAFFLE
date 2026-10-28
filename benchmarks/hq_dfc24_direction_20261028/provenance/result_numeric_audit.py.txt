@@ -1,0 +1,538 @@
+"""Independent stdlib-only audit; intentionally retained as inert source.
+
+Run with the exact interpreter recorded in plan.json. No project imports,
+checkpoint deserialization, data loading, inference, training, or Git actions.
+"""
+import ast
+import csv
+import hashlib
+import json
+import math
+from pathlib import Path
+import statistics
+import sys
+
+RAW = Path('/tmp/quaffle-hq-dfc24-direction-runs-20261028')
+PACKAGE = Path('/tmp/quaffle-hq-dfc24-direction-artifacts-20261028')
+V2 = Path('/tmp/quaffle-hq-dfc24-direction-artifacts-v2-20261028')
+SOURCE = Path('/tmp/quaffle-hq-dfc24-direction-20261028')
+ARCHIVE = Path('/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028')
+OUT = Path('/tmp/quaffle-hq-dfc24-provenance-20261028/result_numeric_audit.json')
+SEEDS = (42, 77, 123)
+MODELS = ('hq_quantum', 'hq_mlp')
+SCORES = ('iou', 'optical_subset_iou', 'sar_subset_iou')
+MODES = ('zero_core', 'random_core', 'zero_bottleneck')
+checks = []
+errors = []
+
+
+def check(condition, message):
+    checks.append(message)
+    if not condition:
+        errors.append(message)
+
+
+def load(path):
+    def reject(value):
+        raise ValueError('Nonfinite JSON constant: ' + value)
+    return json.loads(path.read_text(), parse_constant=reject)
+
+
+def sha(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def finite(value):
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(finite(item) for item in value.values())
+    if isinstance(value, list):
+        return all(finite(item) for item in value)
+    return True
+
+
+def stats(values):
+    return {'mean': statistics.mean(values), 'std': statistics.stdev(values), 'n': len(values)}
+
+
+def close(actual, expected):
+    return math.isclose(actual, expected, rel_tol=0, abs_tol=1e-12)
+
+
+def metrics_check(metrics, n_images, label, optical_count=None):
+    totals = {key: 0 for key in ('tp', 'fp', 'fn', 'tn')}
+    if optical_count is None:
+        check(n_images == 205, label + ': explicit validation sensor cohort required')
+        optical_count = 71
+    for sensor, n in (('optical', optical_count), ('sar', n_images-optical_count)):
+        prefix = sensor + '_subset_'
+        counts = {key: metrics[prefix + key] for key in totals}
+        check(all(type(value) is int and value >= 0 for value in counts.values()), label + '/' + sensor + ': integer counts')
+        check(metrics[prefix + 'n_samples'] == n and sum(counts.values()) == n * 128 * 128,
+              label + '/' + sensor + ': cohort/pixel totals')
+        tp, fp, fn, tn = (counts[key] for key in ('tp', 'fp', 'fn', 'tn'))
+        denominator = tp + fp + fn
+        calculated = {'iou': tp / denominator if denominator else 0.,
+                      'dice': 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.,
+                      'accuracy': (tp + tn) / sum(counts.values())}
+        for metric, value in calculated.items():
+            check(close(metrics[prefix + metric], value), label + '/' + sensor + ': count-derived ' + metric)
+        check(0 <= metrics[prefix + 'auc'] <= 1, label + '/' + sensor + ': AUC range only')
+        for key, value in counts.items():
+            totals[key] += value
+    tp, fp, fn, tn = (totals[key] for key in ('tp', 'fp', 'fn', 'tn'))
+    denom = tp + fp + fn
+    pooled = {'iou': tp / denom if denom else 0.,
+              'dice': 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.,
+              'accuracy': (tp + tn) / sum(totals.values())}
+    check(sum(totals.values()) == n_images * 128 * 128, label + ': pooled pixels')
+    for metric, value in pooled.items():
+        check(close(metrics[metric], value), label + ': recombined pooled ' + metric)
+    check(0 <= metrics['auc'] <= 1, label + ': pooled AUC range only')
+
+
+plan = load(RAW / 'plan.json')
+entries = load(RAW / 'all_fits.json')
+summary = load(RAW / 'summary.json')
+input_manifest = load(PACKAGE / 'input_manifest.json')
+selection = load(RAW / 'validation_selection.json')
+producer_audits = load(RAW / 'checkpoint_audit.json')
+collector_audits = load(PACKAGE / 'checkpoint_audit.json')
+provenance = load(PACKAGE / 'provenance.json')
+check(len(entries) == 8 and len(summary['records']) == 6, 'Complete eight fits and six selected replays')
+check(len(producer_audits) == len(collector_audits) == 8, 'Exactly eight producer and collector checkpoint audit rows')
+check(plan == summary['plan'] == load(PACKAGE / 'plan.json'), 'Plan copies agree')
+check(finite(entries) and finite(summary), 'All raw record/history numbers finite')
+check(plan['seeds'] == list(SEEDS) and plan['learning_rates'] == [.001, .003], 'Frozen seeds and two rates')
+check(plan['settings'] == dict(device='cuda', batch_size=8, epochs=60, fit_cap=128,
+      image_size=128, base_channels=8, eval_every=2, augment=True), 'Frozen geometry/training settings')
+check(plan['source_revision'] == '6803241ec9772a99012382fc8ef23be27abf014a', 'Original producer SHA preserved')
+
+# Independent metadata-only mapping through decoded-image pixel identities.
+# This does not reload image bytes or redo the producer's TIFF-band detection.
+sensor_manifest_evidence = {}
+modality_by_name = {}
+sensor_prior = load(Path('/tmp/quaffle-hq-dfc24-provenance-20261028/sensor_input_path_audit.json'))
+sensor_manifests = {}
+for sensor, name in (('optical', 'flood_optical.json'), ('sar', 'flood_SAR.json')):
+    rel = 'splits/' + name
+    path = SOURCE / rel
+    sensor_manifests[sensor] = load(path)
+    digest = sha(path)
+    check(digest == sensor_prior['metadata'][rel]['producing_git_sha256'] ==
+          sha(Path('/tmp/quaffle-dfc24-real') / rel), rel + ': unchanged retained sidecar metadata bytes')
+    sensor_manifest_evidence[rel] = digest
+for split in ('train', 'test'):
+    pixels = {sensor: {row['image_pix'] for row in manifest['hashes'][split]}
+              for sensor, manifest in sensor_manifests.items()}
+    mapped = {}
+    for row in input_manifest['hashes'][split]:
+        matches = [sensor for sensor in ('optical', 'sar') if row['image_pix'] in pixels[sensor]]
+        check(len(matches) == 1, split + '/' + row['name'] + ': unambiguous manifest pixel-identity sensor')
+        if len(matches) == 1:
+            mapped[row['name']] = matches[0]
+    modality_by_name[split] = mapped
+    check(set(mapped) >= set(input_manifest[split]), split + ': complete metadata sensor mapping')
+
+# Count source-defined trainable parameters arithmetically, without Torch.
+def double_conv(c_in, c_out):
+    return 9*c_in + c_in*c_out + 2*c_out + 9*c_out + c_out*c_out + 2*c_out
+
+
+def up(c_in, c_out):
+    return 4*c_in*c_out + c_out + double_conv(2*c_out, c_out)
+
+
+count_breakdown = {
+    'stem_and_down': double_conv(3, 8) + double_conv(8, 16) + double_conv(16, 32) + double_conv(32, 64),
+    'pre_projection': 64*3 + 3,
+    'dense_reconstruction': 32*(128*8*8) + 128*8*8,
+    'decoder': sum(up(a, b) for a, b in ((128, 64), (64, 32), (32, 16), (16, 8))),
+    'head': 8*2 + 2,
+}
+common_count = sum(count_breakdown.values())
+core_counts = {'hq_quantum': 1*2*4, 'hq_mlp': 48*64+64+64*32+32}
+check(common_count == 344472, 'Independent source architecture count: common344472')
+
+by_fit = {}
+fit_evidence = []
+for entry in entries:
+    rel, row = entry['directory'], entry['record']
+    key = (row['id'], row['seed'], row['learning_rate'])
+    label = '/'.join(map(str, key))
+    check(key not in by_fit, label + ': unique fit')
+    by_fit[key] = row
+    check(load(RAW / rel / 'metrics.json') == row, label + ': metrics equal raw all_fits entry')
+    check(load(RAW / rel / 'history.json') == row['history'], label + ': standalone history equality')
+    check(row['core_params'] == core_counts[row['id']] and
+          row['total_params'] == row['trainable_params'] == common_count + core_counts[row['id']],
+          label + ': independently counted total/core/trainable parameters')
+    check(not ({'test', 'test_names', 'knockout', 'checkpoint'} & row.keys()), label + ': fit records validation-only')
+    check(row['settings']['epochs'] == 60 and row['settings']['batch_size'] == 8 and
+          row['settings']['max_samples'] is None, label + ': full settings')
+    check(len(row['fit_names']) == len(set(row['fit_names'])) == len(row['fit_indices']) == 128 and
+          len(row['val_names']) == len(set(row['val_names'])) == len(row['val_indices']) == 230,
+          label + ': complete unique optimization/validation names and indices')
+    check(not set(row['fit_names']) & set(row['val_names']), label + ': disjoint fit/validation')
+    check(set(row['fit_names']) | set(row['val_names']) <= set(input_manifest['train']), label + ': names within manifest training split')
+    norm = row['normalization']
+    check(row['n_global_fit'] == norm['n_fit_train_tiles'] == 1303 and
+          norm['n_excluded_val_tiles'] == 230 and norm['n_manifest_train_tiles'] == 1533 and
+          norm['fit_only'] is True and norm['max_samples'] is None and
+          norm == row['settings']['_resolved_norm_provenance'], label + ': full global-fit normalization')
+    expected_fit_sensors = {sensor: sum(modality_by_name['train'][name] == sensor for name in row['fit_names'])
+                            for sensor in ('optical', 'sar')}
+    check(expected_fit_sensors == row['fit_sensor_counts'], label + ': optimization sensor counts from metadata pixel identities')
+    validation_optical = sum(modality_by_name['train'][name] == 'optical' for name in row['val_names'])
+    history = row['history']
+    check([point['epoch'] for point in history] == list(range(61)), label + ': epochs0..60 complete')
+    val_points = [point for point in history if 'val' in point]
+    check([point['epoch'] for point in val_points] == list(range(0, 61, 2)), label + ': 31 scheduled validations')
+    check(history[0]['train_loss'] is None and history[0]['train_schedule'] is None, label + ': epoch0 baseline')
+    best = val_points[0]
+    for point in val_points[1:]:
+        if point['val']['iou'] > best['val']['iou']:
+            best = point
+    check(row['best_epoch'] == best['epoch'] and row['val'] == best['val'], label + ': first strict validation best epoch')
+    for point in val_points:
+        metrics_check(point['val'], 230, label + '/epoch' + str(point['epoch']), validation_optical)
+    for point in history[1:]:
+        check(isinstance(point['train_loss'], (float, int)) and point['train_loss'] >= 0,
+              label + '/epoch' + str(point['epoch']) + ': finite nonnegative saved epoch loss')
+        schedule = point['train_schedule']
+        check(schedule['n_samples'] == 128 and len(schedule['sha256']) == 64,
+              label + '/epoch' + str(point['epoch']) + ': complete data schedule digest')
+        for group in ('core', 'common'):
+            grad = point['gradient_norms'][group]
+            check(grad['steps'] == 16 and grad['nonzero_steps'] == 16 and
+                  0 < grad['min'] <= grad['mean'] <= grad['max'],
+                  label + '/epoch' + str(point['epoch']) + '/' + group + ': 16 nonzero finite gradient steps')
+    diagnostics = row['diagnostics']
+    check(diagnostics['probe_names'] == row['fit_names'][:8], label + ': first8 optimization probe names')
+    for moment in ('initial', 'selected'):
+        probes = diagnostics[moment + '_angle_probes']
+        check(len(probes) == 1 and probes[0]['n_angles'] == 384 and
+              -1 <= probes[0]['min_radians'] <= probes[0]['max_radians'] <= 1 and
+              0 <= probes[0]['mean_abs_radians'] <= 1 and 0 <= probes[0]['saturation_fraction'] <= 1,
+              label + '/' + moment + ': local384-angle bounded-radian probe')
+    for group in ('core', 'common'):
+        gradients = [point['gradient_norms'][group] for point in history[1:]]
+        agg = diagnostics['gradient_norms'][group]
+        check(agg['steps'] == agg['nonzero_steps'] == 960 and
+              agg['min'] == min(g['min'] for g in gradients) and agg['max'] == max(g['max'] for g in gradients) and
+              close(agg['mean'], statistics.mean(g['mean'] for g in gradients)),
+              label + '/' + group + ': 960-step aggregate agrees with epoch summaries')
+        check(diagnostics['movement'][group]['l2'] > 0 and diagnostics['movement'][group]['relative_l2'] > 0,
+              label + '/' + group + ': observed nonzero movement')
+    fit_evidence.append(dict(directory=rel, id=row['id'], seed=row['seed'], learning_rate=row['learning_rate'],
+        best_epoch=best['epoch'], best_validation_iou=best['val']['iou'], epochs_with_loss=60, validation_points=31,
+        optimizer_steps=960, validation_sensor_counts=dict(optical=validation_optical, sar=230-validation_optical),
+        optimization_sensor_counts=expected_fit_sensors, initial_shared_state_sha256=row['initial_shared_state_sha256'],
+        selected_state_sha256=row['selected_state_sha256']))
+
+expected_keys = {(name, 42, rate) for name in MODELS for rate in (.001, .003)} | {
+    (name, seed, .003) for name in MODELS for seed in (77, 123)}
+check(set(by_fit) == expected_keys, 'Exact eight-cell tuning/replication design; no missing/duplicate cells')
+for seed in SEEDS:
+    group = [row for key, row in by_fit.items() if key[1] == seed]
+    for field in ('initial_shared_state_sha256', 'fit_names', 'val_names', 'fit_indices', 'val_indices', 'normalization'):
+        check(all(row[field] == group[0][field] for row in group), 'Seed' + str(seed) + ': paired ' + field)
+    check(all([point['train_schedule'] for point in row['history']] ==
+              [point['train_schedule'] for point in group[0]['history']] for row in group),
+          'Seed' + str(seed) + ': paired data-order/D4 digests across every epoch')
+for name in MODELS:
+    check(by_fit[name, 42, .001]['initial_state_sha256'] == by_fit[name, 42, .003]['initial_state_sha256'],
+          name + ': exact same initial state across learning rates')
+
+# Rates selected exclusively from the two seed42 validation maxima.
+selected_rates = {}
+for name in MODELS:
+    winner = max((by_fit[name, 42, rate] for rate in (.001, .003)),
+                 key=lambda row: (row['val']['iou'], -row['learning_rate']))
+    selected_rates[name] = winner['learning_rate']
+    check(selection[name] == dict(learning_rate=winner['learning_rate'], best_epoch=winner['best_epoch'],
+                                 val_iou=winner['val']['iou']), name + ': independently selected rate and tuning epoch')
+check(selected_rates == summary['selection'] == {'hq_quantum': .003, 'hq_mlp': .003}, 'Both validation-selected rates.003')
+check(load(RAW / 'tuning_candidates.json') == [entry['record'] for entry in entries if entry['record']['seed'] == 42],
+      'All four tuning candidates equal raw validation-only fits')
+
+selected = {}
+for row in summary['records']:
+    key = row['id'], row['seed']
+    check(key not in selected, str(key) + ': unique selected replay')
+    selected[key] = row
+    base = by_fit[row['id'], row['seed'], row['learning_rate']]
+    check({k: v for k, v in row.items() if k not in ('test', 'test_names', 'knockout', 'checkpoint')} == base,
+          str(key) + ': replay does not alter original fit record')
+    check(load((RAW / row['checkpoint']).parent / 'selected_test.json') == row, str(key) + ': raw replay equals summary')
+    check(row['test_names'] == input_manifest['test'] and len(set(row['test_names'])) == 205,
+          str(key) + ': all205 tests in manifest order')
+    metrics_check(row['test'], 205, str(key) + '/test')
+    check(set(row['knockout']) == set(MODES), str(key) + ': all3 diagnostic modes')
+    for mode in MODES:
+        metrics_check(row['knockout'][mode], 205, str(key) + '/' + mode)
+check(set(selected) == {(name, seed) for name in MODELS for seed in SEEDS}, 'Exact six selected model/seed pairs')
+
+paired = []
+for split in ('val', 'test'):
+    for metric in SCORES:
+        diffs = {str(seed): 100*(selected['hq_quantum', seed][split][metric] - selected['hq_mlp', seed][split][metric])
+                 for seed in SEEDS}
+        paired.append(dict(split=split, metric=metric, **stats(list(diffs.values())),
+                           wins=sum(value > 0 for value in diffs.values()), differences_pp=diffs,
+                           same_learning_rate=len(set(selected_rates.values())) == 1))
+knockouts = []
+for name in MODELS:
+    for mode in MODES:
+        diffs = {str(seed): 100*(selected[name, seed]['test']['iou'] - selected[name, seed]['knockout'][mode]['iou'])
+                 for seed in SEEDS}
+        knockouts.append(dict(id=name, mode=mode, **stats(list(diffs.values())),
+                              wins=sum(value > 0 for value in diffs.values()), differences_pp=diffs))
+comparison = load(PACKAGE / 'comparison.json')
+check(comparison['paired'] == paired and comparison['knockouts'] == knockouts,
+      'All12 exported contrast rows match independently paired raw calculations exactly')
+check(comparison['unit'] == 'IoU percentage points', 'Contrasts use points (raw fraction difference times100)')
+
+# Construct six table schemas from independent raw computations, then compare
+# every field. CSV numeric round-trip must equal its original Python number.
+expected_tables = {}
+model_summary = []
+for name in MODELS:
+    row = dict(id=name, learning_rate=selected_rates[name], total_params=common_count+core_counts[name], core_params=core_counts[name])
+    for split in ('val', 'test'):
+        for metric in SCORES:
+            for key, value in stats([selected[name, seed][split][metric] for seed in SEEDS]).items():
+                row[split + '_' + metric + '_' + key] = value
+    model_summary.append(row)
+expected_tables['summary'] = model_summary
+expected_analysis_rows = []
+for row in model_summary:
+    expected_analysis_rows.append(dict(id=row['id'], total_params=row['total_params'], core_params=row['core_params'],
+        **{split: {metric: {statistic: row[split + '_' + metric + '_' + statistic]
+                           for statistic in ('mean', 'std', 'n')}
+                   for metric in SCORES} for split in ('val', 'test')}))
+check(summary['analysis']['rows'] == expected_analysis_rows, 'Raw summary all model/split/sensor analysis values independently recomputed')
+expected_primary_pairs = []
+for row in paired:
+    if row['metric'] == 'iou':
+        expected_primary_pairs.append(dict(left='hq_quantum', right='hq_mlp', split=row['split'],
+            differences=row['differences_pp'], mean=row['mean'], std=row['std'], wins=row['wins'], n=row['n'],
+            unit='IoU percentage points', same_learning_rate=row['same_learning_rate']))
+check(summary['analysis']['paired_iou'] == expected_primary_pairs, 'Raw summary pooled paired contrasts independently recomputed')
+expected_tables['per_seed'] = []
+for key in sorted(selected):
+    row = selected[key]
+    expected_tables['per_seed'].append({**{field: row[field] for field in ('id', 'seed', 'learning_rate', 'best_epoch', 'total_params', 'core_params')},
+       **{split + '_' + field: value for split in ('val', 'test') for field, value in row[split].items()}})
+expected_tables['tuning'] = []
+for key in sorted(by_fit):
+    row = by_fit[key]
+    if row['seed'] != 42:
+        continue
+    expected_tables['tuning'].append(dict(id=row['id'], seed=42, learning_rate=row['learning_rate'], best_epoch=row['best_epoch'],
+        selected_rate=row['learning_rate'] == selected_rates[row['id']], **{'val_' + k: v for k, v in row['val'].items()}))
+for name, rows in (('paired', paired), ('knockout', knockouts)):
+    expected_tables[name] = [{**{k: v for k, v in row.items() if k != 'differences_pp'},
+        **{'seed' + seed + '_pp': value for seed, value in row['differences_pp'].items()}} for row in rows]
+expected_tables['diagnostics'] = []
+for entry in entries:
+    row = entry['record']
+    for moment in ('initial', 'selected'):
+        d = row['diagnostics']
+        expected_tables['diagnostics'].append(dict(id=row['id'], seed=row['seed'], learning_rate=row['learning_rate'], moment=moment,
+            selected_rate=row['learning_rate'] == selected_rates[row['id']], **d[moment + '_angle_probes'][0],
+            core_movement_l2=d['movement']['core']['l2'], common_movement_l2=d['movement']['common']['l2'],
+            core_gradient_mean=d['gradient_norms']['core']['mean'], core_gradient_steps=d['gradient_norms']['core']['steps'],
+            core_gradient_nonzero_steps=d['gradient_norms']['core']['nonzero_steps']))
+
+csv_evidence = {}
+for name, expected_rows in expected_tables.items():
+    path = PACKAGE / (name + '.csv')
+    with path.open(newline='') as stream:
+        raw_rows = list(csv.reader(stream))
+    header = raw_rows[0]
+    check(len(header) == len(set(header)) and header == list(expected_rows[0]), name + '.csv: exact schema and no duplicate headers')
+    check(len(raw_rows) - 1 == len(expected_rows) and all(len(row) == len(header) for row in raw_rows[1:]),
+          name + '.csv: all row counts and widths')
+    fields = 0
+    numeric = 0
+    for index, expected in enumerate(expected_rows):
+        if index + 1 >= len(raw_rows):
+            continue
+        actual = dict(zip(header, raw_rows[index+1]))
+        for key, value in expected.items():
+            fields += 1
+            if type(value) in (int, float):
+                numeric += 1
+                ok = float(actual[key]) == value
+            else:
+                ok = actual[key] == str(value)
+            check(ok, name + '.csv/row' + str(index+1) + '/' + key + ': exact value')
+    csv_evidence[name + '.csv'] = dict(header=header, rows=len(expected_rows), columns=len(header),
+        checked_fields=fields, checked_numeric_fields=numeric, sha256=sha(path))
+
+# Check copied raw records, original producer audit and independently produced
+# collector audit identities. This audit hashes CP bytes but does not load them.
+inventory_path = ARCHIVE / 'run_inventory.json'
+inventory = load(inventory_path)
+run = inventory['runs'][RAW.name]
+inventory_results = []
+check(run['checkpoint_files'] == 8 and run['original_root'] == str(RAW), 'Persistent inventory eight-CP identity')
+for rel, metadata in run['files'].items():
+    current, archived = RAW / rel, ARCHIVE / run['archived_root'] / rel
+    check(current.is_file() and archived.is_file(), rel + ': raw and archived files present')
+    if current.is_file() and archived.is_file():
+        raw_hash, archive_hash = sha(current), sha(archived)
+        check(raw_hash == archive_hash == metadata['sha256'] and
+              current.stat().st_size == archived.stat().st_size == metadata['bytes'], rel + ': actual raw/archive inventory hash and bytes')
+        inventory_results.append(dict(path=rel, sha256=raw_hash, bytes=metadata['bytes']))
+check(sum(item['bytes'] for item in inventory_results) == run['total_bytes'], 'Persistent run total bytes')
+check(len([item for item in inventory_results if item['path'].endswith('checkpoint.pt')]) == 8, 'Exactly eight checkpoint byte hashes checked')
+for entry in entries:
+    row = entry['record']; key = row['id'], row['seed'], row['learning_rate']
+    rel = entry['directory'] + '/checkpoint.pt'
+    expected_hash = sha(RAW / rel)
+    for label, audits in (('producer', producer_audits), ('collector', collector_audits)):
+        matches = [a for a in audits if (a['id'], a['seed'], a['learning_rate']) == key]
+        check(len(matches) == 1 and matches[0]['checkpoint_sha256'] == expected_hash and
+              matches[0]['selected_state_sha256'] == row['selected_state_sha256'] and
+              matches[0]['strict_restore'] is True and matches[0]['finite_weights_and_bn_buffers'] is True,
+              rel + ': ' + label + ' saved audit identity/hash/flags')
+for rel, digest in provenance['raw_artifact_sha256'].items():
+    check(sha(RAW / rel) == digest, rel + ': collector-bound raw artifact bytes')
+for name in ('plan.json', 'summary.json', 'all_fits.json', 'tuning_candidates.json', 'validation_selection.json'):
+    check(sha(RAW / name) == sha(PACKAGE / name), name + ': package/raw exact copy')
+check(sha(RAW / 'checkpoint_audit.json') == sha(PACKAGE / 'producer_checkpoint_audit.json'), 'Original producer audit retained verbatim')
+for entry in entries:
+    for name in ('metrics.json', 'history.json'):
+        check(sha(RAW / entry['directory'] / name) == sha(PACKAGE / 'raw_fits' / entry['directory'] / name),
+              entry['directory'] + '/' + name + ': package/raw exact copy')
+for row in selected.values():
+    rel = str(Path(row['checkpoint']).parent / 'selected_test.json')
+    check(sha(RAW / rel) == sha(PACKAGE / 'raw_fits' / rel), rel + ': package/raw exact copy')
+
+
+def package_sources(package):
+    manifest = load(package / 'source_manifest.json')
+    prov = load(package / 'provenance.json')
+    evidence = {}
+    check(prov['producing_revision'] == plan['source_revision'] and prov['source_hashes'] == plan['source_hashes'] and
+          prov['protocol_sha256'] == plan['protocol_sha256'] and prov['input_identity'] == plan['input_identity'] and
+          prov['producer_runtime'] == plan['runtime'], package.name + ': original producer provenance preserved')
+    expected_sources = dict(plan['source_hashes'])
+    expected_sources['docs/HQ_DFC24_DIRECTION_PROTOCOL.md'] = plan['protocol_sha256']
+    expected_sources['scripts/collect_hq_dfc24_direction.py'] = prov['collector_source_sha256']
+    check(set(manifest) == set(expected_sources), package.name + ': complete source manifest')
+    for rel, expected in expected_sources.items():
+        retained = package / manifest[rel]['retained_as']
+        actual = sha(retained)
+        check(actual == manifest[rel]['sha256'] == expected, package.name + '/' + rel + ': snapshot actual bytes equal bound digest')
+        evidence[rel] = dict(sha256=actual, retained_as=manifest[rel]['retained_as'])
+        if not rel.startswith('scripts/collect_'):
+            check(sha(SOURCE / rel) == expected, package.name + '/' + rel + ': current producer bytes unchanged')
+        if rel.endswith('.py'):
+            ast.parse(retained.read_text(), filename=str(retained))
+    artifact_manifest = load(package / 'artifact_sha256.json')
+    actual_files = {str(p.relative_to(package)) for p in package.rglob('*') if p.is_file()}
+    check(actual_files == set(artifact_manifest) | {'artifact_sha256.json'}, package.name + ': artifact manifest exact coverage')
+    for rel, expected in artifact_manifest.items():
+        check(sha(package / rel) == expected, package.name + '/' + rel + ': artifact bytes')
+    check(sha(package / 'input_manifest.json') == plan['input_identity']['manifest_sha256'], package.name + ': bound input manifest bytes')
+    check(sha(package / 'input_metadata/splits/norm_stats.json') == plan['input_identity']['stats_files_sha256']['splits/norm_stats.json'],
+          package.name + ': bound stats bytes')
+    return dict(file_count=len(actual_files), source_manifest_sha256=sha(package / 'source_manifest.json'),
+                producer_revision=prov['producing_revision'], collector_source_sha256=prov['collector_source_sha256'], sources=evidence)
+
+
+source_evidence = package_sources(PACKAGE)
+readme = (PACKAGE / 'README.md').read_text()
+readme_expected_lines = []
+for row in model_summary:
+    line = (f"| {row['id']} | {row['learning_rate']} | {row['val_iou_mean']:.4f} ± {row['val_iou_std']:.4f} | "
+            f"{row['test_iou_mean']:.4f} ± {row['test_iou_std']:.4f} | {row['test_optical_subset_iou_mean']:.4f} | {row['test_sar_subset_iou_mean']:.4f} |")
+    readme_expected_lines.append(line)
+for row in paired:
+    readme_expected_lines.append(f"| {row['metric']} | {row['split']} | {row['mean']:+.3f} ± {row['std']:.3f} | {row['wins']}/3 | {row['same_learning_rate']} |")
+for row in knockouts:
+    readme_expected_lines.append(f"| {row['id']} | {row['mode']} | {row['mean']:+.3f} ± {row['std']:.3f} |")
+for line in readme_expected_lines:
+    check(line in readme, 'README: correctly rounded independent table row ' + line)
+scope_phrases = ('Validation is primary', 'previously exposed test split is descriptive',
+                 'sample SD, not a standard error or significance test',
+                 'not quantum superiority', 'neither significance, equivalence, quantum advantage',
+                 'no Anvil, hardware or throughput claim')
+for phrase in scope_phrases:
+    check(phrase in readme, 'README scope: ' + phrase)
+runner_snapshot = PACKAGE / source_evidence['sources']['scripts/run_hq_dfc24_direction.py']['retained_as']
+runner_text = runner_snapshot.read_text()
+check('n_probe = min(8, args.batch_size, len(data[\'train\']))' in runner_text and
+      'data[\'train\'][index][0] for index in range(n_probe)' in runner_text and
+      'probe_names=[data[\'dataset\'].names[data[\'fit\'][i]] for i in range(n_probe)]' in runner_text,
+      'Producer static source confirms fixed first8 unaugmented optimization image probe')
+run_ast = next(node for node in ast.parse(runner_text).body if isinstance(node, ast.FunctionDef) and node.name == 'run')
+completion = [node.lineno for node in ast.walk(run_ast) if isinstance(node, ast.Call) and
+              isinstance(node.func, ast.Name) and node.func.id == 'require' and
+              any(isinstance(arg, ast.Constant) and arg.value == 'Incomplete fitting grid' for arg in node.args)]
+test_calls = [node.lineno for node in ast.walk(run_ast) if isinstance(node, ast.Call) and
+              isinstance(node.func, ast.Name) and node.func.id in ('evaluate', 'knockout_evaluation')]
+all_fit_writes = [node.lineno for node in ast.walk(run_ast) if isinstance(node, ast.Call) and
+                 isinstance(node.func, ast.Attribute) and node.func.attr == 'write_json' and
+                 any(isinstance(item, ast.Constant) and item.value == 'all_fits.json' for item in ast.walk(node))]
+check(len(completion) == 1 and len(all_fit_writes) == 1 and test_calls and
+      completion[0] < all_fit_writes[0] < min(test_calls),
+      'Producer static run flow places all8-fit boundary/all_fits export before trained test/knockout calls')
+
+v2_evidence = {'status': 'not_yet_available'}
+if (V2 / 'artifact_sha256.json').is_file():
+    v2_evidence = {'status': 'audited', 'sources': package_sources(V2), 'unchanged_numeric_exports': {}}
+    check('first eight unaugmented optimization images' in (V2 / 'README.md').read_text(),
+          'Finalv2 README explicitly states fixed8-image angle-probe scope')
+    check(sha(SOURCE / 'scripts/collect_hq_dfc24_direction.py') ==
+          v2_evidence['sources']['collector_source_sha256'], 'Finalv2 collector current source bytes agree with retained snapshot')
+    numeric_exports = [name + '.csv' for name in expected_tables] + [
+        'comparison.json', 'summary.json', 'all_fits.json', 'plan.json', 'checkpoint_audit.json',
+        'producer_checkpoint_audit.json', 'tuning_candidates.json', 'validation_selection.json']
+    for name in numeric_exports:
+        same = sha(PACKAGE / name) == sha(V2 / name)
+        check(same, 'Finalv2 numeric export unchanged: ' + name)
+        v2_evidence['unchanged_numeric_exports'][name] = dict(byte_identical=same, sha256=sha(V2 / name))
+
+q_zero = next(row for row in knockouts if row['id'] == 'hq_quantum' and row['mode'] == 'zero_bottleneck')
+result = dict(status='pass' if not errors else 'fail', errors=errors, checked_assertions=len(checks),
+    scope='Independent stdlib read-only arithmetic/CSV/source/byte-provenance crosscheck; not a formal Astra review or inference replay',
+    audit_runtime=dict(python=sys.version, executable=sys.executable, imported_project_modules=False),
+    input_paths=dict(raw=str(RAW), package=str(PACKAGE), retained_archive=str(ARCHIVE)),
+    producing_revision=plan['source_revision'], plan_sha256=sha(RAW/'plan.json'),
+    sample_standard_deviation='statistics.stdev with denominator n-1; paired differences computed before aggregation; no SE/significance test',
+    paired_contrasts_pp=paired, knockout_on_minus_diagnostic_contrasts_pp=knockouts,
+    quantum_zero_bottleneck_max_abs_seed_pp=max(abs(value) for value in q_zero['differences_pp'].values()),
+    model_summary=model_summary, count_source='Manual arithmetic from exact retained hq_direction.py; convolution/BN affine/linear/transposed convolution weights and biases; BN buffers excluded from parameter counts',
+    common_parameter_breakdown=count_breakdown, common_parameters=common_count, core_parameters=core_counts,
+    selected_rates=selected_rates, fits=fit_evidence,
+    history_coverage=dict(fits=8, epochs_per_fit=60, saved_history_points_per_fit=61,
+        saved_epoch_training_losses_per_fit=60, validation_points_per_fit=31, batches_per_epoch=16,
+        optimizer_steps_per_fit=960, total_optimizer_steps=7680,
+        individual_batch_time_series_retained=False,
+        gradient_evidence='Per-epoch min/max/mean/nonzero-step counts plus full-fit aggregates, not every individual batch gradient/loss value'),
+    numerical_comparison_policy=dict(csv_and_contrast_values='exact Python numeric equality after CSV round-trip',
+        confusion_derived_metrics_and_regrouped_gradient_means='absolute tolerance1e-12 for float arithmetic; integer confusion counts/cohort sizes exact'),
+    csv=csv_evidence, checkpoint_and_run_inventory=dict(inventory_sha256=sha(inventory_path), files=inventory_results),
+    sources=source_evidence, sensor_manifest_sha256=sensor_manifest_evidence, v2=v2_evidence,
+    report_scope=dict(primary='Validation', test='Previously exposed descriptive205-image test;71Optical/134SAR',
+        cohorts='128 optimization images per seed; normalization over1303 fit images excluding230 validation images, not pure128-shot normalization',
+        angle_probe='First8 fixed unaugmented optimization images per seed;384values=8x16x3 at initial and selected states; not global saturation',
+        counts='8 fits comprise4 tuning candidates plus4 replications, six selected comparisons over3 paired seeds; not8 independent seeds',
+        knockouts='On minus each inference diagnostic; zero_core preserves reconstruction bias, zero_bottleneck removes full reconstructed map; ordinary U-Net skips remain. Neither quantum causality nor superiority follows.',
+        limits='No statistical significance/equivalence/hardware/Anvil/throughput claim; no independent checkpoint deserialization or inference by this audit',
+        output_source_review='Inspected collector table/report/plot routines statically; verified all rounded README table rows and explicit claim limits against independently recomputed exports; plots visually checked by coordinator, not this audit'),
+    artifact_self_hash_note='Audit JSON hash is reported separately; script bytes pinned here',
+    audit_source_sha256=sha(Path(__file__)))
+OUT.write_text(json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + '\n')
+print(json.dumps(dict(status=result['status'], assertions=len(checks), errors=errors,
+                     audit_json_sha256=sha(OUT), output=str(OUT), v2=v2_evidence['status']), indent=2))
+sys.exit(bool(errors))
