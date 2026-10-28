@@ -55,12 +55,17 @@ eight fresh fits in total. Retain losing tuning outcomes as well as all six
 selected results. Select the first strict validation maximum, including epoch
 zero, and retain full histories.
 
-Both models receive the same epoch count, actual batch size and validation
-schedule. The initial target is 60 epochs, validation every two epochs, and batch
-eight. A random-input resource profile must select the feasible batch and verify
-the time/memory estimates before the final budget is committed and any fitting
-begins. Change resources using that profile only, never validation or test scores.
-Record the final configuration in this document and the machine-readable plan.
+Both models receive **60 epochs, actual batch size eight, validation every two
+epochs, base width eight and 128-pixel inputs**. This budget was fixed after the
+random-input probe at source `e9e4c3dbfaa03cddc47c39ea82a464b10af63716`, before any
+real-data fit or validation/test result in this campaign. Both arms passed at
+batches one and eight, including two forward/backward/Adam steps, finite states,
+core movement and strict checkpoint restoration. At batch eight the process
+reached about 2.52 GiB peak host RSS; maximum PyTorch allocated GPU memory was
+146.27 MiB, excluding CUDA context/display memory. The measured quantum batch
+steps took 2.36 and 1.64 seconds, including diagnostic instrumentation; these are
+resource-planning observations, not controlled throughput benchmarks.
+The machine-readable fitting plan must retain this final configuration.
 
 No model's test evaluation begins until every planned fit is finished. Use all
 205 existing test images (71 Optical and 134 SAR), retain their ordered names,
