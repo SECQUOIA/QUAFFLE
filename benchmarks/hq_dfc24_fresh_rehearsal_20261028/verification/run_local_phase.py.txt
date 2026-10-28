@@ -1,0 +1,108 @@
+"""Task-owned bounded execution driver; never overwrite an earlier attempt."""
+from pathlib import Path
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import resource
+import subprocess
+import sys
+import time
+
+ROOT = Path('/tmp/quaffle-hq-fresh-runner-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_fresh_runner_20261028')
+DATA = Path('/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset')
+PYTHON = '/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python'
+SOURCES = ['scripts/run_hq_dfc24_fresh.py', 'scripts/collect_hq_dfc24_fresh.py',
+           'docs/HQ_DFC24_FRESH_PROTOCOL.md', 'tests/test_hq_dfc24_fresh_runner.py',
+           'tests/test_collect_hq_dfc24_fresh.py']
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def cgroup_limits():
+    unified = [line.split(':', 2)[2] for line in Path('/proc/self/cgroup').read_text().splitlines()
+               if line.startswith('0::')]
+    if len(unified) != 1:
+        raise RuntimeError('Cannot verify unified OS memory/swap limits')
+    directory = Path('/sys/fs/cgroup') / unified[0].lstrip('/')
+    limits = {name: (directory / name).read_text().strip()
+              for name in ['memory.max', 'memory.swap.max']}
+    if limits['memory.max'] == 'max' or int(limits['memory.max']) > 6 * 1024**3 or limits['memory.swap.max'] != '0':
+        raise RuntimeError('Run this driver inside the declared 6GiB/no-swap scope')
+    return directory, limits
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('phase', choices=['profile_rehearsal', 'profile_full', 'rehearsal',
+                                    'collect_initial', 'collect_reproduced', 'full_suite'])
+parser.add_argument('--attempt', default='v1')
+args = parser.parse_args()
+if not args.attempt.isalnum():
+    raise ValueError('Use a simple task-owned attempt label')
+profile = TASK / 'profiles' / ('rehearsal_' + args.attempt)
+run = TASK / 'runs' / ('rehearsal_' + args.attempt)
+collect = ROOT / 'scripts/collect_hq_dfc24_fresh.py'
+runner = ROOT / 'scripts/run_hq_dfc24_fresh.py'
+gpu = args.phase in {'profile_rehearsal', 'profile_full', 'rehearsal'}
+budget = 1800 if args.phase == 'rehearsal' else 600
+if args.phase.startswith('profile_'):
+    mode = args.phase.removeprefix('profile_')
+    directory = TASK / 'profiles' / (mode + '_' + args.attempt)
+    command = [PYTHON, str(runner), 'profile', '--mode', mode,
+               '--data-root', str(DATA), '--work-dir', str(directory), '--device', 'cuda',
+               '--gpu-memory-fraction', '0.12', '--budget-seconds', str(budget)]
+elif args.phase == 'rehearsal':
+    command = [PYTHON, str(runner), 'run', '--mode', 'rehearsal',
+               '--data-root', str(DATA), '--work-dir', str(run), '--device', 'cuda',
+               '--gpu-memory-fraction', '0.12', '--budget-seconds', str(budget),
+               '--profile', str(profile / 'resource_profile.json')]
+elif args.phase.startswith('collect_'):
+    which = args.phase.removeprefix('collect_')
+    command = [PYTHON, str(collect), '--data-root', str(DATA), '--work-dir', str(run),
+               '--output-dir', str(TASK / 'generated_reports' / (which + '_' + args.attempt))]
+else:
+    budget = 1200
+    command = [PYTHON, '-m', 'pytest', '-q', 'tests']
+env = dict(os.environ, PYTHONPATH=str(ROOT) + ':/tmp/quaffle-wave4a-deps',
+           CUDA_VISIBLE_DEVICES='0' if gpu else '', OMP_NUM_THREADS='2',
+           MKL_NUM_THREADS='2', OPENBLAS_NUM_THREADS='2', NUMEXPR_NUM_THREADS='2')
+logs = TASK / 'logs'
+logs.mkdir(parents=True, exist_ok=True)
+prefix = logs / (args.phase + '_' + args.attempt)
+log = prefix.with_suffix('.log')
+binding = prefix.with_suffix('.binding.json')
+result_path = prefix.with_suffix('.result.json')
+if any(p.exists() for p in [log, binding, result_path]):
+    raise ValueError('An attempt already exists; inspect its live/terminal handle before further action')
+revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+before = {name: sha(ROOT / name) for name in SOURCES}
+group, limits = cgroup_limits()
+record = dict(phase=args.phase, attempt=args.attempt, source_revision=revision,
+              source_hashes=before, command=command, cwd=str(ROOT),
+              started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              outer_timeout_seconds=budget + 60, expected_os_memory_max='6G',
+              expected_os_swap_max=0, verified_cgroup_limits=limits,
+              numerical_threads=2, gpu_memory_fraction=.12 if gpu else None)
+binding.write_text(json.dumps(record, indent=2) + '\n')
+print(json.dumps({'phase': args.phase, 'log': str(log), 'source_revision': revision}), flush=True)
+start = time.monotonic()
+try:
+    with log.open('x') as output:
+        child = subprocess.run(command, cwd=ROOT, env=env, stdout=output,
+                               stderr=subprocess.STDOUT, timeout=budget + 60)
+    code = child.returncode
+    error = None
+except subprocess.TimeoutExpired as exc:
+    code, error = 124, str(exc)
+after = {name: sha(ROOT / name) for name in SOURCES}
+assert before == after, 'Source changed during the actual execution attempt'
+assert revision == subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+record.update(exit_code=code, elapsed_seconds=time.monotonic() - start,
+              error=error, log_sha256=sha(log), source_unchanged=True,
+              child_peak_rss_kib=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,
+              cgroup_memory_peak_bytes=int((group / 'memory.peak').read_text().strip()))
+result_path.write_text(json.dumps(record, indent=2) + '\n')
+print(json.dumps(record), flush=True)
+print('\n'.join(log.read_text().splitlines()[-6:]), flush=True)
+raise SystemExit(code)

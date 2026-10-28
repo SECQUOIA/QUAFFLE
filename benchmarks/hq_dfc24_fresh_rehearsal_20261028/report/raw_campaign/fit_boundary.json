@@ -1,0 +1,11 @@
+{
+  "format": "hq-dfc24-fresh-boundary-v1",
+  "completed": true,
+  "fits": 16,
+  "selected": 12,
+  "replay_split": "validation",
+  "plan_sha256": "71cd974bfacd9c39b3c9ac727188d075e79357ce01b817a3bd6f55b2604419de",
+  "all_fits_sha256": "4fba4b9baf7a123a9fcd22f7e75e293e5ee5a292bd2fd785129d7b3c13a6523a",
+  "selection_sha256": "89cccd716023c4d4db09bea4cd91a0e2b7467bb77491c83d6977dfa92f4bd43c",
+  "checkpoint_audit_sha256": "a956eff1b39f03ed2793af9a2b9d745130faf71065aabf827ad9a32c73acb469"
+}

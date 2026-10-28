@@ -1,0 +1,40 @@
+{
+  "phase": "profile_rehearsal",
+  "attempt": "v1",
+  "source_revision": "ef9119d9b168a4d1330802b86bac4ed66198fe66",
+  "source_hashes": {
+    "scripts/run_hq_dfc24_fresh.py": "1f5a244db37cd563cd0e0039de997dd140cee90527c4e50b585973dbf8ecbb81",
+    "scripts/collect_hq_dfc24_fresh.py": "bd673749bfb37bd2488aa3b62940980d31db1c9411e6533f5690893ff21d6d4f",
+    "docs/HQ_DFC24_FRESH_PROTOCOL.md": "7149e9116e4d47661d497542d32d9b2c82ba1c8d9cd1dc5c4d1917e2224da8f4",
+    "tests/test_hq_dfc24_fresh_runner.py": "836fde3f807814d73fdaaaf3a1df7c2fc5c411abf27e9ab6488e1905a1a599c2",
+    "tests/test_collect_hq_dfc24_fresh.py": "65e335d7294d7ef9aca2c60cb91ebfa2973f18e1d3c6b9ffc2db38ec5f949b02"
+  },
+  "command": [
+    "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "/tmp/quaffle-hq-fresh-runner-20261028/scripts/run_hq_dfc24_fresh.py",
+    "profile",
+    "--mode",
+    "rehearsal",
+    "--data-root",
+    "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset",
+    "--work-dir",
+    "/home/bernalde/repos/QUAFFLE/results/hq_fresh_runner_20261028/profiles/rehearsal_v1",
+    "--device",
+    "cuda",
+    "--gpu-memory-fraction",
+    "0.12",
+    "--budget-seconds",
+    "600"
+  ],
+  "cwd": "/tmp/quaffle-hq-fresh-runner-20261028",
+  "started_utc": "2026-10-28T20:58:12.694709+00:00",
+  "outer_timeout_seconds": 660,
+  "expected_os_memory_max": "6G",
+  "expected_os_swap_max": 0,
+  "verified_cgroup_limits": {
+    "memory.max": "6442450944",
+    "memory.swap.max": "0"
+  },
+  "numerical_threads": 2,
+  "gpu_memory_fraction": 0.12
+}

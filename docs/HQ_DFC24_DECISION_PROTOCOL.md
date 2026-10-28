@@ -164,6 +164,15 @@ The committed audit packet records the actual source and input identities.
 
 ## Fresh runner and local rehearsal
 
+The [completed local rehearsal](../benchmarks/hq_dfc24_fresh_rehearsal_20261028/README.md)
+executed all 16 fresh fits and 12 selected validation replays in 163.64 seconds.
+Both local four-arm profiles passed, including the full-mode cohort configuration
+with two Adam steps per arm. All selected checkpoints were epoch zero; this is
+software execution evidence with no scientific accuracy verdict. The packet
+retains deterministic regeneration, an independent numeric/identity audit and
+guarded completed-resume evidence. Actual Anvil profiling and the full 60-epoch
+campaign remain unperformed.
+
 `scripts/run_hq_dfc24_fresh.py` implements the separately identified fresh
 campaign under the runtime-bound [fresh execution protocol](HQ_DFC24_FRESH_PROTOCOL.md).
 It dispatches learned quantum to the direction fitter and the other

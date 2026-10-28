@@ -1,0 +1,12 @@
+{
+  "binding": {
+    "plan_sha256": "71cd974bfacd9c39b3c9ac727188d075e79357ce01b817a3bd6f55b2604419de",
+    "origin": "fresh",
+    "checkpoint_path": "fits/hq_quantum/0.001/seed123/checkpoint.pt",
+    "checkpoint_sha256": "60aceb9cef3a0d7de532313b9c6788c62b2f33c3dabebc5f6d739aed8443a787",
+    "metrics_sha256": "d52f88525ba0867c1cfa3ce4d4389cd32833320552ceb6f8d8e2e00e89d19437",
+    "history_sha256": "1513a52e70653fb0a770da544d07c44f1df2b3509b3a948c4e9f991544cf2f7e",
+    "names_sha256": "3ccb6ec2feeff35afaddd0f37bcebe3a6ea81efefdf7e4691e5f6087502174e2",
+    "split": "validation"
+  }
+}

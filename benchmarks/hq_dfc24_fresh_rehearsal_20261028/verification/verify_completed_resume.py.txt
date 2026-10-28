@@ -1,0 +1,58 @@
+"""Execute completed resume with fitting/forward/test-dataset tripwires."""
+from pathlib import Path
+from unittest.mock import patch
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+
+ROOT = Path('/tmp/quaffle-hq-fresh-runner-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_fresh_runner_20261028')
+RUN = TASK/'runs/rehearsal_v1'
+DATA = Path('/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset')
+PROFILE = TASK/'profiles/rehearsal_v1/resource_profile.json'
+sys.path.insert(0, str(ROOT))
+from scripts import run_hq_dfc24_fresh as fresh
+from utilsTorch.hq_direction import HQDirectionUNet
+from tools import training_common as tc
+
+def inventory():
+    return {str(p.relative_to(RUN)): {'sha256': hashlib.sha256(p.read_bytes()).hexdigest(),
+                                    'mtime_ns': p.stat().st_mtime_ns, 'size': p.stat().st_size}
+            for p in sorted(RUN.rglob('*')) if p.is_file()}
+
+def forbidden(*args, **kwargs):
+    raise AssertionError('Completed resume attempted fitting, model prediction, or test dataset loading')
+
+original_load = tc.load_dataset
+_, _, _, test_images, test_masks = tc.resolve_data_dirs('combined', str(DATA))
+def guarded_load(images, masks, *args, **kwargs):
+    assert Path(images).resolve() != Path(test_images).resolve()
+    assert Path(masks).resolve() != Path(test_masks).resolve()
+    return original_load(images, masks, *args, **kwargs)
+
+result = TASK/'verification/completed_resume.json'
+assert not result.exists(), 'Preserve earlier verification attempts'
+cgroup = Path('/sys/fs/cgroup')/next(line.split(':',2)[2].lstrip('/') for line in
+    Path('/proc/self/cgroup').read_text().splitlines() if line.startswith('0::'))
+limits = {name:(cgroup/name).read_text().strip() for name in ('memory.max','memory.swap.max')}
+assert limits == {'memory.max':str(6*1024**3),'memory.swap.max':'0'}
+before = inventory()
+started = time.monotonic()
+with patch.object(fresh.hq, 'fit_one', forbidden), patch.object(fresh.study, 'fit_one', forbidden), \
+        patch.object(HQDirectionUNet, 'forward', forbidden), patch.object(tc, 'load_dataset', guarded_load):
+    value = fresh.main(['run', '--mode', 'rehearsal', '--data-root', str(DATA), '--work-dir', str(RUN),
+        '--device', 'cuda', '--gpu-memory-fraction', '0.12', '--budget-seconds', '1800',
+        '--profile', str(PROFILE), '--resume'])
+after = inventory()
+assert before == after, 'Completed resume changed raw bytes, mtimes, size or inventory'
+assert value['plan']['mode'] == 'rehearsal' and len(value['records']) == 12
+result.parent.mkdir(parents=True, exist_ok=True)
+result.write_text(json.dumps(dict(status='passed', command=sys.argv, elapsed_seconds=time.monotonic()-started,
+    source_revision=subprocess.check_output(['git', 'rev-parse', 'HEAD'],cwd=ROOT,text=True).strip(),
+    tripwires=['quantum fitter', 'other control fitter', 'HQDirectionUNet.forward', 'test dataset loader'],
+    verified_os_limits=limits,
+    unchanged_raw_file_inventory=before, note='Strict checkpoint reconstruction allowed; no fitting or predictions.'), indent=2)+'\n')
+print('PASS: completed resume; no fitting/prediction/test dataset and all raw bytes/mtimes unchanged')

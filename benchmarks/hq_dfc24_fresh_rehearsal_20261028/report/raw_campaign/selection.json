@@ -1,0 +1,66 @@
+{
+  "quantum": {
+    "learning_rate": 0.001,
+    "selected_seed": 42,
+    "candidates": [
+      {
+        "learning_rate": 0.001,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      },
+      {
+        "learning_rate": 0.003,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      }
+    ]
+  },
+  "frozen_quantum": {
+    "learning_rate": 0.001,
+    "selected_seed": 42,
+    "candidates": [
+      {
+        "learning_rate": 0.001,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      },
+      {
+        "learning_rate": 0.003,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      }
+    ]
+  },
+  "zero_bottleneck": {
+    "learning_rate": 0.001,
+    "selected_seed": 42,
+    "candidates": [
+      {
+        "learning_rate": 0.001,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      },
+      {
+        "learning_rate": 0.003,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      }
+    ]
+  },
+  "compact_affine": {
+    "learning_rate": 0.001,
+    "selected_seed": 42,
+    "candidates": [
+      {
+        "learning_rate": 0.001,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      },
+      {
+        "learning_rate": 0.003,
+        "val_iou": 0.0,
+        "best_epoch": 0
+      }
+    ]
+  }
+}

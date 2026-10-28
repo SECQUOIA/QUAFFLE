@@ -1,0 +1,81 @@
+{
+  "status": "complete_ignored_status_correction_builds_and_package",
+  "scope": "Only obsolete fresh-runner implementation deferrals and README build/status notes; no scientific evidence changes",
+  "changed_paths": [
+    "papers/QUAFFLE_Journal_2026/main.tex",
+    "papers/README.md",
+    "papers/QUAFFLE_Journal_2026/main.pdf",
+    "papers/QUAFFLE_Journal_2026/main_mlst.pdf",
+    "papers/QUAFFLE_Journal_2026/main_arxiv.pdf",
+    "QUAFFLE_Journal_2026.zip"
+  ],
+  "files": {
+    "papers/QUAFFLE_Journal_2026/main.tex": {
+      "before_sha256": "3bb03511837d3a8770479d28df74133bffaac62cf7e8ab1b22ba73e7fcc7864b",
+      "sha256": "86ca98415fca48b301de77baa4a99c985ee7cf5d3dc57d3ebbdd46bffddfa3fe",
+      "bytes": 147308,
+      "changed": true
+    },
+    "papers/README.md": {
+      "before_sha256": "f9b096baeff02e4aaaa5048c1ea7272099d5270bb3ed3417a57355c6a160217c",
+      "sha256": "ca4de54dc1e307e2b8c9e2f3f363c6c735dd542dbe7d65e62450bb18d1a935af",
+      "bytes": 5020,
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main.pdf": {
+      "before_sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "sha256": "3fadf1e39dd3a00cfcc74a2b34126ab1b1359fde4c3ca9a9e6fe49cacd3d419f",
+      "bytes": 3005032,
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main_mlst.pdf": {
+      "before_sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "sha256": "3fadf1e39dd3a00cfcc74a2b34126ab1b1359fde4c3ca9a9e6fe49cacd3d419f",
+      "bytes": 3005032,
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main_arxiv.pdf": {
+      "before_sha256": "3de21b4244988e8c3e55ea4d2575e1bf224530ce0f4cee2a9ffdf6998114eb8e",
+      "sha256": "2c1718affb307b4f0acfde2184ec411fea1ef66297e8e68f52d138fc1cd14622",
+      "bytes": 3074630,
+      "changed": true
+    },
+    "QUAFFLE_Journal_2026.zip": {
+      "before_sha256": "b944d7858f3cddd19ed3b7a310d9aa06df838f2d43ad70cda94c5da33a4585c6",
+      "sha256": "ebe11ba6f9382eb74e3bf236d1f4e94171afc0bc633eaa84f328141e32505dfc",
+      "bytes": 11855268,
+      "changed": true
+    }
+  },
+  "actual_rehearsal": {
+    "source_revision": "ef9119d9b168a4d1330802b86bac4ed66198fe66",
+    "raw_root": "/home/bernalde/repos/QUAFFLE/results/hq_fresh_runner_20261028/runs/rehearsal_v1",
+    "fresh_fits": 16,
+    "selected_validation_replays": 12,
+    "epochs": 2,
+    "optimization_tiles_per_seed": 16,
+    "evaluation_validation_tiles_per_seed": 16,
+    "all_selected_best_epoch_zero": true,
+    "all_selected_rates_001": true,
+    "scientific_gate": "not_applicable_rehearsal",
+    "test_predictions": false
+  },
+  "publication": "Sources,PDFs,zip andbeforecopies remain ignored/local; onlythisscopedhashsummarypublished",
+  "visual_inspection": {
+    "status": "passed",
+    "inspection": "Root directly viewed all four actual rendered changed pages",
+    "images": {
+      "iop-page19.png": "e4adfeb1db458fae0ceb9653751fddbb17330a6c75923fe0b739e2a89e30999b",
+      "iop-page29.png": "283ed39775f084321284d1f1d78ae80b341a98482bdc4a5246cbd416f1c2c8a7",
+      "arxiv-page15.png": "d7b965d3bd45047cd0da48acfec441dfc0164cd1ac11b1344f6df4ae89da5adc",
+      "arxiv-page23.png": "9d32c99404f933b927f7333e1b9c667f29413cfdaf1625b177e36aacd2e6b31a"
+    },
+    "observations": [
+      "status paragraphs legible and within margins",
+      "no clipping or collisions",
+      "scientific summary retained",
+      "rehearsal is software-only; full60epoch/Anvil still unperformed"
+    ]
+  },
+  "verification_manifest_sha256": "b50b386ed8a4e4cd212d90142f68f8a98163486ef746aee2fb87e16846d970b9"
+}

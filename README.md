@@ -99,6 +99,9 @@ The [fresh execution protocol](docs/HQ_DFC24_FRESH_PROTOCOL.md) provides a separ
 two-epoch rehearsal with 16 training and 16 validation tiles per seed, exercising
 the complete fresh selection flow without test-set evaluation. Its purpose is
 software verification; full-data accuracy and Anvil feasibility remain separate.
+The [completed local rehearsal](benchmarks/hq_dfc24_fresh_rehearsal_20261028/README.md)
+retains 16 fresh fits and 12 validation replays. All selected checkpoints were
+epoch zero, so it supplies no new accuracy evidence for quantum.
 
 ```bash
 # Centralized

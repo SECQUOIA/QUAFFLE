@@ -1,0 +1,62 @@
+{
+  "docs/HQ_DFC24_FRESH_PROTOCOL.md": {
+    "sha256": "7149e9116e4d47661d497542d32d9b2c82ba1c8d9cd1dc5c4d1917e2224da8f4",
+    "retained_as": "sources/docs/HQ_DFC24_FRESH_PROTOCOL.md.txt"
+  },
+  "flood_data.py": {
+    "sha256": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "retained_as": "sources/flood_data.py.txt"
+  },
+  "scripts/collect_hq_dfc24_fresh.py": {
+    "sha256": "bd673749bfb37bd2488aa3b62940980d31db1c9411e6533f5690893ff21d6d4f",
+    "retained_as": "sources/scripts/collect_hq_dfc24_fresh.py.txt"
+  },
+  "scripts/run_hq_dfc24_direction.py": {
+    "sha256": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "retained_as": "sources/scripts/run_hq_dfc24_direction.py.txt"
+  },
+  "scripts/run_hq_dfc24_fresh.py": {
+    "sha256": "1f5a244db37cd563cd0e0039de997dd140cee90527c4e50b585973dbf8ecbb81",
+    "retained_as": "sources/scripts/run_hq_dfc24_fresh.py.txt"
+  },
+  "scripts/run_hq_training_controls.py": {
+    "sha256": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+    "retained_as": "sources/scripts/run_hq_training_controls.py.txt"
+  },
+  "scripts/run_parameter_budget_comparison.py": {
+    "sha256": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "retained_as": "sources/scripts/run_parameter_budget_comparison.py.txt"
+  },
+  "scripts/run_real_spatial_pilot.py": {
+    "sha256": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "retained_as": "sources/scripts/run_real_spatial_pilot.py.txt"
+  },
+  "splits/norm_stats.json": {
+    "sha256": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "retained_as": "sources/splits/norm_stats.json.txt"
+  },
+  "tools/training_common.py": {
+    "sha256": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "retained_as": "sources/tools/training_common.py.txt"
+  },
+  "utilsTorch/__init__.py": {
+    "sha256": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "retained_as": "sources/utilsTorch/__init__.py.txt"
+  },
+  "utilsTorch/hq_direction.py": {
+    "sha256": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "retained_as": "sources/utilsTorch/hq_direction.py.txt"
+  },
+  "utilsTorch/hq_training_controls.py": {
+    "sha256": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+    "retained_as": "sources/utilsTorch/hq_training_controls.py.txt"
+  },
+  "utilsTorch/unetTorch.py": {
+    "sha256": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "retained_as": "sources/utilsTorch/unetTorch.py.txt"
+  },
+  "utilsTorch/utilsTorch.py": {
+    "sha256": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "retained_as": "sources/utilsTorch/utilsTorch.py.txt"
+  }
+}

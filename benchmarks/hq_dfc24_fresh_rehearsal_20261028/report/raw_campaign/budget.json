@@ -1,0 +1,7 @@
+{
+  "format": "hq-dfc24-fresh-budget-v1",
+  "budget_seconds": 1800.0,
+  "started_unix": 1793221288.1231642,
+  "deadline_unix": 1793223088.1231642,
+  "queue_downtime_counts": true
+}
