@@ -1,0 +1,19 @@
+{
+  "provenance/EVIDENCE_SCOPE.md": "a55aaa6af7cdf44c3c24de5a8effafc0213fd9bd1008ecfeab008e37e96b2c27",
+  "provenance/TIFF_HEADER_SCAN_SCOPE.md": "2161466883bdb0287350d96d3b8a181500ee8ade4d88c487e25c25bdb113cb7c",
+  "provenance/audit_focused_tests_final.log": "0d9395a5d2ef2ef215203119d7049ab53a4efcf6cd06d8d6c14e0470e18c3287",
+  "provenance/full_suite.log": "722ff12cce65f990c840e101ab95def41fb9f59a340c3555c007af134bd0e12a",
+  "provenance/full_suite_result.json": "1858adbd55ae7c343ba5ecefea875f93e0aa6c64c78d5c6c2d2cd20d4da9001f",
+  "provenance/header_scanner_positive_controls.json": "0320769d174b1baf867e1ae53859be7065ca06057e8a96a8d9ea08f6313a92a3",
+  "provenance/independent_decision_audit.json": "e3461ddf970f7a5ace86d2519398b0f2611e115aa28772ff3a335ae2fe4b4b87",
+  "provenance/independent_decision_audit.py.txt": "6999bf6f24da6581a30601cf61c7d61ed9e18444d2a168294a31d7d0e7b2eda7",
+  "provenance/local_manuscript_summary.json": "d611259fc69373c3c5e56d40d1912bbf235560c35baaa098c148b0b613eced8a",
+  "provenance/local_manuscript_visual_inspection.json": "01f34f5f2e14da5a35d6443f23c36d4b5306a78a2dca2a803e96e079c1fce70e",
+  "provenance/retained_archive_audit.json": "f8ce76e97b063f5de83404a6dc0298046626048a9884e8dbbdb4f128c6e91d8d",
+  "provenance/retained_archive_audit.md": "aef8c9a5e2e916f7edb683b33f5b767bda1acce004be44a912e6c984acef6a8f",
+  "provenance/retained_tiff_header_scanner.py.txt": "8c13dbb45739a3ea86097f8dca542d11e33f19884804abf7db3baecf0de18bbd",
+  "reviews/astra-plan-1.md": "59b2f9f14e920699753fbdd61be10011a0d01caff71db057483cc28f66a88db5",
+  "reviews/plan-resolution.md": "9513f59253ba26aef54bddf92bdacdff83ff355c17384c7b277657344dd700e0",
+  "reviews/plan-verification-1.md": "1f7f1c51a0f0002e726ab9fdcd8451424e6c7ea35a980d792f8db4f9e4ff85fa",
+  "reviews/astra-implementation-2.md": "6c88b8f653d02e2a0ddfafdc0d0249836efd1d83af11f7f193d4e84a954a857f"
+}

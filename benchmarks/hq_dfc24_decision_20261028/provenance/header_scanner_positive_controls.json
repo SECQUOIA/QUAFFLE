@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "scope": "Hand-constructed positive metadata controls for retained header scanner; not raster decoding or validation of every possible TIFF variant",
+  "scanner_sha256": "8c13dbb45739a3ea86097f8dca542d11e33f19884804abf7db3baecf0de18bbd",
+  "checks": [
+    {
+      "byte_order": "<",
+      "detected_geotag": 33550,
+      "detected_text": "scene-A",
+      "geometry_verified": true
+    },
+    {
+      "byte_order": ">",
+      "detected_geotag": 33550,
+      "detected_text": "scene-A",
+      "geometry_verified": true
+    }
+  ]
+}

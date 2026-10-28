@@ -1,0 +1,105 @@
+"""Independent saved-count oracle; no project imports, models or inference."""
+from pathlib import Path
+from fractions import Fraction
+import csv
+import hashlib
+import json
+import math
+import statistics
+
+ROOT = Path('/tmp/quaffle-hq-dfc24-decision-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_dfc24_decision_20261028')
+PARENT = ROOT / 'benchmarks/hq_training_controls_20261028'
+A = TASK / 'generated_reports/initial'
+B = TASK / 'generated_reports/reproduced'
+checks = 0
+
+def same(actual, expected):
+    global checks
+    assert math.isclose(float(actual), float(expected), rel_tol=0, abs_tol=1e-12), (actual, expected)
+    checks += 1
+
+def read_csv(path):
+    return list(csv.DictReader(path.open()))
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def metrics(counts):
+    t, f, n, b = (counts[k] for k in ('tp','fp','fn','tn'))
+    div = lambda a,z: Fraction(a,z) if z else Fraction(0)
+    flood, background = div(t,t+f+n), div(b,b+f+n)
+    return dict(flood_iou=float(flood), background_iou=float(background),
+                binary_macro_iou=float((flood+background)/2),
+                flood_dice=float(div(2*t,2*t+f+n)), accuracy=float(div(t+b,t+f+n+b)))
+
+names = {str(p.relative_to(A)) for p in A.rglob('*') if p.is_file()}
+assert names == {str(p.relative_to(B)) for p in B.rglob('*') if p.is_file()}
+assert len(names) == 7
+inventory = {}
+for name in sorted(names):
+    assert (A/name).read_bytes() == (B/name).read_bytes(), name
+    inventory[name] = dict(sha256=sha(A/name), bytes=(A/name).stat().st_size)
+manifest = json.loads((A/'artifact_sha256.json').read_text())
+assert set(manifest) == names - {'artifact_sha256.json'}
+assert all(sha(A/name) == expected for name,expected in manifest.items())
+
+expected = {}
+for row in read_csv(PARENT/'per_seed.csv'):
+    for split in ('val','test'):
+        sensors = {}
+        for sensor in ('optical','sar'):
+            counts = {k:int(row[f'{split}_{sensor}_subset_{k}']) for k in ('tp','fp','fn','tn')}
+            sensors[sensor] = counts
+            expected[row['kind'],int(row['seed']),split,sensor] = (counts,metrics(counts))
+        counts = {k:sum(v[k] for v in sensors.values()) for k in ('tp','fp','fn','tn')}
+        expected[row['kind'],int(row['seed']),split,'pooled'] = (counts,metrics(counts))
+rows = read_csv(A/'per_seed.csv')
+assert len(rows) == len(expected) == 90
+for row in rows:
+    key = row['control'],int(row['seed']),row['split'],row['scope']
+    counts,computed = expected[key]
+    for field,value in counts.items(): same(row[field],value)
+    for field,value in computed.items(): same(row[field],value)
+
+summaries = read_csv(A/'summary.csv')
+assert len(summaries) == 30
+for row in summaries:
+    records = [expected[row['control'],seed,row['split'],row['scope']][1] for seed in (42,77,123)]
+    for metric in records[0]:
+        values = [record[metric] for record in records]
+        same(row[metric+'_mean'],statistics.mean(values))
+        same(row[metric+'_sample_sd'],statistics.stdev(values))
+        same(row[metric+'_n'],3)
+
+paired = read_csv(A/'paired.csv')
+assert len(paired) == 120
+for row in paired:
+    assert row['left'] == 'quantum'
+    differences = [100*(expected['quantum',seed,row['split'],row['scope']][1][row['metric']] -
+                       expected[row['right'],seed,row['split'],row['scope']][1][row['metric']]) for seed in (42,77,123)]
+    same(row['mean'],statistics.mean(differences))
+    same(row['sample_sd'],statistics.stdev(differences))
+    same(row['n'],3)
+    same(row['wins'],sum(value>0 for value in differences))
+    for seed,value in zip((42,77,123),differences): same(row['seed'+str(seed)+'_pp'],value)
+
+fits = json.loads((PARENT/'all_fits.json').read_text())
+by_fit = {(e['record']['kind'],e['record']['seed'],e['record']['learning_rate']):e for e in fits}
+rows = read_csv(A/'all_fit_validation.csv')
+assert len(rows) == 60
+for row in rows:
+    entry = by_fit[row['control'],int(row['seed']),float(row['learning_rate'])]
+    assert entry['origin'] == row['origin']
+    saved = entry['record']['val']
+    sensors = [{k:saved[sensor+'_subset_'+k] for k in ('tp','fp','fn','tn')} for sensor in ('optical','sar')]
+    counts = {k:sum(v[k] for v in sensors) for k in ('tp','fp','fn','tn')} if row['scope']=='pooled' else sensors[('optical','sar').index(row['scope'])]
+    for field,value in counts.items(): same(row[field],value)
+    for field,value in metrics(counts).items(): same(row[field],value)
+
+output = dict(status='PASS', assertions=checks, oracle='fractions.Fraction from saved integer counts; no project imports or inference',
+              primary_rows=90, summary_rows=30, paired_rows=120, all_fit_validation_rows=60,
+              regenerated_files=7, whole_file_bytes_identical=True, inventory=inventory,
+              source_sha256=sha(Path(__file__)), new_fits=0, new_inference=0)
+(TASK/'preflight/independent_decision_audit.json').write_text(json.dumps(output,indent=2)+'\n')
+print(json.dumps({k:v for k,v in output.items() if k!='inventory'}))
