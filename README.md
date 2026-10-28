@@ -89,6 +89,13 @@ The legacy loader behaviour is still available with `--legacy-data`. Details, co
 
 Run every command from the repository root. Results go to `results/<run name>_seed<N>/`.
 
+For the completed local 16-qubit HQ controls, see the
+[results and interpretation](benchmarks/hq_training_controls_20261028/INTERPRETATION.md).
+The [DFC24 decision protocol and Alan handoff](docs/HQ_DFC24_DECISION_PROTOCOL.md)
+define the next exploratory full-fit screen and its implementation/profiling
+gates. Its [exposure and metric audit](benchmarks/hq_dfc24_decision_20261028/README.md)
+uses existing data and saved counts; it launches no training or cluster jobs.
+
 ```bash
 # Centralized
 python centralized_demoTorchClassical.py --dataset optical --seed 17
