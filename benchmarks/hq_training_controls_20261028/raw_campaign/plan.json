@@ -1,0 +1,129 @@
+{
+  "settings": {
+    "device": "cuda",
+    "batch_size": 8,
+    "epochs": 60,
+    "fit_cap": 128,
+    "image_size": 128,
+    "base_channels": 8,
+    "eval_every": 2,
+    "augment": true
+  },
+  "controls": [
+    "quantum",
+    "frozen_quantum",
+    "zero_bottleneck",
+    "compact_affine",
+    "mlp"
+  ],
+  "seeds": [
+    42,
+    77,
+    123
+  ],
+  "learning_rates": [
+    0.001,
+    0.003
+  ],
+  "primary_rate": 0.003,
+  "source_hashes": {
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "scripts/run_hq_training_controls.py": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+    "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+    "scripts/collect_hq_dfc24_direction.py": "db09b5c672878374f5a0056c12d7915fc536cdcfbe05a3b5b0dd80f8e1299add"
+  },
+  "source_revision": "7754773ca2c36020df22a8971e07765b2357cbc8",
+  "input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "runtime": {
+    "python": "3.11.14",
+    "executable": "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "packages": {
+      "torch": "2.5.1",
+      "pennylane": "0.44.1",
+      "numpy": "2.4.6",
+      "rasterio": "1.4.3",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.17.1",
+      "Pillow": "13.0.0"
+    },
+    "device": "cuda:0",
+    "gpu": "NVIDIA RTX A1000",
+    "torch_cuda": "12.1",
+    "gpu_allocator_fraction": 0.12,
+    "threads": 2,
+    "interop_threads": 2
+  },
+  "protocol_sha256": "2ded8843fafa4f49a993a3afd6bb9c82d7e5a6ee982d1a60fa092bc857054b0a",
+  "resource_profile_sha256": "843d7d76c3dc721bf058f304bbb0958924fa7611295e2de630bd11b63acc4fd4",
+  "legacy_root": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028/runs/quaffle-hq-dfc24-direction-runs-20261028",
+  "legacy_plan_sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+  "legacy_source_hashes": {
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+  },
+  "legacy_raw_files": {
+    "plan.json": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+    "summary.json": "489838ee24b3dbf299c03f4362073532e1bd4a3c155a5aa54bd5aa888a6d0b2d",
+    "all_fits.json": "fe0679a258e580d158e9607c7d5d450e17a76e0f35360379b816f73f486bb957",
+    "tuning_candidates.json": "e52fdebd91e1698bf0c24b3b443f301706caaff9ac1a1cdb24072fe4ed806a4a",
+    "validation_selection.json": "788399ccb01facc509050f449c67fc659cc60ac19aa1c45615d709820458600b",
+    "checkpoint_audit.json": "a5a3cef9d8008578c440404d1f25b2eb46dc6909c95f48983d784e5cda7bcd8e",
+    "tuning/hq_quantum/0.001/seed42/metrics.json": "7145325649f89f3e7e968617ff3057f7e467d5cbddf6e8160d2bf084e9e0c839",
+    "tuning/hq_quantum/0.001/seed42/history.json": "1febadcee84c7b7551bb1e3f4beccc3ca7cb8e14431dfaff730b46f61196b673",
+    "tuning/hq_quantum/0.001/seed42/checkpoint.pt": "bccbb2729a8975fb89a919888bb3e0d28eddc2c30eca1b396a8e620d577c9b0d",
+    "tuning/hq_quantum/0.003/seed42/metrics.json": "202ac876eeaba1c2d7e93e3987fa68ca56932ecb3ee57c1b0a51ee67116795bb",
+    "tuning/hq_quantum/0.003/seed42/history.json": "f15fcd80b24ba8aba9b1692b5a5214877ebf21c521363596d4af4fead6b5fa55",
+    "tuning/hq_quantum/0.003/seed42/checkpoint.pt": "076b652b61df0a83ea4e363d0a73835115c103cd27bf3d5e44731a4505514a3a",
+    "tuning/hq_mlp/0.001/seed42/metrics.json": "967bd06ce81d15b0c16418d302c2b3a5a4206aa48c612d1afcd4e769d13e4873",
+    "tuning/hq_mlp/0.001/seed42/history.json": "539788e33a980d7c39d2a4158fc03908d39aa29325e726ab0f99e1f175120ef7",
+    "tuning/hq_mlp/0.001/seed42/checkpoint.pt": "c16837364da630817f2e181911811e790904e28c0716875eabccb43c39937873",
+    "tuning/hq_mlp/0.003/seed42/metrics.json": "a397f9f5e57d0e0092cde3f01edbd0060d2d4f9d1392e562701c5a5688b937dd",
+    "tuning/hq_mlp/0.003/seed42/history.json": "d987fc5b90542e8fc885591c14204f3d4768d4590d1a8f6885d522c2c34f741b",
+    "tuning/hq_mlp/0.003/seed42/checkpoint.pt": "0311ea5141d79c46c9964bc998a6397908318244a271e5ca57812aebf2bdf492",
+    "replication/hq_quantum/seed77/metrics.json": "0da80e1c8763b5cdf19b1639157fdd504d85cade14d59b4efd0787d5d9cb2d7f",
+    "replication/hq_quantum/seed77/history.json": "b1ebc142e36bc2597a346d96e8ab4d46e8ab3ddf6c86538e5a271250de0421a2",
+    "replication/hq_quantum/seed77/checkpoint.pt": "9ea1c80a35af774ab3a52e4c8b4fb86eaee9834be9a42d166bacf7df18f6b7f5",
+    "replication/hq_mlp/seed77/metrics.json": "eab8feb268f6ca5514e874ce2e7e9f66260535015b4792000b3fbcdc4a993a43",
+    "replication/hq_mlp/seed77/history.json": "2c22e1175dd79fd9d603981867049ce9e78f1dc9b9e24d4a0823f6b054fe1548",
+    "replication/hq_mlp/seed77/checkpoint.pt": "e9f424e432963045fa63f8d7d7c4edf39a6948b77771fe8bb43eb1851764a9d9",
+    "replication/hq_quantum/seed123/metrics.json": "0b688b0a8eec200cd5b53ace81d35c072cc1695306768d07296f4d8730e7c6f7",
+    "replication/hq_quantum/seed123/history.json": "d63257c15b8f9c8d21bea0e39d298631263d83b66d116e3b0550353be0e39bf5",
+    "replication/hq_quantum/seed123/checkpoint.pt": "08338037830d79866e1499fa9c21ae29c9c3a9cbc8c994902692a380b7bc8d4e",
+    "replication/hq_mlp/seed123/metrics.json": "038722759d2864fa29c9a9a05d0b09484f60f78c02116e517bac6f48cdd80de9",
+    "replication/hq_mlp/seed123/history.json": "a162bdb53a1d62269881f490fa962a1041013dae802b2989b47ff1f4333fa6bc",
+    "replication/hq_mlp/seed123/checkpoint.pt": "028eeaa772de139ad9a9b9ea52ed62432dee94a93d9521651e9aa357d7ba2f70",
+    "tuning/hq_quantum/0.003/seed42/selected_test.json": "2561e4c7ae591e5ffdab35712b94564f9748c5fafd3569f32d08ffc02cef1070",
+    "tuning/hq_mlp/0.003/seed42/selected_test.json": "3c162b837b440983c4947e6dc4f1bfa2165052dac3cf9782bdde3edc56044366",
+    "replication/hq_quantum/seed77/selected_test.json": "218f921c9fdb6612a5d84171059cd2f78b38062a8fcf116730bdf1f61b397e18",
+    "replication/hq_quantum/seed123/selected_test.json": "6c088fca64928ef2c9d7662fe857a990c60c252f9af84622a03d485bd3b7c922",
+    "replication/hq_mlp/seed77/selected_test.json": "39a42f738f73e3cd007a1809132d9c6e2e4c58356e8c2ce89206c6b05fd6990f",
+    "replication/hq_mlp/seed123/selected_test.json": "e12407ecb2d03e1ba58b110b92c386e8a228702a0c3c1fedff1a6ae06e1aa89f"
+  },
+  "primary_policy": "Fixed 0.003 for all controls/seeds; no rate reselection",
+  "test_policy": "All 20 fits audited before 15 new primary replays; exposed test descriptive",
+  "auxiliary_policy": "Rate0.001 on seed42 for all five controls; sensitivity only"
+}

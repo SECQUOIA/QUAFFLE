@@ -1,0 +1,19 @@
+{
+  "revision": "7754773ca2c36020df22a8971e07765b2357cbc8",
+  "source_hashes": {
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+    "scripts/run_hq_training_controls.py": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+    "scripts/collect_hq_training_controls.py": "61e42953cf54a60d505df24739c9e59e97f1d6693b14ab4e0478dc262b5106bc",
+    "tests/test_hq_training_controls_model.py": "47e08e84a3da66763f03142401194cb257682b46ed1fc996d86118a185358c0b",
+    "tests/test_hq_training_controls_runner.py": "62ded4a58fb4b8b25773912786099ab483e90c37aed3403f282767a596846956",
+    "tests/test_collect_hq_training_controls.py": "5c470e206c2ec7d6b8dd79295a806061fd2caf6c110c637d5bdd6ca2b40bbd2d",
+    "docs/HQ_TRAINING_CONTROLS_PROTOCOL.md": "2ded8843fafa4f49a993a3afd6bb9c82d7e5a6ee982d1a60fa092bc857054b0a"
+  },
+  "command": "python -m pytest -q tests",
+  "memory_max": "6G",
+  "memory_swap_max": 0,
+  "threads": 2,
+  "cuda_visible_devices": "",
+  "session_id": 10122
+}

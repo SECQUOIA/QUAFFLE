@@ -1,0 +1,9 @@
+{
+  "completed": true,
+  "fits": 20,
+  "fresh": 12,
+  "reused": 8,
+  "primary": 15,
+  "all_fits_sha256": "d86b8783be99c6933ed5743f674b42f87b10e9e5deef78a1af3d406ed3f0b145",
+  "checkpoint_audit_sha256": "766b9613cbb7372f4d7fcdddec4db3e74752f84b042c707d5229684f613dc75c"
+}

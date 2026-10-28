@@ -1,0 +1,584 @@
+#!/usr/bin/env python3
+"""Independent, stdlib-only audit of the completed HQ control experiment.
+
+No project modules, Torch, images, training, checkpoint deserialization or
+inference are used. PASS concerns saved arithmetic and byte provenance; actual
+strict tensor restoration remains a separately labeled producer/collector layer.
+"""
+import argparse
+from collections import Counter
+import csv
+import hashlib
+import json
+import math
+from pathlib import Path
+import random
+import statistics
+import struct
+import sys
+
+CONTROLS = ('quantum', 'frozen_quantum', 'zero_bottleneck', 'compact_affine', 'mlp')
+NEW = ('frozen_quantum', 'zero_bottleneck', 'compact_affine')
+SEEDS = (42, 77, 123)
+SCORES = ('iou', 'optical_subset_iou', 'sar_subset_iou')
+PRIMARY = .003
+EXPECTED_PRODUCER = '7754773ca2c36020df22a8971e07765b2357cbc8'
+PROTOCOL = 'docs/HQ_TRAINING_CONTROLS_PROTOCOL.md'
+OLD_PROTOCOL = 'docs/HQ_DFC24_DIRECTION_PROTOCOL.md'
+
+
+class NotComplete(Exception):
+    pass
+
+
+def read(path):
+    if not path.is_file():
+        raise NotComplete('Missing required artifact: ' + str(path))
+    def reject(value):
+        raise ValueError('Nonfinite JSON constant: ' + value + ' in ' + str(path))
+    try:
+        return json.loads(path.read_text(), parse_constant=reject)
+    except json.JSONDecodeError as error:
+        raise NotComplete('Incomplete/malformed JSON: ' + str(path) + ': ' + str(error)) from error
+
+
+def digest(path):
+    if not path.is_file():
+        raise NotComplete('Missing required file: ' + str(path))
+    value = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024*1024), b''):
+            value.update(block)
+    return value.hexdigest()
+
+
+def finite(value):
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, dict):
+        return all(finite(child) for child in value.values())
+    if isinstance(value, list):
+        return all(finite(child) for child in value)
+    return True
+
+
+def identify(row):
+    return row['kind'], row['seed'], row['learning_rate']
+
+
+def summarize(values):
+    values = list(values)
+    return dict(mean=statistics.mean(values), std=statistics.stdev(values), n=len(values))
+
+
+def expected_grid():
+    return {(kind, seed, PRIMARY) for kind in CONTROLS for seed in SEEDS} | {
+        (kind, 42, .001) for kind in CONTROLS}
+
+
+def stable_seed(*parts):
+    return int.from_bytes(hashlib.sha256(':'.join(map(str, parts)).encode()).digest()[:4], 'little')
+
+
+def schedule_digest(indices, seed, epoch):
+    order = list(range(len(indices)))
+    random.Random(stable_seed(seed, epoch, 'order')).shuffle(order)
+    observations = [(int(indices[i]), stable_seed(seed, epoch, indices[i], 'D4') % 8) for i in order]
+    return hashlib.sha256(json.dumps(observations, separators=(',', ':')).encode()).hexdigest()
+
+
+def parameter_arithmetic(base, image):
+    # Per depthwise/pointwise pair: nine depthwise weights per input channel,
+    # 1x1 mixing weights, then two BN affine parameters per output channel.
+    def double_conv(source, output):
+        return (9*source + source*output + 2*output +
+                9*output + output*output + 2*output)
+    def up(source, output):
+        # Transposed2x2 convolution includes its output bias.
+        return 4*source*output + output + double_conv(2*output, output)
+    b = base
+    outside = (double_conv(3, b) + double_conv(b, 2*b) + double_conv(2*b, 4*b) +
+               double_conv(4*b, 8*b) + sum(up(a, z) for a, z in
+               ((16*b, 8*b), (8*b, 4*b), (4*b, 2*b), (2*b, b))) + b*2 + 2)
+    pre = (8*b)*3 + 3
+    post_outputs = (16*b)*(image//16)**2
+    post = 32*post_outputs + post_outputs
+    core = dict(quantum=1*2*4, frozen_quantum=1*2*4, zero_bottleneck=1*2*4,
+                compact_affine=(16*3)*32+32, mlp=(16*3)*64+64+64*32+32)
+    result = {}
+    for kind, size in core.items():
+        bottleneck = pre+post+size
+        total = outside+bottleneck
+        result[kind] = dict(total=total,
+            trainable=outside if kind == 'zero_bottleneck' else total-(size if kind == 'frozen_quantum' else 0),
+            core_total=size, core_trainable=0 if kind in ('frozen_quantum', 'zero_bottleneck') else size,
+            bottleneck_total=bottleneck,
+            bottleneck_trainable=0 if kind == 'zero_bottleneck' else bottleneck-(size if kind == 'frozen_quantum' else 0))
+    return dict(outside_bottleneck=outside, pre_projection=pre, dense_post_projection=post,
+                parameter_counts=result,
+                counting_scope=('Registered and requires_grad parameter counts only; no functional-importance count. '
+                    f'With the zero bottleneck, the first upsampler\'s {(16*b)*(8*b)*2*2} kernel weights '
+                    'multiply an always-zero input while its bias remains in the computation. '
+                    'Those kernel weights are still included in the trainable count.'))
+
+
+def float_distance(left, right):
+    def ordered(value):
+        bits = struct.unpack('>Q', struct.pack('>d', value))[0]
+        return (~bits & ((1 << 64)-1)) if bits >> 63 else bits | (1 << 63)
+    return dict(quantum_loss=left, frozen_loss=right, signed_frozen_minus_quantum=right-left,
+                absolute_difference=abs(right-left), binary64_ulp_distance=abs(ordered(left)-ordered(right)),
+                equal=left == right)
+
+
+class Audit:
+    def __init__(self):
+        self.errors = []
+        self.assertions = 0
+        self.metric_blocks = 0
+        self.csv_fields = 0
+        self.csv_numeric_fields = 0
+
+    def check(self, condition, message):
+        self.assertions += 1
+        if not condition:
+            self.errors.append(message)
+
+    def equal(self, actual, expected, label):
+        self.check(actual == expected, label)
+
+    def near(self, actual, expected, label):
+        self.check(math.isclose(actual, expected, rel_tol=0, abs_tol=1e-12), label)
+
+    def metrics(self, metrics, samples, label):
+        self.metric_blocks += 1
+        self.check(finite(metrics), label + ': finite metrics')
+        pooled = Counter()
+        for sensor in ('optical', 'sar'):
+            prefix = sensor + '_subset_'
+            n = metrics[prefix+'n_samples']
+            counts = {key: metrics[prefix+key] for key in ('tp', 'fp', 'fn', 'tn')}
+            self.check(type(n) is int and n >= 0 and all(type(x) is int and x >= 0 for x in counts.values()),
+                       label + '/' + sensor + ': integer nonnegative counts')
+            self.equal(sum(counts.values()), n*128*128, label + '/' + sensor + ': pixel coverage')
+            tp, fp, fn, tn = (counts[key] for key in ('tp', 'fp', 'fn', 'tn'))
+            for name, expected in dict(iou=tp/(tp+fp+fn) if tp+fp+fn else 0.,
+                    dice=2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0.,
+                    accuracy=(tp+tn)/sum(counts.values()) if n else 0.).items():
+                self.near(metrics[prefix+name], expected, label + '/' + sensor + ': count-derived ' + name)
+            self.check(0 <= metrics[prefix+'auc'] <= 1, label + '/' + sensor + ': AUC range only')
+            pooled.update(counts)
+        self.equal(sum(metrics[sensor+'_subset_n_samples'] for sensor in ('optical', 'sar')), samples,
+                   label + ': sensor sample total')
+        self.equal(sum(pooled.values()), samples*128*128, label + ': pooled pixel coverage')
+        tp, fp, fn, tn = (pooled[key] for key in ('tp', 'fp', 'fn', 'tn'))
+        for name, expected in dict(iou=tp/(tp+fp+fn) if tp+fp+fn else 0.,
+                dice=2*tp/(2*tp+fp+fn) if 2*tp+fp+fn else 0., accuracy=(tp+tn)/sum(pooled.values())).items():
+            self.near(metrics[name], expected, label + ': recombined pooled ' + name)
+        self.check(metrics['loss'] >= 0 and 0 <= metrics['auc'] <= 1, label + ': loss/AUC ranges')
+        if samples == 205:
+            self.equal((metrics['optical_subset_n_samples'], metrics['sar_subset_n_samples']), (71, 134),
+                       label + ': fixed complete test sensors')
+
+    def csv(self, path, expected):
+        if not path.is_file():
+            raise NotComplete('Missing table: ' + str(path))
+        with path.open(newline='') as stream:
+            rows = list(csv.reader(stream))
+        if not rows:
+            raise NotComplete('Empty table: ' + str(path))
+        if len(rows)-1 < len(expected):
+            raise NotComplete('Incomplete table row coverage: ' + str(path))
+        header = rows[0]
+        self.equal(header, list(expected[0]), path.name + ': declared schema')
+        self.equal(len(set(header)), len(header), path.name + ': unique headers')
+        self.equal(len(rows)-1, len(expected), path.name + ': complete row count')
+        self.check(all(len(row) == len(header) for row in rows[1:]), path.name + ': all header/row widths')
+        numeric, fields = 0, 0
+        for index, (cells, target) in enumerate(zip(rows[1:], expected)):
+            actual = dict(zip(header, cells))
+            for key, value in target.items():
+                fields += 1
+                if key not in actual:
+                    self.check(False, path.name + ': missing field ' + key)
+                    continue
+                if type(value) in (int, float):
+                    numeric += 1
+                    try:
+                        equal = float(actual[key]) == value
+                    except ValueError:
+                        equal = False
+                else:
+                    equal = actual[key] == str(value)
+                self.check(equal, f'{path.name}/row{index+1}/{key}: exact raw-derived value')
+        self.csv_fields += fields
+        self.csv_numeric_fields += numeric
+        return dict(columns=len(header), rows=len(expected), header=header, checked_fields=fields,
+                    checked_numeric_fields=numeric, sha256=digest(path))
+
+
+def audit(work, report, result, audit):
+    # Do not inspect partially completed fit outcomes or emit partial rankings.
+    for filename in ('plan.json', 'all_fits.json', 'summary.json', 'checkpoint_audit.json', 'fit_boundary.json'):
+        if not (work/filename).is_file():
+            raise NotComplete('Campaign completion artifact absent: ' + str(work/filename))
+    if not (report/'artifact_sha256.json').is_file():
+        raise NotComplete('Completed collector report absent: ' + str(report))
+    failures = list(work.rglob('failure.json')) + list((work/'replay_failures').rglob('*.json'))
+    if failures:
+        raise NotComplete('Preserved failed attempt(s) require explicit accounting: ' + str(failures))
+    plan, entries, summary = (read(work/name) for name in ('plan.json', 'all_fits.json', 'summary.json'))
+    if len(entries) != 20 or len(summary['records']) != 15:
+        raise NotComplete('Expected20 fits and15 primary replays, found ' + str((len(entries), len(summary['records']))))
+    audit.equal(summary['plan'], plan, 'Summary frozen plan equality')
+    audit.equal(plan['source_revision'], EXPECTED_PRODUCER, 'Frozen original producing revision preserved')
+    audit.check(finite(entries) and finite(summary), 'All fit/summary/history numbers finite')
+    settings = plan['settings']
+    audit.equal(settings, dict(device='cuda', batch_size=8, epochs=60, fit_cap=128,
+        image_size=128, base_channels=8, eval_every=2, augment=True), 'Frozen production settings')
+    audit.equal(plan['controls'], list(CONTROLS), 'Declared five controls')
+    audit.equal(plan['seeds'], list(SEEDS), 'Three paired seeds')
+    audit.equal(plan['learning_rates'], [.001, PRIMARY], 'Fixed primary and auxiliary rates')
+    audit.equal(plan['primary_rate'], PRIMARY, 'Primary rate remains.003')
+    arithmetic = parameter_arithmetic(settings['base_channels'], settings['image_size'])
+    result['parameter_arithmetic'] = arithmetic
+    expected_counts = arithmetic['parameter_counts']
+    legacy_root = Path(plan['legacy_root']).resolve()
+    legacy_plan = read(legacy_root/'plan.json')
+    audit.equal(digest(legacy_root/'plan.json'), plan['legacy_plan_sha256'], 'Legacy plan byte binding')
+    audit.equal(legacy_plan['runtime'], plan['runtime'], 'Original and fresh producer runtimes equal')
+    audit.equal(legacy_plan['input_identity'], plan['input_identity'], 'Original and fresh input identity equal')
+    audit.equal(legacy_plan['source_hashes'], plan['legacy_source_hashes'], 'Original executable source identity retained')
+    audit.equal(Counter(entry['origin'] for entry in entries), Counter(fresh=12, reused=8), 'Twelve fresh and eight historical fits')
+    audit.equal(read(work/'fit_progress.json'), entries, 'Complete progress ledger')
+    boundary = dict(completed=True, fits=20, fresh=12, reused=8, primary=15,
+        all_fits_sha256=digest(work/'all_fits.json'), checkpoint_audit_sha256=digest(work/'checkpoint_audit.json'))
+    audit.equal(read(work/'fit_boundary.json'), boundary, 'Bound completed-fit audit boundary')
+    profile = read(work/'resource_profile.json')
+    audit.equal(digest(work/'resource_profile.json'), plan['resource_profile_sha256'], 'Actual profile byte binding')
+    for key in ('source_hashes', 'runtime', 'protocol_sha256'):
+        audit.equal(profile[key], plan[key], 'Actual profile ' + key + ' binding')
+    audit.equal(profile['status'], 'passed', 'Actual profile complete')
+    audit.equal({case['kind'] for case in profile['cases']}, set(NEW), 'All three actual new controls profiled')
+    audit.equal(len(profile['cases']), 3, 'No duplicate profile cases')
+    audit.check(all(case['batch_size'] == 8 and case['strict_restore'] is True and case['frozen_unchanged'] is True
+                    for case in profile['cases']), 'Actual profile batch/restore/frozen coverage')
+    original = {identify(entry['record']): entry for entry in read(legacy_root/'all_fits.json')}
+    produced = read(work/'checkpoint_audit.json')
+    collected = read(report/'checkpoint_audit.json')
+    audit.equal(len(produced), 20, 'Twenty producer checkpoint audit rows')
+    audit.equal(len(collected), 20, 'Twenty collector checkpoint audit rows')
+    rows, fit_evidence = {}, []
+    raw_file_evidence = []
+    for entry in entries:
+        row = entry['record']
+        key, label = identify(row), '/'.join(map(str, identify(row)))
+        audit.check(key not in rows, label + ': unique fit identity')
+        rows[key] = row
+        root = legacy_root if entry['origin'] == 'reused' else work
+        relative = Path(entry['directory'])
+        directory = (root/relative).resolve()
+        audit.check(not relative.is_absolute() and directory.is_relative_to(root), label + ': confined artifact path')
+        for name in ('metrics.json', 'history.json', 'checkpoint.pt'):
+            path = directory/name
+            actual = digest(path)
+            audit.equal(actual, entry[name.split('.')[0]+'_sha256'], label + ': actual ' + name + ' digest')
+            raw_file_evidence.append(dict(origin=entry['origin'], path=str(path), sha256=actual, bytes=path.stat().st_size))
+        audit.equal(read(directory/'metrics.json'), row, label + ': raw metrics equality')
+        audit.equal(read(directory/'history.json'), row['history'], label + ': raw history equality')
+        audit.check(not {'test', 'test_names', 'checkpoint', 'knockout'} & row.keys(), label + ': validation-only fit record')
+        if entry['origin'] == 'reused':
+            audit.equal(entry['record'], original[key]['record'], label + ': untouched original fit record')
+            audit.equal(entry['directory'], original[key]['directory'], label + ': original fit location')
+            audit.check(row['kind'] in ('quantum', 'mlp'), label + ': reused baseline identity')
+        else:
+            audit.check(row['kind'] in NEW, label + ': fresh control identity')
+        counts = expected_counts[row['kind']]
+        audit.equal((row['total_params'], row['trainable_params'], row['core_params']),
+                    (counts['total'], counts['trainable'], counts['core_total']), label + ': independent parameter arithmetic')
+        if row['kind'] in NEW:
+            audit.equal(row['parameter_counts'], counts, label + ': full trainability arithmetic')
+            for name, flag in row['trainability'].items():
+                expected = not ((row['kind'] == 'frozen_quantum' and name.startswith('bottleneck.core.')) or
+                                (row['kind'] == 'zero_bottleneck' and name.startswith('bottleneck.')))
+                audit.check(type(flag) is bool and flag is expected, label + '/' + name + ': saved requires_grad semantics')
+        history = row['history']
+        if len(history) < 61:
+            raise NotComplete(label + ': incomplete epoch history')
+        audit.equal([point['epoch'] for point in history], list(range(61)), label + ': complete epoch0..60 history')
+        audit.equal((history[0]['train_loss'], history[0]['train_schedule']), (None, None), label + ': epoch0 has no optimization history')
+        validations = [point for point in history if 'val' in point]
+        audit.equal([point['epoch'] for point in validations], list(range(0, 61, 2)), label + ': validation every2 epochs')
+        best = validations[0]
+        for point in validations[1:]:
+            if point['val']['iou'] > best['val']['iou']:
+                best = point
+        audit.equal((row['best_epoch'], row['val']), (best['epoch'], best['val']), label + ': first strict validation maximum')
+        audit.equal((len(row['fit_names']), len(row['val_names']), row['n_global_fit']), (128, 230, 1303), label + ': cohort sizes')
+        audit.equal((len(set(row['fit_names'])), len(set(row['val_names']))), (128, 230), label + ': unique cohort names')
+        audit.check(not set(row['fit_names']) & set(row['val_names']), label + ': disjoint optimization/validation')
+        norm = row['normalization']
+        audit.equal(norm, row['settings']['_resolved_norm_provenance'], label + ': normalization provenance')
+        audit.equal((norm['n_fit_train_tiles'], norm['n_excluded_val_tiles'], norm['max_samples']),
+                    (1303, 230, None), label + ': normalization over global-fit partition')
+        audit.check(norm['fit_only'] is True and row['settings']['max_samples'] is None,
+                    label + ': normalization excludes validation without optimization-cap renormalization')
+        for point in validations:
+            audit.metrics(point['val'], 230, label + '/epoch' + str(point['epoch']))
+        for point in history[1:]:
+            audit.check(point['train_loss'] is not None and point['train_loss'] >= 0, label + ': saved epoch training loss')
+            audit.equal(point['train_schedule'], dict(sha256=schedule_digest(row['fit_indices'], row['seed'], point['epoch']),
+                                                      n_samples=128), label + ': independently reproduced data/D4 schedule')
+            for group in ('core', 'common'):
+                gradient = point['gradient_norms'][group]
+                audit.check(gradient['steps'] == 16 and 0 <= gradient['nonzero_steps'] <= 16 and
+                            0 <= gradient['min'] <= gradient['mean'] <= gradient['max'], label + '/' + group + ': epoch gradient coverage')
+        for group in ('core', 'common'):
+            gradient = row['diagnostics']['gradient_norms'][group]
+            points = [point['gradient_norms'][group] for point in history[1:]]
+            audit.equal(gradient['steps'], 960, label + '/' + group + ':960 observed optimizer steps')
+            audit.equal(gradient['nonzero_steps'], sum(point['nonzero_steps'] for point in points), label + '/' + group + ': nonzero step aggregation')
+            audit.equal((gradient['min'], gradient['max']), (min(p['min'] for p in points), max(p['max'] for p in points)), label + '/' + group + ': gradient extrema')
+            audit.near(gradient['mean'], statistics.mean(p['mean'] for p in points), label + '/' + group + ': regrouped mean gradient')
+        if row['kind'] in ('frozen_quantum', 'zero_bottleneck'):
+            gradients = [row['diagnostics']['gradient_norms']['core']] + [p['gradient_norms']['core'] for p in history[1:]]
+            audit.check(all(g['min'] == g['mean'] == g['max'] == g['nonzero_steps'] == 0 for g in gradients), label + ': frozen core all960 gradients exactlyzero')
+            audit.equal(row['diagnostics']['movement']['core'], dict(l2=0., relative_l2=0.), label + ': frozen core exactzero movement')
+            frozen = row['diagnostics']['frozen_parameters']
+            audit.check(frozen['unchanged'] is True and frozen['initial_sha256'] == frozen['selected_sha256'], label + ': frozen parameter byte hash unchanged')
+        if row['kind'] in NEW:
+            audit.equal(row['diagnostics']['angle_probe_scope'], 'inactive_counterfactual' if row['kind'] == 'zero_bottleneck'
+                        else 'active_fixed_probe', label + ': angle-probe activity scope')
+        audit.equal(row['diagnostics']['probe_names'], row['fit_names'][:8], label + ': eight fixed optimization probe names')
+        for moment in ('initial', 'selected'):
+            probes = row['diagnostics'][moment+'_angle_probes']
+            audit.check(len(probes) == 1 and probes[0]['n_angles'] == 8*16*3, label + ':384 local angle probes')
+        for layer, audits in (('producer', produced), ('collector', collected)):
+            matches = [a for a in audits if (a['id'], a['seed'], a['learning_rate']) == (row['id'], row['seed'], row['learning_rate'])]
+            audit.check(len(matches) == 1, label + ': unique ' + layer + ' saved restoration audit')
+            if len(matches) == 1:
+                saved = matches[0]
+                audit.equal(saved['checkpoint_sha256'], entry['checkpoint_sha256'], label + ': ' + layer + ' checkpoint hash')
+                audit.equal(saved['selected_state_sha256'], row['selected_state_sha256'], label + ': ' + layer + ' state identity')
+                audit.check(saved['strict_restore'] is True and saved['finite_weights_and_bn_buffers'] is True,
+                            label + ': ' + layer + ' saved restoration flags')
+        fit_evidence.append(dict(kind=row['kind'], seed=row['seed'], learning_rate=row['learning_rate'],
+            origin=entry['origin'], best_epoch=row['best_epoch'], val_iou=row['val']['iou'], checkpoint_sha256=entry['checkpoint_sha256']))
+    audit.equal(set(rows), expected_grid(), 'Exact complete20-cell design')
+    for seed in SEEDS:
+        group = [row for row in rows.values() if row['seed'] == seed]
+        for field in ('initial_shared_state_sha256', 'fit_names', 'val_names', 'fit_indices', 'val_indices', 'normalization'):
+            audit.check(all(row[field] == group[0][field] for row in group), 'Seed' + str(seed) + ': paired ' + field)
+        circuit = [row for row in group if row['kind'] in ('quantum', 'frozen_quantum', 'zero_bottleneck')]
+        audit.equal(len({row['initial_state_sha256'] for row in circuit}), 1, 'Seed' + str(seed) + ': identical initial circuit-control states')
+    for kind in CONTROLS:
+        audit.equal(rows[kind, 42, .001]['initial_state_sha256'], rows[kind, 42, PRIMARY]['initial_state_sha256'], kind + ': rates share exact initial state')
+    initial_parity = []
+    for seed in SEEDS:
+        quantum = rows['quantum', seed, PRIMARY]['history'][0]['val']
+        frozen = rows['frozen_quantum', seed, PRIMARY]['history'][0]['val']
+        exact = {key: quantum[key] == frozen[key] for key in quantum if key != 'loss'}
+        classification = [key for key in exact if not key.endswith('auc')]
+        audit.check(all(exact[key] for key in classification),
+                    'Seed' + str(seed) + ': Q/frozen epoch0 counts and count-derived metrics exactlyequal')
+        initial_parity.append(dict(seed=seed, exact_prediction_fields=exact,
+                                   auc_observation_only={key: dict(quantum=quantum[key], frozen=frozen[key],
+                                       difference=frozen[key]-quantum[key]) for key in exact if key.endswith('auc')},
+                                   loss_observation_only=float_distance(quantum['loss'], frozen['loss'])))
+    result.update(fits=fit_evidence, fit_artifacts=raw_file_evidence, initial_quantum_frozen_parity=initial_parity)
+    audit_replays(work, report, plan, entries, rows, summary, result, audit, expected_counts)
+    audit_provenance(work, report, plan, legacy_root, legacy_plan, result, audit)
+
+
+def audit_replays(work, report, plan, entries, rows, summary, result, audit, counts):
+    records = summary['records']
+    primary = {(row['kind'], row['seed']): row for row in records}
+    audit.equal(len(primary), 15, 'Unique15 primary replay identities')
+    audit.equal({identify(row) for row in records}, {(kind, seed, PRIMARY) for kind in CONTROLS for seed in SEEDS}, 'Every primary replay at.003 regardless auxiliary outcome')
+    manifest = read(report/'input_manifest.json')
+    audit.equal(digest(report/'input_manifest.json'), plan['input_identity']['manifest_sha256'], 'Report input manifest bytes')
+    replay_paths = set()
+    for row in records:
+        key = identify(row)
+        entry = next(entry for entry in entries if identify(entry['record']) == key)
+        audit.equal({k: v for k, v in row.items() if k not in ('test', 'test_names', 'checkpoint')}, rows[key], str(key) + ': replay unchanged original fit')
+        audit.equal(row['test_names'], manifest['test'], str(key) + ': full ordered test cohort')
+        audit.equal(len(set(row['test_names'])), 205, str(key) + ':205 unique test tiles')
+        audit.metrics(row['test'], 205, str(key) + '/test')
+        path = work/'replays'/row['id']/('seed'+str(row['seed'])+'.json')
+        replay_paths.add(path)
+        replay = read(path)
+        names_hash = hashlib.sha256(json.dumps(row['test_names'], separators=(',', ':')).encode()).hexdigest()
+        expected_binding = dict(plan_sha256=digest(work/'plan.json'), origin=entry['origin'],
+            checkpoint_path=str(Path(entry['directory'])/'checkpoint.pt'), checkpoint_sha256=entry['checkpoint_sha256'],
+            metrics_sha256=entry['metrics_sha256'], history_sha256=entry['history_sha256'], test_names_sha256=names_hash)
+        audit.equal(replay, dict(binding=expected_binding, record=row), str(key) + ': exact saved replay envelope/binding')
+        audit.equal(row['checkpoint'], dict(origin=entry['origin'], path=expected_binding['checkpoint_path']), str(key) + ': replay checkpoint provenance')
+    audit.equal(set((work/'replays').rglob('*.json')), replay_paths, 'Exactly15 new saved test replays')
+    paired = []
+    for control in CONTROLS[1:]:
+        for split in ('val', 'test'):
+            for score in SCORES:
+                differences = {str(seed): 100*(primary['quantum', seed][split][score]-primary[control, seed][split][score]) for seed in SEEDS}
+                paired.append(dict(left='quantum', right=control, split=split, metric=score,
+                    **summarize(differences.values()), wins=sum(value > 0 for value in differences.values()),
+                    differences_pp=differences, common_learning_rate=PRIMARY))
+    exported = read(report/'comparison.json')
+    audit.equal(exported['paired'], paired, 'All24 paired contrasts independently recomputed')
+    audit.equal(exported['unit'], 'IoU percentage points', 'Paired differences scaled by100')
+    audit.equal(exported['primary_learning_rate'], PRIMARY, 'Exported fixed primary rate')
+    summaries = []
+    for kind in CONTROLS:
+        group = [primary[kind, seed] for seed in SEEDS]
+        row = dict(kind=kind, learning_rate=PRIMARY, total_params=counts[kind]['total'],
+            trainable_params=counts[kind]['trainable'], core_params=counts[kind]['core_total'], **counts[kind])
+        for split in ('val', 'test'):
+            for score in SCORES:
+                row.update({split+'_'+score+'_'+k: v for k, v in summarize(r[split][score] for r in group).items()})
+        summaries.append(row)
+    expected_tables = dict(summary=summaries, per_seed=[], paired=[], tuning=[], trainability=[])
+    for row in sorted(records, key=identify):
+        expected_tables['per_seed'].append({**{key: row[key] for key in ('kind', 'seed', 'learning_rate', 'best_epoch',
+            'total_params', 'trainable_params', 'core_params')}, **{split+'_'+key: value for split in ('val', 'test') for key, value in row[split].items()}})
+    for row in paired:
+        expected_tables['paired'].append({**{key: value for key, value in row.items() if key != 'differences_pp'},
+            **{'seed'+seed+'_pp': value for seed, value in row['differences_pp'].items()}})
+    for entry in sorted(entries, key=lambda entry: identify(entry['record'])):
+        row, d = entry['record'], entry['record']['diagnostics']
+        expected_tables['tuning'].append(dict(control=row['kind'], seed=row['seed'], learning_rate=row['learning_rate'],
+            role='matched_primary' if row['learning_rate'] == PRIMARY else 'auxiliary_rate', origin=entry['origin'],
+            best_epoch=row['best_epoch'], **{'val_'+key: value for key, value in row['val'].items()}))
+        for group in ('core', 'common'):
+            g = d['gradient_norms'][group]
+            expected_tables['trainability'].append(dict(control=row['kind'], seed=row['seed'], learning_rate=row['learning_rate'],
+                origin=entry['origin'], group=group, total_params=row['total_params'], trainable_params=row['trainable_params'],
+                core_params=row['core_params'], angle_probe_scope=d.get('angle_probe_scope', 'active_fixed_probe'),
+                movement_l2=d['movement'][group]['l2'], relative_movement_l2=d['movement'][group]['relative_l2'],
+                gradient_min=g['min'], gradient_mean=g['mean'], gradient_max=g['max'], gradient_steps=g['steps'], gradient_nonzero_steps=g['nonzero_steps']))
+    result['csv'] = {name+'.csv': audit.csv(report/(name+'.csv'), expected) for name, expected in expected_tables.items()}
+    audit.equal({path.name for path in report.glob('*.csv')}, {name+'.csv' for name in expected_tables}, 'Exactlyfive declared CSVs')
+    audit.equal(read(report/'parameter_counts.json'), counts, 'Published full parameter table independently derived')
+    expected_analysis_rows = [dict(id='hq_'+kind, kind=kind, total_params=counts[kind]['total'], core_params=counts[kind]['core_total'],
+        **{split: {score: summarize(primary[kind, seed][split][score] for seed in SEEDS) for score in SCORES}
+           for split in ('val', 'test')}) for kind in CONTROLS]
+    expected_analysis_pairs = [dict(left='hq_quantum', right='hq_'+row['right'], split=row['split'], score=row['metric'],
+        differences=row['differences_pp'], mean=row['mean'], std=row['std'], n=row['n'], wins=row['wins'],
+        unit='IoU percentage points', same_learning_rate=True) for row in paired]
+    audit.equal(summary['analysis']['rows'], expected_analysis_rows, 'Raw primary aggregate summaries independently recomputed')
+    audit.equal(summary['analysis']['paired_iou'], expected_analysis_pairs, 'Raw primary paired summaries independently recomputed')
+    result.update(paired_contrasts_pp=paired, model_summary=summaries,
+        counting_basis=dict(fits=20, fresh_fits=12, historical_reused_fits=8, paired_seeds=3,
+                            new_primary_replays=15, historical_replays=6, independent_seed_count=3),
+        learning_rate_policy='All15 primary records fixed.003; allfive seed42.001 fits retained as auxiliary without rate reselection')
+
+
+def audit_provenance(work, report, plan, legacy_root, legacy_plan, result, audit):
+    audit.equal(len(plan['legacy_raw_files']), 36, 'Original legacy inventory has36 files')
+    audit.equal({str(path.relative_to(legacy_root)) for path in legacy_root.rglob('*') if path.is_file()},
+                set(plan['legacy_raw_files']), 'Original legacy inventory exact coverage')
+    for name, expected in plan['legacy_raw_files'].items():
+        audit.equal(digest(legacy_root/name), expected, 'Original legacy actual bytes: ' + name)
+    inventory_path = legacy_root.parent.parent/'run_inventory.json'
+    inventory = read(inventory_path)
+    old_inventory = inventory['runs'][legacy_root.name]
+    for name, metadata in old_inventory['files'].items():
+        audit.equal(digest(legacy_root/name), metadata['sha256'], 'Independent persistent legacy inventory hash: ' + name)
+        audit.equal((legacy_root/name).stat().st_size, metadata['bytes'], 'Independent persistent legacy inventory size: ' + name)
+    audit.equal(set(old_inventory['files']), set(plan['legacy_raw_files']), 'Two independently retained legacy inventories agree')
+    provenance = read(report/'provenance.json')
+    for field in ('source_hashes', 'protocol_sha256', 'legacy_source_hashes', 'legacy_plan_sha256', 'input_identity'):
+        audit.equal(provenance[field], plan[field], 'Report/producer provenance ' + field)
+    audit.equal(provenance['producing_revision'], plan['source_revision'], 'Original new producer SHA preserved')
+    audit.equal(provenance['producer_runtime'], plan['runtime'], 'Recorded producer runtime preserved')
+    audit.equal(provenance['parameter_counts'], result['parameter_arithmetic']['parameter_counts'],
+                'Provenance parameter counts independently derived')
+    audit.equal((provenance['audited_fits'], provenance['fresh_fits'], provenance['reused_fits'],
+        provenance['audited_selected_saved_replays'], provenance['retained_historical_replays'], provenance['independent_inference_replays']),
+        (20, 12, 8, 15, 6, 0), 'Report audit scope and historic counting')
+    for origin, root in (('fresh', work), ('legacy', legacy_root)):
+        inventory = provenance['raw_artifact_sha256'][origin]
+        actual_names = {str(path.relative_to(root)) for path in root.rglob('*') if path.is_file()}
+        audit.equal(set(inventory), actual_names, origin + ': complete raw byte inventory')
+        for name, expected in inventory.items():
+            audit.equal(digest(root/name), expected, origin + ': report-bound actual raw artifact ' + name)
+            if name.endswith('.json'):
+                retained = report/('raw_campaign' if origin == 'fresh' else 'historical_legacy')/name
+                audit.equal(digest(retained), expected, origin + ': retained JSON byte copy ' + name)
+    expected_sources = dict(plan['source_hashes'])
+    for name, expected in legacy_plan['source_hashes'].items():
+        audit.equal(expected_sources[name], expected, 'Legacy executable reused unchanged: ' + name)
+    expected_sources[PROTOCOL] = plan['protocol_sha256']
+    expected_sources[OLD_PROTOCOL] = legacy_plan['protocol_sha256']
+    expected_sources['scripts/collect_hq_training_controls.py'] = provenance['collector_source_sha256']
+    manifest = read(report/'source_manifest.json')
+    audit.equal(set(manifest), set(expected_sources), 'Retained source snapshot complete inventory')
+    for name, expected in expected_sources.items():
+        retained = manifest[name]
+        audit.equal(retained['sha256'], expected, 'Snapshot manifest binding: ' + name)
+        audit.equal(digest(report/retained['retained_as']), expected, 'Snapshot actual bytes: ' + name)
+    for name in ('plan.json', 'summary.json', 'all_fits.json'):
+        audit.equal(digest(report/name), digest(work/name), 'Top-level report/raw byte identity: ' + name)
+    for name, expected in plan['input_identity']['stats_files_sha256'].items():
+        audit.equal(digest(report/'input_metadata'/name), expected, 'Bound normalization input metadata: ' + name)
+    artifacts = read(report/'artifact_sha256.json')
+    actual = {str(path.relative_to(report)) for path in report.rglob('*') if path.is_file()}
+    audit.equal(actual, set(artifacts)|{'artifact_sha256.json'}, 'Report artifact manifest exact coverage')
+    for name, expected in artifacts.items():
+        audit.equal(digest(report/name), expected, 'Report actual artifact bytes: ' + name)
+    result['provenance'] = dict(producing_revision=plan['source_revision'], historical_producing_revision=legacy_plan['source_revision'],
+        plan_sha256=digest(work/'plan.json'), legacy_plan_sha256=plan['legacy_plan_sha256'],
+        profile_sha256=plan['resource_profile_sha256'], legacy_inventory_sha256=digest(inventory_path),
+        collector_source_sha256=provenance['collector_source_sha256'], source_manifest_sha256=digest(report/'source_manifest.json'),
+        source_snapshots=expected_sources, report_artifacts=len(artifacts)+1,
+        checkpoint_bytes_verified=20, legacy_inventory_files_verified=36)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--work-dir', type=Path, required=True)
+    parser.add_argument('--report-dir', type=Path, required=True)
+    parser.add_argument('--output', type=Path, default=Path(__file__).with_suffix('.json'))
+    args = parser.parse_args(argv)
+    work, report, output = (path.resolve() for path in (args.work_dir, args.report_dir, args.output))
+    if output == Path(__file__).resolve() or output.is_relative_to(work) or output.is_relative_to(report):
+        parser.error('Audit output must be separate from producer/report inputs and audit source')
+    if not output.parent.is_dir():
+        parser.error('Audit output parent directory must already exist')
+    audit_state = Audit()
+    result = dict(status='NOT_COMPLETE', errors=[], assertions=0, audit_source_sha256=digest(Path(__file__)),
+        audit_runtime=dict(python=sys.version, executable=sys.executable, project_imports=False),
+        paths=dict(work_dir=str(work), report_dir=str(report)),
+        scope='Independent saved-number and byte-provenance audit; not a formal Astra review or independent inference replay',
+        numerical_policy=dict(contrasts_and_CSV='Exact numeric equality after CSV float roundtrip',
+            sample_SD='Paired differences first, then statistics.stdev with n-1; not SE or significance',
+            count_derived_scores_and_regrouped_gradient_means='Absolute float tolerance1e-12; integer counts exact',
+            epoch0_frozen_loss='Descriptive signed/absolute/binary64 ULP differences only; no equality threshold'),
+        limitations=['No images, TIFF sensor detection, Torch imports, checkpoint tensor deserialization or inference.',
+            'AUC is not recoverable from confusion counts: only its saved range is checked.',
+            'requires_grad does not establish functional influence or parameter importance; no active-parameter count is inferred.',
+            'Gradient histories contain per-epoch aggregates covering960 updates, not each individual batch value.',
+            'Eight reused fits and six older test replays are historical evidence; three paired seeds remain.',
+            'Angle probes describe eight fixed optimization images; zero-control encodings are inactive counterfactuals.',
+            'No fresh holdout, statistical significance/equivalence, hardware/Anvil/throughput or quantum-causality claim.'])
+    try:
+        audit(work, report, result, audit_state)
+        result['status'] = 'FAIL' if audit_state.errors else 'PASS'
+    except NotComplete as error:
+        result['incomplete_reason'] = str(error)
+        # Never publish partial numerical rankings as a complete result.
+        for key in ('model_summary', 'paired_contrasts_pp', 'fits'):
+            result.pop(key, None)
+    except (KeyError, TypeError, ValueError, OSError, StopIteration, IndexError) as error:
+        result['status'] = 'FAIL'
+        audit_state.errors.append(type(error).__name__ + ': ' + str(error))
+    result.update(errors=audit_state.errors, assertions=audit_state.assertions,
+        count_derived_metric_blocks_checked=audit_state.metric_blocks,
+        CSV_fields_checked=audit_state.csv_fields, CSV_numeric_fields_checked=audit_state.csv_numeric_fields)
+    output.write_text(json.dumps(result, indent=2, sort_keys=True, allow_nan=False)+'\n')
+    print(json.dumps(dict(status=result['status'], output=str(output), sha256=digest(output),
+        assertions=audit_state.assertions, errors=audit_state.errors, incomplete_reason=result.get('incomplete_reason')), indent=2))
+    return {'PASS': 0, 'FAIL': 1, 'NOT_COMPLETE': 2}[result['status']]
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

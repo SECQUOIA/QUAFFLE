@@ -1,0 +1,11 @@
+{
+  "scope": "Actual metadata paths used by historical configs match the current bound data; no model/test inference",
+  "checks": [
+    {
+      "historical_root": "/tmp/quaffle-dfc24-real",
+      "exists": true,
+      "manifest_matches": true,
+      "normalization_files_match": true
+    }
+  ]
+}

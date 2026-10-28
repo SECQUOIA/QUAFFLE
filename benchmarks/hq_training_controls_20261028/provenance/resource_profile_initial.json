@@ -1,0 +1,156 @@
+{
+  "source_hashes": {
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "scripts/run_hq_training_controls.py": "c166942201e786d6026ab2550c5ec4343c271b3f191b66f85ab60b1ffe72aab8",
+    "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d"
+  },
+  "protocol_sha256": "3f41f36c409c36c28518606c8868b8767b352f4f53de1512e141a5a45403c65e",
+  "runtime": {
+    "python": "3.11.14",
+    "executable": "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "packages": {
+      "torch": "2.5.1",
+      "pennylane": "0.44.1",
+      "numpy": "2.4.6",
+      "rasterio": "1.4.3",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.17.1",
+      "Pillow": "13.0.0"
+    },
+    "device": "cuda:0",
+    "gpu": "NVIDIA RTX A1000",
+    "torch_cuda": "12.1",
+    "gpu_allocator_fraction": 0.12,
+    "threads": 2,
+    "interop_threads": 2
+  },
+  "cases": [
+    {
+      "kind": "frozen_quantum",
+      "batch_size": 8,
+      "parameter_counts": {
+        "total": 344480,
+        "trainable": 344472,
+        "core_total": 8,
+        "core_trainable": 0,
+        "bottleneck_total": 270539,
+        "bottleneck_trainable": 270531
+      },
+      "timings_s": [
+        6.804775394964963,
+        3.6919019410270266
+      ],
+      "gradient_norms": [
+        {
+          "core": 0.0,
+          "common": 0.6928000522052423
+        },
+        {
+          "core": 0.0,
+          "common": 0.6698725918183376
+        }
+      ],
+      "movement": {
+        "core": {
+          "l2": 0.0,
+          "relative_l2": 0.0
+        },
+        "common": {
+          "l2": 2.6602576104010334,
+          "relative_l2": 0.04360030477483274
+        }
+      },
+      "frozen_unchanged": true,
+      "strict_restore": true,
+      "peak_cuda_allocated_bytes": 153831424
+    },
+    {
+      "kind": "zero_bottleneck",
+      "batch_size": 8,
+      "parameter_counts": {
+        "total": 344480,
+        "trainable": 73941,
+        "core_total": 8,
+        "core_trainable": 0,
+        "bottleneck_total": 270539,
+        "bottleneck_trainable": 0
+      },
+      "timings_s": [
+        0.05443756899330765,
+        0.04908353800419718
+      ],
+      "gradient_norms": [
+        {
+          "core": 0.0,
+          "common": 0.6927843797765316
+        },
+        {
+          "core": 0.0,
+          "common": 0.669884434612083
+        }
+      ],
+      "movement": {
+        "core": {
+          "l2": 0.0,
+          "relative_l2": 0.0
+        },
+        "common": {
+          "l2": 1.007638430968219,
+          "relative_l2": 0.016514694863113525
+        }
+      },
+      "frozen_unchanged": true,
+      "strict_restore": true,
+      "peak_cuda_allocated_bytes": 151237120
+    },
+    {
+      "kind": "compact_affine",
+      "batch_size": 8,
+      "parameter_counts": {
+        "total": 346040,
+        "trainable": 346040,
+        "core_total": 1568,
+        "core_trainable": 1568,
+        "bottleneck_total": 272099,
+        "bottleneck_trainable": 272099
+      },
+      "timings_s": [
+        0.0609394219936803,
+        0.05354032997274771
+      ],
+      "gradient_norms": [
+        {
+          "core": 0.0001656558537755588,
+          "common": 0.6928111422460547
+        },
+        {
+          "core": 0.00023318818938636074,
+          "common": 0.669955353763798
+        }
+      ],
+      "movement": {
+        "core": {
+          "l2": 0.18715222036052023,
+          "relative_l2": 0.055901113853420316
+        },
+        "common": {
+          "l2": 2.6846324437424642,
+          "relative_l2": 0.0439997962219644
+        }
+      },
+      "frozen_unchanged": true,
+      "strict_restore": true,
+      "peak_cuda_allocated_bytes": 153852416
+    }
+  ],
+  "status": "passed"
+}

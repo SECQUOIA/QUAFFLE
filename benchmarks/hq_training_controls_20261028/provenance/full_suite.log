@@ -1,0 +1,64 @@
+Running as unit: run-r533e2dc5484445c4b0c8d84d2466c465.scope; invocation ID: 3f4a2ff76437415b98674ec7752233e9
+........................................................................ [ 12%]
+........................................................................ [ 24%]
+........................................................................ [ 37%]
+........................................................................ [ 49%]
+........................................................................ [ 62%]
+........................................................................ [ 74%]
+........................................................................ [ 87%]
+........................................................................ [ 99%]
+..                                                                       [100%]
+=============================== warnings summary ===============================
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:24: DeprecationWarning: 'click.utils.get_binary_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_binary_stream as get_binary_stream
+
+../../home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/typer/__init__.py:25: DeprecationWarning: 'click.utils.get_text_stream' is deprecated and will be removed in Click 9.0.
+    from click.utils import get_text_stream as get_text_stream
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-8]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-8]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:171: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=8: only 2 groups (effective_qc=16 channels) are processed while remaining_channels=4 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 16 or 24.
+    return unet.QuantumBlock(
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-8]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-8]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:322: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=8: only 2 groups (effective_qc=16 channels) are processed while remaining_channels=4 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 16 or 24.
+    return unet.ClassicalBottleneckBlock(
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-12]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-12]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:171: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=12: only 1 groups (effective_qc=12 channels) are processed while remaining_channels=8 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 12 or 24.
+    return unet.QuantumBlock(
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-12]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-12]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:322: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=12: only 1 groups (effective_qc=12 channels) are processed while remaining_channels=8 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 12 or 24.
+    return unet.ClassicalBottleneckBlock(
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-16]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-16]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:171: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=16: only 1 groups (effective_qc=16 channels) are processed while remaining_channels=4 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 16 or 32.
+    return unet.QuantumBlock(
+
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[True-16]
+tests/test_configurable_n_qubits.py::test_paired_seed_backbone_parity_and_non_divisible_groupnorm[False-16]
+  /tmp/quaffle-hq-training-controls-20261028/utilsTorch/utilsTorch.py:322: UserWarning: quantum_channels=20 is not divisible by group width n_qubits=16: only 1 groups (effective_qc=16 channels) are processed while remaining_channels=4 are excluded from circuit/control processing (and routed through the surrounding classical path in QResnetBlock). Consider a divisible --quantum-channels value such as 16 or 32.
+    return unet.ClassicalBottleneckBlock(
+
+tests/test_package_diagnostics_mini_workflow.py::test_d2_exemplar_figure_mini_and_wave2_checkpoint_support
+tests/test_package_diagnostics_mini_workflow.py::test_r1_exemplar_round_checkpoint_top_level_metrics_and_mixed_variants
+tests/test_wave1c_checkpoints_eval_and_modulation.py::test_issue6_federated_best_parameters_persistence_and_restoration
+tests/test_wave1c_checkpoints_eval_and_modulation.py::test_round1_federated_strategy_callbacks_and_unvalidated_final_round
+tests/test_wave2_spatial_hqunet_backbone_loss_augment.py::test_wave2_review_r2_hqunet_ablation_spatial_and_legacy_hqunet_layers
+tests/test_wave3_multimodal_and_federated.py::test_partial_participation_checkpoint_resume_client_sampling_continuity
+  /tmp/quaffle-hq-training-controls-20261028/tools/training_common.py:2751: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+    return torch.load(path, map_location=map_location)
+
+tests/test_wave1d_analysis_figures_and_cleanup.py::test_issue7_table2_and_forest_plot_include_ablation_and_valid_single_seed_stats
+  /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/lib/python3.11/site-packages/scipy/stats/_axis_nan_policy.py:592: RuntimeWarning: Precision loss occurred in moment calculation due to catastrophic cancellation. This occurs when the data are nearly identical. Results may be unreliable.
+    res = hypotest_fun_out(*samples, **kwds)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+578 passed, 21 warnings in 205.50s (0:03:25)
