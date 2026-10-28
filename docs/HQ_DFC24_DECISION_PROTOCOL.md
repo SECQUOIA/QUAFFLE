@@ -3,11 +3,12 @@
 ## Current status and purpose
 
 This is a **prospective protocol for an exploratory scale-transfer screen** on
-our cleaned binary DFC24 data. No fits or Anvil jobs for this protocol have run.
-The local deliverables are the data-exposure/metric audit, this protocol, and
-scoped manuscript corrections. **Full-data campaign launch is gated on a future
-runner implementation and an actual Anvil resource profile.** Alan owns Anvil
-execution. Preparing this handoff does not submit jobs or contact him.
+our cleaned binary DFC24 data. The fresh runner provides separate `full` and
+`rehearsal` modes; a short rehearsal verifies execution rather than accuracy.
+The full-data 60-epoch campaign and Anvil jobs remain unperformed. **Anvil launch
+requires a profile on the actual allocation and frozen source, data, runtime
+and resource identities.** Alan owns Anvil execution. Local rehearsal and
+handoff preparation do not submit jobs or contact him.
 
 The completed [local HQ controls](../benchmarks/hq_training_controls_20261028/INTERPRETATION.md)
 give small, mixed learned-versus-frozen validation differences; the permanently
@@ -161,24 +162,83 @@ saved local evidence and derives metrics from existing confusion counts. It
 does not fit models, repeat inference, recover missing AUC, or launch Anvil.
 The committed audit packet records the actual source and input identities.
 
-## Alan's launch gates
+## Fresh runner and local rehearsal
 
-**No ready-to-submit full-data training command is delivered here.** The current
-`scripts/run_hq_training_controls.py` deliberately accepts only fit-cap 128 and
-requires the old baseline campaign. Its fresh control fitter cannot simply be
-called for all four arms: it writes `hq-training-controls-v1`, while learned
-quantum restoration dispatches to the direction runner's `hq-direction-v1`
-contract. This is an implementation boundary, not measured Anvil failure.
+`scripts/run_hq_dfc24_fresh.py` implements the separately identified fresh
+campaign under the runtime-bound [fresh execution protocol](HQ_DFC24_FRESH_PROTOCOL.md).
+It dispatches learned quantum to the direction fitter and the other
+three arms to the training-control fitter, preserving their native checkpoint
+formats and strict restorers. The historical cap-128/reused-fit runner and its
+frozen evidence remain unchanged. Neither old capped fits nor an incompatible
+profile can be reused for a fresh full-data campaign.
 
-Before submission, the following work must be completed and reviewed:
+Both modes execute the same 16-fit rate/seed selection sequence and audit every
+checkpoint before 12 selected replays. Their scopes differ explicitly:
 
-1. Implement a fresh, separately identified full-fit campaign using the exact
-   16-fit/12-selected design, source/data/runtime bindings, per-arm validation
-   rate selection, strict restoration, failure/resume integrity and complete-fit
-   audit boundary. Deliberately dispatch the correct learned-quantum producer and
-   restorer, or establish and test a corrected format contract. Verify the actual
-   full-fit cohort and use meaningful synthetic end-to-end/corruption tests.
-2. Profile all four actual arms under Alan's Anvil allocation, including the
+| Mode | Optimization | Evaluated validation | Epochs | Selected replay |
+| --- | ---: | ---: | ---: | --- |
+| `full` | All 1,303 fit tiles | All 230 validation tiles | 60 | All 205 exposed test tiles |
+| `rehearsal` | 16 fit tiles | 16 held-out validation tiles | 2 | The same 16 validation tiles; no testing |
+
+The rehearsal preserves normalization over all 1,303 global-fit tiles and
+excludes the entire 230-tile validation partition. It is not pure 16-shot
+learning, a convergence experiment, an independent confirmation or evidence for
+quantum superiority. Its scientific screen status is `not_applicable_rehearsal`.
+No test dataset is constructed or evaluated in rehearsal or profiling.
+
+The CLI requires an explicit mode and finite wall-clock allowance. CUDA memory
+fraction is an explicit operator choice, recorded in the runtime identity.
+Profile all four actual arms before fitting: two Adam steps at batch eight,
+validation, and checkpoint I/O/restoration, with measured stage times and memory.
+These instrumented observations are feasibility probes, not controlled
+throughput or accuracy comparisons. A profile from the workstation does not
+establish Anvil feasibility or match a different allocation/runtime.
+
+For local rehearsal, activate the existing project environment and run each
+heavy command in the established OS memory limit with swap disabled and two
+numerical-library threads. The following are local safety allowances, not
+predicted runtimes or cluster settings:
+
+```bash
+python scripts/run_hq_dfc24_fresh.py profile \
+  --mode rehearsal --data-root /path/to/retained/dfc24 \
+  --work-dir results/hq_fresh_profile_rehearsal \
+  --device cuda --gpu-memory-fraction 0.12 --budget-seconds 600
+
+python scripts/run_hq_dfc24_fresh.py run \
+  --mode rehearsal --data-root /path/to/retained/dfc24 \
+  --profile results/hq_fresh_profile_rehearsal/resource_profile.json \
+  --work-dir results/hq_fresh_rehearsal \
+  --device cuda --gpu-memory-fraction 0.12 --budget-seconds 1800
+
+python scripts/collect_hq_dfc24_fresh.py \
+  --work-dir results/hq_fresh_rehearsal \
+  --data-root /path/to/retained/dfc24 \
+  --output-dir results/hq_fresh_rehearsal_report
+```
+
+Use new output directories. Resume a run by repeating its original `run`
+arguments with `--resume`; it validates source, data, runtime, profile, cohorts
+and completed artifacts before reusing them. Failed/partial evidence is
+preserved and blocks a silent retry, including an immutable replay intent left
+without its committed output after a process kill. An OS advisory lock prevents concurrent
+writers. The saved budget/deadline bounds new learning work across resumes;
+downtime may count against it. Completed verification does not authorize new
+learning or overwriting replay files. The collector restores checkpoints and
+audits saved metrics, without training or prediction inference, and exports a
+deterministic report separately from the raw run.
+
+## Alan's remaining launch gates
+
+The implemented runner does not substitute for measurements on Anvil. Before
+submission Alan must:
+
+1. Review the fresh-runner and local-rehearsal evidence for the exact source
+   revision to be used, including the 16-fit/12-selected flow, native quantum
+   checkpoint dispatch, full-fit cohort guard, source/data/runtime bindings,
+   deterministic selection, strict restoration, failure/resume behavior and
+   complete-fit boundary before test replay.
+2. Profile all four actual arms under his Anvil allocation, including the
    full 16-qubit CPU forward/backward path with per-sample checkpointing, CNN
    placement, data loading, validation and checkpoint I/O. Retain measured time,
    peak CPU/GPU memory, numerical behavior, source and runtime. A local random
@@ -187,6 +247,13 @@ Before submission, the following work must be completed and reviewed:
 3. Freeze the final input/protocol/source/runtime/resource identities before
    fitting. If infeasible, stop and revise before accuracy inspection. Do not
    silently substitute four qubits, reduce coverage, or change epochs.
+
+Run `profile` and then `run` with `--mode full` on that allocation. Both require
+Alan's chosen finite `--budget-seconds`; `run` requires the resulting matching
+`--profile` file. Use the same data, device and CUDA memory fraction for both.
+The collector command above also audits a full-mode run and computes the
+predeclared screen only for its complete full-mode grid. Source-byte bindings
+remain authoritative when Git HEAD later advances for report/review retention.
 
 Alan supplies account, partition, walltime, interpreter and resource choices
 through the established local cluster configuration. No scheduler policy,
