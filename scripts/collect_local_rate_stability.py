@@ -443,7 +443,7 @@ def combined_report(matched, longer, duration, prefix_checks):
         'The study completes 12 matched60 cells (eight audited historical fits and four new fits) and 18 fresh 120-epoch cells.',
         'Validation is the development metric. The previously inspected test split is descriptive, not an untouched confirmation set.',
         'All models use 64-pixel images, 128 optimization tiles, global-fit normalization excluding validation, and three paired seeds.',
-        'The patchwise MLP is the strongest observed original classical control; its receptive field differs from the global circuits.', '',
+        'The patchwise MLP is the strongest observed original classical control; its bottleneck spatial operation differs from the globally pooled circuits. Encoder and attention context remain unchanged.', '',
         '[60-epoch fixed-rate tables](matched60/README.md) · [120-epoch fixed-rate tables](long120/README.md)', '',
         '| Model | Fixed LR | Metric | 120 minus 60 IoU percentage points, mean ± sample SD | Wins |',
         '| --- | ---: | --- | ---: | ---: |']
