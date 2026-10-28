@@ -4,6 +4,7 @@ import argparse
 from collections import Counter
 import copy
 import gc
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -24,7 +25,7 @@ SEEDS, RATES = hq.SEEDS, hq.RATES
 PRIMARY_RATE = 0.003
 PROTOCOL = 'docs/HQ_TRAINING_CONTROLS_PROTOCOL.md'
 SOURCE_FILES = (*hq.SOURCE_FILES, 'scripts/run_hq_training_controls.py',
-                'utilsTorch/hq_training_controls.py')
+                'utilsTorch/hq_training_controls.py', 'scripts/collect_hq_dfc24_direction.py')
 require, digest, canonical = hq.require, hq.digest, hq.canonical
 pilot = hq.pilot
 state_hash, shared_hash, finite_tensors = hq.state_hash, hq.shared_hash, hq.finite_tensors
@@ -122,6 +123,9 @@ def audit_fit(row, kind, seed, rate, args, data):
     frozen = row['diagnostics']['frozen_parameters']
     require(frozen['initial_sha256'] == frozen['selected_sha256'] and frozen['unchanged'] is True,
             'Frozen parameters changed')
+    require(row['diagnostics']['angle_probe_scope'] ==
+            ('inactive_counterfactual' if kind == 'zero_bottleneck' else 'active_fixed_probe'),
+            'Angle probe activity/scope differs')
 
 
 def restore_checkpoint(path, row, device='cpu'):
@@ -214,6 +218,7 @@ def fit_one(kind, seed, rate, args, data, directory, device):
             print(json.dumps(dict(id='hq_' + kind, seed=seed, learning_rate=rate, **point)), flush=True)
         model.load_state_dict(best_state, strict=True)
         diagnostics = dict(initial_angle_probes=probes, selected_angle_probes=hq.angle_probe(model, probe_images),
+            angle_probe_scope='inactive_counterfactual' if kind == 'zero_bottleneck' else 'active_fixed_probe',
             movement=movement(model, initial), probe_names=[data['dataset'].names[data['fit'][i]] for i in range(len(probe_images))],
             gradient_norms={g: dict(min=min(v), max=max(v), mean=statistics.mean(v), steps=len(v),
                 nonzero_steps=sum(x > 0 for x in v)) for g, v in all_norms.items()},
@@ -254,7 +259,31 @@ def identity(row):
     return row['kind'], row['seed'], row['learning_rate']
 
 
+def replay_binding(entry, plan_sha256, names):
+    """Bind a saved measurement to its fit, executable plan and ordered cohort."""
+    return dict(plan_sha256=plan_sha256, origin=entry['origin'],
+        checkpoint_path=str(Path(entry['directory']) / 'checkpoint.pt'),
+        checkpoint_sha256=entry['checkpoint_sha256'], metrics_sha256=entry['metrics_sha256'],
+        history_sha256=entry['history_sha256'],
+        test_names_sha256=hashlib.sha256(json.dumps(list(names), separators=(',', ':')).encode()).hexdigest())
+
+
+def validate_replay(payload, entry, plan_sha256, names):
+    from scripts.collect_hq_dfc24_direction import check_metrics
+    require(set(payload) == {'binding', 'record'} and
+            payload['binding'] == replay_binding(entry, plan_sha256, names), 'Saved replay binding differs')
+    row = payload['record']
+    require({key: value for key, value in row.items() if key not in ('test', 'test_names', 'checkpoint')} ==
+            entry['record'], 'Saved replay fit record differs')
+    require(row['checkpoint'] == dict(origin=entry['origin'],
+            path=str(Path(entry['directory']) / 'checkpoint.pt')) and row['test_names'] == list(names),
+            'Saved replay checkpoint/cohort differs')
+    check_metrics(row['test'], 205, test=True)
+    return row
+
+
 def entry_directory(work_dir, legacy_root, entry):
+    require(entry['origin'] in ('fresh', 'reused'), 'Unknown fit evidence origin')
     root = legacy_root if entry['origin'] == 'reused' else work_dir
     path = (Path(root) / entry['directory']).resolve()
     require(not Path(entry['directory']).is_absolute() and path.is_relative_to(Path(root).resolve()),
@@ -355,6 +384,7 @@ def run(args, device):
     from tools import training_common as tc
     from scripts.collect_hq_dfc24_direction import audit_campaign
     old = audit_campaign(args.legacy_root, args.data_root)
+    require(hq.runtime(device) == old['plan']['runtime'], 'Fresh and reused producing runtimes differ')
     require(old['summary']['selection'] == {'hq_quantum': PRIMARY_RATE, 'hq_mlp': PRIMARY_RATE},
             'Historical baseline rates differ from this fixed-rate protocol')
     resource = json.loads(args.profile.read_text())
@@ -428,13 +458,26 @@ def run(args, device):
         _, _, _, images, masks = tc.resolve_data_dirs('combined', str(args.data_root))
         dataset = tc.load_dataset(images, masks, cfg)
         require(dataset.norm_provenance == row['normalization'], 'Test normalization differs')
-        loader = tc.make_loader(dataset, args.batch_size, False, row['seed'])
-        row['test'] = evaluate(model, loader, device)
-        row['test_names'] = list(dataset.names)
-        hq.validate_sensor_metrics(row['test'], 205, test=True)
-        row['checkpoint'] = dict(origin=entry['origin'], path=str(Path(entry['directory']) / 'checkpoint.pt'))
         replay = args.work_dir / 'replays' / row['id'] / ('seed' + str(row['seed']) + '.json')
-        pilot.write_json(replay, row)
+        failure = args.work_dir / 'replay_failures' / row['id'] / ('seed' + str(row['seed']) + '.json')
+        require(not failure.exists(), 'Failed replay evidence preserved at ' + str(failure))
+        plan_sha = digest(args.work_dir / 'plan.json')
+        if replay.exists():
+            row = validate_replay(json.loads(replay.read_text()), entry, plan_sha, dataset.names)
+        else:
+            binding = replay_binding(entry, plan_sha, dataset.names)
+            try:
+                loader = tc.make_loader(dataset, args.batch_size, False, row['seed'])
+                row['test'] = evaluate(model, loader, device)
+                row['test_names'] = list(dataset.names)
+                row['checkpoint'] = dict(origin=entry['origin'], path=str(Path(entry['directory']) / 'checkpoint.pt'))
+                payload = dict(binding=binding, record=row)
+                validate_replay(payload, entry, plan_sha, dataset.names)
+                pilot.write_json(replay, payload)
+            except BaseException as error:
+                pilot.write_json(failure, dict(binding=binding, error_type=type(error).__name__,
+                    error=str(error), traceback=traceback.format_exc()))
+                raise
         records.append(row)
         del model
     require(source_hashes() == plan['source_hashes'] and pilot.verify_inputs(args.data_root) == inputs,

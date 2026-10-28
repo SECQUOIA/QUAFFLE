@@ -58,6 +58,10 @@ checkpoint, including auxiliary fits, with BatchNorm state and training-control
 semantics. Save full epoch histories and gradient summaries, and verify frozen
 parameters remain byte-identical to initialization.
 
+Bind the historical audit implementation as an executable dependency and reject
+reuse when the current producing runtime, device, GPU, thread or allocator
+identity differs. Resource profiles retain the same complete source binding.
+
 ## Evaluation and interpretation
 
 Choose each checkpoint by the first strict maximum validation foreground IoU,
@@ -68,6 +72,10 @@ These tests are descriptive because the test set is already exposed. Keep the
 previous six baseline test records as historical evidence; do not conflate them
 with the new replays. No new inference knockouts are needed: the new zero arm is
 a training intervention, distinct from the prior post-training ablation.
+Save each replay with bindings to its frozen plan, raw fit/history/checkpoint
+digests and ordered test cohort. Resume validates and reuses a completed replay
+without rerunning or overwriting it. Preserve failed/partial replay evidence and
+reject an incompatible replay rather than silently replacing measured bytes.
 
 Compute paired differences before mean and sample standard deviation. Report
 every primary quantum-versus-control contrast on validation and descriptive
@@ -77,6 +85,9 @@ to learned circuit coefficients. A small or inconsistent validation difference
 does not justify scaling an accuracy-superiority claim. A consistent difference
 would motivate an independent confirmation, while still requiring competitive
 classical controls. Three seeds establish neither significance nor equivalence.
+Angle probes use the fixed first eight unaugmented optimization images per seed.
+For the permanently zero arm, these probes are explicitly inactive,
+counterfactual values from the unused path, rather than angles used in prediction.
 
 Do not add fits, alter the architecture, or select a favorable rate after seeing
 test scores. Negative or mixed outcomes are deliverables. Preserve source, input,
