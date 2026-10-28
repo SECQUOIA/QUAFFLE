@@ -1,0 +1,114 @@
+import hashlib
+import importlib.metadata
+import json
+from pathlib import Path
+import platform
+import resource
+import subprocess
+import time
+
+import torch
+import utilsTorch.hq_direction as hq
+from utilsTorch.utilsTorch import segmentation_loss
+
+ROOT = Path('/tmp/quaffle-hq-dfc24-direction-20261028')
+OUT = Path('/tmp/quaffle-hq-dfc24-profile-20261028')
+assert Path(hq.__file__).resolve() == ROOT / 'utilsTorch/hq_direction.py'
+OUT.mkdir(exist_ok=False)
+torch.set_num_threads(2)
+torch.set_num_interop_threads(2)
+torch.cuda.set_per_process_memory_fraction(0.12)
+DEVICE = torch.device('cuda:0')
+SOURCES = ['utilsTorch/hq_direction.py', 'utilsTorch/unetTorch.py', 'utilsTorch/utilsTorch.py']
+hashes = lambda: {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in SOURCES}
+record = dict(status='running', source_revision=subprocess.check_output(
+    ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), source_hashes=hashes(),
+    helper_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    resources=dict(MemoryMax='6G', MemorySwapMax=0, threads=2, cuda_allocator_fraction=.12),
+    gpu=torch.cuda.get_device_name(DEVICE), python=platform.python_version(),
+    packages={k: importlib.metadata.version(k) for k in ['torch', 'pennylane', 'numpy']},
+    scope='Random-input actual model forward/backward/Adam and strict checkpoint reconstruction; no accuracy or controlled-throughput claim',
+    cases=[])
+
+
+def save():
+    p = OUT / 'resource_profile.json'
+    temporary = p.with_suffix('.json.writing')
+    temporary.write_text(json.dumps(record, indent=2, allow_nan=False) + '\n')
+    temporary.replace(p)
+
+
+save()
+try:
+    shared = {}
+    for batch in [1, 8]:
+        generator = torch.Generator().manual_seed(1_024_042 + batch)
+        images = torch.randn(batch, 3, 128, 128, generator=generator).to(DEVICE)
+        masks = torch.randint(0, 2, (batch, 1, 128, 128), generator=generator).float().to(DEVICE)
+        for kind in ['quantum', 'mlp']:
+            record['active'] = dict(kind=kind, batch_size=batch)
+            save()
+            model = hq.HQDirectionUNet(kind=kind, seed=42).to(DEVICE)
+            initial_shared = hq.shared_state_sha256(model)
+            assert batch not in shared or shared[batch] == initial_shared
+            shared[batch] = initial_shared
+            core = list(model.bottleneck.core_parameters())
+            initial_core = [p.detach().cpu().clone() for p in core]
+            optimizer = torch.optim.Adam(model.parameters(), lr=.001)
+            torch.cuda.reset_peak_memory_stats(DEVICE)
+            timings, losses, gradient_norms = [], [], []
+            for _ in range(2):
+                optimizer.zero_grad()
+                torch.cuda.synchronize(DEVICE)
+                started = time.perf_counter()
+                logits = model(images)
+                assert logits.shape == (batch, 2, 128, 128)
+                loss = segmentation_loss(logits, masks, loss_mode='dice_ce')
+                assert torch.isfinite(loss)
+                torch.cuda.synchronize(DEVICE)
+                forward = time.perf_counter()
+                loss.backward()
+                assert all(p.grad is not None and torch.isfinite(p.grad).all() for p in model.parameters())
+                norm = float(sum(p.grad.detach().double().square().sum() for p in core).sqrt())
+                assert norm > 0
+                torch.cuda.synchronize(DEVICE)
+                backward = time.perf_counter()
+                optimizer.step()
+                assert all(torch.isfinite(v).all() for v in model.state_dict().values())
+                torch.cuda.synchronize(DEVICE)
+                finished = time.perf_counter()
+                timings.append(dict(forward_s=forward-started, backward_s=backward-forward,
+                                    optimizer_s=finished-backward, total_s=finished-started))
+                losses.append(float(loss.detach()))
+                gradient_norms.append(norm)
+            movement = float(sum((p.detach().cpu().double()-start.double()).square().sum()
+                                 for p, start in zip(core, initial_core)).sqrt())
+            assert movement > 0
+            checkpoint = OUT / f'{kind}_batch{batch}.pt'
+            torch.save(dict(config=hq.model_config(model), state_dict={k:v.detach().cpu() for k,v in model.state_dict().items()}), checkpoint)
+            payload = torch.load(checkpoint, map_location='cpu', weights_only=False)
+            restored = hq.build_from_config(payload['config']).to(DEVICE)
+            restored.load_state_dict(payload['state_dict'], strict=True)
+            assert all(torch.equal(v.detach().cpu(), restored.state_dict()[k].detach().cpu())
+                       for k,v in model.state_dict().items())
+            row = dict(kind=kind, batch_size=batch, image_size=128, total_parameters=sum(p.numel() for p in model.parameters()),
+                core_parameters=sum(p.numel() for p in core), common_initial_sha256=initial_shared,
+                timings=timings, losses=losses, core_gradient_norms=gradient_norms, core_movement_l2=movement,
+                finite_state=True, strict_checkpoint_restore=True,
+                peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated(DEVICE),
+                peak_cuda_reserved_bytes=torch.cuda.max_memory_reserved(DEVICE),
+                process_peak_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            record['cases'].append(row)
+            save()
+            print(json.dumps(row), flush=True)
+            del model, restored, optimizer, core, initial_core, logits, loss, payload
+            torch.cuda.empty_cache()
+        del images, masks
+    assert hashes() == record['source_hashes']
+    record.update(status='passed', common_initial_state_equal=True, source_hashes_after=hashes())
+    record.pop('active', None)
+    save()
+except Exception as exc:
+    record.update(status='failed', error=type(exc).__name__+': '+str(exc))
+    save()
+    raise

@@ -1,0 +1,15 @@
+{
+  "purpose": "Independent verification of persistent raw DFC24 data retention",
+  "data_root": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset",
+  "producer_plan_sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+  "producing_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+  "verified_input_identity": {
+    "manifest_sha256": "0b78a076463014b75b20646c45209c659d4c86ee2d767e69cc4d172f0695b9c2",
+    "verified_files": 3476,
+    "stats_files_sha256": {
+      "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+    },
+    "raw_inventory_sha256": "5e7ea39b62776d7fe24b163cabf9d97687ff850c257f6049f04eeb1505654cfe"
+  },
+  "same_actual_image_mask_manifest_normalization_bytes": true
+}

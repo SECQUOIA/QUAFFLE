@@ -1,0 +1,17 @@
+{
+  "head": "ef51da45c48e90ad2925275c08c56cdab550f16d",
+  "tree": "23b554fbddb530151136881ea9652e713d6fabf6",
+  "result": "482 passed,21 warnings in147.01s",
+  "exit_code": 0,
+  "session": 77846,
+  "scope": "Allrepositorytests;CPUonly4GiB,noSwap,2threads",
+  "source_sha256": {
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "scripts/collect_hq_dfc24_direction.py": "db09b5c672878374f5a0056c12d7915fc536cdcfbe05a3b5b0dd80f8e1299add",
+    "tests/test_hq_direction_model.py": "c835aba0e3a2c78cd45a6d6608b0e083c44b6a9fd8ae4ac72e23d0da3458dff4",
+    "tests/test_hq_dfc24_direction.py": "d7db81ec6d535083e6d377de849c0031710c570f37523cffa2b4ecaf6c4f0bcf",
+    "tests/test_collect_hq_dfc24_direction.py": "030ab42042e41bccdc9b1917187442284bca93a546ebbf5171ff7726dd94cc8c",
+    "docs/HQ_DFC24_DIRECTION_PROTOCOL.md": "be8706cc490859c340d556adbf8467d888ba66a9feaf0a0247aa7d778bc7e39c"
+  }
+}

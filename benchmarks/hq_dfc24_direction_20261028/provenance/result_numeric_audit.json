@@ -1,0 +1,1005 @@
+{
+  "artifact_self_hash_note": "Audit JSON hash is reported separately; script bytes pinned here",
+  "audit_runtime": {
+    "executable": "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "imported_project_modules": false,
+    "python": "3.11.14 (main, Oct 21 2025, 18:31:21) [GCC 11.2.0]"
+  },
+  "audit_source_sha256": "104b86ffa890968e471a32c185cae5901fa2bfb956b02578282e11a797a76db4",
+  "checked_assertions": 9963,
+  "checkpoint_and_run_inventory": {
+    "files": [
+      {
+        "bytes": 739583,
+        "path": "all_fits.json",
+        "sha256": "fe0679a258e580d158e9607c7d5d450e17a76e0f35360379b816f73f486bb957"
+      },
+      {
+        "bytes": 2685,
+        "path": "checkpoint_audit.json",
+        "sha256": "a5a3cef9d8008578c440404d1f25b2eb46dc6909c95f48983d784e5cda7bcd8e"
+      },
+      {
+        "bytes": 2738,
+        "path": "plan.json",
+        "sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3"
+      },
+      {
+        "bytes": 1440622,
+        "path": "replication/hq_mlp/seed123/checkpoint.pt",
+        "sha256": "028eeaa772de139ad9a9b9ea52ed62432dee94a93d9521651e9aa357d7ba2f70"
+      },
+      {
+        "bytes": 63773,
+        "path": "replication/hq_mlp/seed123/history.json",
+        "sha256": "a162bdb53a1d62269881f490fa962a1041013dae802b2989b47ff1f4333fa6bc"
+      },
+      {
+        "bytes": 79950,
+        "path": "replication/hq_mlp/seed123/metrics.json",
+        "sha256": "038722759d2864fa29c9a9a05d0b09484f60f78c02116e517bac6f48cdd80de9"
+      },
+      {
+        "bytes": 86001,
+        "path": "replication/hq_mlp/seed123/selected_test.json",
+        "sha256": "e12407ecb2d03e1ba58b110b92c386e8a228702a0c3c1fedff1a6ae06e1aa89f"
+      },
+      {
+        "bytes": 1440622,
+        "path": "replication/hq_mlp/seed77/checkpoint.pt",
+        "sha256": "e9f424e432963045fa63f8d7d7c4edf39a6948b77771fe8bb43eb1851764a9d9"
+      },
+      {
+        "bytes": 63634,
+        "path": "replication/hq_mlp/seed77/history.json",
+        "sha256": "2c22e1175dd79fd9d603981867049ce9e78f1dc9b9e24d4a0823f6b054fe1548"
+      },
+      {
+        "bytes": 79848,
+        "path": "replication/hq_mlp/seed77/metrics.json",
+        "sha256": "eab8feb268f6ca5514e874ce2e7e9f66260535015b4792000b3fbcdc4a993a43"
+      },
+      {
+        "bytes": 85889,
+        "path": "replication/hq_mlp/seed77/selected_test.json",
+        "sha256": "39a42f738f73e3cd007a1809132d9c6e2e4c58356e8c2ce89206c6b05fd6990f"
+      },
+      {
+        "bytes": 1418868,
+        "path": "replication/hq_quantum/seed123/checkpoint.pt",
+        "sha256": "08338037830d79866e1499fa9c21ae29c9c3a9cbc8c994902692a380b7bc8d4e"
+      },
+      {
+        "bytes": 63886,
+        "path": "replication/hq_quantum/seed123/history.json",
+        "sha256": "d63257c15b8f9c8d21bea0e39d298631263d83b66d116e3b0550353be0e39bf5"
+      },
+      {
+        "bytes": 80057,
+        "path": "replication/hq_quantum/seed123/metrics.json",
+        "sha256": "0b688b0a8eec200cd5b53ace81d35c072cc1695306768d07296f4d8730e7c6f7"
+      },
+      {
+        "bytes": 86111,
+        "path": "replication/hq_quantum/seed123/selected_test.json",
+        "sha256": "6c088fca64928ef2c9d7662fe857a990c60c252f9af84622a03d485bd3b7c922"
+      },
+      {
+        "bytes": 1418868,
+        "path": "replication/hq_quantum/seed77/checkpoint.pt",
+        "sha256": "9ea1c80a35af774ab3a52e4c8b4fb86eaee9834be9a42d166bacf7df18f6b7f5"
+      },
+      {
+        "bytes": 63766,
+        "path": "replication/hq_quantum/seed77/history.json",
+        "sha256": "b1ebc142e36bc2597a346d96e8ab4d46e8ab3ddf6c86538e5a271250de0421a2"
+      },
+      {
+        "bytes": 79968,
+        "path": "replication/hq_quantum/seed77/metrics.json",
+        "sha256": "0da80e1c8763b5cdf19b1639157fdd504d85cade14d59b4efd0787d5d9cb2d7f"
+      },
+      {
+        "bytes": 86020,
+        "path": "replication/hq_quantum/seed77/selected_test.json",
+        "sha256": "218f921c9fdb6612a5d84171059cd2f78b38062a8fcf116730bdf1f61b397e18"
+      },
+      {
+        "bytes": 603934,
+        "path": "summary.json",
+        "sha256": "489838ee24b3dbf299c03f4362073532e1bd4a3c155a5aa54bd5aa888a6d0b2d"
+      },
+      {
+        "bytes": 1440622,
+        "path": "tuning/hq_mlp/0.001/seed42/checkpoint.pt",
+        "sha256": "c16837364da630817f2e181911811e790904e28c0716875eabccb43c39937873"
+      },
+      {
+        "bytes": 63745,
+        "path": "tuning/hq_mlp/0.001/seed42/history.json",
+        "sha256": "539788e33a980d7c39d2a4158fc03908d39aa29325e726ab0f99e1f175120ef7"
+      },
+      {
+        "bytes": 79956,
+        "path": "tuning/hq_mlp/0.001/seed42/metrics.json",
+        "sha256": "967bd06ce81d15b0c16418d302c2b3a5a4206aa48c612d1afcd4e769d13e4873"
+      },
+      {
+        "bytes": 1440622,
+        "path": "tuning/hq_mlp/0.003/seed42/checkpoint.pt",
+        "sha256": "0311ea5141d79c46c9964bc998a6397908318244a271e5ca57812aebf2bdf492"
+      },
+      {
+        "bytes": 63833,
+        "path": "tuning/hq_mlp/0.003/seed42/history.json",
+        "sha256": "d987fc5b90542e8fc885591c14204f3d4768d4590d1a8f6885d522c2c34f741b"
+      },
+      {
+        "bytes": 80002,
+        "path": "tuning/hq_mlp/0.003/seed42/metrics.json",
+        "sha256": "a397f9f5e57d0e0092cde3f01edbd0060d2d4f9d1392e562701c5a5688b937dd"
+      },
+      {
+        "bytes": 86055,
+        "path": "tuning/hq_mlp/0.003/seed42/selected_test.json",
+        "sha256": "3c162b837b440983c4947e6dc4f1bfa2165052dac3cf9782bdde3edc56044366"
+      },
+      {
+        "bytes": 1418868,
+        "path": "tuning/hq_quantum/0.001/seed42/checkpoint.pt",
+        "sha256": "bccbb2729a8975fb89a919888bb3e0d28eddc2c30eca1b396a8e620d577c9b0d"
+      },
+      {
+        "bytes": 63803,
+        "path": "tuning/hq_quantum/0.001/seed42/history.json",
+        "sha256": "1febadcee84c7b7551bb1e3f4beccc3ca7cb8e14431dfaff730b46f61196b673"
+      },
+      {
+        "bytes": 80029,
+        "path": "tuning/hq_quantum/0.001/seed42/metrics.json",
+        "sha256": "7145325649f89f3e7e968617ff3057f7e467d5cbddf6e8160d2bf084e9e0c839"
+      },
+      {
+        "bytes": 1418868,
+        "path": "tuning/hq_quantum/0.003/seed42/checkpoint.pt",
+        "sha256": "076b652b61df0a83ea4e363d0a73835115c103cd27bf3d5e44731a4505514a3a"
+      },
+      {
+        "bytes": 63811,
+        "path": "tuning/hq_quantum/0.003/seed42/history.json",
+        "sha256": "f15fcd80b24ba8aba9b1692b5a5214877ebf21c521363596d4af4fead6b5fa55"
+      },
+      {
+        "bytes": 79996,
+        "path": "tuning/hq_quantum/0.003/seed42/metrics.json",
+        "sha256": "202ac876eeaba1c2d7e93e3987fa68ca56932ecb3ee57c1b0a51ee67116795bb"
+      },
+      {
+        "bytes": 86049,
+        "path": "tuning/hq_quantum/0.003/seed42/selected_test.json",
+        "sha256": "2561e4c7ae591e5ffdab35712b94564f9748c5fafd3569f32d08ffc02cef1070"
+      },
+      {
+        "bytes": 344798,
+        "path": "tuning_candidates.json",
+        "sha256": "e52fdebd91e1698bf0c24b3b443f301706caaff9ac1a1cdb24072fe4ed806a4a"
+      },
+      {
+        "bytes": 213,
+        "path": "validation_selection.json",
+        "sha256": "788399ccb01facc509050f449c67fc659cc60ac19aa1c45615d709820458600b"
+      }
+    ],
+    "inventory_sha256": "a32f598d8335b4b458ee566cb94edbe38ef0bbd7164799f971b48914e37ffac5"
+  },
+  "common_parameter_breakdown": {
+    "decoder": 63680,
+    "dense_reconstruction": 270336,
+    "head": 18,
+    "pre_projection": 195,
+    "stem_and_down": 10243
+  },
+  "common_parameters": 344472,
+  "core_parameters": {
+    "hq_mlp": 5216,
+    "hq_quantum": 8
+  },
+  "count_source": "Manual arithmetic from exact retained hq_direction.py; convolution/BN affine/linear/transposed convolution weights and biases; BN buffers excluded from parameter counts",
+  "csv": {
+    "diagnostics.csv": {
+      "checked_fields": 240,
+      "checked_numeric_fields": 192,
+      "columns": 15,
+      "header": [
+        "id",
+        "seed",
+        "learning_rate",
+        "moment",
+        "selected_rate",
+        "n_angles",
+        "min_radians",
+        "max_radians",
+        "mean_abs_radians",
+        "saturation_fraction",
+        "core_movement_l2",
+        "common_movement_l2",
+        "core_gradient_mean",
+        "core_gradient_steps",
+        "core_gradient_nonzero_steps"
+      ],
+      "rows": 16,
+      "sha256": "0dbd04b92e6a1706dbc33992529d898b90c580b3e67b6762d8f74179468a5e15"
+    },
+    "knockout.csv": {
+      "checked_fields": 54,
+      "checked_numeric_fields": 42,
+      "columns": 9,
+      "header": [
+        "id",
+        "mode",
+        "mean",
+        "std",
+        "n",
+        "wins",
+        "seed42_pp",
+        "seed77_pp",
+        "seed123_pp"
+      ],
+      "rows": 6,
+      "sha256": "537bd4b63dd5922ddbadcdf66ff7042b25204b322c431e2e2dd769ba736e5f9d"
+    },
+    "paired.csv": {
+      "checked_fields": 60,
+      "checked_numeric_fields": 42,
+      "columns": 10,
+      "header": [
+        "split",
+        "metric",
+        "mean",
+        "std",
+        "n",
+        "wins",
+        "same_learning_rate",
+        "seed42_pp",
+        "seed77_pp",
+        "seed123_pp"
+      ],
+      "rows": 6,
+      "sha256": "3b25b82fe7e0ff7407f874d5fb99a220d801ee07077e549c85948ee79562e793"
+    },
+    "per_seed.csv": {
+      "checked_fields": 312,
+      "checked_numeric_fields": 306,
+      "columns": 52,
+      "header": [
+        "id",
+        "seed",
+        "learning_rate",
+        "best_epoch",
+        "total_params",
+        "core_params",
+        "val_loss",
+        "val_accuracy",
+        "val_auc",
+        "val_iou",
+        "val_dice",
+        "val_optical_subset_tp",
+        "val_optical_subset_fp",
+        "val_optical_subset_fn",
+        "val_optical_subset_tn",
+        "val_optical_subset_n_samples",
+        "val_optical_subset_iou",
+        "val_optical_subset_dice",
+        "val_optical_subset_accuracy",
+        "val_optical_subset_auc",
+        "val_sar_subset_tp",
+        "val_sar_subset_fp",
+        "val_sar_subset_fn",
+        "val_sar_subset_tn",
+        "val_sar_subset_n_samples",
+        "val_sar_subset_iou",
+        "val_sar_subset_dice",
+        "val_sar_subset_accuracy",
+        "val_sar_subset_auc",
+        "test_loss",
+        "test_accuracy",
+        "test_auc",
+        "test_iou",
+        "test_dice",
+        "test_optical_subset_tp",
+        "test_optical_subset_fp",
+        "test_optical_subset_fn",
+        "test_optical_subset_tn",
+        "test_optical_subset_n_samples",
+        "test_optical_subset_iou",
+        "test_optical_subset_dice",
+        "test_optical_subset_accuracy",
+        "test_optical_subset_auc",
+        "test_sar_subset_tp",
+        "test_sar_subset_fp",
+        "test_sar_subset_fn",
+        "test_sar_subset_tn",
+        "test_sar_subset_n_samples",
+        "test_sar_subset_iou",
+        "test_sar_subset_dice",
+        "test_sar_subset_accuracy",
+        "test_sar_subset_auc"
+      ],
+      "rows": 6,
+      "sha256": "e9676315c329f9fafceeda2b3bb3fca2ae3e4ecc8e345831882d82a83d6f55fa"
+    },
+    "summary.csv": {
+      "checked_fields": 44,
+      "checked_numeric_fields": 42,
+      "columns": 22,
+      "header": [
+        "id",
+        "learning_rate",
+        "total_params",
+        "core_params",
+        "val_iou_mean",
+        "val_iou_std",
+        "val_iou_n",
+        "val_optical_subset_iou_mean",
+        "val_optical_subset_iou_std",
+        "val_optical_subset_iou_n",
+        "val_sar_subset_iou_mean",
+        "val_sar_subset_iou_std",
+        "val_sar_subset_iou_n",
+        "test_iou_mean",
+        "test_iou_std",
+        "test_iou_n",
+        "test_optical_subset_iou_mean",
+        "test_optical_subset_iou_std",
+        "test_optical_subset_iou_n",
+        "test_sar_subset_iou_mean",
+        "test_sar_subset_iou_std",
+        "test_sar_subset_iou_n"
+      ],
+      "rows": 2,
+      "sha256": "dd5fb44182471908304e3e0dad7926c98aa8036970cf3e15da52d7443e6b9657"
+    },
+    "tuning.csv": {
+      "checked_fields": 112,
+      "checked_numeric_fields": 104,
+      "columns": 28,
+      "header": [
+        "id",
+        "seed",
+        "learning_rate",
+        "best_epoch",
+        "selected_rate",
+        "val_loss",
+        "val_accuracy",
+        "val_auc",
+        "val_iou",
+        "val_dice",
+        "val_optical_subset_tp",
+        "val_optical_subset_fp",
+        "val_optical_subset_fn",
+        "val_optical_subset_tn",
+        "val_optical_subset_n_samples",
+        "val_optical_subset_iou",
+        "val_optical_subset_dice",
+        "val_optical_subset_accuracy",
+        "val_optical_subset_auc",
+        "val_sar_subset_tp",
+        "val_sar_subset_fp",
+        "val_sar_subset_fn",
+        "val_sar_subset_tn",
+        "val_sar_subset_n_samples",
+        "val_sar_subset_iou",
+        "val_sar_subset_dice",
+        "val_sar_subset_accuracy",
+        "val_sar_subset_auc"
+      ],
+      "rows": 4,
+      "sha256": "6738177a211f300efc4452609705bb88f8d988afef4a6ddc1d73c6830dda75ec"
+    }
+  },
+  "errors": [],
+  "fits": [
+    {
+      "best_epoch": 24,
+      "best_validation_iou": 0.5603895698599488,
+      "directory": "tuning/hq_quantum/0.001/seed42",
+      "epochs_with_loss": 60,
+      "id": "hq_quantum",
+      "initial_shared_state_sha256": "3d11b3587f99260aab6c2c8a9644eb9b01dcf4cca890bc135c9726a2654a6360",
+      "learning_rate": 0.001,
+      "optimization_sensor_counts": {
+        "optical": 27,
+        "sar": 101
+      },
+      "optimizer_steps": 960,
+      "seed": 42,
+      "selected_state_sha256": "5c800c1e0e1091a945085753e7927c4c491ed460415f378ba65409d3701f0461",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 28,
+        "sar": 202
+      }
+    },
+    {
+      "best_epoch": 58,
+      "best_validation_iou": 0.5719341682931578,
+      "directory": "tuning/hq_quantum/0.003/seed42",
+      "epochs_with_loss": 60,
+      "id": "hq_quantum",
+      "initial_shared_state_sha256": "3d11b3587f99260aab6c2c8a9644eb9b01dcf4cca890bc135c9726a2654a6360",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 27,
+        "sar": 101
+      },
+      "optimizer_steps": 960,
+      "seed": 42,
+      "selected_state_sha256": "28335fbe3e820147859e86251ff473a7d40218355cc092db766fd4c7b8e2d7e5",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 28,
+        "sar": 202
+      }
+    },
+    {
+      "best_epoch": 60,
+      "best_validation_iou": 0.5642793094363975,
+      "directory": "tuning/hq_mlp/0.001/seed42",
+      "epochs_with_loss": 60,
+      "id": "hq_mlp",
+      "initial_shared_state_sha256": "3d11b3587f99260aab6c2c8a9644eb9b01dcf4cca890bc135c9726a2654a6360",
+      "learning_rate": 0.001,
+      "optimization_sensor_counts": {
+        "optical": 27,
+        "sar": 101
+      },
+      "optimizer_steps": 960,
+      "seed": 42,
+      "selected_state_sha256": "f15497ef8c9089401ec4e6bf9df224c0aa87aa8fcde211eb2537a3dad24f5897",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 28,
+        "sar": 202
+      }
+    },
+    {
+      "best_epoch": 54,
+      "best_validation_iou": 0.5675216097491852,
+      "directory": "tuning/hq_mlp/0.003/seed42",
+      "epochs_with_loss": 60,
+      "id": "hq_mlp",
+      "initial_shared_state_sha256": "3d11b3587f99260aab6c2c8a9644eb9b01dcf4cca890bc135c9726a2654a6360",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 27,
+        "sar": 101
+      },
+      "optimizer_steps": 960,
+      "seed": 42,
+      "selected_state_sha256": "d92b001213fbae164ce746ca0a3c2159cbeae40799b89a9ef07ebadcce5662a3",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 28,
+        "sar": 202
+      }
+    },
+    {
+      "best_epoch": 60,
+      "best_validation_iou": 0.6591515240328253,
+      "directory": "replication/hq_quantum/seed77",
+      "epochs_with_loss": 60,
+      "id": "hq_quantum",
+      "initial_shared_state_sha256": "60e04b228c831c13fa2e1e78b8419a759579a341c0b3ccecb41b6b4800ab186d",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 20,
+        "sar": 108
+      },
+      "optimizer_steps": 960,
+      "seed": 77,
+      "selected_state_sha256": "b756a3a84bb9358ad2fdcf85ae8e8886997db235461bd059e8510b3f0017a8b9",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 33,
+        "sar": 197
+      }
+    },
+    {
+      "best_epoch": 58,
+      "best_validation_iou": 0.5758185728324495,
+      "directory": "replication/hq_quantum/seed123",
+      "epochs_with_loss": 60,
+      "id": "hq_quantum",
+      "initial_shared_state_sha256": "0956e5bf87202b44a5118be8ebd714d7dd5ee29a5194d01e3f2f0bf41715512d",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 10,
+        "sar": 118
+      },
+      "optimizer_steps": 960,
+      "seed": 123,
+      "selected_state_sha256": "94bfb2c3e54283212e4f53fa88afaaeecbb10166cedaef5ea0e429f5158e28e2",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 45,
+        "sar": 185
+      }
+    },
+    {
+      "best_epoch": 60,
+      "best_validation_iou": 0.6515769763879095,
+      "directory": "replication/hq_mlp/seed77",
+      "epochs_with_loss": 60,
+      "id": "hq_mlp",
+      "initial_shared_state_sha256": "60e04b228c831c13fa2e1e78b8419a759579a341c0b3ccecb41b6b4800ab186d",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 20,
+        "sar": 108
+      },
+      "optimizer_steps": 960,
+      "seed": 77,
+      "selected_state_sha256": "9348c7779f1693e4ca16afa7c7919d9810c64bd4a039423e659875ced0f8fb98",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 33,
+        "sar": 197
+      }
+    },
+    {
+      "best_epoch": 28,
+      "best_validation_iou": 0.5798861676521313,
+      "directory": "replication/hq_mlp/seed123",
+      "epochs_with_loss": 60,
+      "id": "hq_mlp",
+      "initial_shared_state_sha256": "0956e5bf87202b44a5118be8ebd714d7dd5ee29a5194d01e3f2f0bf41715512d",
+      "learning_rate": 0.003,
+      "optimization_sensor_counts": {
+        "optical": 10,
+        "sar": 118
+      },
+      "optimizer_steps": 960,
+      "seed": 123,
+      "selected_state_sha256": "28dee8a7fcf6298671fb28423e96dc04459015da6b0b5d2d516199c2ee561b48",
+      "validation_points": 31,
+      "validation_sensor_counts": {
+        "optical": 45,
+        "sar": 185
+      }
+    }
+  ],
+  "history_coverage": {
+    "batches_per_epoch": 16,
+    "epochs_per_fit": 60,
+    "fits": 8,
+    "gradient_evidence": "Per-epoch min/max/mean/nonzero-step counts plus full-fit aggregates, not every individual batch gradient/loss value",
+    "individual_batch_time_series_retained": false,
+    "optimizer_steps_per_fit": 960,
+    "saved_epoch_training_losses_per_fit": 60,
+    "saved_history_points_per_fit": 61,
+    "total_optimizer_steps": 7680,
+    "validation_points_per_fit": 31
+  },
+  "input_paths": {
+    "package": "/tmp/quaffle-hq-dfc24-direction-artifacts-20261028",
+    "raw": "/tmp/quaffle-hq-dfc24-direction-runs-20261028",
+    "retained_archive": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_direction_20261028"
+  },
+  "knockout_on_minus_diagnostic_contrasts_pp": [
+    {
+      "differences_pp": {
+        "123": 0.012850918464557548,
+        "42": 0.12743598608676576,
+        "77": -0.011384026190497387
+      },
+      "id": "hq_quantum",
+      "mean": 0.042967626120275305,
+      "mode": "zero_core",
+      "n": 3,
+      "std": 0.07414857390523333,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": 0.009153443027287711,
+        "42": -0.00518405976517311,
+        "77": 0.007867399003025355
+      },
+      "id": "hq_quantum",
+      "mean": 0.003945594088379985,
+      "mode": "random_core",
+      "n": 3,
+      "std": 0.007932616965564257,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": -0.008969403396807962,
+        "42": 0.1243114689145175,
+        "77": -0.017511171234685374
+      },
+      "id": "hq_quantum",
+      "mean": 0.032610298094341385,
+      "mode": "zero_bottleneck",
+      "n": 3,
+      "std": 0.07953030238086857,
+      "wins": 1
+    },
+    {
+      "differences_pp": {
+        "123": 0.021429870179068278,
+        "42": -0.22024928348771677,
+        "77": 0.12819733540758715
+      },
+      "id": "hq_mlp",
+      "mean": -0.023540692633687115,
+      "mode": "zero_core",
+      "n": 3,
+      "std": 0.1785231783121292,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": 0.022317382258507656,
+        "42": -0.1889896609913233,
+        "77": 0.11515994143694863
+      },
+      "id": "hq_mlp",
+      "mean": -0.01717077909862234,
+      "mode": "random_core",
+      "n": 3,
+      "std": 0.1558724841973208,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": 0.033504809006101866,
+        "42": -0.24259570417468623,
+        "77": 0.12623512225892197
+      },
+      "id": "hq_mlp",
+      "mean": -0.027618590969887464,
+      "mode": "zero_bottleneck",
+      "n": 3,
+      "std": 0.19186218269996091,
+      "wins": 2
+    }
+  ],
+  "model_summary": [
+    {
+      "core_params": 8,
+      "id": "hq_quantum",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.6092260526132155,
+      "test_iou_n": 3,
+      "test_iou_std": 0.012186102693833049,
+      "test_optical_subset_iou_mean": 0.6159681377768592,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.013256661376194065,
+      "test_sar_subset_iou_mean": 0.5949400975474103,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.012288637646391416,
+      "total_params": 344480,
+      "val_iou_mean": 0.6023014217194775,
+      "val_iou_n": 3,
+      "val_iou_std": 0.04927192658537717,
+      "val_optical_subset_iou_mean": 0.5901695266961935,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.1292747304667981,
+      "val_sar_subset_iou_mean": 0.5921086358456157,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.061736508318447764
+    },
+    {
+      "core_params": 5216,
+      "id": "hq_mlp",
+      "learning_rate": 0.003,
+      "test_iou_mean": 0.5872362648412336,
+      "test_iou_n": 3,
+      "test_iou_std": 0.007788385634178499,
+      "test_optical_subset_iou_mean": 0.594943058367553,
+      "test_optical_subset_iou_n": 3,
+      "test_optical_subset_iou_std": 0.0065526501672309315,
+      "test_sar_subset_iou_mean": 0.5699803009859318,
+      "test_sar_subset_iou_n": 3,
+      "test_sar_subset_iou_std": 0.027791408287203327,
+      "total_params": 349688,
+      "val_iou_mean": 0.5996615845964086,
+      "val_iou_n": 3,
+      "val_iou_std": 0.04538310810954444,
+      "val_optical_subset_iou_mean": 0.5944936270695276,
+      "val_optical_subset_iou_n": 3,
+      "val_optical_subset_iou_std": 0.0971997033122221,
+      "val_sar_subset_iou_mean": 0.5909318018692096,
+      "val_sar_subset_iou_n": 3,
+      "val_sar_subset_iou_std": 0.05226532201524984
+    }
+  ],
+  "numerical_comparison_policy": {
+    "confusion_derived_metrics_and_regrouped_gradient_means": "absolute tolerance1e-12 for float arithmetic; integer confusion counts/cohort sizes exact",
+    "csv_and_contrast_values": "exact Python numeric equality after CSV round-trip"
+  },
+  "paired_contrasts_pp": [
+    {
+      "differences_pp": {
+        "123": -0.40675948196817746,
+        "42": 0.44125585439726,
+        "77": 0.757454764491583
+      },
+      "mean": 0.2639837123068885,
+      "metric": "iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "val",
+      "std": 0.6020114302784861,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": 0.193307414592081,
+        "42": -3.909219182466972,
+        "77": 2.418681655874655
+      },
+      "mean": -0.43241003733341205,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "val",
+      "std": 3.210019314926978,
+      "wins": 2
+    },
+    {
+      "differences_pp": {
+        "123": -1.1912961247353748,
+        "42": 1.7591952937083155,
+        "77": -0.21484897605110742
+      },
+      "mean": 0.11768339764061109,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "val",
+      "std": 1.5030912271855796,
+      "wins": 1
+    },
+    {
+      "differences_pp": {
+        "123": 0.9283723850527559,
+        "42": 3.1608292952077566,
+        "77": 2.5077346513340704
+      },
+      "mean": 2.198978777198194,
+      "metric": "iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "test",
+      "std": 1.147808174864058,
+      "wins": 3
+    },
+    {
+      "differences_pp": {
+        "123": 1.5766989905061313,
+        "42": 1.681428409745267,
+        "77": 3.0493964225404513
+      },
+      "mean": 2.1025079409306167,
+      "metric": "optical_subset_iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "test",
+      "std": 0.8216997080853659,
+      "wins": 3
+    },
+    {
+      "differences_pp": {
+        "123": -0.4899715945969274,
+        "42": 6.532255357130435,
+        "77": 1.4456552059100458
+      },
+      "mean": 2.495979656147851,
+      "metric": "sar_subset_iou",
+      "n": 3,
+      "same_learning_rate": true,
+      "split": "test",
+      "std": 3.6270241146795605,
+      "wins": 2
+    }
+  ],
+  "plan_sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3",
+  "producing_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+  "quantum_zero_bottleneck_max_abs_seed_pp": 0.1243114689145175,
+  "report_scope": {
+    "angle_probe": "First8 fixed unaugmented optimization images per seed;384values=8x16x3 at initial and selected states; not global saturation",
+    "cohorts": "128 optimization images per seed; normalization over1303 fit images excluding230 validation images, not pure128-shot normalization",
+    "counts": "8 fits comprise4 tuning candidates plus4 replications, six selected comparisons over3 paired seeds; not8 independent seeds",
+    "knockouts": "On minus each inference diagnostic; zero_core preserves reconstruction bias, zero_bottleneck removes full reconstructed map; ordinary U-Net skips remain. Neither quantum causality nor superiority follows.",
+    "limits": "No statistical significance/equivalence/hardware/Anvil/throughput claim; no independent checkpoint deserialization or inference by this audit",
+    "output_source_review": "Inspected collector table/report/plot routines statically; verified all rounded README table rows and explicit claim limits against independently recomputed exports; plots visually checked by coordinator, not this audit",
+    "primary": "Validation",
+    "test": "Previously exposed descriptive205-image test;71Optical/134SAR"
+  },
+  "sample_standard_deviation": "statistics.stdev with denominator n-1; paired differences computed before aggregation; no SE/significance test",
+  "scope": "Independent stdlib read-only arithmetic/CSV/source/byte-provenance crosscheck; not a formal Astra review or inference replay",
+  "selected_rates": {
+    "hq_mlp": 0.003,
+    "hq_quantum": 0.003
+  },
+  "sensor_manifest_sha256": {
+    "splits/flood_SAR.json": "1f3744013fdf56e22b92b1a8ce1f9658c855837a34147fa2596d2d8db364090b",
+    "splits/flood_optical.json": "2fb7b1ee5eaf182e9d09ce9abea8c1c0b11374d5227b75f572c82878c1630e73"
+  },
+  "sources": {
+    "collector_source_sha256": "5966773f1458a005c6e649e7fe5422430ada5527d9fa45153331caaa7efd2b08",
+    "file_count": 63,
+    "producer_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+    "source_manifest_sha256": "f385f9ec8d878bf00013194a5237d8e5c671ef438ba3ccb5b40c432e06699f50",
+    "sources": {
+      "docs/HQ_DFC24_DIRECTION_PROTOCOL.md": {
+        "retained_as": "sources/docs/HQ_DFC24_DIRECTION_PROTOCOL.md.txt",
+        "sha256": "be8706cc490859c340d556adbf8467d888ba66a9feaf0a0247aa7d778bc7e39c"
+      },
+      "flood_data.py": {
+        "retained_as": "sources/flood_data.py.txt",
+        "sha256": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53"
+      },
+      "scripts/collect_hq_dfc24_direction.py": {
+        "retained_as": "sources/scripts/collect_hq_dfc24_direction.py.txt",
+        "sha256": "5966773f1458a005c6e649e7fe5422430ada5527d9fa45153331caaa7efd2b08"
+      },
+      "scripts/run_hq_dfc24_direction.py": {
+        "retained_as": "sources/scripts/run_hq_dfc24_direction.py.txt",
+        "sha256": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a"
+      },
+      "scripts/run_parameter_budget_comparison.py": {
+        "retained_as": "sources/scripts/run_parameter_budget_comparison.py.txt",
+        "sha256": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265"
+      },
+      "scripts/run_real_spatial_pilot.py": {
+        "retained_as": "sources/scripts/run_real_spatial_pilot.py.txt",
+        "sha256": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f"
+      },
+      "splits/norm_stats.json": {
+        "retained_as": "sources/splits/norm_stats.json.txt",
+        "sha256": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+      },
+      "tools/training_common.py": {
+        "retained_as": "sources/tools/training_common.py.txt",
+        "sha256": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30"
+      },
+      "utilsTorch/__init__.py": {
+        "retained_as": "sources/utilsTorch/__init__.py.txt",
+        "sha256": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1"
+      },
+      "utilsTorch/hq_direction.py": {
+        "retained_as": "sources/utilsTorch/hq_direction.py.txt",
+        "sha256": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38"
+      },
+      "utilsTorch/unetTorch.py": {
+        "retained_as": "sources/utilsTorch/unetTorch.py.txt",
+        "sha256": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb"
+      },
+      "utilsTorch/utilsTorch.py": {
+        "retained_as": "sources/utilsTorch/utilsTorch.py.txt",
+        "sha256": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+      }
+    }
+  },
+  "status": "pass",
+  "v2": {
+    "sources": {
+      "collector_source_sha256": "164006e5dab28e4c3e1ec064c4612677f0ba9136432656d1f6c7faf0344b3921",
+      "file_count": 63,
+      "producer_revision": "6803241ec9772a99012382fc8ef23be27abf014a",
+      "source_manifest_sha256": "a3b9863fe1d1937735c52d06ba6804441baf803eda34db89a3e2a739a1a1f5f0",
+      "sources": {
+        "docs/HQ_DFC24_DIRECTION_PROTOCOL.md": {
+          "retained_as": "sources/docs/HQ_DFC24_DIRECTION_PROTOCOL.md.txt",
+          "sha256": "be8706cc490859c340d556adbf8467d888ba66a9feaf0a0247aa7d778bc7e39c"
+        },
+        "flood_data.py": {
+          "retained_as": "sources/flood_data.py.txt",
+          "sha256": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53"
+        },
+        "scripts/collect_hq_dfc24_direction.py": {
+          "retained_as": "sources/scripts/collect_hq_dfc24_direction.py.txt",
+          "sha256": "164006e5dab28e4c3e1ec064c4612677f0ba9136432656d1f6c7faf0344b3921"
+        },
+        "scripts/run_hq_dfc24_direction.py": {
+          "retained_as": "sources/scripts/run_hq_dfc24_direction.py.txt",
+          "sha256": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a"
+        },
+        "scripts/run_parameter_budget_comparison.py": {
+          "retained_as": "sources/scripts/run_parameter_budget_comparison.py.txt",
+          "sha256": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265"
+        },
+        "scripts/run_real_spatial_pilot.py": {
+          "retained_as": "sources/scripts/run_real_spatial_pilot.py.txt",
+          "sha256": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f"
+        },
+        "splits/norm_stats.json": {
+          "retained_as": "sources/splits/norm_stats.json.txt",
+          "sha256": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+        },
+        "tools/training_common.py": {
+          "retained_as": "sources/tools/training_common.py.txt",
+          "sha256": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30"
+        },
+        "utilsTorch/__init__.py": {
+          "retained_as": "sources/utilsTorch/__init__.py.txt",
+          "sha256": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1"
+        },
+        "utilsTorch/hq_direction.py": {
+          "retained_as": "sources/utilsTorch/hq_direction.py.txt",
+          "sha256": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38"
+        },
+        "utilsTorch/unetTorch.py": {
+          "retained_as": "sources/utilsTorch/unetTorch.py.txt",
+          "sha256": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb"
+        },
+        "utilsTorch/utilsTorch.py": {
+          "retained_as": "sources/utilsTorch/utilsTorch.py.txt",
+          "sha256": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+        }
+      }
+    },
+    "status": "audited",
+    "unchanged_numeric_exports": {
+      "all_fits.json": {
+        "byte_identical": true,
+        "sha256": "fe0679a258e580d158e9607c7d5d450e17a76e0f35360379b816f73f486bb957"
+      },
+      "checkpoint_audit.json": {
+        "byte_identical": true,
+        "sha256": "2dfa3ac733acf2e405bc8eb79d82b0211a71d6cf77c8a23be06c50f363aa1ded"
+      },
+      "comparison.json": {
+        "byte_identical": true,
+        "sha256": "1029f02cf726432a4436a160c64d3f432cca34928b8a73de168c44658a11a586"
+      },
+      "diagnostics.csv": {
+        "byte_identical": true,
+        "sha256": "0dbd04b92e6a1706dbc33992529d898b90c580b3e67b6762d8f74179468a5e15"
+      },
+      "knockout.csv": {
+        "byte_identical": true,
+        "sha256": "537bd4b63dd5922ddbadcdf66ff7042b25204b322c431e2e2dd769ba736e5f9d"
+      },
+      "paired.csv": {
+        "byte_identical": true,
+        "sha256": "3b25b82fe7e0ff7407f874d5fb99a220d801ee07077e549c85948ee79562e793"
+      },
+      "per_seed.csv": {
+        "byte_identical": true,
+        "sha256": "e9676315c329f9fafceeda2b3bb3fca2ae3e4ecc8e345831882d82a83d6f55fa"
+      },
+      "plan.json": {
+        "byte_identical": true,
+        "sha256": "4874c5df0798b12536c9e878aa96f2373c7fec6227318ec5418075bf6e462bb3"
+      },
+      "producer_checkpoint_audit.json": {
+        "byte_identical": true,
+        "sha256": "a5a3cef9d8008578c440404d1f25b2eb46dc6909c95f48983d784e5cda7bcd8e"
+      },
+      "summary.csv": {
+        "byte_identical": true,
+        "sha256": "dd5fb44182471908304e3e0dad7926c98aa8036970cf3e15da52d7443e6b9657"
+      },
+      "summary.json": {
+        "byte_identical": true,
+        "sha256": "489838ee24b3dbf299c03f4362073532e1bd4a3c155a5aa54bd5aa888a6d0b2d"
+      },
+      "tuning.csv": {
+        "byte_identical": true,
+        "sha256": "6738177a211f300efc4452609705bb88f8d988afef4a6ddc1d73c6830dda75ec"
+      },
+      "tuning_candidates.json": {
+        "byte_identical": true,
+        "sha256": "e52fdebd91e1698bf0c24b3b443f301706caaff9ac1a1cdb24072fe4ed806a4a"
+      },
+      "validation_selection.json": {
+        "byte_identical": true,
+        "sha256": "788399ccb01facc509050f449c67fc659cc60ac19aa1c45615d709820458600b"
+      }
+    }
+  }
+}
