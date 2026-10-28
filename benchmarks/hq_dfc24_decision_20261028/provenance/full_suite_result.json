@@ -1,0 +1,26 @@
+{
+  "revision": "3249d63611e2b4a51fd07af2a85d391bdbaebc43",
+  "source_sha256": {
+    "scripts/audit_hq_dfc24_decision.py": "3a366038c1ea401614f03a620d7bd5e485927a1ef6bdae4b4491e951a7de4d40",
+    "tests/test_audit_hq_dfc24_decision.py": "f95afac09b13dfd7f405aeddd7837fda9d9ee95ebce599786b1bd6ff500f8643",
+    "docs/HQ_DFC24_DECISION_PROTOCOL.md": "2140c4fbd48529aae2ad7ed6ea7220917ea272b600ae37465991ef8e272f9c89",
+    "README.md": "aa6919cf10b523eb1408b6d2e9fe2e017e279ec9774ed903078cffa89b57212c"
+  },
+  "command": [
+    "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests"
+  ],
+  "memory_max": "6G",
+  "memory_swap_max": 0,
+  "numerical_threads": 2,
+  "cwd": "/tmp/quaffle-hq-dfc24-decision-20261028",
+  "exit_code": 0,
+  "elapsed_seconds": 220.65872224298073,
+  "log_sha256": "722ff12cce65f990c840e101ab95def41fb9f59a340c3555c007af134bd0e12a",
+  "passed": 609,
+  "warnings": 21,
+  "pytest_seconds": 215.4
+}

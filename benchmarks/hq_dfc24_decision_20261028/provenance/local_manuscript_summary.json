@@ -1,0 +1,180 @@
+{
+  "scope": "Coordinator summary of separately retained local manuscript verification; ignored sources/PDFs/zip are not published in this packet and cannot be rebuilt from it alone",
+  "status": "complete_local_sources_builds_and_package",
+  "changed_paths": [
+    "papers/QUAFFLE_Journal_2026/main.tex",
+    "papers/QUAFFLE_Journal_2026/MAJOR_COMMENTS_AND_NOTES.md",
+    "papers/README.md",
+    "papers/QUAFFLE_Journal_2026/main.pdf",
+    "papers/QUAFFLE_Journal_2026/main_mlst.pdf",
+    "papers/QUAFFLE_Journal_2026/main_arxiv.pdf",
+    "QUAFFLE_Journal_2026.zip"
+  ],
+  "files": {
+    "papers/QUAFFLE_Journal_2026/main.tex": {
+      "sha256": "3bb03511837d3a8770479d28df74133bffaac62cf7e8ab1b22ba73e7fcc7864b",
+      "bytes": 146923,
+      "before_sha256": "ec64daa75e085f0f6265b29fc5b1304a157010bf2660cce1a520a35dd55c723c",
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/MAJOR_COMMENTS_AND_NOTES.md": {
+      "sha256": "7f5e0d7a56a3eea681f04defbdcd29fd4fcd3a0169a11013290c1c8f3d7a309e",
+      "bytes": 28822,
+      "before_sha256": "91d6262f9c8d053a2d05ccc0bb367ffd58842b385577fac6ca8924973fa55a6f",
+      "changed": true
+    },
+    "papers/README.md": {
+      "sha256": "f9b096baeff02e4aaaa5048c1ea7272099d5270bb3ed3417a57355c6a160217c",
+      "bytes": 3847,
+      "before_sha256": "1643a4d61e733180c2dcda354aed38a72fa9048e9e0678bfc408a240e0f5ae80",
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main.pdf": {
+      "sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "bytes": 3004827,
+      "before_sha256": "b58cf8b197200d8af6257c96658f6f42ddb8cc313b699d5edf1963687a5e80a2",
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main_mlst.pdf": {
+      "sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "bytes": 3004827,
+      "before_sha256": "b58cf8b197200d8af6257c96658f6f42ddb8cc313b699d5edf1963687a5e80a2",
+      "changed": true
+    },
+    "papers/QUAFFLE_Journal_2026/main_arxiv.pdf": {
+      "sha256": "3de21b4244988e8c3e55ea4d2575e1bf224530ce0f4cee2a9ffdf6998114eb8e",
+      "bytes": 3074070,
+      "before_sha256": "7c5470ef253239b6b5be9eb026101c3ee417b3fecc7cbb0a60942d9080b26b77",
+      "changed": true
+    },
+    "QUAFFLE_Journal_2026.zip": {
+      "sha256": "b944d7858f3cddd19ed3b7a310d9aa06df838f2d43ad70cda94c5da33a4585c6",
+      "bytes": 11854298,
+      "before_sha256": "b571690586f175dc72d809556c67282a3400a41fd5a241206e5c1985aaed7aec",
+      "changed": true
+    }
+  },
+  "pdfs": [
+    {
+      "mode": "iop",
+      "path": "/home/bernalde/repos/QUAFFLE/papers/QUAFFLE_Journal_2026/main_mlst.pdf",
+      "build_pdf": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_decision_20261028/manuscript/build-iop/main_mlst.pdf",
+      "pages": 39,
+      "sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "bytes": 3004827,
+      "source_sha256": "3bb03511837d3a8770479d28df74133bffaac62cf7e8ab1b22ba73e7fcc7864b",
+      "changed_page_candidates": {
+        "abstract": [
+          2
+        ],
+        "hq_controls": [
+          17
+        ],
+        "hq_table": [
+          18
+        ],
+        "prospective": [
+          19
+        ],
+        "reported_comparisons": [
+          22
+        ],
+        "noise_scope": [
+          26
+        ],
+        "discussion_scope": [
+          27
+        ],
+        "internal_validity": [
+          28
+        ],
+        "conclusion": [
+          29
+        ]
+      },
+      "warnings": {
+        "overfull_boxes": 0,
+        "unresolved_references_or_citations": false,
+        "rerun_required": false,
+        "underfull_boxes": 14,
+        "font_warnings": 1,
+        "hyperref_pdfstring_warnings": 3
+      }
+    },
+    {
+      "mode": "arxiv",
+      "path": "/home/bernalde/repos/QUAFFLE/papers/QUAFFLE_Journal_2026/main_arxiv.pdf",
+      "build_pdf": "/home/bernalde/repos/QUAFFLE/results/hq_dfc24_decision_20261028/manuscript/build-arxiv/main_arxiv.pdf",
+      "pages": 33,
+      "sha256": "3de21b4244988e8c3e55ea4d2575e1bf224530ce0f4cee2a9ffdf6998114eb8e",
+      "bytes": 3074070,
+      "source_sha256": "3bb03511837d3a8770479d28df74133bffaac62cf7e8ab1b22ba73e7fcc7864b",
+      "changed_page_candidates": {
+        "abstract": [
+          2
+        ],
+        "hq_controls": [
+          13
+        ],
+        "hq_table": [
+          14
+        ],
+        "prospective": [
+          15
+        ],
+        "reported_comparisons": [
+          17
+        ],
+        "noise_scope": [
+          21
+        ],
+        "discussion_scope": [
+          21
+        ],
+        "internal_validity": [
+          22
+        ],
+        "conclusion": [
+          23
+        ]
+      },
+      "warnings": {
+        "overfull_boxes": 0,
+        "unresolved_references_or_citations": false,
+        "rerun_required": false,
+        "underfull_boxes": 1,
+        "font_warnings": 0,
+        "hyperref_pdfstring_warnings": 3
+      }
+    }
+  ],
+  "deterministic_zip_verified": true,
+  "package_member_bytes_match_actual_sources_and_pdfs": true,
+  "original_verification_sha256": "2460bd7e7f7ef886e75ea3d058367b4efdc84187d79925185da9a10539e1916b",
+  "source_checks": {
+    "passed": true,
+    "original_comment_lines_preserved": 27,
+    "original_TODO_lines": 21,
+    "original_yirang_lines": 6,
+    "all_original_tables_preserved_verbatim": 10,
+    "all_original_proposition_statements_preserved_verbatim": 2,
+    "new_table_numeric_cells_match_actual_summary_csv": 10,
+    "unsupported_equivalence_phrases_removed": true,
+    "skip_dominance_guarantee_removed": true,
+    "source_sha256": "3bb03511837d3a8770479d28df74133bffaac62cf7e8ab1b22ba73e7fcc7864b",
+    "limitations": "This checks scoped source edits, not historical result validity or proof correctness."
+  },
+  "build_resources": {
+    "MemoryMax": "1G",
+    "MemorySwapMax": 0,
+    "numerical_threads": 2,
+    "source_date_epoch": 1793145600
+  },
+  "limitations": [
+    "Historical scientific tables, proof correctness and old system timings were not re-audited.",
+    "Anvil placeholders are not current queue-status or execution evidence.",
+    "The prospective independently tuned full-fit study has no implemented fresh runner or measured Anvil profile in this task.",
+    "Original main.aux/main.log and other historical auxiliary files beside the source were left untouched; new complete logs are under the task build copies.",
+    "Direct visual review of relevant changed PDF pages remains with the coordinator."
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "scope": "Actual rendered pages carrying new HQ section/table; not a visual audit of every historical page",
+  "command": "pdftoppm -singlefile -scale-to 1400 -png; 1GiB address limit",
+  "records": [
+    {
+      "mode": "iop",
+      "page": 17,
+      "pdf_sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "render_sha256": "d0a852a573f1642a33d35b107a6815ea1e29bb5e0684d5a1fb71da6e7adf3228",
+      "directly_viewed": true,
+      "result": "Readable text/table/caption; no clipping or collisions on inspected pages"
+    },
+    {
+      "mode": "iop",
+      "page": 18,
+      "pdf_sha256": "f28758136a1c2ab06429fed657142bf89a62467fe69d9fb7c013940926ea2d00",
+      "render_sha256": "0969b7c24232a50dac0ea105f50574af6c6a1a7002f7342a07139263cfc9e9b3",
+      "directly_viewed": true,
+      "result": "Readable text/table/caption; no clipping or collisions on inspected pages"
+    },
+    {
+      "mode": "arxiv",
+      "page": 13,
+      "pdf_sha256": "3de21b4244988e8c3e55ea4d2575e1bf224530ce0f4cee2a9ffdf6998114eb8e",
+      "render_sha256": "d625aa99211796fccebcdd4f66ad8bd379a58ea228edd9f7a7c91c468f9dea0f",
+      "directly_viewed": true,
+      "result": "Readable text/table/caption; no clipping or collisions on inspected pages"
+    },
+    {
+      "mode": "arxiv",
+      "page": 14,
+      "pdf_sha256": "3de21b4244988e8c3e55ea4d2575e1bf224530ce0f4cee2a9ffdf6998114eb8e",
+      "render_sha256": "c53d9681fe3687157de41c701344563508a898e86954e4bdc7d7a9942a1648b9",
+      "directly_viewed": true,
+      "result": "Readable text/table/caption; no clipping or collisions on inspected pages"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "assertions": 2640,
+  "oracle": "fractions.Fraction from saved integer counts; no project imports or inference",
+  "primary_rows": 90,
+  "summary_rows": 30,
+  "paired_rows": 120,
+  "all_fit_validation_rows": 60,
+  "regenerated_files": 7,
+  "whole_file_bytes_identical": true,
+  "inventory": {
+    "README.md": {
+      "sha256": "59e7eb7b2356a4b1f09a92253a3a3381d3b7017937a7ece95078282a7c30c7de",
+      "bytes": 2758
+    },
+    "all_fit_validation.csv": {
+      "sha256": "452727413d82db26115eec2e33f813fc91bcb09954c7131a4be331bd938700e5",
+      "bytes": 10808
+    },
+    "artifact_sha256.json": {
+      "sha256": "e22e9f6d48836f46c37c5aa4c85171c334a86638f3816a86baf04ccbe1665e22",
+      "bytes": 521
+    },
+    "audit.json": {
+      "sha256": "6872e3b493ffac2fe283806200d6d75055bf1e309938e3a9ab1469df6dd337ab",
+      "bytes": 139658
+    },
+    "paired.csv": {
+      "sha256": "07087f3caa455838dc92f93053d9520e054bbe631648f14f3d0d0440ca950b1c",
+      "bytes": 17590
+    },
+    "per_seed.csv": {
+      "sha256": "6b669898096a846415d4189fa75bbbb38cc13c5d881dec2112f3440a850843ff",
+      "bytes": 13657
+    },
+    "summary.csv": {
+      "sha256": "81ef1a8d709689f516db610e556bd5fba56455bebcbb07a1b0872113b43a8f30",
+      "bytes": 7228
+    }
+  },
+  "source_sha256": "6999bf6f24da6581a30601cf61c7d61ed9e18444d2a168294a31d7d0e7b2eda7",
+  "new_fits": 0,
+  "new_inference": 0
+}
