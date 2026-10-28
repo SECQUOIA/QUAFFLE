@@ -1,0 +1,22 @@
+{
+  "prior_revision": "84464a095834b32e21614dd93f1560887fcf3c54",
+  "changed_file": "scripts/collect_local_rate_stability.py",
+  "change": "One generated prose string clarifies bottleneck operation versus full-model context.",
+  "prior_text": "The patchwise MLP is the strongest observed original classical control; its receptive field differs from the global circuits.",
+  "current_text": "The patchwise MLP is the strongest observed original classical control; its bottleneck spatial operation differs from the globally pooled circuits. Encoder and attention context remain unchanged.",
+  "prior_collector_sha256": "67f69d11655246f2622c893476146ac5ab4886c27bebc74ed286903adeafb8d9",
+  "current_collector_sha256": "0c17fec6f52b3045a0690c35a800b8e0a3cf5438b028b99323c1b2ce5bdac5ab",
+  "all_other_ast_nodes_identical": true,
+  "unchanged_fit_dependencies": {
+    "scripts/run_local_rate_stability.py": "83d9ca35f6bd050a69a79a2593d8da4cacb8c14efe016ecd86bf72aa2950ce76",
+    "scripts/run_real_spatial_pilot.py": "2a00e79e175407609dc797c7c1b9976b39db05e98d56974c7ef6080e0d7638f5",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "3e0ec9371bb9c9ed292e571959e2e805e0cc938676d4694f2d83acda82aa79cb",
+    "tools/training_common.py": "d12d4b4c3c63e41f471d25ccc4f771baca247c1fd06bdd770f13b4eb9b09b7b6",
+    "tools/checkpoint_evaluation.py": "01195d1e686315ce9768008d799b93fe91958ae2470b25544c7afbfa14026768",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f"
+  },
+  "validation": "Existing test evidence remains applicable to computational behavior. Actual collection/regeneration will verify the changed rendered wording; no new low-impact wording test was added."
+}

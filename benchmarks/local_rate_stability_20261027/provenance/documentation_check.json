@@ -1,0 +1,111 @@
+{
+  "scope": "Authored/generated navigation; archived original reviewer reports retain historical local paths verbatim.",
+  "local_links_checked": [
+    {
+      "source": "docs/LOCAL_QUANTUM_FOLLOWUP.md",
+      "target": "../benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "exists": true
+    },
+    {
+      "source": "docs/LOCAL_QUANTUM_FOLLOWUP.md",
+      "target": "../benchmarks/local_rate_stability_20261027/README.md",
+      "exists": true
+    },
+    {
+      "source": "docs/LOCAL_QUANTUM_FOLLOWUP.md",
+      "target": "../benchmarks/local_rate_stability_20261027/REPRODUCTION.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "matched60/README.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "long120/README.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "prefix60_comparison.json",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "validation_curves_120ep.png",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "training_loss_curves_120ep.png",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "STABILITY.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/README.md",
+      "target": "paired_entanglement_60_120.png",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "long120/README.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "duration_comparison.json",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "matched60/README.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "prefix60_comparison.json",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "STABILITY.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "README.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "../../docs/LOCAL_QUANTUM_FOLLOWUP.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "../../scripts/run_local_rate_stability.py",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "../../scripts/collect_local_rate_stability.py",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/INTERPRETATION.md",
+      "target": "REPRODUCTION.md",
+      "exists": true
+    },
+    {
+      "source": "benchmarks/local_rate_stability_20261027/REPRODUCTION.md",
+      "target": "../../docs/LOCAL_QUANTUM_FOLLOWUP.md",
+      "exists": true
+    }
+  ],
+  "credential_pattern_scan": "No credential/private-key patterns matched; successful rg scan returned no matches."
+}

@@ -1,0 +1,23 @@
+{
+  "current_rate_producer": "a707b00937faf82ce6c4a72d13c337568bf1fe93",
+  "original_quantum_producer": "71d1680c1c565e5880eec44783cf270b1ac918fb",
+  "control_producer": "b57572896c821c423fcef1a42ba17de1056ca376",
+  "original_pilot_function_ast_equal": {
+    "load_training_data": true,
+    "fit_one": true,
+    "selected_fit_indices": true,
+    "output_probe": true,
+    "parameter_groups": true
+  },
+  "fit_one_normalization": "Remove only the reporting-only trainable_params keyword before AST comparison",
+  "control_producer_model_data_file_bytes_equal": {
+    "utilsTorch/unetTorch.py": true,
+    "utilsTorch/utilsTorch.py": true,
+    "tools/training_common.py": true,
+    "tools/checkpoint_evaluation.py": true,
+    "flood_data.py": true,
+    "splits/norm_stats.json": true
+  },
+  "model_delta_assessment": "Original-to-current model diff inspected: q_training_control defaults trainable, conditional CNOT path retains the original gates when true, frozen behavior opt-in; wrapper defaults and metadata additions do not alter the original trainable path.",
+  "limit": "Static compatibility is supplemented by current strict checkpoint restore, initial-parameter identity, and exact per-sensor validation-count replay for all eight historical fits before reuse."
+}

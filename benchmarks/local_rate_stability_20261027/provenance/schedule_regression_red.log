@@ -1,0 +1,37 @@
+Running as unit: run-ra7beda2b295d469da8e1d53717a1e38e.scope; invocation ID: 52720ba5cd0843d795fe02b60fe2fcfe
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_reuse_requires_the_exact_validation_evaluation_schedule[extra] ______
+
+change = 'extra'
+
+    @pytest.mark.parametrize('change', ['extra', 'missing'])
+    def test_reuse_requires_the_exact_validation_evaluation_schedule(change):
+        spec, args, data, row = record_fixture()
+        if change == 'extra':
+            row['history'][1]['val'] = {'iou': 0.4}
+        else:
+            del row['history'][0]['val']
+>       with pytest.raises(ValueError, match='evaluation schedule'):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_local_rate_stability.py:111: Failed
+____ test_reuse_requires_the_exact_validation_evaluation_schedule[missing] _____
+
+change = 'missing'
+
+    @pytest.mark.parametrize('change', ['extra', 'missing'])
+    def test_reuse_requires_the_exact_validation_evaluation_schedule(change):
+        spec, args, data, row = record_fixture()
+        if change == 'extra':
+            row['history'][1]['val'] = {'iou': 0.4}
+        else:
+            del row['history'][0]['val']
+>       with pytest.raises(ValueError, match='evaluation schedule'):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_local_rate_stability.py:111: Failed
+=========================== short test summary info ============================
+FAILED tests/test_local_rate_stability.py::test_reuse_requires_the_exact_validation_evaluation_schedule[extra]
+FAILED tests/test_local_rate_stability.py::test_reuse_requires_the_exact_validation_evaluation_schedule[missing]
+2 failed, 27 deselected in 0.12s
