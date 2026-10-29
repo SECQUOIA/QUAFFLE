@@ -79,6 +79,8 @@
   "plots/renderer_source.py.txt": "d0f1639d1bbc46ce703f46e79e442dec4252ce5a5fef0c6a5d8085a238313c18",
   "plots/selected_examples.csv": "11f1b9eee16a4894647885929f8411dc99fca851b17938c1c616550150832251",
   "reviews/astra-preflight-1.md": "cfdd6ef902214201682408339b6068c7ec8a2b1524bced04501bc76976e875ee",
+  "reviews/astra-results-2.md": "5fc6f185f61e34c98bfc3841ce861422d14c73dd365b48bb73a964a94f2f212c",
+  "reviews/verification-1.md": "12c3a0e9effd44bb5853bf5c82a1d8ade6c82851912dded7f4e224f779e96762",
   "verification/independent_audit.json": "8e82ac52b99ec7bcf7fc91878e5dff022692c0b1eb9d43e0fdf7eca7b589693c",
   "verification/independent_audit.py.txt": "0dd02c4607fbae33bcfc786cdbd1b0b91557dd0b3624776dc1509ec2db8d8f8c",
   "verification/predict_without_test_data.py.txt": "4942678e989ee6e793fe251d3f6d1309283ec2aa670db34ce22257cf59e7f861",
