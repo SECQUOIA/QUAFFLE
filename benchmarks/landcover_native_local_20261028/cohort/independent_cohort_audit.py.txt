@@ -1,0 +1,220 @@
+"""Read-only independent cohort/window audit; no project helper imports."""
+from collections import defaultdict
+import hashlib
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import platform
+import sys
+import traceback
+import zipfile
+
+import numpy as np
+from PIL import Image
+import rasterio
+from rasterio.windows import Window
+
+WORKTREE = Path('/tmp/quaffle-landcover-native-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028')
+DATA = TASK/'dataset'
+ARCHIVE = TASK/'downloads/landcover.ai.v1.zip'
+OUT = TASK/'cohort_audit'
+HEAD = '1ddbf61b8f36cda2fe7402dd79a71310ac98a22c'
+SOURCES = ('docs/LANDCOVER_NATIVE_PROTOCOL.md', 'scripts/prepare_landcover_native.py',
+           'tools/landcover_data.py', 'scripts/run_landcover_native.py')
+
+
+def file_hash(path, algorithm='sha256'):
+    h = hashlib.new(algorithm)
+    with Path(path).open('rb') as stream:
+        for part in iter(lambda: stream.read(1024*1024), b''):
+            h.update(part)
+    return h.hexdigest()
+
+
+def subset(names, count, seed):
+    # Reconstructed from the frozen ranking definition; no dataset/runner import.
+    ranks = []
+    for name in names:
+        encoded = json.dumps([seed, name, 'subset'], separators=(',', ':')).encode()
+        rank = int.from_bytes(hashlib.sha256(encoded).digest()[0:8], byteorder='little')
+        ranks.append((rank, name))
+    chosen = {name for rank, name in sorted(ranks)[:count]}
+    return [name for name in names if name in chosen]
+
+
+def group_report(rows, field):
+    groups = defaultdict(lambda: dict(train=[], val=[]))
+    for split in ('train', 'val'):
+        for row in rows[split]:
+            groups[row[field]][split].append(row['tile_id'])
+    cross = [dict(sha256=sha, **values) for sha, values in sorted(groups.items())
+             if values['train'] and values['val']]
+    within = {}
+    for split in ('train', 'val'):
+        duplicates = [dict(sha256=sha, tile_ids=values[split]) for sha, values in sorted(groups.items())
+                      if len(values[split]) > 1]
+        within[split] = dict(groups=duplicates, unique_inputs=len(rows[split])-
+            sum(len(row['tile_ids'])-1 for row in duplicates),
+            duplicate_pairs=sum(len(row['tile_ids'])*(len(row['tile_ids'])-1)//2 for row in duplicates))
+    return dict(cross_split_groups=cross, cross_split_group_count=len(cross),
+                cross_split_pair_count=sum(len(g['train'])*len(g['val']) for g in cross), within_split=within)
+
+
+def run():
+    source_before = {name: file_hash(WORKTREE/name) for name in SOURCES}
+    manifest_sha = file_hash(DATA/'manifest.json')
+    manifest = json.loads((DATA/'manifest.json').read_text())
+    assert manifest_sha == 'da33f9a649513e37add550b05086ee56b4dca5a9973fd79d13ba3caf40f049d1'
+    assert file_hash(ARCHIVE, 'md5') == '3268c89070e8734b4e91d531c0617e03'
+    archive_sha = file_hash(ARCHIVE)
+    assert archive_sha == 'dd448287ff3a76291f2b159084b8a265f2ba4559bb80b0551fc8c6c0eb149a4b'
+    with zipfile.ZipFile(ARCHIVE) as archive:
+        official = {}
+        for split in ('train', 'val', 'test'):
+            raw = archive.read(split+'.txt')
+            assert hashlib.sha256(raw).hexdigest() == manifest['official_split_files'][split]['sha256']
+            official[split] = raw.decode().splitlines()
+            assert official[split] == manifest['splits'][split]
+        assert not set(official['train']) & set(official['val'])
+        assert not (set(official['train']) | set(official['val'])) & set(official['test'])
+        assert hashlib.sha256(archive.read('split.py')).hexdigest() == manifest['split_script']['sha256']
+    selected = dict(train=subset(official['train'], 256, 742), val=subset(official['val'], 64, 943))
+    assert len(set(selected['train'])) == 256 and len(set(selected['val'])) == 64
+    assert not set(selected['train']) & set(selected['val'])
+    rows, encoded_files = dict(train=[], val=[]), {}
+    for split, names in selected.items():
+        for tile_id in names:
+            record = manifest['tiles'][tile_id]
+            assert record['split'] == split
+            paths = {kind: (DATA/record[kind]).resolve() for kind in ('image', 'mask')}
+            assert all(path.is_relative_to(DATA) for path in paths.values())
+            for kind, path in paths.items():
+                actual = file_hash(path)
+                assert actual == record[kind+'_sha256']
+                encoded_files[str(path.relative_to(DATA))] = actual
+            with Image.open(paths['image']) as image:
+                assert image.mode == 'RGB' and image.size == (512, 512)
+                rgb = np.array(image)
+            with Image.open(paths['mask']) as image:
+                assert image.mode == 'L' and image.size == (512, 512)
+                mask = np.array(image)
+            assert rgb.shape == (512, 512, 3) and rgb.dtype == np.uint8
+            assert mask.shape == (512, 512) and mask.dtype == np.uint8 and mask.max() <= 4
+            counts = np.bincount(mask.reshape(-1), minlength=5).tolist()
+            assert counts == record['class_pixel_counts'] and sum(counts) == 512*512
+            rgb_hash = hashlib.sha256(rgb.tobytes(order='C')).hexdigest()
+            mask_hash = hashlib.sha256(mask.tobytes(order='C')).hexdigest()
+            joint = hashlib.sha256(rgb.tobytes(order='C')+mask.tobytes(order='C')).hexdigest()
+            rows[split].append(dict(tile_id=tile_id, source_parent=tile_id.rsplit('_', 1)[0],
+                image_sha256=encoded_files[record['image']], mask_sha256=encoded_files[record['mask']],
+                decoded_rgb_sha256=rgb_hash, decoded_mask_sha256=mask_hash,
+                decoded_rgb_mask_sha256=joint, class_pixel_counts=counts))
+    summaries = {}
+    parents = {}
+    for split in ('train', 'val'):
+        counts = [sum(row['class_pixel_counts'][i] for row in rows[split]) for i in range(5)]
+        assert all(count > 0 for count in counts)
+        parents[split] = sorted({row['source_parent'] for row in rows[split]})
+        summaries[split] = dict(tiles=len(rows[split]), pixels=len(rows[split])*512*512,
+            class_pixel_counts=counts, class_ids_present=[i for i, count in enumerate(counts) if count],
+            parent_count=len(parents[split]), parents=parents[split],
+            ids_sha256=hashlib.sha256(json.dumps(selected[split], separators=(',', ':')).encode()).hexdigest())
+    # Independent oracle enumerates the original split.py x/y ranges, including
+    # partial-edge indices. It does NOT use stored origin fields or prep helpers.
+    samples = []
+    with rasterio.Env(GDAL_CACHEMAX=64*1024*1024):
+        for split in ('train', 'val'):
+            candidates = sorted(selected[split], key=lambda name:
+                (hashlib.sha256(('fidelity-v1/'+split+'/'+name).encode()).hexdigest(), name))[:8]
+            for tile_id in candidates:
+                parent, suffix = tile_id.rsplit('_', 1)
+                k = int(suffix)
+                image_member, mask_member = f'images/{parent}.tif', f'masks/{parent}.tif'
+                with rasterio.open('zip://'+str(ARCHIVE)+'!'+image_member) as image, \
+                        rasterio.open('zip://'+str(ARCHIVE)+'!'+mask_member) as label:
+                    assert image.count == 3 and label.count == 1
+                    assert (image.width, image.height) == (label.width, label.height)
+                    xs, ys = list(range(0, image.width, 512)), list(range(0, image.height, 512))
+                    row, column = divmod(k, len(xs))
+                    x, y = xs[column], ys[row]
+                    assert x+512 <= image.width and y+512 <= image.height
+                    rgb = image.read([1, 2, 3], window=Window(x, y, 512, 512)).transpose(1, 2, 0)
+                    mask = label.read(1, window=Window(x, y, 512, 512))
+                saved = manifest['tiles'][tile_id]
+                assert saved['source_image'] == image_member and saved['source_mask'] == mask_member
+                assert {key: saved['source_window'][key] for key in ('x', 'y', 'width', 'height', 'index')} == \
+                    dict(x=x, y=y, width=512, height=512, index=k)
+                with Image.open(DATA/saved['image']) as image:
+                    assert np.array_equal(rgb, np.array(image))
+                with Image.open(DATA/saved['mask']) as image:
+                    assert np.array_equal(mask, np.array(image))
+                assert np.bincount(mask.astype(np.int64).reshape(-1), minlength=5).tolist() == saved['class_pixel_counts']
+                samples.append(dict(split=split, tile_id=tile_id, source_image=image_member,
+                    source_mask=mask_member, x=x, y=y, index=k, rgb_exact=True, mask_exact=True,
+                    class_counts_exact=True))
+    assert source_before == {name: file_hash(WORKTREE/name) for name in SOURCES}
+    assert file_hash(DATA/'manifest.json') == manifest_sha and file_hash(ARCHIVE) == archive_sha
+    assert encoded_files == {name: file_hash(DATA/name) for name in encoded_files}
+    return dict(status='passed', source_head_supplied=HEAD, source_hashes=source_before,
+        audit_source_sha256=file_hash(__file__), dataset_manifest_sha256=manifest_sha,
+        archive_sha256=archive_sha, runtime=dict(python=platform.python_version(), executable=sys.executable,
+            packages={name: importlib.metadata.version(name) for name in ('numpy', 'Pillow', 'rasterio')},
+            cuda_visible_devices=os.environ.get('CUDA_VISIBLE_DEVICES'), threads={key: os.environ.get(key)
+                for key in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS')}),
+        subset_rule='SHA256 compact JSON [subset_seed,tile_id,"subset"], first8 bytes little-endian ascending; retain official list order',
+        subset_seeds=dict(train=742, val=943), same_ids_all_model_seeds=[42, 77, 123],
+        selected_ids=selected, summaries=summaries,
+        selected_parent_overlap=sorted(set(parents['train']) & set(parents['val'])),
+        selected_parent_overlap_count=len(set(parents['train']) & set(parents['val'])),
+        decoded_rgb_duplicates=group_report(rows, 'decoded_rgb_sha256'),
+        decoded_rgb_mask_duplicates=group_report(rows, 'decoded_rgb_mask_sha256'),
+        rows=rows, source_window_fidelity=dict(sample_rule='first8 SHA256(fidelity-v1/split/tile_id) ranks per selected split',
+            samples=samples, samples_count=len(samples), exact_rgb_windows=len(samples), exact_mask_windows=len(samples)),
+        test_pixel_windows_requested=0, no_cohort_filtering_or_resampling=True,
+        integrity_scope='Selected 640 PNG encoded hashes, manifest/archive and executable source hashes unchanged before/after; 320 decoded RGB/masks checked; 16 independent TIFF-window comparisons.',
+        limits=['No model fitting, predictions, accuracy or test-pixel evaluation.',
+            'Exact whole-tile pixel hashes do not detect near duplicates, partial spatial overlap, or geographic independence.',
+            'Only 16 of 320 selected original TIFF windows independently sampled for exact source fidelity.',
+            'All model seeds share one selected cohort; seed variation is not dataset uncertainty.'])
+
+
+def report(value):
+    lines = ['# Independent selected LandCover.ai cohort audit', '',
+        'The frozen 256 train / 64 validation cohort was reconstructed directly from official ZIP split lists and the specified SHA256 rankings (subset seeds 742/943). No project selection, preparation or data-loader helper was imported. The cohort was neither filtered nor resampled.', '',
+        '| Split | Tiles | Parent rasters | Class 0 pixels | Class 1 | Class 2 | Class 3 | Class 4 |',
+        '|---|---:|---:|---:|---:|---:|---:|---:|']
+    for split in ('train', 'val'):
+        row = value['summaries'][split]
+        lines.append('| '+split+' | '+str(row['tiles'])+' | '+str(row['parent_count'])+' | '+
+                     ' | '.join(map(str, row['class_pixel_counts']))+' |')
+    lines += ['', 'All five class IDs are present in each cohort. Train and validation tile IDs are disjoint; '+
+        str(value['selected_parent_overlap_count'])+' source parents occur in both selected cohorts. This is not a scene-disjoint geographic holdout. Model seeds 42/77/123 use these same IDs.', '',
+        'Every selected PNG was hashed and decoded, and its mask counts matched the saved manifest. Exact duplicate checks use complete 512x512 uint8 arrays, not compressed PNG bytes:', '',
+        '- RGB-only cross-split duplicate groups: '+str(value['decoded_rgb_duplicates']['cross_split_group_count'])+
+            '; train/validation duplicate pairs: '+str(value['decoded_rgb_duplicates']['cross_split_pair_count'])+'.',
+        '- RGB-plus-mask cross-split duplicate groups: '+str(value['decoded_rgb_mask_duplicates']['cross_split_group_count'])+
+            '; train/validation duplicate pairs: '+str(value['decoded_rgb_mask_duplicates']['cross_split_pair_count'])+'.', '',
+        'All 16 deterministic source-window checks (8 selected train + 8 validation) matched original TIFF RGB, integer mask values and class counts exactly. Coordinates were independently reconstructed by enumerating row-major 512-step x/y positions and preserving skipped partial-edge indices. Stored PNG origins and preparation helpers were not used as the oracle.', '',
+        'No test pixel windows were requested. Test IDs were used only for structural split separation. Archive byte hashing does not evaluate test pixels. No model, fitting, predictions or accuracy calculation was run.', '',
+        'These exact whole-tile checks do not test near duplicates, adjacent/overlapping scene context, or geographic independence. Source fidelity sampled 16 of 320 selected TIFF windows; all 320 saved PNG pairs were decoded and hash/count checked. Detailed IDs, duplicate groups, file/source hashes, sampling rule and runtime are retained in `cohort_audit.json`.', '',
+        'Dataset manifest SHA256: `'+value['dataset_manifest_sha256']+'`.',
+        'Audit source SHA256: `'+value['audit_source_sha256']+'`.', '']
+    return '\n'.join(lines)
+
+
+if __name__ == '__main__':
+    assert not (OUT/'cohort_audit.json').exists() and not (OUT/'REPORT.md').exists(), 'Preserve previous audit attempts'
+    try:
+        value = run()
+        (OUT/'cohort_audit.json').write_text(json.dumps(value, sort_keys=True, indent=2, allow_nan=False)+'\n')
+        (OUT/'REPORT.md').write_text(report(value))
+        print(json.dumps(dict(status=value['status'], summaries=value['summaries'],
+            rgb_duplicate_pairs=value['decoded_rgb_duplicates']['cross_split_pair_count'],
+            rgb_mask_duplicate_pairs=value['decoded_rgb_mask_duplicates']['cross_split_pair_count'],
+            fidelity_windows=value['source_window_fidelity']['samples_count']), indent=2))
+    except Exception as error:
+        (OUT/'failure.json').write_text(json.dumps(dict(status='failed', error=str(error)), indent=2)+'\n')
+        traceback.print_exc()
+        raise

@@ -12,7 +12,7 @@ It fixes thirteen fits, four controls, three paired seeds, sixty epochs, native
 five-class metrics and zero test predictions. Complete validation replay and
 Astra review of the empirical results are still required.
 
-The independent audit reconstructs all selected IDs without project helpers,
+The [independent audit](cohort/REPORT.md) reconstructs all selected IDs without project helpers,
 checks all 640 prepared PNG hashes and decoded values/counts, finds zero exact
 RGB or RGB-plus-mask duplicates, and compares sixteen sampled original TIFF
 windows exactly. All thirty-five selected validation parent rasters also occur
