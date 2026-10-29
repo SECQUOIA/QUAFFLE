@@ -1,0 +1,1381 @@
+left,right,validation_index,name,sensor,different_pixels,fraction
+quantum,frozen_quantum,0,71,optical,20,0.001220703125
+quantum,frozen_quantum,1,86,optical,3137,0.19146728515625
+quantum,frozen_quantum,2,91,optical,326,0.0198974609375
+quantum,frozen_quantum,3,102,optical,683,0.04168701171875
+quantum,frozen_quantum,4,106,optical,0,0.0
+quantum,frozen_quantum,5,109,optical,2,0.0001220703125
+quantum,frozen_quantum,6,125,optical,476,0.029052734375
+quantum,frozen_quantum,7,128,optical,108,0.006591796875
+quantum,frozen_quantum,8,130,optical,285,0.01739501953125
+quantum,frozen_quantum,9,138,optical,1134,0.0692138671875
+quantum,frozen_quantum,10,144,optical,59,0.00360107421875
+quantum,frozen_quantum,11,154,optical,603,0.03680419921875
+quantum,frozen_quantum,12,155,optical,1133,0.06915283203125
+quantum,frozen_quantum,13,164 copy,sar,0,0.0
+quantum,frozen_quantum,14,166,optical,657,0.04010009765625
+quantum,frozen_quantum,15,168 copy,sar,102,0.0062255859375
+quantum,frozen_quantum,16,175 copy,sar,160,0.009765625
+quantum,frozen_quantum,17,179,optical,174,0.0106201171875
+quantum,frozen_quantum,18,181 copy,sar,32,0.001953125
+quantum,frozen_quantum,19,182,optical,239,0.01458740234375
+quantum,frozen_quantum,20,182 copy,sar,69,0.00421142578125
+quantum,frozen_quantum,21,183,optical,1324,0.080810546875
+quantum,frozen_quantum,22,183 copy,sar,81,0.00494384765625
+quantum,frozen_quantum,23,184 copy,sar,121,0.00738525390625
+quantum,frozen_quantum,24,186 copy,sar,12,0.000732421875
+quantum,frozen_quantum,25,191 copy,sar,17,0.00103759765625
+quantum,frozen_quantum,26,197,optical,183,0.01116943359375
+quantum,frozen_quantum,27,204,optical,0,0.0
+quantum,frozen_quantum,28,205 copy,sar,0,0.0
+quantum,frozen_quantum,29,210 copy,sar,0,0.0
+quantum,frozen_quantum,30,211 copy,sar,0,0.0
+quantum,frozen_quantum,31,215 copy,sar,216,0.01318359375
+quantum,frozen_quantum,32,223,optical,624,0.0380859375
+quantum,frozen_quantum,33,224,optical,937,0.05718994140625
+quantum,frozen_quantum,34,225 copy,sar,0,0.0
+quantum,frozen_quantum,35,226 copy,sar,0,0.0
+quantum,frozen_quantum,36,229 copy,sar,32,0.001953125
+quantum,frozen_quantum,37,231,optical,117,0.00714111328125
+quantum,frozen_quantum,38,232 copy,sar,109,0.00665283203125
+quantum,frozen_quantum,39,245,optical,66,0.0040283203125
+quantum,frozen_quantum,40,246,optical,1671,0.10198974609375
+quantum,frozen_quantum,41,246 copy,sar,285,0.01739501953125
+quantum,frozen_quantum,42,248 copy,sar,206,0.0125732421875
+quantum,frozen_quantum,43,255 copy,sar,39,0.00238037109375
+quantum,frozen_quantum,44,263 copy,sar,292,0.017822265625
+quantum,frozen_quantum,45,264 copy,sar,0,0.0
+quantum,frozen_quantum,46,266 copy,sar,14,0.0008544921875
+quantum,frozen_quantum,47,267,optical,614,0.0374755859375
+quantum,frozen_quantum,48,274,optical,443,0.02703857421875
+quantum,frozen_quantum,49,275 copy,sar,0,0.0
+quantum,frozen_quantum,50,276,optical,831,0.05072021484375
+quantum,frozen_quantum,51,278 copy,sar,75,0.00457763671875
+quantum,frozen_quantum,52,280,optical,0,0.0
+quantum,frozen_quantum,53,281 copy,sar,0,0.0
+quantum,frozen_quantum,54,282 copy,sar,28,0.001708984375
+quantum,frozen_quantum,55,291 copy,sar,0,0.0
+quantum,frozen_quantum,56,293 copy,sar,27,0.00164794921875
+quantum,frozen_quantum,57,305 copy,sar,0,0.0
+quantum,frozen_quantum,58,306,sar,520,0.03173828125
+quantum,frozen_quantum,59,308,sar,0,0.0
+quantum,frozen_quantum,60,310,sar,61,0.00372314453125
+quantum,frozen_quantum,61,317,sar,66,0.0040283203125
+quantum,frozen_quantum,62,332,sar,352,0.021484375
+quantum,frozen_quantum,63,337,sar,358,0.0218505859375
+quantum,frozen_quantum,64,354,sar,925,0.05645751953125
+quantum,frozen_quantum,65,357,sar,86,0.0052490234375
+quantum,frozen_quantum,66,361,sar,19,0.00115966796875
+quantum,frozen_quantum,67,365,sar,0,0.0
+quantum,frozen_quantum,68,366,sar,23,0.00140380859375
+quantum,frozen_quantum,69,372,sar,2,0.0001220703125
+quantum,frozen_quantum,70,378,sar,0,0.0
+quantum,frozen_quantum,71,390,sar,0,0.0
+quantum,frozen_quantum,72,402,sar,2,0.0001220703125
+quantum,frozen_quantum,73,414,sar,72,0.00439453125
+quantum,frozen_quantum,74,424,sar,11,0.00067138671875
+quantum,frozen_quantum,75,425,sar,42,0.0025634765625
+quantum,frozen_quantum,76,427,sar,0,0.0
+quantum,frozen_quantum,77,429,sar,238,0.0145263671875
+quantum,frozen_quantum,78,437,sar,56,0.00341796875
+quantum,frozen_quantum,79,444,sar,45,0.00274658203125
+quantum,frozen_quantum,80,448,sar,0,0.0
+quantum,frozen_quantum,81,455,sar,7,0.00042724609375
+quantum,frozen_quantum,82,457,sar,0,0.0
+quantum,frozen_quantum,83,462,sar,45,0.00274658203125
+quantum,frozen_quantum,84,470,sar,52,0.003173828125
+quantum,frozen_quantum,85,472,sar,376,0.02294921875
+quantum,frozen_quantum,86,483,sar,119,0.00726318359375
+quantum,frozen_quantum,87,485,sar,331,0.02020263671875
+quantum,frozen_quantum,88,488,sar,0,0.0
+quantum,frozen_quantum,89,490,sar,18,0.0010986328125
+quantum,frozen_quantum,90,491,sar,135,0.00823974609375
+quantum,frozen_quantum,91,497,sar,57,0.00347900390625
+quantum,frozen_quantum,92,508,sar,386,0.0235595703125
+quantum,frozen_quantum,93,510,sar,0,0.0
+quantum,frozen_quantum,94,515,sar,420,0.025634765625
+quantum,frozen_quantum,95,520,sar,17,0.00103759765625
+quantum,frozen_quantum,96,521,sar,0,0.0
+quantum,frozen_quantum,97,538,sar,19,0.00115966796875
+quantum,frozen_quantum,98,545,sar,425,0.02593994140625
+quantum,frozen_quantum,99,546,sar,1001,0.06109619140625
+quantum,frozen_quantum,100,549,sar,137,0.00836181640625
+quantum,frozen_quantum,101,569,sar,8,0.00048828125
+quantum,frozen_quantum,102,571,sar,214,0.0130615234375
+quantum,frozen_quantum,103,575,sar,599,0.03656005859375
+quantum,frozen_quantum,104,585,sar,102,0.0062255859375
+quantum,frozen_quantum,105,587,sar,0,0.0
+quantum,frozen_quantum,106,588,sar,121,0.00738525390625
+quantum,frozen_quantum,107,592,sar,0,0.0
+quantum,frozen_quantum,108,600,sar,237,0.01446533203125
+quantum,frozen_quantum,109,616,sar,0,0.0
+quantum,frozen_quantum,110,618,sar,193,0.01177978515625
+quantum,frozen_quantum,111,635,sar,0,0.0
+quantum,frozen_quantum,112,639,sar,75,0.00457763671875
+quantum,frozen_quantum,113,644,sar,0,0.0
+quantum,frozen_quantum,114,648,sar,0,0.0
+quantum,frozen_quantum,115,663,sar,14,0.0008544921875
+quantum,frozen_quantum,116,664,sar,87,0.00531005859375
+quantum,frozen_quantum,117,695,sar,102,0.0062255859375
+quantum,frozen_quantum,118,697,sar,192,0.01171875
+quantum,frozen_quantum,119,704,sar,244,0.014892578125
+quantum,frozen_quantum,120,720,sar,0,0.0
+quantum,frozen_quantum,121,722,sar,0,0.0
+quantum,frozen_quantum,122,734,sar,199,0.01214599609375
+quantum,frozen_quantum,123,740,sar,0,0.0
+quantum,frozen_quantum,124,749,sar,0,0.0
+quantum,frozen_quantum,125,754,sar,181,0.01104736328125
+quantum,frozen_quantum,126,756,sar,0,0.0
+quantum,frozen_quantum,127,763,sar,135,0.00823974609375
+quantum,frozen_quantum,128,783,sar,12,0.000732421875
+quantum,frozen_quantum,129,793,sar,4,0.000244140625
+quantum,frozen_quantum,130,803,sar,197,0.01202392578125
+quantum,frozen_quantum,131,811,sar,0,0.0
+quantum,frozen_quantum,132,818,sar,54,0.0032958984375
+quantum,frozen_quantum,133,831,sar,0,0.0
+quantum,frozen_quantum,134,836,sar,152,0.00927734375
+quantum,frozen_quantum,135,840,sar,88,0.00537109375
+quantum,frozen_quantum,136,855,sar,136,0.00830078125
+quantum,frozen_quantum,137,861,sar,91,0.00555419921875
+quantum,frozen_quantum,138,880,sar,7,0.00042724609375
+quantum,frozen_quantum,139,884,sar,94,0.0057373046875
+quantum,frozen_quantum,140,888,sar,0,0.0
+quantum,frozen_quantum,141,901,sar,27,0.00164794921875
+quantum,frozen_quantum,142,906,sar,11,0.00067138671875
+quantum,frozen_quantum,143,908,sar,327,0.01995849609375
+quantum,frozen_quantum,144,917,sar,0,0.0
+quantum,frozen_quantum,145,938,sar,0,0.0
+quantum,frozen_quantum,146,944,sar,141,0.00860595703125
+quantum,frozen_quantum,147,949,sar,0,0.0
+quantum,frozen_quantum,148,951,sar,0,0.0
+quantum,frozen_quantum,149,971,sar,630,0.0384521484375
+quantum,frozen_quantum,150,978,sar,68,0.004150390625
+quantum,frozen_quantum,151,981,sar,1,6.103515625e-05
+quantum,frozen_quantum,152,984,sar,246,0.0150146484375
+quantum,frozen_quantum,153,1004,sar,0,0.0
+quantum,frozen_quantum,154,1022,sar,5,0.00030517578125
+quantum,frozen_quantum,155,1027,sar,69,0.00421142578125
+quantum,frozen_quantum,156,1033,sar,384,0.0234375
+quantum,frozen_quantum,157,1035,sar,25,0.00152587890625
+quantum,frozen_quantum,158,1036,sar,0,0.0
+quantum,frozen_quantum,159,1043,sar,0,0.0
+quantum,frozen_quantum,160,1050,sar,672,0.041015625
+quantum,frozen_quantum,161,1053,sar,117,0.00714111328125
+quantum,frozen_quantum,162,1055,sar,344,0.02099609375
+quantum,frozen_quantum,163,1073,sar,40,0.00244140625
+quantum,frozen_quantum,164,1075,sar,99,0.00604248046875
+quantum,frozen_quantum,165,1097,sar,666,0.0406494140625
+quantum,frozen_quantum,166,1101,sar,137,0.00836181640625
+quantum,frozen_quantum,167,1107,sar,0,0.0
+quantum,frozen_quantum,168,1116,sar,0,0.0
+quantum,frozen_quantum,169,1126,sar,225,0.01373291015625
+quantum,frozen_quantum,170,1138,sar,0,0.0
+quantum,frozen_quantum,171,1159,sar,159,0.00970458984375
+quantum,frozen_quantum,172,1166,sar,5,0.00030517578125
+quantum,frozen_quantum,173,1176,sar,1521,0.09283447265625
+quantum,frozen_quantum,174,1180,sar,232,0.01416015625
+quantum,frozen_quantum,175,1183,sar,28,0.001708984375
+quantum,frozen_quantum,176,1184,sar,134,0.0081787109375
+quantum,frozen_quantum,177,1192,sar,76,0.004638671875
+quantum,frozen_quantum,178,1198,sar,324,0.019775390625
+quantum,frozen_quantum,179,1205,sar,0,0.0
+quantum,frozen_quantum,180,1220,sar,182,0.0111083984375
+quantum,frozen_quantum,181,1238,sar,19,0.00115966796875
+quantum,frozen_quantum,182,1240,sar,7,0.00042724609375
+quantum,frozen_quantum,183,1241,sar,64,0.00390625
+quantum,frozen_quantum,184,1245,sar,169,0.01031494140625
+quantum,frozen_quantum,185,1248,sar,0,0.0
+quantum,frozen_quantum,186,1256,sar,140,0.008544921875
+quantum,frozen_quantum,187,1263,sar,0,0.0
+quantum,frozen_quantum,188,1267,sar,0,0.0
+quantum,frozen_quantum,189,1279,sar,0,0.0
+quantum,frozen_quantum,190,1287,sar,4,0.000244140625
+quantum,frozen_quantum,191,1294,sar,240,0.0146484375
+quantum,frozen_quantum,192,1306,sar,0,0.0
+quantum,frozen_quantum,193,1311,sar,139,0.00848388671875
+quantum,frozen_quantum,194,1316,sar,16,0.0009765625
+quantum,frozen_quantum,195,1323,sar,2,0.0001220703125
+quantum,frozen_quantum,196,1328,sar,13,0.00079345703125
+quantum,frozen_quantum,197,1334,sar,20,0.001220703125
+quantum,frozen_quantum,198,1336,sar,18,0.0010986328125
+quantum,frozen_quantum,199,1337,sar,0,0.0
+quantum,frozen_quantum,200,1338,sar,582,0.0355224609375
+quantum,frozen_quantum,201,1364,sar,17,0.00103759765625
+quantum,frozen_quantum,202,1369,sar,324,0.019775390625
+quantum,frozen_quantum,203,1381,sar,0,0.0
+quantum,frozen_quantum,204,1390,sar,0,0.0
+quantum,frozen_quantum,205,1392,sar,6,0.0003662109375
+quantum,frozen_quantum,206,1396,sar,117,0.00714111328125
+quantum,frozen_quantum,207,1401,sar,0,0.0
+quantum,frozen_quantum,208,1422,sar,206,0.0125732421875
+quantum,frozen_quantum,209,1456,sar,257,0.01568603515625
+quantum,frozen_quantum,210,1458,sar,2,0.0001220703125
+quantum,frozen_quantum,211,1474,sar,340,0.020751953125
+quantum,frozen_quantum,212,1488,sar,265,0.01617431640625
+quantum,frozen_quantum,213,1497,sar,125,0.00762939453125
+quantum,frozen_quantum,214,1507,sar,27,0.00164794921875
+quantum,frozen_quantum,215,1508,sar,0,0.0
+quantum,frozen_quantum,216,1511,sar,253,0.01544189453125
+quantum,frozen_quantum,217,1513,sar,181,0.01104736328125
+quantum,frozen_quantum,218,1520,sar,38,0.0023193359375
+quantum,frozen_quantum,219,1521,sar,0,0.0
+quantum,frozen_quantum,220,1522,sar,0,0.0
+quantum,frozen_quantum,221,1525,sar,171,0.01043701171875
+quantum,frozen_quantum,222,1527,sar,191,0.01165771484375
+quantum,frozen_quantum,223,1531,sar,0,0.0
+quantum,frozen_quantum,224,1537,sar,47,0.00286865234375
+quantum,frozen_quantum,225,1540,sar,102,0.0062255859375
+quantum,frozen_quantum,226,1589,sar,417,0.02545166015625
+quantum,frozen_quantum,227,1590,sar,25,0.00152587890625
+quantum,frozen_quantum,228,1595,sar,94,0.0057373046875
+quantum,frozen_quantum,229,1628,sar,2,0.0001220703125
+quantum,zero_bottleneck,0,71,optical,20,0.001220703125
+quantum,zero_bottleneck,1,86,optical,1063,0.06488037109375
+quantum,zero_bottleneck,2,91,optical,387,0.02362060546875
+quantum,zero_bottleneck,3,102,optical,404,0.024658203125
+quantum,zero_bottleneck,4,106,optical,0,0.0
+quantum,zero_bottleneck,5,109,optical,0,0.0
+quantum,zero_bottleneck,6,125,optical,578,0.0352783203125
+quantum,zero_bottleneck,7,128,optical,313,0.01910400390625
+quantum,zero_bottleneck,8,130,optical,350,0.0213623046875
+quantum,zero_bottleneck,9,138,optical,865,0.05279541015625
+quantum,zero_bottleneck,10,144,optical,117,0.00714111328125
+quantum,zero_bottleneck,11,154,optical,392,0.02392578125
+quantum,zero_bottleneck,12,155,optical,546,0.0333251953125
+quantum,zero_bottleneck,13,164 copy,sar,0,0.0
+quantum,zero_bottleneck,14,166,optical,1150,0.0701904296875
+quantum,zero_bottleneck,15,168 copy,sar,117,0.00714111328125
+quantum,zero_bottleneck,16,175 copy,sar,94,0.0057373046875
+quantum,zero_bottleneck,17,179,optical,252,0.015380859375
+quantum,zero_bottleneck,18,181 copy,sar,29,0.00177001953125
+quantum,zero_bottleneck,19,182,optical,2531,0.15447998046875
+quantum,zero_bottleneck,20,182 copy,sar,75,0.00457763671875
+quantum,zero_bottleneck,21,183,optical,589,0.03594970703125
+quantum,zero_bottleneck,22,183 copy,sar,121,0.00738525390625
+quantum,zero_bottleneck,23,184 copy,sar,122,0.0074462890625
+quantum,zero_bottleneck,24,186 copy,sar,3,0.00018310546875
+quantum,zero_bottleneck,25,191 copy,sar,23,0.00140380859375
+quantum,zero_bottleneck,26,197,optical,103,0.00628662109375
+quantum,zero_bottleneck,27,204,optical,0,0.0
+quantum,zero_bottleneck,28,205 copy,sar,0,0.0
+quantum,zero_bottleneck,29,210 copy,sar,0,0.0
+quantum,zero_bottleneck,30,211 copy,sar,0,0.0
+quantum,zero_bottleneck,31,215 copy,sar,331,0.02020263671875
+quantum,zero_bottleneck,32,223,optical,493,0.03009033203125
+quantum,zero_bottleneck,33,224,optical,567,0.03460693359375
+quantum,zero_bottleneck,34,225 copy,sar,0,0.0
+quantum,zero_bottleneck,35,226 copy,sar,0,0.0
+quantum,zero_bottleneck,36,229 copy,sar,54,0.0032958984375
+quantum,zero_bottleneck,37,231,optical,84,0.005126953125
+quantum,zero_bottleneck,38,232 copy,sar,97,0.00592041015625
+quantum,zero_bottleneck,39,245,optical,328,0.02001953125
+quantum,zero_bottleneck,40,246,optical,1802,0.1099853515625
+quantum,zero_bottleneck,41,246 copy,sar,191,0.01165771484375
+quantum,zero_bottleneck,42,248 copy,sar,201,0.01226806640625
+quantum,zero_bottleneck,43,255 copy,sar,39,0.00238037109375
+quantum,zero_bottleneck,44,263 copy,sar,525,0.03204345703125
+quantum,zero_bottleneck,45,264 copy,sar,0,0.0
+quantum,zero_bottleneck,46,266 copy,sar,8,0.00048828125
+quantum,zero_bottleneck,47,267,optical,746,0.0455322265625
+quantum,zero_bottleneck,48,274,optical,547,0.03338623046875
+quantum,zero_bottleneck,49,275 copy,sar,0,0.0
+quantum,zero_bottleneck,50,276,optical,892,0.054443359375
+quantum,zero_bottleneck,51,278 copy,sar,85,0.00518798828125
+quantum,zero_bottleneck,52,280,optical,0,0.0
+quantum,zero_bottleneck,53,281 copy,sar,0,0.0
+quantum,zero_bottleneck,54,282 copy,sar,32,0.001953125
+quantum,zero_bottleneck,55,291 copy,sar,1,6.103515625e-05
+quantum,zero_bottleneck,56,293 copy,sar,39,0.00238037109375
+quantum,zero_bottleneck,57,305 copy,sar,0,0.0
+quantum,zero_bottleneck,58,306,sar,941,0.05743408203125
+quantum,zero_bottleneck,59,308,sar,0,0.0
+quantum,zero_bottleneck,60,310,sar,59,0.00360107421875
+quantum,zero_bottleneck,61,317,sar,51,0.00311279296875
+quantum,zero_bottleneck,62,332,sar,242,0.0147705078125
+quantum,zero_bottleneck,63,337,sar,211,0.01287841796875
+quantum,zero_bottleneck,64,354,sar,3472,0.2119140625
+quantum,zero_bottleneck,65,357,sar,39,0.00238037109375
+quantum,zero_bottleneck,66,361,sar,21,0.00128173828125
+quantum,zero_bottleneck,67,365,sar,0,0.0
+quantum,zero_bottleneck,68,366,sar,29,0.00177001953125
+quantum,zero_bottleneck,69,372,sar,20,0.001220703125
+quantum,zero_bottleneck,70,378,sar,0,0.0
+quantum,zero_bottleneck,71,390,sar,0,0.0
+quantum,zero_bottleneck,72,402,sar,7,0.00042724609375
+quantum,zero_bottleneck,73,414,sar,70,0.0042724609375
+quantum,zero_bottleneck,74,424,sar,7,0.00042724609375
+quantum,zero_bottleneck,75,425,sar,30,0.0018310546875
+quantum,zero_bottleneck,76,427,sar,0,0.0
+quantum,zero_bottleneck,77,429,sar,303,0.01849365234375
+quantum,zero_bottleneck,78,437,sar,75,0.00457763671875
+quantum,zero_bottleneck,79,444,sar,47,0.00286865234375
+quantum,zero_bottleneck,80,448,sar,0,0.0
+quantum,zero_bottleneck,81,455,sar,4,0.000244140625
+quantum,zero_bottleneck,82,457,sar,1,6.103515625e-05
+quantum,zero_bottleneck,83,462,sar,33,0.00201416015625
+quantum,zero_bottleneck,84,470,sar,57,0.00347900390625
+quantum,zero_bottleneck,85,472,sar,305,0.01861572265625
+quantum,zero_bottleneck,86,483,sar,0,0.0
+quantum,zero_bottleneck,87,485,sar,307,0.01873779296875
+quantum,zero_bottleneck,88,488,sar,0,0.0
+quantum,zero_bottleneck,89,490,sar,9,0.00054931640625
+quantum,zero_bottleneck,90,491,sar,202,0.0123291015625
+quantum,zero_bottleneck,91,497,sar,72,0.00439453125
+quantum,zero_bottleneck,92,508,sar,1211,0.07391357421875
+quantum,zero_bottleneck,93,510,sar,0,0.0
+quantum,zero_bottleneck,94,515,sar,519,0.03167724609375
+quantum,zero_bottleneck,95,520,sar,24,0.00146484375
+quantum,zero_bottleneck,96,521,sar,0,0.0
+quantum,zero_bottleneck,97,538,sar,4,0.000244140625
+quantum,zero_bottleneck,98,545,sar,430,0.0262451171875
+quantum,zero_bottleneck,99,546,sar,598,0.0364990234375
+quantum,zero_bottleneck,100,549,sar,110,0.0067138671875
+quantum,zero_bottleneck,101,569,sar,8,0.00048828125
+quantum,zero_bottleneck,102,571,sar,237,0.01446533203125
+quantum,zero_bottleneck,103,575,sar,523,0.03192138671875
+quantum,zero_bottleneck,104,585,sar,55,0.00335693359375
+quantum,zero_bottleneck,105,587,sar,0,0.0
+quantum,zero_bottleneck,106,588,sar,171,0.01043701171875
+quantum,zero_bottleneck,107,592,sar,0,0.0
+quantum,zero_bottleneck,108,600,sar,523,0.03192138671875
+quantum,zero_bottleneck,109,616,sar,0,0.0
+quantum,zero_bottleneck,110,618,sar,212,0.012939453125
+quantum,zero_bottleneck,111,635,sar,0,0.0
+quantum,zero_bottleneck,112,639,sar,50,0.0030517578125
+quantum,zero_bottleneck,113,644,sar,0,0.0
+quantum,zero_bottleneck,114,648,sar,0,0.0
+quantum,zero_bottleneck,115,663,sar,12,0.000732421875
+quantum,zero_bottleneck,116,664,sar,76,0.004638671875
+quantum,zero_bottleneck,117,695,sar,103,0.00628662109375
+quantum,zero_bottleneck,118,697,sar,94,0.0057373046875
+quantum,zero_bottleneck,119,704,sar,213,0.01300048828125
+quantum,zero_bottleneck,120,720,sar,0,0.0
+quantum,zero_bottleneck,121,722,sar,0,0.0
+quantum,zero_bottleneck,122,734,sar,135,0.00823974609375
+quantum,zero_bottleneck,123,740,sar,0,0.0
+quantum,zero_bottleneck,124,749,sar,0,0.0
+quantum,zero_bottleneck,125,754,sar,159,0.00970458984375
+quantum,zero_bottleneck,126,756,sar,0,0.0
+quantum,zero_bottleneck,127,763,sar,91,0.00555419921875
+quantum,zero_bottleneck,128,783,sar,14,0.0008544921875
+quantum,zero_bottleneck,129,793,sar,7,0.00042724609375
+quantum,zero_bottleneck,130,803,sar,279,0.01702880859375
+quantum,zero_bottleneck,131,811,sar,0,0.0
+quantum,zero_bottleneck,132,818,sar,47,0.00286865234375
+quantum,zero_bottleneck,133,831,sar,0,0.0
+quantum,zero_bottleneck,134,836,sar,253,0.01544189453125
+quantum,zero_bottleneck,135,840,sar,131,0.00799560546875
+quantum,zero_bottleneck,136,855,sar,15,0.00091552734375
+quantum,zero_bottleneck,137,861,sar,91,0.00555419921875
+quantum,zero_bottleneck,138,880,sar,10,0.0006103515625
+quantum,zero_bottleneck,139,884,sar,148,0.009033203125
+quantum,zero_bottleneck,140,888,sar,0,0.0
+quantum,zero_bottleneck,141,901,sar,15,0.00091552734375
+quantum,zero_bottleneck,142,906,sar,12,0.000732421875
+quantum,zero_bottleneck,143,908,sar,563,0.03436279296875
+quantum,zero_bottleneck,144,917,sar,0,0.0
+quantum,zero_bottleneck,145,938,sar,0,0.0
+quantum,zero_bottleneck,146,944,sar,180,0.010986328125
+quantum,zero_bottleneck,147,949,sar,0,0.0
+quantum,zero_bottleneck,148,951,sar,0,0.0
+quantum,zero_bottleneck,149,971,sar,725,0.04425048828125
+quantum,zero_bottleneck,150,978,sar,65,0.00396728515625
+quantum,zero_bottleneck,151,981,sar,0,0.0
+quantum,zero_bottleneck,152,984,sar,135,0.00823974609375
+quantum,zero_bottleneck,153,1004,sar,0,0.0
+quantum,zero_bottleneck,154,1022,sar,13,0.00079345703125
+quantum,zero_bottleneck,155,1027,sar,155,0.00946044921875
+quantum,zero_bottleneck,156,1033,sar,585,0.03570556640625
+quantum,zero_bottleneck,157,1035,sar,15,0.00091552734375
+quantum,zero_bottleneck,158,1036,sar,0,0.0
+quantum,zero_bottleneck,159,1043,sar,0,0.0
+quantum,zero_bottleneck,160,1050,sar,796,0.048583984375
+quantum,zero_bottleneck,161,1053,sar,265,0.01617431640625
+quantum,zero_bottleneck,162,1055,sar,388,0.023681640625
+quantum,zero_bottleneck,163,1073,sar,27,0.00164794921875
+quantum,zero_bottleneck,164,1075,sar,119,0.00726318359375
+quantum,zero_bottleneck,165,1097,sar,686,0.0418701171875
+quantum,zero_bottleneck,166,1101,sar,245,0.01495361328125
+quantum,zero_bottleneck,167,1107,sar,0,0.0
+quantum,zero_bottleneck,168,1116,sar,0,0.0
+quantum,zero_bottleneck,169,1126,sar,141,0.00860595703125
+quantum,zero_bottleneck,170,1138,sar,0,0.0
+quantum,zero_bottleneck,171,1159,sar,333,0.02032470703125
+quantum,zero_bottleneck,172,1166,sar,5,0.00030517578125
+quantum,zero_bottleneck,173,1176,sar,2877,0.17559814453125
+quantum,zero_bottleneck,174,1180,sar,149,0.00909423828125
+quantum,zero_bottleneck,175,1183,sar,30,0.0018310546875
+quantum,zero_bottleneck,176,1184,sar,78,0.0047607421875
+quantum,zero_bottleneck,177,1192,sar,97,0.00592041015625
+quantum,zero_bottleneck,178,1198,sar,352,0.021484375
+quantum,zero_bottleneck,179,1205,sar,0,0.0
+quantum,zero_bottleneck,180,1220,sar,370,0.0225830078125
+quantum,zero_bottleneck,181,1238,sar,72,0.00439453125
+quantum,zero_bottleneck,182,1240,sar,9,0.00054931640625
+quantum,zero_bottleneck,183,1241,sar,90,0.0054931640625
+quantum,zero_bottleneck,184,1245,sar,362,0.0220947265625
+quantum,zero_bottleneck,185,1248,sar,0,0.0
+quantum,zero_bottleneck,186,1256,sar,134,0.0081787109375
+quantum,zero_bottleneck,187,1263,sar,0,0.0
+quantum,zero_bottleneck,188,1267,sar,3,0.00018310546875
+quantum,zero_bottleneck,189,1279,sar,0,0.0
+quantum,zero_bottleneck,190,1287,sar,4,0.000244140625
+quantum,zero_bottleneck,191,1294,sar,175,0.01068115234375
+quantum,zero_bottleneck,192,1306,sar,0,0.0
+quantum,zero_bottleneck,193,1311,sar,111,0.00677490234375
+quantum,zero_bottleneck,194,1316,sar,8,0.00048828125
+quantum,zero_bottleneck,195,1323,sar,7,0.00042724609375
+quantum,zero_bottleneck,196,1328,sar,10,0.0006103515625
+quantum,zero_bottleneck,197,1334,sar,10,0.0006103515625
+quantum,zero_bottleneck,198,1336,sar,24,0.00146484375
+quantum,zero_bottleneck,199,1337,sar,0,0.0
+quantum,zero_bottleneck,200,1338,sar,632,0.03857421875
+quantum,zero_bottleneck,201,1364,sar,17,0.00103759765625
+quantum,zero_bottleneck,202,1369,sar,283,0.01727294921875
+quantum,zero_bottleneck,203,1381,sar,0,0.0
+quantum,zero_bottleneck,204,1390,sar,0,0.0
+quantum,zero_bottleneck,205,1392,sar,13,0.00079345703125
+quantum,zero_bottleneck,206,1396,sar,166,0.0101318359375
+quantum,zero_bottleneck,207,1401,sar,0,0.0
+quantum,zero_bottleneck,208,1422,sar,291,0.01776123046875
+quantum,zero_bottleneck,209,1456,sar,214,0.0130615234375
+quantum,zero_bottleneck,210,1458,sar,2,0.0001220703125
+quantum,zero_bottleneck,211,1474,sar,463,0.02825927734375
+quantum,zero_bottleneck,212,1488,sar,226,0.0137939453125
+quantum,zero_bottleneck,213,1497,sar,174,0.0106201171875
+quantum,zero_bottleneck,214,1507,sar,53,0.00323486328125
+quantum,zero_bottleneck,215,1508,sar,0,0.0
+quantum,zero_bottleneck,216,1511,sar,173,0.01055908203125
+quantum,zero_bottleneck,217,1513,sar,113,0.00689697265625
+quantum,zero_bottleneck,218,1520,sar,41,0.00250244140625
+quantum,zero_bottleneck,219,1521,sar,0,0.0
+quantum,zero_bottleneck,220,1522,sar,0,0.0
+quantum,zero_bottleneck,221,1525,sar,165,0.01007080078125
+quantum,zero_bottleneck,222,1527,sar,168,0.01025390625
+quantum,zero_bottleneck,223,1531,sar,0,0.0
+quantum,zero_bottleneck,224,1537,sar,39,0.00238037109375
+quantum,zero_bottleneck,225,1540,sar,81,0.00494384765625
+quantum,zero_bottleneck,226,1589,sar,330,0.0201416015625
+quantum,zero_bottleneck,227,1590,sar,29,0.00177001953125
+quantum,zero_bottleneck,228,1595,sar,43,0.00262451171875
+quantum,zero_bottleneck,229,1628,sar,1,6.103515625e-05
+quantum,compact_affine,0,71,optical,13,0.00079345703125
+quantum,compact_affine,1,86,optical,875,0.05340576171875
+quantum,compact_affine,2,91,optical,245,0.01495361328125
+quantum,compact_affine,3,102,optical,497,0.03033447265625
+quantum,compact_affine,4,106,optical,0,0.0
+quantum,compact_affine,5,109,optical,7,0.00042724609375
+quantum,compact_affine,6,125,optical,312,0.01904296875
+quantum,compact_affine,7,128,optical,116,0.007080078125
+quantum,compact_affine,8,130,optical,223,0.01361083984375
+quantum,compact_affine,9,138,optical,820,0.050048828125
+quantum,compact_affine,10,144,optical,67,0.00408935546875
+quantum,compact_affine,11,154,optical,625,0.03814697265625
+quantum,compact_affine,12,155,optical,641,0.03912353515625
+quantum,compact_affine,13,164 copy,sar,0,0.0
+quantum,compact_affine,14,166,optical,197,0.01202392578125
+quantum,compact_affine,15,168 copy,sar,134,0.0081787109375
+quantum,compact_affine,16,175 copy,sar,99,0.00604248046875
+quantum,compact_affine,17,179,optical,70,0.0042724609375
+quantum,compact_affine,18,181 copy,sar,31,0.00189208984375
+quantum,compact_affine,19,182,optical,436,0.026611328125
+quantum,compact_affine,20,182 copy,sar,64,0.00390625
+quantum,compact_affine,21,183,optical,711,0.04339599609375
+quantum,compact_affine,22,183 copy,sar,162,0.0098876953125
+quantum,compact_affine,23,184 copy,sar,154,0.0093994140625
+quantum,compact_affine,24,186 copy,sar,9,0.00054931640625
+quantum,compact_affine,25,191 copy,sar,24,0.00146484375
+quantum,compact_affine,26,197,optical,174,0.0106201171875
+quantum,compact_affine,27,204,optical,0,0.0
+quantum,compact_affine,28,205 copy,sar,0,0.0
+quantum,compact_affine,29,210 copy,sar,0,0.0
+quantum,compact_affine,30,211 copy,sar,16,0.0009765625
+quantum,compact_affine,31,215 copy,sar,286,0.0174560546875
+quantum,compact_affine,32,223,optical,435,0.02655029296875
+quantum,compact_affine,33,224,optical,332,0.020263671875
+quantum,compact_affine,34,225 copy,sar,0,0.0
+quantum,compact_affine,35,226 copy,sar,0,0.0
+quantum,compact_affine,36,229 copy,sar,61,0.00372314453125
+quantum,compact_affine,37,231,optical,90,0.0054931640625
+quantum,compact_affine,38,232 copy,sar,74,0.0045166015625
+quantum,compact_affine,39,245,optical,51,0.00311279296875
+quantum,compact_affine,40,246,optical,889,0.05426025390625
+quantum,compact_affine,41,246 copy,sar,292,0.017822265625
+quantum,compact_affine,42,248 copy,sar,219,0.01336669921875
+quantum,compact_affine,43,255 copy,sar,43,0.00262451171875
+quantum,compact_affine,44,263 copy,sar,263,0.01605224609375
+quantum,compact_affine,45,264 copy,sar,0,0.0
+quantum,compact_affine,46,266 copy,sar,14,0.0008544921875
+quantum,compact_affine,47,267,optical,568,0.03466796875
+quantum,compact_affine,48,274,optical,278,0.0169677734375
+quantum,compact_affine,49,275 copy,sar,0,0.0
+quantum,compact_affine,50,276,optical,876,0.053466796875
+quantum,compact_affine,51,278 copy,sar,48,0.0029296875
+quantum,compact_affine,52,280,optical,0,0.0
+quantum,compact_affine,53,281 copy,sar,3,0.00018310546875
+quantum,compact_affine,54,282 copy,sar,23,0.00140380859375
+quantum,compact_affine,55,291 copy,sar,0,0.0
+quantum,compact_affine,56,293 copy,sar,37,0.00225830078125
+quantum,compact_affine,57,305 copy,sar,10,0.0006103515625
+quantum,compact_affine,58,306,sar,584,0.03564453125
+quantum,compact_affine,59,308,sar,0,0.0
+quantum,compact_affine,60,310,sar,48,0.0029296875
+quantum,compact_affine,61,317,sar,40,0.00244140625
+quantum,compact_affine,62,332,sar,313,0.01910400390625
+quantum,compact_affine,63,337,sar,344,0.02099609375
+quantum,compact_affine,64,354,sar,1075,0.06561279296875
+quantum,compact_affine,65,357,sar,53,0.00323486328125
+quantum,compact_affine,66,361,sar,19,0.00115966796875
+quantum,compact_affine,67,365,sar,0,0.0
+quantum,compact_affine,68,366,sar,15,0.00091552734375
+quantum,compact_affine,69,372,sar,7,0.00042724609375
+quantum,compact_affine,70,378,sar,0,0.0
+quantum,compact_affine,71,390,sar,3,0.00018310546875
+quantum,compact_affine,72,402,sar,2,0.0001220703125
+quantum,compact_affine,73,414,sar,68,0.004150390625
+quantum,compact_affine,74,424,sar,15,0.00091552734375
+quantum,compact_affine,75,425,sar,31,0.00189208984375
+quantum,compact_affine,76,427,sar,0,0.0
+quantum,compact_affine,77,429,sar,374,0.0228271484375
+quantum,compact_affine,78,437,sar,93,0.00567626953125
+quantum,compact_affine,79,444,sar,75,0.00457763671875
+quantum,compact_affine,80,448,sar,0,0.0
+quantum,compact_affine,81,455,sar,5,0.00030517578125
+quantum,compact_affine,82,457,sar,6,0.0003662109375
+quantum,compact_affine,83,462,sar,30,0.0018310546875
+quantum,compact_affine,84,470,sar,31,0.00189208984375
+quantum,compact_affine,85,472,sar,420,0.025634765625
+quantum,compact_affine,86,483,sar,39,0.00238037109375
+quantum,compact_affine,87,485,sar,403,0.02459716796875
+quantum,compact_affine,88,488,sar,0,0.0
+quantum,compact_affine,89,490,sar,7,0.00042724609375
+quantum,compact_affine,90,491,sar,206,0.0125732421875
+quantum,compact_affine,91,497,sar,57,0.00347900390625
+quantum,compact_affine,92,508,sar,456,0.02783203125
+quantum,compact_affine,93,510,sar,0,0.0
+quantum,compact_affine,94,515,sar,492,0.030029296875
+quantum,compact_affine,95,520,sar,30,0.0018310546875
+quantum,compact_affine,96,521,sar,0,0.0
+quantum,compact_affine,97,538,sar,141,0.00860595703125
+quantum,compact_affine,98,545,sar,495,0.03021240234375
+quantum,compact_affine,99,546,sar,1025,0.06256103515625
+quantum,compact_affine,100,549,sar,132,0.008056640625
+quantum,compact_affine,101,569,sar,8,0.00048828125
+quantum,compact_affine,102,571,sar,222,0.0135498046875
+quantum,compact_affine,103,575,sar,543,0.03314208984375
+quantum,compact_affine,104,585,sar,126,0.0076904296875
+quantum,compact_affine,105,587,sar,0,0.0
+quantum,compact_affine,106,588,sar,145,0.00885009765625
+quantum,compact_affine,107,592,sar,0,0.0
+quantum,compact_affine,108,600,sar,189,0.01153564453125
+quantum,compact_affine,109,616,sar,0,0.0
+quantum,compact_affine,110,618,sar,239,0.01458740234375
+quantum,compact_affine,111,635,sar,0,0.0
+quantum,compact_affine,112,639,sar,56,0.00341796875
+quantum,compact_affine,113,644,sar,0,0.0
+quantum,compact_affine,114,648,sar,0,0.0
+quantum,compact_affine,115,663,sar,11,0.00067138671875
+quantum,compact_affine,116,664,sar,77,0.00469970703125
+quantum,compact_affine,117,695,sar,123,0.00750732421875
+quantum,compact_affine,118,697,sar,176,0.0107421875
+quantum,compact_affine,119,704,sar,245,0.01495361328125
+quantum,compact_affine,120,720,sar,0,0.0
+quantum,compact_affine,121,722,sar,0,0.0
+quantum,compact_affine,122,734,sar,190,0.0115966796875
+quantum,compact_affine,123,740,sar,0,0.0
+quantum,compact_affine,124,749,sar,0,0.0
+quantum,compact_affine,125,754,sar,200,0.01220703125
+quantum,compact_affine,126,756,sar,0,0.0
+quantum,compact_affine,127,763,sar,161,0.00982666015625
+quantum,compact_affine,128,783,sar,10,0.0006103515625
+quantum,compact_affine,129,793,sar,8,0.00048828125
+quantum,compact_affine,130,803,sar,204,0.012451171875
+quantum,compact_affine,131,811,sar,0,0.0
+quantum,compact_affine,132,818,sar,42,0.0025634765625
+quantum,compact_affine,133,831,sar,0,0.0
+quantum,compact_affine,134,836,sar,190,0.0115966796875
+quantum,compact_affine,135,840,sar,119,0.00726318359375
+quantum,compact_affine,136,855,sar,155,0.00946044921875
+quantum,compact_affine,137,861,sar,102,0.0062255859375
+quantum,compact_affine,138,880,sar,4,0.000244140625
+quantum,compact_affine,139,884,sar,137,0.00836181640625
+quantum,compact_affine,140,888,sar,0,0.0
+quantum,compact_affine,141,901,sar,21,0.00128173828125
+quantum,compact_affine,142,906,sar,8,0.00048828125
+quantum,compact_affine,143,908,sar,444,0.027099609375
+quantum,compact_affine,144,917,sar,0,0.0
+quantum,compact_affine,145,938,sar,0,0.0
+quantum,compact_affine,146,944,sar,95,0.00579833984375
+quantum,compact_affine,147,949,sar,0,0.0
+quantum,compact_affine,148,951,sar,0,0.0
+quantum,compact_affine,149,971,sar,581,0.03546142578125
+quantum,compact_affine,150,978,sar,72,0.00439453125
+quantum,compact_affine,151,981,sar,1,6.103515625e-05
+quantum,compact_affine,152,984,sar,210,0.0128173828125
+quantum,compact_affine,153,1004,sar,0,0.0
+quantum,compact_affine,154,1022,sar,6,0.0003662109375
+quantum,compact_affine,155,1027,sar,109,0.00665283203125
+quantum,compact_affine,156,1033,sar,450,0.0274658203125
+quantum,compact_affine,157,1035,sar,13,0.00079345703125
+quantum,compact_affine,158,1036,sar,0,0.0
+quantum,compact_affine,159,1043,sar,0,0.0
+quantum,compact_affine,160,1050,sar,824,0.05029296875
+quantum,compact_affine,161,1053,sar,141,0.00860595703125
+quantum,compact_affine,162,1055,sar,378,0.0230712890625
+quantum,compact_affine,163,1073,sar,25,0.00152587890625
+quantum,compact_affine,164,1075,sar,109,0.00665283203125
+quantum,compact_affine,165,1097,sar,531,0.03240966796875
+quantum,compact_affine,166,1101,sar,139,0.00848388671875
+quantum,compact_affine,167,1107,sar,0,0.0
+quantum,compact_affine,168,1116,sar,0,0.0
+quantum,compact_affine,169,1126,sar,241,0.01470947265625
+quantum,compact_affine,170,1138,sar,0,0.0
+quantum,compact_affine,171,1159,sar,157,0.00958251953125
+quantum,compact_affine,172,1166,sar,8,0.00048828125
+quantum,compact_affine,173,1176,sar,1019,0.06219482421875
+quantum,compact_affine,174,1180,sar,154,0.0093994140625
+quantum,compact_affine,175,1183,sar,20,0.001220703125
+quantum,compact_affine,176,1184,sar,98,0.0059814453125
+quantum,compact_affine,177,1192,sar,92,0.005615234375
+quantum,compact_affine,178,1198,sar,251,0.01531982421875
+quantum,compact_affine,179,1205,sar,0,0.0
+quantum,compact_affine,180,1220,sar,251,0.01531982421875
+quantum,compact_affine,181,1238,sar,56,0.00341796875
+quantum,compact_affine,182,1240,sar,3,0.00018310546875
+quantum,compact_affine,183,1241,sar,56,0.00341796875
+quantum,compact_affine,184,1245,sar,153,0.00933837890625
+quantum,compact_affine,185,1248,sar,0,0.0
+quantum,compact_affine,186,1256,sar,135,0.00823974609375
+quantum,compact_affine,187,1263,sar,0,0.0
+quantum,compact_affine,188,1267,sar,0,0.0
+quantum,compact_affine,189,1279,sar,0,0.0
+quantum,compact_affine,190,1287,sar,4,0.000244140625
+quantum,compact_affine,191,1294,sar,256,0.015625
+quantum,compact_affine,192,1306,sar,0,0.0
+quantum,compact_affine,193,1311,sar,187,0.01141357421875
+quantum,compact_affine,194,1316,sar,9,0.00054931640625
+quantum,compact_affine,195,1323,sar,3,0.00018310546875
+quantum,compact_affine,196,1328,sar,13,0.00079345703125
+quantum,compact_affine,197,1334,sar,19,0.00115966796875
+quantum,compact_affine,198,1336,sar,22,0.0013427734375
+quantum,compact_affine,199,1337,sar,0,0.0
+quantum,compact_affine,200,1338,sar,600,0.03662109375
+quantum,compact_affine,201,1364,sar,21,0.00128173828125
+quantum,compact_affine,202,1369,sar,341,0.02081298828125
+quantum,compact_affine,203,1381,sar,0,0.0
+quantum,compact_affine,204,1390,sar,0,0.0
+quantum,compact_affine,205,1392,sar,4,0.000244140625
+quantum,compact_affine,206,1396,sar,170,0.0103759765625
+quantum,compact_affine,207,1401,sar,1,6.103515625e-05
+quantum,compact_affine,208,1422,sar,156,0.009521484375
+quantum,compact_affine,209,1456,sar,287,0.01751708984375
+quantum,compact_affine,210,1458,sar,2,0.0001220703125
+quantum,compact_affine,211,1474,sar,387,0.02362060546875
+quantum,compact_affine,212,1488,sar,196,0.011962890625
+quantum,compact_affine,213,1497,sar,178,0.0108642578125
+quantum,compact_affine,214,1507,sar,36,0.002197265625
+quantum,compact_affine,215,1508,sar,0,0.0
+quantum,compact_affine,216,1511,sar,252,0.015380859375
+quantum,compact_affine,217,1513,sar,167,0.01019287109375
+quantum,compact_affine,218,1520,sar,22,0.0013427734375
+quantum,compact_affine,219,1521,sar,0,0.0
+quantum,compact_affine,220,1522,sar,0,0.0
+quantum,compact_affine,221,1525,sar,196,0.011962890625
+quantum,compact_affine,222,1527,sar,233,0.01422119140625
+quantum,compact_affine,223,1531,sar,0,0.0
+quantum,compact_affine,224,1537,sar,30,0.0018310546875
+quantum,compact_affine,225,1540,sar,83,0.00506591796875
+quantum,compact_affine,226,1589,sar,366,0.0223388671875
+quantum,compact_affine,227,1590,sar,26,0.0015869140625
+quantum,compact_affine,228,1595,sar,54,0.0032958984375
+quantum,compact_affine,229,1628,sar,2,0.0001220703125
+frozen_quantum,zero_bottleneck,0,71,optical,34,0.0020751953125
+frozen_quantum,zero_bottleneck,1,86,optical,2508,0.153076171875
+frozen_quantum,zero_bottleneck,2,91,optical,119,0.00726318359375
+frozen_quantum,zero_bottleneck,3,102,optical,551,0.03363037109375
+frozen_quantum,zero_bottleneck,4,106,optical,0,0.0
+frozen_quantum,zero_bottleneck,5,109,optical,2,0.0001220703125
+frozen_quantum,zero_bottleneck,6,125,optical,418,0.0255126953125
+frozen_quantum,zero_bottleneck,7,128,optical,227,0.01385498046875
+frozen_quantum,zero_bottleneck,8,130,optical,335,0.02044677734375
+frozen_quantum,zero_bottleneck,9,138,optical,753,0.04595947265625
+frozen_quantum,zero_bottleneck,10,144,optical,80,0.0048828125
+frozen_quantum,zero_bottleneck,11,154,optical,453,0.02764892578125
+frozen_quantum,zero_bottleneck,12,155,optical,1095,0.06683349609375
+frozen_quantum,zero_bottleneck,13,164 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,14,166,optical,1249,0.07623291015625
+frozen_quantum,zero_bottleneck,15,168 copy,sar,45,0.00274658203125
+frozen_quantum,zero_bottleneck,16,175 copy,sar,76,0.004638671875
+frozen_quantum,zero_bottleneck,17,179,optical,154,0.0093994140625
+frozen_quantum,zero_bottleneck,18,181 copy,sar,7,0.00042724609375
+frozen_quantum,zero_bottleneck,19,182,optical,2430,0.1483154296875
+frozen_quantum,zero_bottleneck,20,182 copy,sar,74,0.0045166015625
+frozen_quantum,zero_bottleneck,21,183,optical,1023,0.06243896484375
+frozen_quantum,zero_bottleneck,22,183 copy,sar,172,0.010498046875
+frozen_quantum,zero_bottleneck,23,184 copy,sar,149,0.00909423828125
+frozen_quantum,zero_bottleneck,24,186 copy,sar,13,0.00079345703125
+frozen_quantum,zero_bottleneck,25,191 copy,sar,20,0.001220703125
+frozen_quantum,zero_bottleneck,26,197,optical,158,0.0096435546875
+frozen_quantum,zero_bottleneck,27,204,optical,0,0.0
+frozen_quantum,zero_bottleneck,28,205 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,29,210 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,30,211 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,31,215 copy,sar,403,0.02459716796875
+frozen_quantum,zero_bottleneck,32,223,optical,349,0.02130126953125
+frozen_quantum,zero_bottleneck,33,224,optical,598,0.0364990234375
+frozen_quantum,zero_bottleneck,34,225 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,35,226 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,36,229 copy,sar,54,0.0032958984375
+frozen_quantum,zero_bottleneck,37,231,optical,109,0.00665283203125
+frozen_quantum,zero_bottleneck,38,232 copy,sar,92,0.005615234375
+frozen_quantum,zero_bottleneck,39,245,optical,352,0.021484375
+frozen_quantum,zero_bottleneck,40,246,optical,1069,0.06524658203125
+frozen_quantum,zero_bottleneck,41,246 copy,sar,138,0.0084228515625
+frozen_quantum,zero_bottleneck,42,248 copy,sar,233,0.01422119140625
+frozen_quantum,zero_bottleneck,43,255 copy,sar,22,0.0013427734375
+frozen_quantum,zero_bottleneck,44,263 copy,sar,613,0.03741455078125
+frozen_quantum,zero_bottleneck,45,264 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,46,266 copy,sar,6,0.0003662109375
+frozen_quantum,zero_bottleneck,47,267,optical,1028,0.062744140625
+frozen_quantum,zero_bottleneck,48,274,optical,524,0.031982421875
+frozen_quantum,zero_bottleneck,49,275 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,50,276,optical,443,0.02703857421875
+frozen_quantum,zero_bottleneck,51,278 copy,sar,64,0.00390625
+frozen_quantum,zero_bottleneck,52,280,optical,0,0.0
+frozen_quantum,zero_bottleneck,53,281 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,54,282 copy,sar,20,0.001220703125
+frozen_quantum,zero_bottleneck,55,291 copy,sar,1,6.103515625e-05
+frozen_quantum,zero_bottleneck,56,293 copy,sar,20,0.001220703125
+frozen_quantum,zero_bottleneck,57,305 copy,sar,0,0.0
+frozen_quantum,zero_bottleneck,58,306,sar,703,0.04290771484375
+frozen_quantum,zero_bottleneck,59,308,sar,0,0.0
+frozen_quantum,zero_bottleneck,60,310,sar,58,0.0035400390625
+frozen_quantum,zero_bottleneck,61,317,sar,95,0.00579833984375
+frozen_quantum,zero_bottleneck,62,332,sar,414,0.0252685546875
+frozen_quantum,zero_bottleneck,63,337,sar,393,0.02398681640625
+frozen_quantum,zero_bottleneck,64,354,sar,3149,0.19219970703125
+frozen_quantum,zero_bottleneck,65,357,sar,71,0.00433349609375
+frozen_quantum,zero_bottleneck,66,361,sar,16,0.0009765625
+frozen_quantum,zero_bottleneck,67,365,sar,0,0.0
+frozen_quantum,zero_bottleneck,68,366,sar,18,0.0010986328125
+frozen_quantum,zero_bottleneck,69,372,sar,18,0.0010986328125
+frozen_quantum,zero_bottleneck,70,378,sar,0,0.0
+frozen_quantum,zero_bottleneck,71,390,sar,0,0.0
+frozen_quantum,zero_bottleneck,72,402,sar,5,0.00030517578125
+frozen_quantum,zero_bottleneck,73,414,sar,70,0.0042724609375
+frozen_quantum,zero_bottleneck,74,424,sar,4,0.000244140625
+frozen_quantum,zero_bottleneck,75,425,sar,50,0.0030517578125
+frozen_quantum,zero_bottleneck,76,427,sar,0,0.0
+frozen_quantum,zero_bottleneck,77,429,sar,337,0.02056884765625
+frozen_quantum,zero_bottleneck,78,437,sar,67,0.00408935546875
+frozen_quantum,zero_bottleneck,79,444,sar,46,0.0028076171875
+frozen_quantum,zero_bottleneck,80,448,sar,0,0.0
+frozen_quantum,zero_bottleneck,81,455,sar,11,0.00067138671875
+frozen_quantum,zero_bottleneck,82,457,sar,1,6.103515625e-05
+frozen_quantum,zero_bottleneck,83,462,sar,28,0.001708984375
+frozen_quantum,zero_bottleneck,84,470,sar,85,0.00518798828125
+frozen_quantum,zero_bottleneck,85,472,sar,407,0.02484130859375
+frozen_quantum,zero_bottleneck,86,483,sar,119,0.00726318359375
+frozen_quantum,zero_bottleneck,87,485,sar,250,0.0152587890625
+frozen_quantum,zero_bottleneck,88,488,sar,0,0.0
+frozen_quantum,zero_bottleneck,89,490,sar,15,0.00091552734375
+frozen_quantum,zero_bottleneck,90,491,sar,173,0.01055908203125
+frozen_quantum,zero_bottleneck,91,497,sar,27,0.00164794921875
+frozen_quantum,zero_bottleneck,92,508,sar,1403,0.08563232421875
+frozen_quantum,zero_bottleneck,93,510,sar,0,0.0
+frozen_quantum,zero_bottleneck,94,515,sar,643,0.03924560546875
+frozen_quantum,zero_bottleneck,95,520,sar,17,0.00103759765625
+frozen_quantum,zero_bottleneck,96,521,sar,0,0.0
+frozen_quantum,zero_bottleneck,97,538,sar,23,0.00140380859375
+frozen_quantum,zero_bottleneck,98,545,sar,373,0.02276611328125
+frozen_quantum,zero_bottleneck,99,546,sar,755,0.04608154296875
+frozen_quantum,zero_bottleneck,100,549,sar,155,0.00946044921875
+frozen_quantum,zero_bottleneck,101,569,sar,0,0.0
+frozen_quantum,zero_bottleneck,102,571,sar,41,0.00250244140625
+frozen_quantum,zero_bottleneck,103,575,sar,726,0.0443115234375
+frozen_quantum,zero_bottleneck,104,585,sar,129,0.00787353515625
+frozen_quantum,zero_bottleneck,105,587,sar,0,0.0
+frozen_quantum,zero_bottleneck,106,588,sar,250,0.0152587890625
+frozen_quantum,zero_bottleneck,107,592,sar,0,0.0
+frozen_quantum,zero_bottleneck,108,600,sar,560,0.0341796875
+frozen_quantum,zero_bottleneck,109,616,sar,0,0.0
+frozen_quantum,zero_bottleneck,110,618,sar,189,0.01153564453125
+frozen_quantum,zero_bottleneck,111,635,sar,0,0.0
+frozen_quantum,zero_bottleneck,112,639,sar,53,0.00323486328125
+frozen_quantum,zero_bottleneck,113,644,sar,0,0.0
+frozen_quantum,zero_bottleneck,114,648,sar,0,0.0
+frozen_quantum,zero_bottleneck,115,663,sar,20,0.001220703125
+frozen_quantum,zero_bottleneck,116,664,sar,35,0.00213623046875
+frozen_quantum,zero_bottleneck,117,695,sar,93,0.00567626953125
+frozen_quantum,zero_bottleneck,118,697,sar,176,0.0107421875
+frozen_quantum,zero_bottleneck,119,704,sar,215,0.01312255859375
+frozen_quantum,zero_bottleneck,120,720,sar,0,0.0
+frozen_quantum,zero_bottleneck,121,722,sar,0,0.0
+frozen_quantum,zero_bottleneck,122,734,sar,142,0.0086669921875
+frozen_quantum,zero_bottleneck,123,740,sar,0,0.0
+frozen_quantum,zero_bottleneck,124,749,sar,0,0.0
+frozen_quantum,zero_bottleneck,125,754,sar,164,0.010009765625
+frozen_quantum,zero_bottleneck,126,756,sar,0,0.0
+frozen_quantum,zero_bottleneck,127,763,sar,138,0.0084228515625
+frozen_quantum,zero_bottleneck,128,783,sar,16,0.0009765625
+frozen_quantum,zero_bottleneck,129,793,sar,3,0.00018310546875
+frozen_quantum,zero_bottleneck,130,803,sar,232,0.01416015625
+frozen_quantum,zero_bottleneck,131,811,sar,0,0.0
+frozen_quantum,zero_bottleneck,132,818,sar,9,0.00054931640625
+frozen_quantum,zero_bottleneck,133,831,sar,0,0.0
+frozen_quantum,zero_bottleneck,134,836,sar,289,0.01763916015625
+frozen_quantum,zero_bottleneck,135,840,sar,67,0.00408935546875
+frozen_quantum,zero_bottleneck,136,855,sar,135,0.00823974609375
+frozen_quantum,zero_bottleneck,137,861,sar,44,0.002685546875
+frozen_quantum,zero_bottleneck,138,880,sar,7,0.00042724609375
+frozen_quantum,zero_bottleneck,139,884,sar,200,0.01220703125
+frozen_quantum,zero_bottleneck,140,888,sar,0,0.0
+frozen_quantum,zero_bottleneck,141,901,sar,24,0.00146484375
+frozen_quantum,zero_bottleneck,142,906,sar,23,0.00140380859375
+frozen_quantum,zero_bottleneck,143,908,sar,484,0.029541015625
+frozen_quantum,zero_bottleneck,144,917,sar,0,0.0
+frozen_quantum,zero_bottleneck,145,938,sar,0,0.0
+frozen_quantum,zero_bottleneck,146,944,sar,67,0.00408935546875
+frozen_quantum,zero_bottleneck,147,949,sar,0,0.0
+frozen_quantum,zero_bottleneck,148,951,sar,0,0.0
+frozen_quantum,zero_bottleneck,149,971,sar,625,0.03814697265625
+frozen_quantum,zero_bottleneck,150,978,sar,15,0.00091552734375
+frozen_quantum,zero_bottleneck,151,981,sar,1,6.103515625e-05
+frozen_quantum,zero_bottleneck,152,984,sar,277,0.01690673828125
+frozen_quantum,zero_bottleneck,153,1004,sar,0,0.0
+frozen_quantum,zero_bottleneck,154,1022,sar,8,0.00048828125
+frozen_quantum,zero_bottleneck,155,1027,sar,134,0.0081787109375
+frozen_quantum,zero_bottleneck,156,1033,sar,557,0.03399658203125
+frozen_quantum,zero_bottleneck,157,1035,sar,16,0.0009765625
+frozen_quantum,zero_bottleneck,158,1036,sar,0,0.0
+frozen_quantum,zero_bottleneck,159,1043,sar,0,0.0
+frozen_quantum,zero_bottleneck,160,1050,sar,540,0.032958984375
+frozen_quantum,zero_bottleneck,161,1053,sar,282,0.0172119140625
+frozen_quantum,zero_bottleneck,162,1055,sar,364,0.022216796875
+frozen_quantum,zero_bottleneck,163,1073,sar,37,0.00225830078125
+frozen_quantum,zero_bottleneck,164,1075,sar,66,0.0040283203125
+frozen_quantum,zero_bottleneck,165,1097,sar,704,0.04296875
+frozen_quantum,zero_bottleneck,166,1101,sar,354,0.0216064453125
+frozen_quantum,zero_bottleneck,167,1107,sar,0,0.0
+frozen_quantum,zero_bottleneck,168,1116,sar,0,0.0
+frozen_quantum,zero_bottleneck,169,1126,sar,182,0.0111083984375
+frozen_quantum,zero_bottleneck,170,1138,sar,0,0.0
+frozen_quantum,zero_bottleneck,171,1159,sar,186,0.0113525390625
+frozen_quantum,zero_bottleneck,172,1166,sar,4,0.000244140625
+frozen_quantum,zero_bottleneck,173,1176,sar,1860,0.113525390625
+frozen_quantum,zero_bottleneck,174,1180,sar,235,0.01434326171875
+frozen_quantum,zero_bottleneck,175,1183,sar,36,0.002197265625
+frozen_quantum,zero_bottleneck,176,1184,sar,84,0.005126953125
+frozen_quantum,zero_bottleneck,177,1192,sar,83,0.00506591796875
+frozen_quantum,zero_bottleneck,178,1198,sar,56,0.00341796875
+frozen_quantum,zero_bottleneck,179,1205,sar,0,0.0
+frozen_quantum,zero_bottleneck,180,1220,sar,400,0.0244140625
+frozen_quantum,zero_bottleneck,181,1238,sar,71,0.00433349609375
+frozen_quantum,zero_bottleneck,182,1240,sar,2,0.0001220703125
+frozen_quantum,zero_bottleneck,183,1241,sar,44,0.002685546875
+frozen_quantum,zero_bottleneck,184,1245,sar,427,0.02606201171875
+frozen_quantum,zero_bottleneck,185,1248,sar,0,0.0
+frozen_quantum,zero_bottleneck,186,1256,sar,100,0.006103515625
+frozen_quantum,zero_bottleneck,187,1263,sar,0,0.0
+frozen_quantum,zero_bottleneck,188,1267,sar,3,0.00018310546875
+frozen_quantum,zero_bottleneck,189,1279,sar,0,0.0
+frozen_quantum,zero_bottleneck,190,1287,sar,0,0.0
+frozen_quantum,zero_bottleneck,191,1294,sar,135,0.00823974609375
+frozen_quantum,zero_bottleneck,192,1306,sar,0,0.0
+frozen_quantum,zero_bottleneck,193,1311,sar,158,0.0096435546875
+frozen_quantum,zero_bottleneck,194,1316,sar,8,0.00048828125
+frozen_quantum,zero_bottleneck,195,1323,sar,5,0.00030517578125
+frozen_quantum,zero_bottleneck,196,1328,sar,3,0.00018310546875
+frozen_quantum,zero_bottleneck,197,1334,sar,22,0.0013427734375
+frozen_quantum,zero_bottleneck,198,1336,sar,36,0.002197265625
+frozen_quantum,zero_bottleneck,199,1337,sar,0,0.0
+frozen_quantum,zero_bottleneck,200,1338,sar,834,0.0509033203125
+frozen_quantum,zero_bottleneck,201,1364,sar,34,0.0020751953125
+frozen_quantum,zero_bottleneck,202,1369,sar,207,0.01263427734375
+frozen_quantum,zero_bottleneck,203,1381,sar,0,0.0
+frozen_quantum,zero_bottleneck,204,1390,sar,0,0.0
+frozen_quantum,zero_bottleneck,205,1392,sar,13,0.00079345703125
+frozen_quantum,zero_bottleneck,206,1396,sar,167,0.01019287109375
+frozen_quantum,zero_bottleneck,207,1401,sar,0,0.0
+frozen_quantum,zero_bottleneck,208,1422,sar,407,0.02484130859375
+frozen_quantum,zero_bottleneck,209,1456,sar,215,0.01312255859375
+frozen_quantum,zero_bottleneck,210,1458,sar,0,0.0
+frozen_quantum,zero_bottleneck,211,1474,sar,587,0.03582763671875
+frozen_quantum,zero_bottleneck,212,1488,sar,149,0.00909423828125
+frozen_quantum,zero_bottleneck,213,1497,sar,163,0.00994873046875
+frozen_quantum,zero_bottleneck,214,1507,sar,46,0.0028076171875
+frozen_quantum,zero_bottleneck,215,1508,sar,0,0.0
+frozen_quantum,zero_bottleneck,216,1511,sar,136,0.00830078125
+frozen_quantum,zero_bottleneck,217,1513,sar,110,0.0067138671875
+frozen_quantum,zero_bottleneck,218,1520,sar,23,0.00140380859375
+frozen_quantum,zero_bottleneck,219,1521,sar,0,0.0
+frozen_quantum,zero_bottleneck,220,1522,sar,0,0.0
+frozen_quantum,zero_bottleneck,221,1525,sar,140,0.008544921875
+frozen_quantum,zero_bottleneck,222,1527,sar,251,0.01531982421875
+frozen_quantum,zero_bottleneck,223,1531,sar,0,0.0
+frozen_quantum,zero_bottleneck,224,1537,sar,36,0.002197265625
+frozen_quantum,zero_bottleneck,225,1540,sar,79,0.00482177734375
+frozen_quantum,zero_bottleneck,226,1589,sar,245,0.01495361328125
+frozen_quantum,zero_bottleneck,227,1590,sar,28,0.001708984375
+frozen_quantum,zero_bottleneck,228,1595,sar,59,0.00360107421875
+frozen_quantum,zero_bottleneck,229,1628,sar,3,0.00018310546875
+frozen_quantum,compact_affine,0,71,optical,15,0.00091552734375
+frozen_quantum,compact_affine,1,86,optical,2496,0.15234375
+frozen_quantum,compact_affine,2,91,optical,157,0.00958251953125
+frozen_quantum,compact_affine,3,102,optical,518,0.0316162109375
+frozen_quantum,compact_affine,4,106,optical,0,0.0
+frozen_quantum,compact_affine,5,109,optical,5,0.00030517578125
+frozen_quantum,compact_affine,6,125,optical,314,0.0191650390625
+frozen_quantum,compact_affine,7,128,optical,110,0.0067138671875
+frozen_quantum,compact_affine,8,130,optical,280,0.01708984375
+frozen_quantum,compact_affine,9,138,optical,648,0.03955078125
+frozen_quantum,compact_affine,10,144,optical,36,0.002197265625
+frozen_quantum,compact_affine,11,154,optical,542,0.0330810546875
+frozen_quantum,compact_affine,12,155,optical,1130,0.0689697265625
+frozen_quantum,compact_affine,13,164 copy,sar,0,0.0
+frozen_quantum,compact_affine,14,166,optical,654,0.0399169921875
+frozen_quantum,compact_affine,15,168 copy,sar,74,0.0045166015625
+frozen_quantum,compact_affine,16,175 copy,sar,71,0.00433349609375
+frozen_quantum,compact_affine,17,179,optical,172,0.010498046875
+frozen_quantum,compact_affine,18,181 copy,sar,7,0.00042724609375
+frozen_quantum,compact_affine,19,182,optical,433,0.02642822265625
+frozen_quantum,compact_affine,20,182 copy,sar,43,0.00262451171875
+frozen_quantum,compact_affine,21,183,optical,709,0.04327392578125
+frozen_quantum,compact_affine,22,183 copy,sar,119,0.00726318359375
+frozen_quantum,compact_affine,23,184 copy,sar,73,0.00445556640625
+frozen_quantum,compact_affine,24,186 copy,sar,5,0.00030517578125
+frozen_quantum,compact_affine,25,191 copy,sar,27,0.00164794921875
+frozen_quantum,compact_affine,26,197,optical,189,0.01153564453125
+frozen_quantum,compact_affine,27,204,optical,0,0.0
+frozen_quantum,compact_affine,28,205 copy,sar,0,0.0
+frozen_quantum,compact_affine,29,210 copy,sar,0,0.0
+frozen_quantum,compact_affine,30,211 copy,sar,16,0.0009765625
+frozen_quantum,compact_affine,31,215 copy,sar,174,0.0106201171875
+frozen_quantum,compact_affine,32,223,optical,299,0.01824951171875
+frozen_quantum,compact_affine,33,224,optical,759,0.04632568359375
+frozen_quantum,compact_affine,34,225 copy,sar,0,0.0
+frozen_quantum,compact_affine,35,226 copy,sar,0,0.0
+frozen_quantum,compact_affine,36,229 copy,sar,43,0.00262451171875
+frozen_quantum,compact_affine,37,231,optical,67,0.00408935546875
+frozen_quantum,compact_affine,38,232 copy,sar,85,0.00518798828125
+frozen_quantum,compact_affine,39,245,optical,51,0.00311279296875
+frozen_quantum,compact_affine,40,246,optical,1450,0.0885009765625
+frozen_quantum,compact_affine,41,246 copy,sar,63,0.00384521484375
+frozen_quantum,compact_affine,42,248 copy,sar,159,0.00970458984375
+frozen_quantum,compact_affine,43,255 copy,sar,14,0.0008544921875
+frozen_quantum,compact_affine,44,263 copy,sar,207,0.01263427734375
+frozen_quantum,compact_affine,45,264 copy,sar,0,0.0
+frozen_quantum,compact_affine,46,266 copy,sar,2,0.0001220703125
+frozen_quantum,compact_affine,47,267,optical,462,0.0281982421875
+frozen_quantum,compact_affine,48,274,optical,401,0.02447509765625
+frozen_quantum,compact_affine,49,275 copy,sar,0,0.0
+frozen_quantum,compact_affine,50,276,optical,335,0.02044677734375
+frozen_quantum,compact_affine,51,278 copy,sar,79,0.00482177734375
+frozen_quantum,compact_affine,52,280,optical,0,0.0
+frozen_quantum,compact_affine,53,281 copy,sar,3,0.00018310546875
+frozen_quantum,compact_affine,54,282 copy,sar,11,0.00067138671875
+frozen_quantum,compact_affine,55,291 copy,sar,0,0.0
+frozen_quantum,compact_affine,56,293 copy,sar,22,0.0013427734375
+frozen_quantum,compact_affine,57,305 copy,sar,10,0.0006103515625
+frozen_quantum,compact_affine,58,306,sar,320,0.01953125
+frozen_quantum,compact_affine,59,308,sar,0,0.0
+frozen_quantum,compact_affine,60,310,sar,37,0.00225830078125
+frozen_quantum,compact_affine,61,317,sar,30,0.0018310546875
+frozen_quantum,compact_affine,62,332,sar,223,0.01361083984375
+frozen_quantum,compact_affine,63,337,sar,258,0.0157470703125
+frozen_quantum,compact_affine,64,354,sar,864,0.052734375
+frozen_quantum,compact_affine,65,357,sar,61,0.00372314453125
+frozen_quantum,compact_affine,66,361,sar,2,0.0001220703125
+frozen_quantum,compact_affine,67,365,sar,0,0.0
+frozen_quantum,compact_affine,68,366,sar,12,0.000732421875
+frozen_quantum,compact_affine,69,372,sar,5,0.00030517578125
+frozen_quantum,compact_affine,70,378,sar,0,0.0
+frozen_quantum,compact_affine,71,390,sar,3,0.00018310546875
+frozen_quantum,compact_affine,72,402,sar,0,0.0
+frozen_quantum,compact_affine,73,414,sar,50,0.0030517578125
+frozen_quantum,compact_affine,74,424,sar,4,0.000244140625
+frozen_quantum,compact_affine,75,425,sar,25,0.00152587890625
+frozen_quantum,compact_affine,76,427,sar,0,0.0
+frozen_quantum,compact_affine,77,429,sar,266,0.0162353515625
+frozen_quantum,compact_affine,78,437,sar,81,0.00494384765625
+frozen_quantum,compact_affine,79,444,sar,68,0.004150390625
+frozen_quantum,compact_affine,80,448,sar,0,0.0
+frozen_quantum,compact_affine,81,455,sar,4,0.000244140625
+frozen_quantum,compact_affine,82,457,sar,6,0.0003662109375
+frozen_quantum,compact_affine,83,462,sar,27,0.00164794921875
+frozen_quantum,compact_affine,84,470,sar,29,0.00177001953125
+frozen_quantum,compact_affine,85,472,sar,222,0.0135498046875
+frozen_quantum,compact_affine,86,483,sar,142,0.0086669921875
+frozen_quantum,compact_affine,87,485,sar,190,0.0115966796875
+frozen_quantum,compact_affine,88,488,sar,0,0.0
+frozen_quantum,compact_affine,89,490,sar,17,0.00103759765625
+frozen_quantum,compact_affine,90,491,sar,121,0.00738525390625
+frozen_quantum,compact_affine,91,497,sar,10,0.0006103515625
+frozen_quantum,compact_affine,92,508,sar,304,0.0185546875
+frozen_quantum,compact_affine,93,510,sar,0,0.0
+frozen_quantum,compact_affine,94,515,sar,338,0.0206298828125
+frozen_quantum,compact_affine,95,520,sar,37,0.00225830078125
+frozen_quantum,compact_affine,96,521,sar,0,0.0
+frozen_quantum,compact_affine,97,538,sar,130,0.0079345703125
+frozen_quantum,compact_affine,98,545,sar,314,0.0191650390625
+frozen_quantum,compact_affine,99,546,sar,422,0.0257568359375
+frozen_quantum,compact_affine,100,549,sar,95,0.00579833984375
+frozen_quantum,compact_affine,101,569,sar,0,0.0
+frozen_quantum,compact_affine,102,571,sar,40,0.00244140625
+frozen_quantum,compact_affine,103,575,sar,496,0.0302734375
+frozen_quantum,compact_affine,104,585,sar,128,0.0078125
+frozen_quantum,compact_affine,105,587,sar,0,0.0
+frozen_quantum,compact_affine,106,588,sar,110,0.0067138671875
+frozen_quantum,compact_affine,107,592,sar,0,0.0
+frozen_quantum,compact_affine,108,600,sar,144,0.0087890625
+frozen_quantum,compact_affine,109,616,sar,0,0.0
+frozen_quantum,compact_affine,110,618,sar,104,0.00634765625
+frozen_quantum,compact_affine,111,635,sar,0,0.0
+frozen_quantum,compact_affine,112,639,sar,21,0.00128173828125
+frozen_quantum,compact_affine,113,644,sar,0,0.0
+frozen_quantum,compact_affine,114,648,sar,0,0.0
+frozen_quantum,compact_affine,115,663,sar,11,0.00067138671875
+frozen_quantum,compact_affine,116,664,sar,58,0.0035400390625
+frozen_quantum,compact_affine,117,695,sar,43,0.00262451171875
+frozen_quantum,compact_affine,118,697,sar,68,0.004150390625
+frozen_quantum,compact_affine,119,704,sar,131,0.00799560546875
+frozen_quantum,compact_affine,120,720,sar,0,0.0
+frozen_quantum,compact_affine,121,722,sar,0,0.0
+frozen_quantum,compact_affine,122,734,sar,59,0.00360107421875
+frozen_quantum,compact_affine,123,740,sar,0,0.0
+frozen_quantum,compact_affine,124,749,sar,0,0.0
+frozen_quantum,compact_affine,125,754,sar,77,0.00469970703125
+frozen_quantum,compact_affine,126,756,sar,0,0.0
+frozen_quantum,compact_affine,127,763,sar,78,0.0047607421875
+frozen_quantum,compact_affine,128,783,sar,6,0.0003662109375
+frozen_quantum,compact_affine,129,793,sar,4,0.000244140625
+frozen_quantum,compact_affine,130,803,sar,35,0.00213623046875
+frozen_quantum,compact_affine,131,811,sar,0,0.0
+frozen_quantum,compact_affine,132,818,sar,14,0.0008544921875
+frozen_quantum,compact_affine,133,831,sar,0,0.0
+frozen_quantum,compact_affine,134,836,sar,106,0.0064697265625
+frozen_quantum,compact_affine,135,840,sar,73,0.00445556640625
+frozen_quantum,compact_affine,136,855,sar,171,0.01043701171875
+frozen_quantum,compact_affine,137,861,sar,37,0.00225830078125
+frozen_quantum,compact_affine,138,880,sar,7,0.00042724609375
+frozen_quantum,compact_affine,139,884,sar,85,0.00518798828125
+frozen_quantum,compact_affine,140,888,sar,0,0.0
+frozen_quantum,compact_affine,141,901,sar,18,0.0010986328125
+frozen_quantum,compact_affine,142,906,sar,5,0.00030517578125
+frozen_quantum,compact_affine,143,908,sar,373,0.02276611328125
+frozen_quantum,compact_affine,144,917,sar,0,0.0
+frozen_quantum,compact_affine,145,938,sar,0,0.0
+frozen_quantum,compact_affine,146,944,sar,180,0.010986328125
+frozen_quantum,compact_affine,147,949,sar,0,0.0
+frozen_quantum,compact_affine,148,951,sar,0,0.0
+frozen_quantum,compact_affine,149,971,sar,393,0.02398681640625
+frozen_quantum,compact_affine,150,978,sar,20,0.001220703125
+frozen_quantum,compact_affine,151,981,sar,0,0.0
+frozen_quantum,compact_affine,152,984,sar,188,0.011474609375
+frozen_quantum,compact_affine,153,1004,sar,0,0.0
+frozen_quantum,compact_affine,154,1022,sar,3,0.00018310546875
+frozen_quantum,compact_affine,155,1027,sar,84,0.005126953125
+frozen_quantum,compact_affine,156,1033,sar,264,0.01611328125
+frozen_quantum,compact_affine,157,1035,sar,20,0.001220703125
+frozen_quantum,compact_affine,158,1036,sar,0,0.0
+frozen_quantum,compact_affine,159,1043,sar,0,0.0
+frozen_quantum,compact_affine,160,1050,sar,564,0.034423828125
+frozen_quantum,compact_affine,161,1053,sar,110,0.0067138671875
+frozen_quantum,compact_affine,162,1055,sar,268,0.016357421875
+frozen_quantum,compact_affine,163,1073,sar,23,0.00140380859375
+frozen_quantum,compact_affine,164,1075,sar,74,0.0045166015625
+frozen_quantum,compact_affine,165,1097,sar,391,0.02386474609375
+frozen_quantum,compact_affine,166,1101,sar,92,0.005615234375
+frozen_quantum,compact_affine,167,1107,sar,0,0.0
+frozen_quantum,compact_affine,168,1116,sar,0,0.0
+frozen_quantum,compact_affine,169,1126,sar,80,0.0048828125
+frozen_quantum,compact_affine,170,1138,sar,0,0.0
+frozen_quantum,compact_affine,171,1159,sar,86,0.0052490234375
+frozen_quantum,compact_affine,172,1166,sar,3,0.00018310546875
+frozen_quantum,compact_affine,173,1176,sar,1430,0.0872802734375
+frozen_quantum,compact_affine,174,1180,sar,160,0.009765625
+frozen_quantum,compact_affine,175,1183,sar,26,0.0015869140625
+frozen_quantum,compact_affine,176,1184,sar,40,0.00244140625
+frozen_quantum,compact_affine,177,1192,sar,98,0.0059814453125
+frozen_quantum,compact_affine,178,1198,sar,297,0.01812744140625
+frozen_quantum,compact_affine,179,1205,sar,0,0.0
+frozen_quantum,compact_affine,180,1220,sar,213,0.01300048828125
+frozen_quantum,compact_affine,181,1238,sar,45,0.00274658203125
+frozen_quantum,compact_affine,182,1240,sar,4,0.000244140625
+frozen_quantum,compact_affine,183,1241,sar,46,0.0028076171875
+frozen_quantum,compact_affine,184,1245,sar,110,0.0067138671875
+frozen_quantum,compact_affine,185,1248,sar,0,0.0
+frozen_quantum,compact_affine,186,1256,sar,83,0.00506591796875
+frozen_quantum,compact_affine,187,1263,sar,0,0.0
+frozen_quantum,compact_affine,188,1267,sar,0,0.0
+frozen_quantum,compact_affine,189,1279,sar,0,0.0
+frozen_quantum,compact_affine,190,1287,sar,0,0.0
+frozen_quantum,compact_affine,191,1294,sar,108,0.006591796875
+frozen_quantum,compact_affine,192,1306,sar,0,0.0
+frozen_quantum,compact_affine,193,1311,sar,74,0.0045166015625
+frozen_quantum,compact_affine,194,1316,sar,7,0.00042724609375
+frozen_quantum,compact_affine,195,1323,sar,1,6.103515625e-05
+frozen_quantum,compact_affine,196,1328,sar,0,0.0
+frozen_quantum,compact_affine,197,1334,sar,5,0.00030517578125
+frozen_quantum,compact_affine,198,1336,sar,10,0.0006103515625
+frozen_quantum,compact_affine,199,1337,sar,0,0.0
+frozen_quantum,compact_affine,200,1338,sar,362,0.0220947265625
+frozen_quantum,compact_affine,201,1364,sar,6,0.0003662109375
+frozen_quantum,compact_affine,202,1369,sar,125,0.00762939453125
+frozen_quantum,compact_affine,203,1381,sar,0,0.0
+frozen_quantum,compact_affine,204,1390,sar,0,0.0
+frozen_quantum,compact_affine,205,1392,sar,4,0.000244140625
+frozen_quantum,compact_affine,206,1396,sar,105,0.00640869140625
+frozen_quantum,compact_affine,207,1401,sar,1,6.103515625e-05
+frozen_quantum,compact_affine,208,1422,sar,132,0.008056640625
+frozen_quantum,compact_affine,209,1456,sar,146,0.0089111328125
+frozen_quantum,compact_affine,210,1458,sar,0,0.0
+frozen_quantum,compact_affine,211,1474,sar,277,0.01690673828125
+frozen_quantum,compact_affine,212,1488,sar,141,0.00860595703125
+frozen_quantum,compact_affine,213,1497,sar,87,0.00531005859375
+frozen_quantum,compact_affine,214,1507,sar,35,0.00213623046875
+frozen_quantum,compact_affine,215,1508,sar,0,0.0
+frozen_quantum,compact_affine,216,1511,sar,49,0.00299072265625
+frozen_quantum,compact_affine,217,1513,sar,46,0.0028076171875
+frozen_quantum,compact_affine,218,1520,sar,30,0.0018310546875
+frozen_quantum,compact_affine,219,1521,sar,0,0.0
+frozen_quantum,compact_affine,220,1522,sar,0,0.0
+frozen_quantum,compact_affine,221,1525,sar,119,0.00726318359375
+frozen_quantum,compact_affine,222,1527,sar,128,0.0078125
+frozen_quantum,compact_affine,223,1531,sar,0,0.0
+frozen_quantum,compact_affine,224,1537,sar,17,0.00103759765625
+frozen_quantum,compact_affine,225,1540,sar,87,0.00531005859375
+frozen_quantum,compact_affine,226,1589,sar,229,0.01397705078125
+frozen_quantum,compact_affine,227,1590,sar,9,0.00054931640625
+frozen_quantum,compact_affine,228,1595,sar,40,0.00244140625
+frozen_quantum,compact_affine,229,1628,sar,4,0.000244140625
+zero_bottleneck,compact_affine,0,71,optical,27,0.00164794921875
+zero_bottleneck,compact_affine,1,86,optical,848,0.0517578125
+zero_bottleneck,compact_affine,2,91,optical,160,0.009765625
+zero_bottleneck,compact_affine,3,102,optical,385,0.02349853515625
+zero_bottleneck,compact_affine,4,106,optical,0,0.0
+zero_bottleneck,compact_affine,5,109,optical,7,0.00042724609375
+zero_bottleneck,compact_affine,6,125,optical,396,0.024169921875
+zero_bottleneck,compact_affine,7,128,optical,223,0.01361083984375
+zero_bottleneck,compact_affine,8,130,optical,347,0.02117919921875
+zero_bottleneck,compact_affine,9,138,optical,527,0.03216552734375
+zero_bottleneck,compact_affine,10,144,optical,86,0.0052490234375
+zero_bottleneck,compact_affine,11,154,optical,511,0.03118896484375
+zero_bottleneck,compact_affine,12,155,optical,577,0.03521728515625
+zero_bottleneck,compact_affine,13,164 copy,sar,0,0.0
+zero_bottleneck,compact_affine,14,166,optical,1095,0.06683349609375
+zero_bottleneck,compact_affine,15,168 copy,sar,79,0.00482177734375
+zero_bottleneck,compact_affine,16,175 copy,sar,67,0.00408935546875
+zero_bottleneck,compact_affine,17,179,optical,230,0.0140380859375
+zero_bottleneck,compact_affine,18,181 copy,sar,8,0.00048828125
+zero_bottleneck,compact_affine,19,182,optical,2207,0.13470458984375
+zero_bottleneck,compact_affine,20,182 copy,sar,47,0.00286865234375
+zero_bottleneck,compact_affine,21,183,optical,710,0.0433349609375
+zero_bottleneck,compact_affine,22,183 copy,sar,239,0.01458740234375
+zero_bottleneck,compact_affine,23,184 copy,sar,158,0.0096435546875
+zero_bottleneck,compact_affine,24,186 copy,sar,10,0.0006103515625
+zero_bottleneck,compact_affine,25,191 copy,sar,13,0.00079345703125
+zero_bottleneck,compact_affine,26,197,optical,119,0.00726318359375
+zero_bottleneck,compact_affine,27,204,optical,0,0.0
+zero_bottleneck,compact_affine,28,205 copy,sar,0,0.0
+zero_bottleneck,compact_affine,29,210 copy,sar,0,0.0
+zero_bottleneck,compact_affine,30,211 copy,sar,16,0.0009765625
+zero_bottleneck,compact_affine,31,215 copy,sar,503,0.03070068359375
+zero_bottleneck,compact_affine,32,223,optical,236,0.014404296875
+zero_bottleneck,compact_affine,33,224,optical,375,0.02288818359375
+zero_bottleneck,compact_affine,34,225 copy,sar,0,0.0
+zero_bottleneck,compact_affine,35,226 copy,sar,0,0.0
+zero_bottleneck,compact_affine,36,229 copy,sar,55,0.00335693359375
+zero_bottleneck,compact_affine,37,231,optical,88,0.00537109375
+zero_bottleneck,compact_affine,38,232 copy,sar,93,0.00567626953125
+zero_bottleneck,compact_affine,39,245,optical,365,0.02227783203125
+zero_bottleneck,compact_affine,40,246,optical,1399,0.08538818359375
+zero_bottleneck,compact_affine,41,246 copy,sar,131,0.00799560546875
+zero_bottleneck,compact_affine,42,248 copy,sar,156,0.009521484375
+zero_bottleneck,compact_affine,43,255 copy,sar,34,0.0020751953125
+zero_bottleneck,compact_affine,44,263 copy,sar,660,0.040283203125
+zero_bottleneck,compact_affine,45,264 copy,sar,0,0.0
+zero_bottleneck,compact_affine,46,266 copy,sar,6,0.0003662109375
+zero_bottleneck,compact_affine,47,267,optical,912,0.0556640625
+zero_bottleneck,compact_affine,48,274,optical,421,0.02569580078125
+zero_bottleneck,compact_affine,49,275 copy,sar,0,0.0
+zero_bottleneck,compact_affine,50,276,optical,188,0.011474609375
+zero_bottleneck,compact_affine,51,278 copy,sar,95,0.00579833984375
+zero_bottleneck,compact_affine,52,280,optical,0,0.0
+zero_bottleneck,compact_affine,53,281 copy,sar,3,0.00018310546875
+zero_bottleneck,compact_affine,54,282 copy,sar,15,0.00091552734375
+zero_bottleneck,compact_affine,55,291 copy,sar,1,6.103515625e-05
+zero_bottleneck,compact_affine,56,293 copy,sar,28,0.001708984375
+zero_bottleneck,compact_affine,57,305 copy,sar,10,0.0006103515625
+zero_bottleneck,compact_affine,58,306,sar,663,0.04046630859375
+zero_bottleneck,compact_affine,59,308,sar,0,0.0
+zero_bottleneck,compact_affine,60,310,sar,55,0.00335693359375
+zero_bottleneck,compact_affine,61,317,sar,77,0.00469970703125
+zero_bottleneck,compact_affine,62,332,sar,367,0.02239990234375
+zero_bottleneck,compact_affine,63,337,sar,411,0.02508544921875
+zero_bottleneck,compact_affine,64,354,sar,3103,0.18939208984375
+zero_bottleneck,compact_affine,65,357,sar,52,0.003173828125
+zero_bottleneck,compact_affine,66,361,sar,16,0.0009765625
+zero_bottleneck,compact_affine,67,365,sar,0,0.0
+zero_bottleneck,compact_affine,68,366,sar,16,0.0009765625
+zero_bottleneck,compact_affine,69,372,sar,13,0.00079345703125
+zero_bottleneck,compact_affine,70,378,sar,0,0.0
+zero_bottleneck,compact_affine,71,390,sar,3,0.00018310546875
+zero_bottleneck,compact_affine,72,402,sar,5,0.00030517578125
+zero_bottleneck,compact_affine,73,414,sar,48,0.0029296875
+zero_bottleneck,compact_affine,74,424,sar,8,0.00048828125
+zero_bottleneck,compact_affine,75,425,sar,33,0.00201416015625
+zero_bottleneck,compact_affine,76,427,sar,0,0.0
+zero_bottleneck,compact_affine,77,429,sar,513,0.03131103515625
+zero_bottleneck,compact_affine,78,437,sar,106,0.0064697265625
+zero_bottleneck,compact_affine,79,444,sar,58,0.0035400390625
+zero_bottleneck,compact_affine,80,448,sar,0,0.0
+zero_bottleneck,compact_affine,81,455,sar,7,0.00042724609375
+zero_bottleneck,compact_affine,82,457,sar,5,0.00030517578125
+zero_bottleneck,compact_affine,83,462,sar,19,0.00115966796875
+zero_bottleneck,compact_affine,84,470,sar,62,0.0037841796875
+zero_bottleneck,compact_affine,85,472,sar,503,0.03070068359375
+zero_bottleneck,compact_affine,86,483,sar,39,0.00238037109375
+zero_bottleneck,compact_affine,87,485,sar,280,0.01708984375
+zero_bottleneck,compact_affine,88,488,sar,0,0.0
+zero_bottleneck,compact_affine,89,490,sar,10,0.0006103515625
+zero_bottleneck,compact_affine,90,491,sar,216,0.01318359375
+zero_bottleneck,compact_affine,91,497,sar,23,0.00140380859375
+zero_bottleneck,compact_affine,92,508,sar,1375,0.08392333984375
+zero_bottleneck,compact_affine,93,510,sar,0,0.0
+zero_bottleneck,compact_affine,94,515,sar,667,0.04071044921875
+zero_bottleneck,compact_affine,95,520,sar,40,0.00244140625
+zero_bottleneck,compact_affine,96,521,sar,0,0.0
+zero_bottleneck,compact_affine,97,538,sar,145,0.00885009765625
+zero_bottleneck,compact_affine,98,545,sar,389,0.02374267578125
+zero_bottleneck,compact_affine,99,546,sar,819,0.04998779296875
+zero_bottleneck,compact_affine,100,549,sar,116,0.007080078125
+zero_bottleneck,compact_affine,101,569,sar,0,0.0
+zero_bottleneck,compact_affine,102,571,sar,15,0.00091552734375
+zero_bottleneck,compact_affine,103,575,sar,578,0.0352783203125
+zero_bottleneck,compact_affine,104,585,sar,127,0.00775146484375
+zero_bottleneck,compact_affine,105,587,sar,0,0.0
+zero_bottleneck,compact_affine,106,588,sar,216,0.01318359375
+zero_bottleneck,compact_affine,107,592,sar,0,0.0
+zero_bottleneck,compact_affine,108,600,sar,534,0.0325927734375
+zero_bottleneck,compact_affine,109,616,sar,0,0.0
+zero_bottleneck,compact_affine,110,618,sar,229,0.01397705078125
+zero_bottleneck,compact_affine,111,635,sar,0,0.0
+zero_bottleneck,compact_affine,112,639,sar,36,0.002197265625
+zero_bottleneck,compact_affine,113,644,sar,0,0.0
+zero_bottleneck,compact_affine,114,648,sar,0,0.0
+zero_bottleneck,compact_affine,115,663,sar,19,0.00115966796875
+zero_bottleneck,compact_affine,116,664,sar,43,0.00262451171875
+zero_bottleneck,compact_affine,117,695,sar,110,0.0067138671875
+zero_bottleneck,compact_affine,118,697,sar,156,0.009521484375
+zero_bottleneck,compact_affine,119,704,sar,214,0.0130615234375
+zero_bottleneck,compact_affine,120,720,sar,0,0.0
+zero_bottleneck,compact_affine,121,722,sar,0,0.0
+zero_bottleneck,compact_affine,122,734,sar,131,0.00799560546875
+zero_bottleneck,compact_affine,123,740,sar,0,0.0
+zero_bottleneck,compact_affine,124,749,sar,0,0.0
+zero_bottleneck,compact_affine,125,754,sar,165,0.01007080078125
+zero_bottleneck,compact_affine,126,756,sar,0,0.0
+zero_bottleneck,compact_affine,127,763,sar,150,0.0091552734375
+zero_bottleneck,compact_affine,128,783,sar,18,0.0010986328125
+zero_bottleneck,compact_affine,129,793,sar,1,6.103515625e-05
+zero_bottleneck,compact_affine,130,803,sar,211,0.01287841796875
+zero_bottleneck,compact_affine,131,811,sar,0,0.0
+zero_bottleneck,compact_affine,132,818,sar,13,0.00079345703125
+zero_bottleneck,compact_affine,133,831,sar,0,0.0
+zero_bottleneck,compact_affine,134,836,sar,267,0.01629638671875
+zero_bottleneck,compact_affine,135,840,sar,66,0.0040283203125
+zero_bottleneck,compact_affine,136,855,sar,154,0.0093994140625
+zero_bottleneck,compact_affine,137,861,sar,41,0.00250244140625
+zero_bottleneck,compact_affine,138,880,sar,10,0.0006103515625
+zero_bottleneck,compact_affine,139,884,sar,235,0.01434326171875
+zero_bottleneck,compact_affine,140,888,sar,0,0.0
+zero_bottleneck,compact_affine,141,901,sar,18,0.0010986328125
+zero_bottleneck,compact_affine,142,906,sar,18,0.0010986328125
+zero_bottleneck,compact_affine,143,908,sar,413,0.02520751953125
+zero_bottleneck,compact_affine,144,917,sar,0,0.0
+zero_bottleneck,compact_affine,145,938,sar,0,0.0
+zero_bottleneck,compact_affine,146,944,sar,217,0.01324462890625
+zero_bottleneck,compact_affine,147,949,sar,0,0.0
+zero_bottleneck,compact_affine,148,951,sar,0,0.0
+zero_bottleneck,compact_affine,149,971,sar,616,0.03759765625
+zero_bottleneck,compact_affine,150,978,sar,15,0.00091552734375
+zero_bottleneck,compact_affine,151,981,sar,1,6.103515625e-05
+zero_bottleneck,compact_affine,152,984,sar,175,0.01068115234375
+zero_bottleneck,compact_affine,153,1004,sar,0,0.0
+zero_bottleneck,compact_affine,154,1022,sar,9,0.00054931640625
+zero_bottleneck,compact_affine,155,1027,sar,122,0.0074462890625
+zero_bottleneck,compact_affine,156,1033,sar,661,0.04034423828125
+zero_bottleneck,compact_affine,157,1035,sar,22,0.0013427734375
+zero_bottleneck,compact_affine,158,1036,sar,0,0.0
+zero_bottleneck,compact_affine,159,1043,sar,0,0.0
+zero_bottleneck,compact_affine,160,1050,sar,560,0.0341796875
+zero_bottleneck,compact_affine,161,1053,sar,328,0.02001953125
+zero_bottleneck,compact_affine,162,1055,sar,394,0.0240478515625
+zero_bottleneck,compact_affine,163,1073,sar,34,0.0020751953125
+zero_bottleneck,compact_affine,164,1075,sar,106,0.0064697265625
+zero_bottleneck,compact_affine,165,1097,sar,695,0.04241943359375
+zero_bottleneck,compact_affine,166,1101,sar,284,0.017333984375
+zero_bottleneck,compact_affine,167,1107,sar,0,0.0
+zero_bottleneck,compact_affine,168,1116,sar,0,0.0
+zero_bottleneck,compact_affine,169,1126,sar,178,0.0108642578125
+zero_bottleneck,compact_affine,170,1138,sar,0,0.0
+zero_bottleneck,compact_affine,171,1159,sar,186,0.0113525390625
+zero_bottleneck,compact_affine,172,1166,sar,5,0.00030517578125
+zero_bottleneck,compact_affine,173,1176,sar,2136,0.13037109375
+zero_bottleneck,compact_affine,174,1180,sar,187,0.01141357421875
+zero_bottleneck,compact_affine,175,1183,sar,22,0.0013427734375
+zero_bottleneck,compact_affine,176,1184,sar,48,0.0029296875
+zero_bottleneck,compact_affine,177,1192,sar,133,0.00811767578125
+zero_bottleneck,compact_affine,178,1198,sar,317,0.01934814453125
+zero_bottleneck,compact_affine,179,1205,sar,0,0.0
+zero_bottleneck,compact_affine,180,1220,sar,289,0.01763916015625
+zero_bottleneck,compact_affine,181,1238,sar,62,0.0037841796875
+zero_bottleneck,compact_affine,182,1240,sar,6,0.0003662109375
+zero_bottleneck,compact_affine,183,1241,sar,48,0.0029296875
+zero_bottleneck,compact_affine,184,1245,sar,455,0.02777099609375
+zero_bottleneck,compact_affine,185,1248,sar,0,0.0
+zero_bottleneck,compact_affine,186,1256,sar,85,0.00518798828125
+zero_bottleneck,compact_affine,187,1263,sar,0,0.0
+zero_bottleneck,compact_affine,188,1267,sar,3,0.00018310546875
+zero_bottleneck,compact_affine,189,1279,sar,0,0.0
+zero_bottleneck,compact_affine,190,1287,sar,0,0.0
+zero_bottleneck,compact_affine,191,1294,sar,153,0.00933837890625
+zero_bottleneck,compact_affine,192,1306,sar,0,0.0
+zero_bottleneck,compact_affine,193,1311,sar,152,0.00927734375
+zero_bottleneck,compact_affine,194,1316,sar,1,6.103515625e-05
+zero_bottleneck,compact_affine,195,1323,sar,4,0.000244140625
+zero_bottleneck,compact_affine,196,1328,sar,3,0.00018310546875
+zero_bottleneck,compact_affine,197,1334,sar,23,0.00140380859375
+zero_bottleneck,compact_affine,198,1336,sar,32,0.001953125
+zero_bottleneck,compact_affine,199,1337,sar,0,0.0
+zero_bottleneck,compact_affine,200,1338,sar,958,0.0584716796875
+zero_bottleneck,compact_affine,201,1364,sar,38,0.0023193359375
+zero_bottleneck,compact_affine,202,1369,sar,174,0.0106201171875
+zero_bottleneck,compact_affine,203,1381,sar,0,0.0
+zero_bottleneck,compact_affine,204,1390,sar,0,0.0
+zero_bottleneck,compact_affine,205,1392,sar,9,0.00054931640625
+zero_bottleneck,compact_affine,206,1396,sar,190,0.0115966796875
+zero_bottleneck,compact_affine,207,1401,sar,1,6.103515625e-05
+zero_bottleneck,compact_affine,208,1422,sar,357,0.02178955078125
+zero_bottleneck,compact_affine,209,1456,sar,223,0.01361083984375
+zero_bottleneck,compact_affine,210,1458,sar,0,0.0
+zero_bottleneck,compact_affine,211,1474,sar,678,0.0413818359375
+zero_bottleneck,compact_affine,212,1488,sar,130,0.0079345703125
+zero_bottleneck,compact_affine,213,1497,sar,196,0.011962890625
+zero_bottleneck,compact_affine,214,1507,sar,41,0.00250244140625
+zero_bottleneck,compact_affine,215,1508,sar,0,0.0
+zero_bottleneck,compact_affine,216,1511,sar,129,0.00787353515625
+zero_bottleneck,compact_affine,217,1513,sar,100,0.006103515625
+zero_bottleneck,compact_affine,218,1520,sar,25,0.00152587890625
+zero_bottleneck,compact_affine,219,1521,sar,0,0.0
+zero_bottleneck,compact_affine,220,1522,sar,0,0.0
+zero_bottleneck,compact_affine,221,1525,sar,149,0.00909423828125
+zero_bottleneck,compact_affine,222,1527,sar,273,0.01666259765625
+zero_bottleneck,compact_affine,223,1531,sar,0,0.0
+zero_bottleneck,compact_affine,224,1537,sar,21,0.00128173828125
+zero_bottleneck,compact_affine,225,1540,sar,78,0.0047607421875
+zero_bottleneck,compact_affine,226,1589,sar,202,0.0123291015625
+zero_bottleneck,compact_affine,227,1590,sar,23,0.00140380859375
+zero_bottleneck,compact_affine,228,1595,sar,27,0.00164794921875
+zero_bottleneck,compact_affine,229,1628,sar,1,6.103515625e-05

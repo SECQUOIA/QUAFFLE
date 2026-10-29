@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "render_complete_file_byte_identity": true,
+  "oracle": "Independent NumPy masks and Fraction arithmetic, original raw history comparison; no project metric/selection/render functions",
+  "per_image_rows": 920,
+  "pooled_rows": 12,
+  "disagreement_rows": 1380,
+  "curve_rows": 732,
+  "selected_examples": [
+    {
+      "slot": 0,
+      "sensor": "optical",
+      "role": "worst",
+      "eligible_count": 20,
+      "status": "selected",
+      "validation_index": 17,
+      "global_index": 123,
+      "name": "179",
+      "affine_foreground_iou": 0.0293433530148506,
+      "ground_truth_flood_fraction": 0.3409423828125
+    },
+    {
+      "slot": 1,
+      "sensor": "optical",
+      "role": "lower_median",
+      "eligible_count": 20,
+      "status": "selected",
+      "validation_index": 3,
+      "global_index": 31,
+      "name": "102",
+      "affine_foreground_iou": 0.522274077216801,
+      "ground_truth_flood_fraction": 0.38720703125
+    },
+    {
+      "slot": 2,
+      "sensor": "sar",
+      "role": "worst",
+      "eligible_count": 53,
+      "status": "selected",
+      "validation_index": 219,
+      "global_index": 1443,
+      "name": "1521",
+      "affine_foreground_iou": 0.0,
+      "ground_truth_flood_fraction": 0.135009765625
+    },
+    {
+      "slot": 3,
+      "sensor": "sar",
+      "role": "lower_median",
+      "eligible_count": 53,
+      "status": "selected",
+      "validation_index": 44,
+      "global_index": 288,
+      "name": "263 copy",
+      "affine_foreground_iou": 0.5621861152141802,
+      "ground_truth_flood_fraction": 0.20404052734375
+    }
+  ],
+  "original_count_parity": true,
+  "original_target_reload_tiles": 230,
+  "original_display_inputs_verified": true,
+  "historical_raw_sha_mtime_unchanged": true,
+  "model_inference_or_fitting": false,
+  "output_inventory": {
+    "README.md": "313211ce414cf35df0e9087e53ab0800a3a3633824399e63ad76a26d5d744f61",
+    "artifact_sha256.json": "36893196331cf5a3f4741555c0097233868163ebb74f750a04c865b14f6fc5aa",
+    "best_epochs.csv": "789946f0f33c0f97a8f1c2ada6b9d2908c5e60122bf88eb4aaa230d97a334804",
+    "captions.md": "0fd059b4af1f188ee78f4eb4806e83219d5b8fd6a1a4c2295aca7762ce4802d6",
+    "disagreements.csv": "7dcc598f797704aa5a80db980c49206af2ed54695dc2778a69884c195234601c",
+    "displayed_counts.csv": "23834bd184f441d325e6728c4d544d35adbc22bae67d30bfe910c17c2a11a99b",
+    "learning_curves.csv": "df9ee89b03e1bff9912c55a7d3b7fd145b4b9996c2af5905d0c2fb049f0905d8",
+    "learning_curves.pdf": "6c4ce84438e5820f7663728f460d9f18616c32eb7610154fc4863aa1968640d4",
+    "learning_curves.png": "021d3a17c8e8d9e36c4d563a240d8debb7c5e3ac605ed5abaa8dee77ff969139",
+    "per_image.csv": "417f10d94b22cdd2c78f8107843754dd4e0c500e649e50a9caf6ff26ba992ea4",
+    "pooled.csv": "7e020457c3057a9fb02ebc05a8f166ef221288161820e7c4491b69c70626d254",
+    "provenance.json": "3c2b645ade2e37f540fe0f0a0b683eb1dadf9857d4da89388f4225f0636cd085",
+    "qualitative_errors.pdf": "14e973f17929f503e2102bb38abd516c6635534e0ba9ac93890559854c0c30f2",
+    "qualitative_errors.png": "412b7cf41a0dc46bc1f190ca989a4e2053dc80be3d442fc1510bdc2e27f0d656",
+    "renderer_source.py.txt": "d0f1639d1bbc46ce703f46e79e442dec4252ce5a5fef0c6a5d8085a238313c18",
+    "selected_examples.csv": "11f1b9eee16a4894647885929f8411dc99fca851b17938c1c616550150832251"
+  }
+}

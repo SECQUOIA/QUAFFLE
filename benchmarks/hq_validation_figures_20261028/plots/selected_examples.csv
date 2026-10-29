@@ -1,0 +1,5 @@
+slot,sensor,role,eligible_count,status,validation_index,global_index,name,affine_foreground_iou,ground_truth_flood_fraction
+0,optical,worst,20,selected,17,123,179,0.0293433530148506,0.3409423828125
+1,optical,lower_median,20,selected,3,31,102,0.522274077216801,0.38720703125
+2,sar,worst,53,selected,219,1443,1521,0.0,0.135009765625
+3,sar,lower_median,53,selected,44,288,263 copy,0.5621861152141802,0.20404052734375

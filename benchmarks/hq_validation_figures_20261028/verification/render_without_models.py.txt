@@ -1,0 +1,15 @@
+"""Run the actual renderer with a tripwire against model-library imports."""
+from pathlib import Path
+import runpy
+import sys
+
+forbidden = {'torch', 'pennylane', 'utilsTorch', 'scripts', 'tools'}
+def audit(event, args):
+    if event == 'import' and args and str(args[0]).split('.')[0] in forbidden:
+        raise RuntimeError('Rendering attempted a model-library import: '+str(args[0]))
+sys.addaudithook(audit)
+renderer = Path('/tmp/quaffle-hq-handoff-figures-20261028/misc/plot_hq_publication_figures.py')
+sys.argv = [str(renderer), *sys.argv[1:]]
+runpy.run_path(str(renderer), run_name='__main__')
+assert not forbidden.intersection(sys.modules), 'Rendering loaded a model library'
+print('PASS: actual render completed without model-library imports')

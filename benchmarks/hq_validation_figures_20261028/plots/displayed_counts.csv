@@ -1,0 +1,17 @@
+slot,sensor,role,validation_index,global_index,name,control,tp,fp,fn,tn,foreground_iou
+0,optical,worst,17,123,179,quantum,145,0,5441,10798,0.025957751521661295
+0,optical,worst,17,123,179,frozen_quantum,308,7,5278,10791,0.05506883604505632
+0,optical,worst,17,123,179,zero_bottleneck,366,11,5220,10787,0.06539217437913168
+0,optical,worst,17,123,179,compact_affine,164,3,5422,10795,0.0293433530148506
+1,optical,lower_median,3,31,102,quantum,3583,344,2761,9696,0.5357356459330144
+1,optical,lower_median,3,31,102,frozen_quantum,3770,840,2574,9200,0.5247772828507795
+1,optical,lower_median,3,31,102,zero_bottleneck,3675,646,2669,9394,0.5257510729613734
+1,optical,lower_median,3,31,102,compact_affine,3693,727,2651,9313,0.522274077216801
+2,sar,worst,219,1443,1521,quantum,0,0,2212,14172,0.0
+2,sar,worst,219,1443,1521,frozen_quantum,0,0,2212,14172,0.0
+2,sar,worst,219,1443,1521,zero_bottleneck,0,0,2212,14172,0.0
+2,sar,worst,219,1443,1521,compact_affine,0,0,2212,14172,0.0
+3,sar,lower_median,44,288,263 copy,quantum,2023,79,1320,12962,0.5911747516072472
+3,sar,lower_median,44,288,263 copy,frozen_quantum,1909,73,1434,12968,0.5588407494145199
+3,sar,lower_median,44,288,263 copy,zero_bottleneck,2303,292,1040,12749,0.6335625859697387
+3,sar,lower_median,44,288,263 copy,compact_affine,1903,42,1440,12999,0.5621861152141802

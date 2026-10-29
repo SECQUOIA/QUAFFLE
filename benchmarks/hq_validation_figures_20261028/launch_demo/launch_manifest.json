@@ -1,0 +1,140 @@
+{
+  "cluster": {
+    "account": "DEMO_ACCOUNT",
+    "conda_env": null,
+    "conda_sh": null,
+    "cpus_per_task": 2,
+    "error_log_dir": "error_logs",
+    "git_safe_directory": false,
+    "gpus": 1,
+    "mail_type": "END,FAIL",
+    "mail_user": null,
+    "mem": "1G",
+    "modules": [],
+    "output_log_dir": "output_logs",
+    "partition": "DEMO_PARTITION",
+    "python": "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python"
+  },
+  "cluster_config": {
+    "path": "/tmp/quaffle-hq-handoff-figures-20261028/config/cluster.example.json",
+    "sha256": "49fbd11128b1e01b0b84582122c6d041547da785ac037bc05acc0f94f47383e1"
+  },
+  "format": "hq-dfc24-slurm-package-v1",
+  "gpu_memory_fraction": 0.12,
+  "paths": {
+    "data": "/DEMO_NOT_A_DATASET",
+    "error_logs": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package/error_logs",
+    "output": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package",
+    "output_logs": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package/output_logs",
+    "profile": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/profile",
+    "repo": "/tmp/quaffle-hq-handoff-figures-20261028",
+    "report": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/report",
+    "run": "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/run"
+  },
+  "phases": {
+    "collect": {
+      "budget_seconds": 60.0,
+      "command": [
+        "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+        "/tmp/quaffle-hq-handoff-figures-20261028/scripts/collect_hq_dfc24_fresh.py",
+        "--work-dir",
+        "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/run",
+        "--data-root",
+        "/DEMO_NOT_A_DATASET",
+        "--output-dir",
+        "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/report"
+      ],
+      "kill_grace_seconds": 30,
+      "outer_timeout_seconds": 60.0,
+      "script": "03_collect.sbatch",
+      "walltime": "00:02:00"
+    },
+    "profile": {
+      "budget_seconds": 60.0,
+      "command": [
+        "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+        "/tmp/quaffle-hq-handoff-figures-20261028/scripts/run_hq_dfc24_fresh.py",
+        "profile",
+        "--mode",
+        "full",
+        "--data-root",
+        "/DEMO_NOT_A_DATASET",
+        "--work-dir",
+        "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/profile",
+        "--device",
+        "cuda",
+        "--gpu-memory-fraction",
+        "0.12",
+        "--budget-seconds",
+        "60.0"
+      ],
+      "kill_grace_seconds": 30,
+      "outer_timeout_seconds": 90.0,
+      "script": "01_profile.sbatch",
+      "walltime": "00:03:00"
+    },
+    "run": {
+      "budget_seconds": 60.0,
+      "command": [
+        "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+        "/tmp/quaffle-hq-handoff-figures-20261028/scripts/run_hq_dfc24_fresh.py",
+        "run",
+        "--mode",
+        "full",
+        "--data-root",
+        "/DEMO_NOT_A_DATASET",
+        "--work-dir",
+        "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/run",
+        "--device",
+        "cuda",
+        "--gpu-memory-fraction",
+        "0.12",
+        "--budget-seconds",
+        "60.0",
+        "--profile",
+        "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/profile/resource_profile.json"
+      ],
+      "kill_grace_seconds": 30,
+      "outer_timeout_seconds": 90.0,
+      "script": "02_run.sbatch",
+      "walltime": "00:03:00"
+    }
+  },
+  "producer_source_hashes": {
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "scripts/run_hq_dfc24_fresh.py": "1f5a244db37cd563cd0e0039de997dd140cee90527c4e50b585973dbf8ecbb81",
+    "scripts/run_hq_training_controls.py": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+  },
+  "protocol_sha256": "7149e9116e4d47661d497542d32d9b2c82ba1c8d9cd1dc5c4d1917e2224da8f4",
+  "resume": false,
+  "source_hashes": {
+    "config/seeds.py": "c4dcccf13f8a84a3d4cfd0d8720759aaf943168734eb1839d5075b705a393e95",
+    "docs/HQ_DFC24_FRESH_PROTOCOL.md": "7149e9116e4d47661d497542d32d9b2c82ba1c8d9cd1dc5c4d1917e2224da8f4",
+    "flood_data.py": "edcb32f8861f11c1d7197b05631b82c71d5a433db2a19ee90fa05490293f2f53",
+    "misc/generate_grid.py": "fed0a3e82ae44049be9ffde7c5e66bef90841d2976d0841d95e4a700e84746ba",
+    "misc/generate_hq_campaign_scripts.py": "bf79b1404c8181cca84c27161f35f75b574a040ed7fb48de0927d64b7a5105d4",
+    "scripts/collect_hq_dfc24_fresh.py": "bd673749bfb37bd2488aa3b62940980d31db1c9411e6533f5690893ff21d6d4f",
+    "scripts/run_hq_dfc24_direction.py": "5934089cfb50805ef36ba840ce6776dc0bdd6bafc40d8ee8695ed9df92e1111a",
+    "scripts/run_hq_dfc24_fresh.py": "1f5a244db37cd563cd0e0039de997dd140cee90527c4e50b585973dbf8ecbb81",
+    "scripts/run_hq_training_controls.py": "46e33f62bea125980fc44e1bad513403c55028dbc8aa09f8e52cf85a3f8f8b28",
+    "scripts/run_parameter_budget_comparison.py": "ccf49ba69d0144cb748f8cff9c2bee3cb8e59cc8d2d8f4d1e836ae89e2c95265",
+    "scripts/run_real_spatial_pilot.py": "d33e0f8f694389524ac1ec40b8d802701c47349a55a069622e4874fb96b4a58f",
+    "splits/norm_stats.json": "28530edb950e47ef1ee9872784c404bb5815aaa352e8e4576f2013880d58ba4f",
+    "tools/training_common.py": "213ebfbc5224fd1f2a3ebb895469e4b910ac4c83595e37fa5f727fd99ce4bb30",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "utilsTorch/hq_training_controls.py": "4c19894a693764f416ae7e60a29aac246b1063cbcd59bd6efb3844f75f17c04d",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+  }
+}

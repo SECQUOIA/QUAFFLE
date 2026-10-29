@@ -1,0 +1,96 @@
+{
+  "format": "hq-validation-example-selection-v1",
+  "rule": {
+    "reference": "compact_affine",
+    "seed": 42,
+    "learning_rate": 0.003,
+    "minimum_ground_truth_flood_fraction": 0.05,
+    "sensors": [
+      "optical",
+      "sar"
+    ],
+    "ordering": [
+      "affine_foreground_iou",
+      "validation_index"
+    ],
+    "validation_index": "Ordinal position in the saved ordered230 validation subset",
+    "worst_rank": 0,
+    "lower_median_rank": "(n-1)//2",
+    "retain_duplicate_selections": true
+  },
+  "plan_sha256": "1831ce4ef26535112fbc108e74a28768f63f556e15089bf82d2a47a07c968fe9",
+  "affine_archive": {
+    "sha256": "8bf0455dc92a84cc35bea804cab4aea7f739c0e3f0e80158f566490a1b8ee3ec",
+    "arrays": {
+      "predictions": {
+        "dtype": "uint8",
+        "shape": [
+          230,
+          128,
+          128
+        ],
+        "sha256": "549ed9fc91fe8b0c3109b0aa6439e07d168bb5c919ebc50fe7f3b2dd76ad6103"
+      },
+      "targets": {
+        "dtype": "uint8",
+        "shape": [
+          230,
+          128,
+          128
+        ],
+        "sha256": "4458ce004a0fd087e905e8c666729dffcaff9133aeb921f467cef71bfd261e82"
+      }
+    }
+  },
+  "affine_checkpoint_sha256": "25d092c0c23972a0f8c167359fe7d794c976a8e96d30964ce637532fb6213910",
+  "examples": [
+    {
+      "slot": 0,
+      "sensor": "optical",
+      "role": "worst",
+      "eligible_count": 20,
+      "status": "selected",
+      "validation_index": 17,
+      "global_index": 123,
+      "name": "179",
+      "affine_foreground_iou": 0.0293433530148506,
+      "ground_truth_flood_fraction": 0.3409423828125
+    },
+    {
+      "slot": 1,
+      "sensor": "optical",
+      "role": "lower_median",
+      "eligible_count": 20,
+      "status": "selected",
+      "validation_index": 3,
+      "global_index": 31,
+      "name": "102",
+      "affine_foreground_iou": 0.522274077216801,
+      "ground_truth_flood_fraction": 0.38720703125
+    },
+    {
+      "slot": 2,
+      "sensor": "sar",
+      "role": "worst",
+      "eligible_count": 53,
+      "status": "selected",
+      "validation_index": 219,
+      "global_index": 1443,
+      "name": "1521",
+      "affine_foreground_iou": 0.0,
+      "ground_truth_flood_fraction": 0.135009765625
+    },
+    {
+      "slot": 3,
+      "sensor": "sar",
+      "role": "lower_median",
+      "eligible_count": 53,
+      "status": "selected",
+      "validation_index": 44,
+      "global_index": 288,
+      "name": "263 copy",
+      "affine_foreground_iou": 0.5621861152141802,
+      "ground_truth_flood_fraction": 0.20404052734375
+    }
+  ]
+}

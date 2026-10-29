@@ -1,0 +1,86 @@
+"""Run one authorized local phase with immutable source and bounded resources."""
+from pathlib import Path
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import resource
+import subprocess
+import time
+
+ROOT = Path('/tmp/quaffle-hq-handoff-figures-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028')
+DATA = Path('/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset')
+RAW = Path('/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs')
+PYTHON = '/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python'
+FILES = ['misc/generate_hq_campaign_scripts.py','misc/collect_hq_validation_predictions.py',
+         'misc/plot_hq_publication_figures.py','tests/test_hq_campaign_scripts.py',
+         'tests/test_hq_publication_figures.py','docs/HQ_PUBLICATION_FIGURES_PROTOCOL.md']
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+def snapshot(root):
+    return {str(p.relative_to(root)):{'sha256':sha(p),'mtime_ns':p.stat().st_mtime_ns}
+            for p in sorted(root.rglob('*')) if p.is_file()}
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('phase', choices=['predict','render_a','render_b','suite'])
+parser.add_argument('--attempt', default='v1')
+parser.add_argument('--cache-attempt', default=None)
+args = parser.parse_args()
+assert args.attempt.isalnum()
+assert args.cache_attempt is None or args.cache_attempt.isalnum()
+gpu = args.phase == 'predict'
+cache = TASK/('predictions_'+(args.cache_attempt or args.attempt))
+budget = 600 if gpu else 120
+if gpu:
+    command = [PYTHON,str(TASK/'predict_without_test_data.py'),'--work-dir',str(RAW),'--data-root',str(DATA),
+        '--output-dir',str(cache),'--device','cuda','--gpu-memory-fraction','.12',
+        '--budget-seconds',str(budget)]
+elif args.phase.startswith('render'):
+    command = [PYTHON,str(TASK/'render_without_models.py'),'--cache-dir',str(cache),
+        '--output-dir',str(TASK/(args.phase+'_'+args.attempt))]
+else:
+    budget = 1200
+    command = [PYTHON,'-m','pytest','-q','tests']
+unified = next(line.split(':',2)[2].lstrip('/') for line in Path('/proc/self/cgroup').read_text().splitlines()
+               if line.startswith('0::'))
+cgroup = Path('/sys/fs/cgroup')/unified
+limits = {name:(cgroup/name).read_text().strip() for name in ('memory.max','memory.swap.max')}
+assert limits == {'memory.max':str(6*1024**3),'memory.swap.max':'0'}, 'Use the declared6GiB/no-swap scope'
+prefix = TASK/'logs'/(args.phase+'_'+args.attempt)
+log,binding,result = [prefix.with_suffix(ext) for ext in ('.log','.binding.json','.result.json')]
+assert not any(p.exists() for p in (log,binding,result)), 'Preserve an earlier attempt; inspect its live handle'
+before = {name:sha(ROOT/name) for name in FILES}
+revision = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+cache_before = snapshot(cache) if args.phase.startswith('render') else None
+env = dict(os.environ,PYTHONPATH=str(ROOT)+':/tmp/quaffle-wave4a-deps',
+    CUDA_VISIBLE_DEVICES='0' if gpu else '',OMP_NUM_THREADS='2',MKL_NUM_THREADS='2',
+    OPENBLAS_NUM_THREADS='2',NUMEXPR_NUM_THREADS='2',MPLCONFIGDIR=str(TASK/'mpl-cache'),
+    PYTHONDONTWRITEBYTECODE='1')
+record = dict(phase=args.phase,attempt=args.attempt,cache_attempt=args.cache_attempt or args.attempt,command=command,cwd=str(ROOT),
+    source_revision=revision,source_hashes=before,driver_sha256=sha(Path(__file__)),
+    started_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    numerical_threads=2,verified_os_limits=limits,outer_timeout_seconds=budget+60,
+    gpu_memory_fraction=.12 if gpu else None,render_model_import_tripwire=args.phase.startswith('render'))
+record['guard_sha256'] = sha(TASK/('predict_without_test_data.py' if gpu else 'render_without_models.py')) if args.phase != 'suite' else None
+binding.write_text(json.dumps(record,indent=2)+'\n')
+print(json.dumps({'phase':args.phase,'log':str(log),'source_revision':revision}),flush=True)
+started = time.monotonic()
+try:
+    with log.open('x') as stream:
+        child = subprocess.run(command,cwd=ROOT,env=env,stdout=stream,stderr=subprocess.STDOUT,timeout=budget+60)
+    code,error = child.returncode,None
+except subprocess.TimeoutExpired as exc:
+    code,error = 124,str(exc)
+assert before == {name:sha(ROOT/name) for name in FILES}, 'Source changed during a check'
+assert revision == subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+assert cache_before is None or snapshot(cache) == cache_before, 'Renderer changed the frozen prediction cache'
+record.update(exit_code=code,error=error,elapsed_seconds=time.monotonic()-started,
+    source_unchanged=True,cache_sha_mtime_unchanged=cache_before is not None,
+    log_sha256=sha(log),child_peak_rss_kib=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,
+    cgroup_memory_peak_bytes=int((cgroup/'memory.peak').read_text().strip()))
+result.write_text(json.dumps(record,indent=2)+'\n')
+print(json.dumps(record),flush=True)
+print('\n'.join(log.read_text().replace('\r','\n').splitlines()[-5:]),flush=True)
+raise SystemExit(code)

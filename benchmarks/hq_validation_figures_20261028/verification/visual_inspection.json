@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "inspection": "Root directly inspected both final PNGs and both actual-PDF rasterizations",
+  "records": [
+    {
+      "name": "learning_curves",
+      "pages": 1,
+      "width_points": 518.4,
+      "height_points": 540.0,
+      "word_count": 93,
+      "all_text_within_page": true,
+      "pdf_sha256": "6c4ce84438e5820f7663728f460d9f18616c32eb7610154fc4863aa1968640d4",
+      "png_sha256": "021d3a17c8e8d9e36c4d563a240d8debb7c5e3ac605ed5abaa8dee77ff969139",
+      "minimum_margin_points": 1.18275
+    },
+    {
+      "name": "qualitative_errors",
+      "pages": 1,
+      "width_points": 518.4,
+      "height_points": 489.6,
+      "word_count": 92,
+      "all_text_within_page": true,
+      "pdf_sha256": "14e973f17929f503e2102bb38abd516c6635534e0ba9ac93890559854c0c30f2",
+      "png_sha256": "412b7cf41a0dc46bc1f190ca989a4e2053dc80be3d442fc1510bdc2e27f0d656",
+      "minimum_margin_points": 4.22320000000002
+    }
+  ],
+  "observations": [
+    "Overlay labels separated from subsequent image rows",
+    "Titles, per-image IoUs, sensor roles, legend and disclosure readable at7.2-inch export width",
+    "Curve best-epoch markers and four-control legend visible",
+    "Normalized inputs and truth/errors align on same tiles",
+    "No observed clipping/collisions in final v2 figures"
+  ],
+  "rejected_visual_attempt": "v1overlay labels collided betweenrows; v2changesonlylayout; samepredictioncache"
+}

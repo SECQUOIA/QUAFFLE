@@ -239,6 +239,11 @@ deterministic report separately from the raw run.
 
 ## Alan's remaining launch gates
 
+The [SLURM launch package](HQ_ANVIL_LAUNCH.md) generates three separately
+submitted jobs from his configuration. It checks the explicitly accepted full
+profile's SHA256 before training. Local generation and guard tests supply no
+cluster execution or resource-feasibility evidence.
+
 The implemented runner does not substitute for measurements on Anvil. Before
 submission Alan must:
 

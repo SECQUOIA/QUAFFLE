@@ -1,0 +1,49 @@
+{
+  "phase": "predict",
+  "attempt": "v1",
+  "command": [
+    "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/predict_without_test_data.py",
+    "--work-dir",
+    "/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs",
+    "--data-root",
+    "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset",
+    "--output-dir",
+    "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/predictions_v1",
+    "--device",
+    "cuda",
+    "--gpu-memory-fraction",
+    ".12",
+    "--budget-seconds",
+    "600"
+  ],
+  "cwd": "/tmp/quaffle-hq-handoff-figures-20261028",
+  "source_revision": "0dcc5e0e61daab7636d918355158b004b5f4e472",
+  "source_hashes": {
+    "misc/generate_hq_campaign_scripts.py": "bf79b1404c8181cca84c27161f35f75b574a040ed7fb48de0927d64b7a5105d4",
+    "misc/collect_hq_validation_predictions.py": "e4273e627101e604013ca9790cf0ad0db4d9834ad1c0e82e918ad40e1a4fd3e0",
+    "misc/plot_hq_publication_figures.py": "98f178884f689a9718d29a3e155ddb1b821e6bfe003cab5e5dc773339cb5163b",
+    "tests/test_hq_campaign_scripts.py": "2c55db4ddb4b46c949f4489a76a349815920124fede2bdb77fed1f21699effa7",
+    "tests/test_hq_publication_figures.py": "317bae095042a9314ecfe7ab1423c0296b8aeea918ec1dd8c4126154666f2eab",
+    "docs/HQ_PUBLICATION_FIGURES_PROTOCOL.md": "d0f1c1d6294e7ff9c6cead076a62400a8dc83719372fa423bcce319ed3dfc896"
+  },
+  "driver_sha256": "2ec57859cd15f73f208acad099924047b306b456ad0026deb9c47216c71bc34f",
+  "started_utc": "2026-10-28T23:52:52.323606+00:00",
+  "numerical_threads": 2,
+  "verified_os_limits": {
+    "memory.max": "6442450944",
+    "memory.swap.max": "0"
+  },
+  "outer_timeout_seconds": 660,
+  "gpu_memory_fraction": 0.12,
+  "render_model_import_tripwire": false,
+  "guard_sha256": "4942678e989ee6e793fe251d3f6d1309283ec2aa670db34ce22257cf59e7f861",
+  "exit_code": 0,
+  "error": null,
+  "elapsed_seconds": 175.1270433810423,
+  "source_unchanged": true,
+  "cache_sha_mtime_unchanged": false,
+  "log_sha256": "fb86ddac5f686de5763645fe55f4fa3e6513280c78328fd4f10c188c5e17f132",
+  "child_peak_rss_kib": 1691544,
+  "cgroup_memory_peak_bytes": 6219927552
+}

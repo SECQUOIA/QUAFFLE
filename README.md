@@ -102,6 +102,10 @@ software verification; full-data accuracy and Anvil feasibility remain separate.
 The [completed local rehearsal](benchmarks/hq_dfc24_fresh_rehearsal_20261028/README.md)
 retains 16 fresh fits and 12 validation replays. All selected checkpoints were
 epoch zero, so it supplies no new accuracy evidence for quantum.
+The [publication figures](benchmarks/hq_validation_figures_20261028/README.md)
+use the earlier 60-epoch control histories and fixed-rule validation examples.
+The [fresh HQ SLURM launch guide](docs/HQ_ANVIL_LAUNCH.md) packages separate
+profile, run and collect jobs for Alan's configuration and manual profile acceptance.
 
 ```bash
 # Centralized

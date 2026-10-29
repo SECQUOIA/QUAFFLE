@@ -1,0 +1,9 @@
+Running as unit: run-re7667370844540dd898118cbbc7adbf6.scope; invocation ID: 99cdb81fd91249408aa64823bf515dcb
+...........................                                              [100%]
+=============================== warnings summary ===============================
+tests/test_hq_publication_figures.py::test_numeric_archive_duplicate_member_rejected
+  /home/bernalde/miniconda3/envs/qpinn-tc/lib/python3.11/zipfile.py:1580: UserWarning: Duplicate name: 'predictions.npy'
+    return self._open_to_write(zinfo, force_zip64=force_zip64)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+27 passed, 1 warning in 13.44s
