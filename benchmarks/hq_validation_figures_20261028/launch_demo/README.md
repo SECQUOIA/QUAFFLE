@@ -1,0 +1,1 @@
+Local rendering demonstration only. The three .sbatch.txt files retain the exact generated script bytes under inert names. The synthetic account, partition, data path and tiny limits are invalid for production. No job was submitted or executed; syntax and source/config guards were checked locally. Alan regenerates a new package with his actual allocation and measured budgets.

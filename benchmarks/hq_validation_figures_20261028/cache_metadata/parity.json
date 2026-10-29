@@ -1,0 +1,115 @@
+{
+  "passed": true,
+  "records": [
+    {
+      "control": "compact_affine",
+      "exact_sensor_counts": true,
+      "pooled": {
+        "n_samples": 230,
+        "tp": 226048,
+        "fp": 50746,
+        "fn": 122000,
+        "tn": 3369526
+      },
+      "sensors": {
+        "optical": {
+          "n_samples": 28,
+          "tp": 54843,
+          "fp": 13981,
+          "fn": 53197,
+          "tn": 336731
+        },
+        "sar": {
+          "n_samples": 202,
+          "tp": 171205,
+          "fp": 36765,
+          "fn": 68803,
+          "tn": 3032795
+        }
+      }
+    },
+    {
+      "control": "quantum",
+      "exact_sensor_counts": true,
+      "pooled": {
+        "n_samples": 230,
+        "tp": 229150,
+        "fp": 52610,
+        "fn": 118898,
+        "tn": 3367662
+      },
+      "sensors": {
+        "optical": {
+          "n_samples": 28,
+          "tp": 52630,
+          "fp": 9318,
+          "fn": 55410,
+          "tn": 341394
+        },
+        "sar": {
+          "n_samples": 202,
+          "tp": 176520,
+          "fp": 43292,
+          "fn": 63488,
+          "tn": 3026268
+        }
+      }
+    },
+    {
+      "control": "frozen_quantum",
+      "exact_sensor_counts": true,
+      "pooled": {
+        "n_samples": 230,
+        "tp": 228634,
+        "fp": 53985,
+        "fn": 119414,
+        "tn": 3366287
+      },
+      "sensors": {
+        "optical": {
+          "n_samples": 28,
+          "tp": 57781,
+          "fp": 17917,
+          "fn": 50259,
+          "tn": 332795
+        },
+        "sar": {
+          "n_samples": 202,
+          "tp": 170853,
+          "fp": 36068,
+          "fn": 69155,
+          "tn": 3033492
+        }
+      }
+    },
+    {
+      "control": "zero_bottleneck",
+      "exact_sensor_counts": true,
+      "pooled": {
+        "n_samples": 230,
+        "tp": 237406,
+        "fp": 67022,
+        "fn": 110642,
+        "tn": 3353250
+      },
+      "sensors": {
+        "optical": {
+          "n_samples": 28,
+          "tp": 59485,
+          "fp": 16754,
+          "fn": 48555,
+          "tn": 333958
+        },
+        "sar": {
+          "n_samples": 202,
+          "tp": 177921,
+          "fp": 50268,
+          "fn": 62087,
+          "tn": 3019292
+        }
+      }
+    }
+  ],
+  "equality": "Exact integer sensor confusion counts and cohort sizes; pooled counts follow by summation",
+  "loss_or_auc_recovery": false
+}

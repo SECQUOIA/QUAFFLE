@@ -1,0 +1,42 @@
+{
+  "phase": "render_b",
+  "attempt": "v2",
+  "cache_attempt": "v1",
+  "command": [
+    "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/render_without_models.py",
+    "--cache-dir",
+    "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/predictions_v1",
+    "--output-dir",
+    "/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/render_b_v2"
+  ],
+  "cwd": "/tmp/quaffle-hq-handoff-figures-20261028",
+  "source_revision": "93e7ba66898dbbab31d62ed21272b37faeb80287",
+  "source_hashes": {
+    "misc/generate_hq_campaign_scripts.py": "bf79b1404c8181cca84c27161f35f75b574a040ed7fb48de0927d64b7a5105d4",
+    "misc/collect_hq_validation_predictions.py": "e4273e627101e604013ca9790cf0ad0db4d9834ad1c0e82e918ad40e1a4fd3e0",
+    "misc/plot_hq_publication_figures.py": "d0f1639d1bbc46ce703f46e79e442dec4252ce5a5fef0c6a5d8085a238313c18",
+    "tests/test_hq_campaign_scripts.py": "2c55db4ddb4b46c949f4489a76a349815920124fede2bdb77fed1f21699effa7",
+    "tests/test_hq_publication_figures.py": "317bae095042a9314ecfe7ab1423c0296b8aeea918ec1dd8c4126154666f2eab",
+    "docs/HQ_PUBLICATION_FIGURES_PROTOCOL.md": "d0f1c1d6294e7ff9c6cead076a62400a8dc83719372fa423bcce319ed3dfc896"
+  },
+  "driver_sha256": "5a8049159503649e61c381990ec740832a24dbf9fdedfe97673bab6fa4cc5730",
+  "started_utc": "2026-10-29T00:00:50.787592+00:00",
+  "numerical_threads": 2,
+  "verified_os_limits": {
+    "memory.max": "6442450944",
+    "memory.swap.max": "0"
+  },
+  "outer_timeout_seconds": 180,
+  "gpu_memory_fraction": null,
+  "render_model_import_tripwire": true,
+  "guard_sha256": "b8a94447523ed0ac6952e0792634d20a59ca22d53e5ee8c29ee5dda3e9ef33fa",
+  "exit_code": 0,
+  "error": null,
+  "elapsed_seconds": 2.1762787220068276,
+  "source_unchanged": true,
+  "cache_sha_mtime_unchanged": true,
+  "log_sha256": "99e90f00414eb3960ed970ec99a723624305a80f7627df29ddb00ee0581a98a2",
+  "child_peak_rss_kib": 142144,
+  "cgroup_memory_peak_bytes": 129687552
+}

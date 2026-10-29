@@ -1,0 +1,1 @@
+This is a local rendering demonstration with invalid synthetic scheduler account/partition, nonexistent data and deliberately tiny resource limits. No generated job was submitted or executed. Alan must regenerate with his measured allocation/configuration. These values are not Anvil recommendations.

@@ -1,0 +1,150 @@
+"""Independent mask/history oracle and original-data display check; no inference."""
+from pathlib import Path
+from fractions import Fraction
+import argparse
+import csv
+import hashlib
+import json
+import math
+import sys
+
+import numpy as np
+
+ROOT = Path('/tmp/quaffle-hq-handoff-figures-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028')
+RAW = Path('/home/bernalde/repos/QUAFFLE/results/hq_training_controls_20261028/runs')
+DATA = Path('/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset')
+CACHE = TASK/'predictions_v1'
+A,B = TASK/'render_a_v2',TASK/'render_b_v2'
+OUT = TASK/'verification/independent_audit.json'
+assert not OUT.exists(), 'Preserve earlier verification attempts'
+read = lambda p: json.loads(p.read_text())
+sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+inventory = lambda r: {str(p.relative_to(r)):sha(p) for p in sorted(r.rglob('*')) if p.is_file()}
+def close(a,b):
+    assert math.isclose(float(a),float(b),rel_tol=0,abs_tol=2e-15),(a,b)
+def rows(name):
+    with (A/name).open() as stream:
+        return list(csv.DictReader(stream))
+def confusion(pred,target):
+    a,b = pred.astype(bool),target.astype(bool)
+    return dict(tp=int((a & b).sum()),fp=int((a & ~b).sum()),
+                fn=int((~a & b).sum()),tn=int((~a & ~b).sum()))
+def ratio(c):
+    d = c['tp']+c['fp']+c['fn']
+    return Fraction(c['tp'],d) if d else Fraction(0)
+
+assert inventory(A)==inventory(B), 'Complete rendered output bytes differ'
+for name,expected in read(A/'artifact_sha256.json').items():
+    assert sha(A/name)==expected
+cache,plan,selection = (read(CACHE/name) for name in ('cache.json','plan.json','selection.json'))
+for name,expected in read(CACHE/'artifact_sha256.json').items():
+    assert sha(CACHE/name)==expected
+arms = ['quantum','frozen_quantum','zero_bottleneck','compact_affine']
+assert cache['controls']==arms and plan['prediction_seed']==42 and plan['primary_learning_rate']==.003
+assert plan['figure_history_population']==dict(fits=12,fresh=9,reused=3)
+with np.load(CACHE/'validation_predictions.npz',allow_pickle=False) as z:
+    prediction,target,display,valid = (z[k] for k in ('predictions','targets','display_inputs','display_valid'))
+assert prediction.shape==(4,230,128,128) and target.shape==(230,128,128)
+assert prediction.dtype==target.dtype==np.dtype('uint8') and np.isin(prediction,[0,1]).all() and np.isin(target,[0,1]).all()
+assert sha(CACHE/'selection.json')==cache['selection_sha256']
+expected_examples=[]
+for sensor in ('optical','sar'):
+    eligible=[i for i,s in enumerate(cache['sensors']) if s==sensor and int(target[i].sum())*20>=128*128]
+    ordered=sorted(eligible,key=lambda i:(ratio(confusion(prediction[3,i],target[i])),i))
+    for role,rank in (('worst',0),('lower_median',(len(ordered)-1)//2)):
+        item=dict(slot=len(expected_examples),sensor=sensor,role=role,eligible_count=len(ordered))
+        if ordered:
+            i=ordered[rank]
+            item.update(status='selected',validation_index=i,global_index=cache['global_indices'][i],
+                name=cache['names'][i],affine_foreground_iou=float(ratio(confusion(prediction[3,i],target[i]))),
+                ground_truth_flood_fraction=float(Fraction(int(target[i].sum()),16384)))
+        else:
+            item['status']='empty_eligible_set'
+        expected_examples.append(item)
+assert selection['examples']==expected_examples, 'Fixed ranks or tile identities differ'
+
+observations=rows('per_image.csv')
+assert len(observations)==920
+for r in observations:
+    c,i=arms.index(r['control']),int(r['validation_index'])
+    expected=confusion(prediction[c,i],target[i])
+    assert {k:int(r[k]) for k in expected}==expected
+    assert r['name']==cache['names'][i] and r['sensor']==cache['sensors'][i]
+    close(r['foreground_iou'],ratio(expected))
+    close(r['ground_truth_flood_fraction'],Fraction(int(target[i].sum()),16384))
+pooled=rows('pooled.csv')
+assert len(pooled)==12
+original=read(RAW/'all_fits.json')
+for r in pooled:
+    c=arms.index(r['control']);indices=[i for i,s in enumerate(cache['sensors']) if r['sensor']=='pooled' or s==r['sensor']]
+    expected=confusion(prediction[c,indices],target[indices])
+    assert {k:int(r[k]) for k in expected}==expected and int(r['n_samples'])==len(indices)
+    close(r['foreground_iou'],ratio(expected))
+    old=next(e['record'] for e in original if e['record']['kind']==r['control'] and e['record']['seed']==42 and e['record']['learning_rate']==.003)
+    if r['sensor']!='pooled':
+        assert expected=={k:old['val'][r['sensor']+'_subset_'+k] for k in expected}
+disagreements=rows('disagreements.csv')
+assert len(disagreements)==1380
+for r in disagreements:
+    left,right,i=arms.index(r['left']),arms.index(r['right']),int(r['validation_index'])
+    different=int(np.bitwise_xor(prediction[left,i],prediction[right,i]).sum())
+    assert int(r['different_pixels'])==different
+    close(r['fraction'],Fraction(different,16384))
+curves=rows('learning_curves.csv')
+assert len(curves)==732
+for r in curves:
+    old=next(e for e in original if e['record']['kind']==r['control'] and e['record']['seed']==int(r['seed']) and e['record']['learning_rate']==.003)
+    point=old['record']['history'][int(r['epoch'])]
+    assert r['origin']==old['origin'] and float(r['learning_rate'])==.003
+    assert (r['selected_best_epoch']=='True')==(point['epoch']==old['record']['best_epoch'])
+    assert (r['train_loss']=='')==(point['train_loss'] is None)
+    if point['train_loss'] is not None: close(r['train_loss'],point['train_loss'])
+    assert (r['validation_foreground_iou']=='')==('val' not in point)
+    if 'val' in point: close(r['validation_foreground_iou'],point['val']['iou'])
+for r in rows('displayed_counts.csv'):
+    i,c=int(r['validation_index']),arms.index(r['control']);expected=confusion(prediction[c,i],target[i])
+    assert {k:int(r[k]) for k in expected}==expected
+    assert cache['names'][i]==r['name'];close(r['foreground_iou'],ratio(expected))
+
+# Independent reload checks that cached displays/targets belong to the named
+# source tiles. Original preprocessing is reused; no model is evaluated.
+sys.path.insert(0,str(ROOT))
+import torch
+torch.set_num_threads(2)
+if torch.get_num_interop_threads()!=2: torch.set_num_interop_threads(2)
+from scripts import run_hq_training_controls as study
+from utilsTorch.hq_direction import HQDirectionUNet
+def forbidden(*args,**kwargs):
+    raise AssertionError('Independent figure audit attempted model inference or fitting')
+HQDirectionUNet.forward=forbidden
+study.fit_one=study.hq.fit_one=forbidden
+settings=argparse.Namespace(**read(RAW/'plan.json')['settings'],data_root=DATA)
+data=study.pilot.load_training_data(settings,42)
+assert [data['dataset'].names[i] for i in data['validation']]==cache['names']
+assert data['normalization']==plan['normalization']
+for i in range(230):
+    _,mask=data['val'][i]
+    assert np.array_equal(mask[0].numpy().astype(np.uint8),target[i]),('target',i)
+for item in expected_examples:
+    slot=item['slot']
+    if item['status']=='selected':
+        image,_=data['val'][item['validation_index']]
+        assert valid[slot] and np.array_equal(image.numpy(),display[slot]),('display',slot)
+    else:
+        assert not valid[slot] and not display[slot].any()
+before=read(TASK/'before_raw_inventory.json')
+for group in ('historical','legacy'):
+    root=Path(before['historical_root'] if group=='historical' else before['legacy_root'])
+    actual={str(p.relative_to(root)):{'sha256':sha(p),'mtime_ns':p.stat().st_mtime_ns,'size':p.stat().st_size}
+            for p in sorted(root.rglob('*')) if p.is_file()}
+    assert actual==before[group], 'Historical raw bytes/mtime changed'
+OUT.parent.mkdir(parents=True,exist_ok=True)
+OUT.write_text(json.dumps(dict(status='passed',render_complete_file_byte_identity=True,
+    oracle='Independent NumPy masks and Fraction arithmetic, original raw history comparison; no project metric/selection/render functions',
+    per_image_rows=len(observations),pooled_rows=len(pooled),disagreement_rows=len(disagreements),
+    curve_rows=len(curves),selected_examples=expected_examples,original_count_parity=True,
+    original_target_reload_tiles=230,original_display_inputs_verified=True,
+    historical_raw_sha_mtime_unchanged=True,model_inference_or_fitting=False,
+    output_inventory=inventory(A)),indent=2)+'\n')
+print('PASS: independent counts/ranks/histories/disagreements, original target/display reload, complete render byte identity and raw preservation')

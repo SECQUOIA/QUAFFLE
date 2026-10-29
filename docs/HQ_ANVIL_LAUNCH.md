@@ -22,6 +22,10 @@ Fill in ignored `config/cluster.local.json` using
 phase budgets, walltimes and allocator fraction. These are operator limits,
 not workstation-derived runtime estimates. Cluster flags override environment
 variables, which override the selected JSON configuration and defaults.
+SLURM reads `#SBATCH` directives as literal values, while `--export` can forward
+the accepted-profile environment variable. See the
+[official sbatch manual](https://slurm.schedmd.com/sbatch.html) for directive,
+environment-export and walltime syntax.
 
 After setting the variables below from the intended allocation:
 

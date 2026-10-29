@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "test_dataset_loads": 0,
+  "fitting_calls": 0,
+  "training_dataset_load_calls": [
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    },
+    {
+      "images": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/images",
+      "masks": "/home/bernalde/repos/QUAFFLE/results/local_quantum_followup_20261027/dataset/flood_combined/Training/labels"
+    }
+  ],
+  "scope": "Existing test-file integrity hashing remains allowed; no test dataset construction or new fitting."
+}

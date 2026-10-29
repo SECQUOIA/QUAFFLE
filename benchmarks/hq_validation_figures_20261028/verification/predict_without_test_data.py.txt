@@ -1,0 +1,41 @@
+"""Run the actual validation collector with a test-dataset loading tripwire."""
+from pathlib import Path
+import argparse
+import json
+import runpy
+import sys
+
+ROOT = Path('/tmp/quaffle-hq-handoff-figures-20261028')
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028')
+sys.path.insert(0,str(ROOT))
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument('--data-root',required=True)
+parser.add_argument('--output-dir',required=True)
+args,_ = parser.parse_known_args()
+receipt = TASK/'verification'/('prediction_scope_'+Path(args.output_dir).name+'.json')
+assert not receipt.exists(), 'Preserve earlier verification attempt'
+from tools import training_common as tc
+from scripts import run_hq_training_controls as controls
+from scripts import run_hq_dfc24_direction as direction
+def no_fit(*args,**kwargs):
+    raise AssertionError('Validation figure collection attempted model fitting')
+controls.fit_one = no_fit
+direction.fit_one = no_fit
+original = tc.load_dataset
+_,_,_,test_images,test_masks = tc.resolve_data_dirs('combined',args.data_root)
+calls = []
+def guarded(images,masks,*values,**kwargs):
+    images,masks = Path(images).resolve(),Path(masks).resolve()
+    assert images != Path(test_images).resolve(), 'Validation collector attempted test-image dataset loading'
+    assert masks != Path(test_masks).resolve(), 'Validation collector attempted test-mask dataset loading'
+    calls.append(dict(images=str(images),masks=str(masks)))
+    return original(images,masks,*values,**kwargs)
+tc.load_dataset = guarded
+target = ROOT/'misc/collect_hq_validation_predictions.py'
+sys.argv = [str(target),*sys.argv[1:]]
+runpy.run_path(str(target),run_name='__main__')
+receipt.parent.mkdir(parents=True,exist_ok=True)
+receipt.write_text(json.dumps(dict(status='passed',test_dataset_loads=0,
+    fitting_calls=0,training_dataset_load_calls=calls,
+    scope='Existing test-file integrity hashing remains allowed; no test dataset construction or new fitting.'),indent=2)+'\n')
+print('PASS: actual validation prediction completed without loading a test dataset')

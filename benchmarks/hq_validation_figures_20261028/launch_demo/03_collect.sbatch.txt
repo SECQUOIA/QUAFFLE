@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --account=DEMO_ACCOUNT
+#SBATCH --job-name=hq-full-collect
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=1G
+#SBATCH --time=00:02:00
+#SBATCH --output=/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package/output_logs/%x-%j.out
+#SBATCH --error=/home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package/error_logs/%x-%j.err
+#SBATCH --partition=DEMO_PARTITION
+
+set -euo pipefail
+# Operator-specified limits; no cluster runtime estimate.
+export OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
+export PYTHONDONTWRITEBYTECODE=1
+export CUDA_VISIBLE_DEVICES=''
+cd /tmp/quaffle-hq-handoff-figures-20261028
+export PYTHONPATH=/tmp/quaffle-hq-handoff-figures-20261028${PYTHONPATH:+:$PYTHONPATH}
+/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python /tmp/quaffle-hq-handoff-figures-20261028/misc/generate_hq_campaign_scripts.py verify --manifest /home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/package/launch_manifest.json --manifest-sha256 d40f07f17d0f7e33b8e1367952cc4046e1683d31efeab5d0884166b1349d8ba7 --phase collect
+timeout --signal=TERM --kill-after=30s 60.0s /home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python /tmp/quaffle-hq-handoff-figures-20261028/scripts/collect_hq_dfc24_fresh.py --work-dir /home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/run --data-root /DEMO_NOT_A_DATASET --output-dir /home/bernalde/repos/QUAFFLE/results/hq_handoff_figures_20261028/launch_demo_v1/report
