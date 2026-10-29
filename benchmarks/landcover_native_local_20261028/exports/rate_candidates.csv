@@ -1,0 +1,3 @@
+control,seed,rate,best_miou,best_epoch,selected_common_rate
+compact_affine,42,0.001,0.4637443894588616,60,True
+compact_affine,42,0.003,0.442570103824823,60,False

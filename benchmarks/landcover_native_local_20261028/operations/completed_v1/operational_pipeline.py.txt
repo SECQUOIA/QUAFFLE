@@ -1,0 +1,145 @@
+"""Task-local execution record: wait for the live fit unit, then collect once.
+
+No fitting is launched here. All scientific stages use the merged, frozen CLI.
+This monitor has no GitHub writes and stops on any failed/incomplete prerequisite.
+"""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+import traceback
+
+TASK = Path('/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028')
+TREE = Path('/tmp/quaffle-landcover-native-20261028')
+PYTHON = '/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python'
+UNIT = 'quaffle-landcover-native-20261028-v1.scope'
+CAMPAIGN = TASK/'campaign_v1'
+REPLAY = TASK/'replay_v1'
+EXPORT_A, EXPORT_B = TASK/'export_a_v1', TASK/'export_b_v1'
+STATUS = TASK/'pipeline_status.json'
+PLAN_SHA = 'a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc'
+
+
+def read(path):
+    return json.loads(Path(path).read_text())
+
+
+def sha(path):
+    value = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024*1024), b''):
+            value.update(block)
+    return value.hexdigest()
+
+
+def record(value):
+    temporary = STATUS.with_suffix('.tmp')
+    temporary.write_text(json.dumps(value, sort_keys=True, indent=2)+'\n')
+    temporary.replace(STATUS)
+
+
+def files(root):
+    return {str(path.relative_to(root)): {'sha256': sha(path), 'mtime_ns': path.stat().st_mtime_ns}
+            for path in sorted(root.rglob('*')) if path.is_file()}
+
+
+def run_phase(label, argv):
+    record(dict(stage=label, started_unix=time.time(), plan_sha=PLAN_SHA,
+                training_unit=UNIT, argv=argv))
+    with (TASK/(label+'.log')).open('x') as output:
+        result = subprocess.run(argv, cwd=TREE, stdout=output, stderr=subprocess.STDOUT,
+                                env=os.environ.copy())
+    if result.returncode:
+        raise RuntimeError(f'{label} exited {result.returncode}; inspect its retained log')
+
+
+def main():
+    if STATUS.exists():
+        raise RuntimeError('A pipeline attempt exists; do not retry without diagnosis')
+    if sha(CAMPAIGN/'plan.json') != PLAN_SHA:
+        raise RuntimeError('Frozen plan changed')
+    plan = read(CAMPAIGN/'plan.json')
+    record(dict(stage='waiting_for_live_training_unit', training_unit=UNIT, plan_sha=PLAN_SHA))
+    transient = 0
+    while True:
+        observed = subprocess.run(['systemctl', '--user', 'show', UNIT, '-p', 'ActiveState', '--value'],
+                                  text=True, capture_output=True)
+        state = observed.stdout.strip()
+        if state in ('active', 'activating', 'deactivating'):
+            transient = 0
+            if time.time() > read(CAMPAIGN/'status.json')['deadline_unix']+120:
+                raise RuntimeError('Live training unit exceeded persisted campaign deadline')
+            time.sleep(15)
+            continue
+        if state in ('inactive', 'failed') or (observed.returncode in (1,4) and any(
+                text in observed.stderr.lower() for text in ('not found', 'could not be found'))):
+            break
+        transient += 1
+        if transient >= 3:
+            raise RuntimeError(f'Cannot establish training unit state: {observed.returncode}, {state}, {observed.stderr}')
+        time.sleep(15)
+    completed = read(CAMPAIGN/'status.json')
+    if not (completed['status'] == 'complete' and completed['fits'] == 13 and
+            completed['plan_sha'] == PLAN_SHA and sha(CAMPAIGN/'all_fits.json') == completed['all_fits_sha']):
+        raise RuntimeError('Training unit stopped without the complete frozen 13-fit grid')
+    for name, expected in plan['source'].items():
+        if sha(TREE/name) != expected:
+            raise RuntimeError('Frozen source changed: '+name)
+    remaining = int(completed['deadline_unix']-time.time())-60
+    if remaining < 120:
+        raise RuntimeError('Insufficient remaining campaign headroom for validation replay')
+    replay_budget = min(3600, remaining)
+    run_phase('validation_replay', [PYTHON, str(TREE/'scripts/collect_landcover_native.py'), 'replay',
+        '--campaign', str(CAMPAIGN), '--dataset', str(TASK/'dataset'), '--output', str(REPLAY),
+        '--device', 'cuda', '--budget-seconds', str(replay_budget)])
+    if time.time() >= completed['deadline_unix']:
+        raise RuntimeError('Validation replay exceeded campaign headroom')
+    for label, output in [('export_a', EXPORT_A), ('export_b', EXPORT_B)]:
+        run_phase(label, [PYTHON, str(TREE/'scripts/collect_landcover_native.py'), 'export',
+            '--campaign', str(CAMPAIGN), '--replay', str(REPLAY), '--output', str(output)])
+    a = {key: value['sha256'] for key, value in files(EXPORT_A).items()}
+    b = {key: value['sha256'] for key, value in files(EXPORT_B).items()}
+    if a != b:
+        raise RuntimeError('Repeated numerical/PDF/PNG exports are not byte-identical')
+    before_campaign, before_replay = files(CAMPAIGN), files(REPLAY)
+    # Reuse the actual parsed completed paths, with fitting/evaluation tripwires.
+    sys.path.insert(0, str(TREE))
+    from scripts import run_landcover_native as training
+    from scripts import collect_landcover_native as collection
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Completed-path check attempted fitting or inference')
+    training.fit = training.evaluate = forbidden
+    original_argv = sys.argv
+    try:
+        sys.argv = ['run_landcover_native.py', 'run', '--dataset', str(TASK/'dataset'),
+                    '--output', str(CAMPAIGN), '--device', 'cuda']
+        training.main()
+        collection.replay(str(CAMPAIGN), str(TASK/'dataset'), str(REPLAY), 'cuda', replay_budget)
+    finally:
+        sys.argv = original_argv
+    if before_campaign != files(CAMPAIGN) or before_replay != files(REPLAY):
+        raise RuntimeError('Completed-path checks changed campaign/replay bytes or mtimes')
+    verification = dict(plan_sha=PLAN_SHA, training_complete=True, fit_count=13,
+        selected_replays=12, test_predictions=0, export_whole_file_byte_equal=True,
+        export_file_sha256=a, completed_paths_no_fitting_or_inference=True,
+        campaign_bytes_and_mtimes_unchanged=True, replay_bytes_and_mtimes_unchanged=True,
+        replay_budget_seconds=replay_budget, within_campaign_deadline=time.time()<completed['deadline_unix'],
+        training_unit=UNIT, operational_source_sha256=sha(__file__), source=plan['source'])
+    (TASK/'pipeline_verification.json').write_text(json.dumps(verification, sort_keys=True, indent=2)+'\n')
+    record(dict(stage='complete', plan_sha=PLAN_SHA, verification_sha=sha(TASK/'pipeline_verification.json'),
+                scientific_results_review='pending Astra review; no GitHub writes performed'))
+    print('Frozen training, validation replay, deterministic exports and completed-path checks finished', flush=True)
+
+
+if __name__ == '__main__':
+    if STATUS.exists():
+        raise RuntimeError('Existing pipeline attempt preserved; explicit diagnosis required')
+    try:
+        main()
+    except BaseException:
+        record(dict(stage='failed', plan_sha=PLAN_SHA, error=traceback.format_exc(),
+                    automatic_fitting_retry=False))
+        raise

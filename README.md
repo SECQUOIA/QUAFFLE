@@ -114,6 +114,9 @@ It provides checksum-verified data preparation, an exact-model local resource
 profile, a frozen three-seed campaign and validation-only checkpoint collection.
 This capped native-dataset comparison is distinct from the binary DFC24 study
 and from an exact reproduction of the paper's reported test accuracy.
+The [completed native comparison](benchmarks/landcover_native_local_20261028/README.md)
+finds only +0.157 percentage points of mean quantum mIoU over affine, with
+unresolved training horizons and no convincing gain over the classical control.
 
 ```bash
 # Centralized

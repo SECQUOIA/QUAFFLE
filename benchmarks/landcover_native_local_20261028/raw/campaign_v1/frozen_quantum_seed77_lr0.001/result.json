@@ -1,0 +1,1436 @@
+{
+  "best_epoch": 55,
+  "best_miou": 0.45306197727994224,
+  "checkpoint_sha": "1260518d9bbcc82e6d8b3e2fb37293e912c645818d234ec4d163d470650f9dff",
+  "control": "frozen_quantum",
+  "core_change_l2": 0.0,
+  "counts": {
+    "bottleneck_total": 2165771,
+    "bottleneck_trainable": 2165763,
+    "core_total": 8,
+    "core_trainable": 0,
+    "total": 8154283,
+    "trainable": 8154275
+  },
+  "elapsed_seconds": 4526.608401771984,
+  "epochs": 60,
+  "final_state_sha": "c74fbe2a6f79cb75cfb1181f6eeafd6075528edc9024dcec0b86c9c2372ef0a6",
+  "first_gradients": {
+    "common_l2": 1.5961845116940157,
+    "core_l2": 0.0
+  },
+  "history": [
+    {
+      "elapsed_seconds": 49.9742157330038,
+      "epoch": 0,
+      "optimizer_steps": 0,
+      "train_loss": null,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.013025879859924316,
+        "class_iou": {
+          "Background": 0.0,
+          "Building": 0.0,
+          "Road": 0.013025879859924316,
+          "Water": 0.0,
+          "Woodland": 0.0
+        },
+        "confusion": [
+          [
+            0,
+            0,
+            0,
+            0,
+            10066429
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            136361
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            5731888
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            624000
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            218538
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.003256469964981079,
+        "loss": 1.278611186426133,
+        "miou": 0.002605175971984863,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          0,
+          0,
+          0,
+          0,
+          16777216
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 433.2934276860324,
+      "epoch": 5,
+      "optimizer_steps": 320,
+      "train_loss": 0.7574461447075009,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.7494984269142151,
+        "class_iou": {
+          "Background": 0.6658651660259903,
+          "Building": 0.0,
+          "Road": 0.07409193902773963,
+          "Water": 0.0014960564336833743,
+          "Woodland": 0.5998425386290975
+        },
+        "confusion": [
+          [
+            7578866,
+            0,
+            2145588,
+            291,
+            341684
+          ],
+          [
+            39065,
+            0,
+            85651,
+            4,
+            11641
+          ],
+          [
+            769793,
+            0,
+            4951534,
+            4,
+            10557
+          ],
+          [
+            430976,
+            0,
+            191950,
+            934,
+            140
+          ],
+          [
+            75720,
+            0,
+            99646,
+            9,
+            43163
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.1688576335226301,
+        "loss": 0.7535239129792899,
+        "miou": 0.2682591400233022,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          8894420,
+          0,
+          7474369,
+          1242,
+          407185
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 814.3687566849985,
+      "epoch": 10,
+      "optimizer_steps": 640,
+      "train_loss": 0.7376723545603454,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.7306302785873413,
+        "class_iou": {
+          "Background": 0.6743416038928479,
+          "Building": 0.0,
+          "Road": 0.13074743207925607,
+          "Water": 0.174537051443539,
+          "Woodland": 0.4583104681817271
+        },
+        "confusion": [
+          [
+            8915030,
+            0,
+            1104513,
+            10269,
+            36617
+          ],
+          [
+            98883,
+            0,
+            29423,
+            317,
+            7738
+          ],
+          [
+            2447881,
+            0,
+            3179489,
+            104177,
+            341
+          ],
+          [
+            473635,
+            0,
+            21347,
+            129004,
+            14
+          ],
+          [
+            133519,
+            0,
+            50242,
+            358,
+            34419
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.19089873792613055,
+        "loss": 0.7223828324349597,
+        "miou": 0.287587311119474,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          12068948,
+          0,
+          4385014,
+          244125,
+          79129
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 1195.9012908060104,
+      "epoch": 15,
+      "optimizer_steps": 960,
+      "train_loss": 0.7045982489362359,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.7653905153274536,
+        "class_iou": {
+          "Background": 0.6711055951172847,
+          "Building": 0.0,
+          "Road": 0.10205200232948511,
+          "Water": 0.1971619314752112,
+          "Woodland": 0.6220118780021915
+        },
+        "confusion": [
+          [
+            7381575,
+            0,
+            2458962,
+            216728,
+            9164
+          ],
+          [
+            49673,
+            0,
+            78547,
+            2372,
+            5769
+          ],
+          [
+            429012,
+            0,
+            5260969,
+            41852,
+            55
+          ],
+          [
+            374870,
+            0,
+            74382,
+            174746,
+            2
+          ],
+          [
+            79142,
+            0,
+            114209,
+            1355,
+            23832
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.23030645295172195,
+        "loss": 0.6893491019727662,
+        "miou": 0.31846628138483446,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          8314272,
+          0,
+          7987069,
+          437053,
+          38822
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 1568.5978562040254,
+      "epoch": 20,
+      "optimizer_steps": 1280,
+      "train_loss": 0.6643612058833241,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.7756812572479248,
+        "class_iou": {
+          "Background": 0.7028847817951667,
+          "Building": 0.008361681114890815,
+          "Road": 0.15921439101730256,
+          "Water": 0.37194756409175145,
+          "Woodland": 0.5907671528790117
+        },
+        "confusion": [
+          [
+            8532887,
+            129,
+            849507,
+            653059,
+            30847
+          ],
+          [
+            76585,
+            1143,
+            42497,
+            636,
+            15500
+          ],
+          [
+            1750820,
+            11,
+            3947987,
+            32738,
+            332
+          ],
+          [
+            121778,
+            0,
+            12690,
+            489528,
+            4
+          ],
+          [
+            124197,
+            194,
+            46232,
+            5688,
+            42227
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.28257269727573914,
+        "loss": 0.6859350358135998,
+        "miou": 0.36663511417962463,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          10606267,
+          1477,
+          4898913,
+          1181649,
+          88910
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 1939.8678127230378,
+      "epoch": 25,
+      "optimizer_steps": 1600,
+      "train_loss": 0.6579653969965875,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8121119737625122,
+        "class_iou": {
+          "Background": 0.7330642789421139,
+          "Building": 0.025080983057540016,
+          "Road": 0.10895254717660904,
+          "Water": 0.4397193296756616,
+          "Woodland": 0.6784584888471497
+        },
+        "confusion": [
+          [
+            7936019,
+            300,
+            1679047,
+            427950,
+            23113
+          ],
+          [
+            38201,
+            3430,
+            85845,
+            872,
+            8013
+          ],
+          [
+            527215,
+            15,
+            5187056,
+            17471,
+            131
+          ],
+          [
+            110017,
+            0,
+            42716,
+            471256,
+            11
+          ],
+          [
+            83954,
+            81,
+            105859,
+            1427,
+            27217
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.3130528371892401,
+        "loss": 0.6295694938162342,
+        "miou": 0.39705512553981487,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          8695406,
+          3826,
+          7100523,
+          918976,
+          58485
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 2312.542535428016,
+      "epoch": 30,
+      "optimizer_steps": 1920,
+      "train_loss": 0.6503600878641009,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8336058259010315,
+        "class_iou": {
+          "Background": 0.7630236953925333,
+          "Building": 0.021598777673027536,
+          "Road": 0.14090049960418016,
+          "Water": 0.4407724361560865,
+          "Woodland": 0.7180006785729693
+        },
+        "confusion": [
+          [
+            8421491,
+            12601,
+            1152705,
+            447944,
+            31688
+          ],
+          [
+            64329,
+            3322,
+            54643,
+            686,
+            13381
+          ],
+          [
+            670719,
+            941,
+            5042923,
+            16913,
+            392
+          ],
+          [
+            112978,
+            8,
+            30354,
+            480650,
+            10
+          ],
+          [
+            122543,
+            3894,
+            53973,
+            929,
+            37199
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.33031809800156586,
+        "loss": 0.6204594110604376,
+        "miou": 0.41685921747975935,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          9392060,
+          20766,
+          6334598,
+          947122,
+          82670
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 2683.5663930320297,
+      "epoch": 35,
+      "optimizer_steps": 2240,
+      "train_loss": 0.6460309363901615,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8331417441368103,
+        "class_iou": {
+          "Background": 0.7703504080613562,
+          "Building": 0.042028400866467114,
+          "Road": 0.14700982170448895,
+          "Water": 0.4213233163525363,
+          "Woodland": 0.7190135755219174
+        },
+        "confusion": [
+          [
+            8751696,
+            118262,
+            724729,
+            416726,
+            55016
+          ],
+          [
+            51943,
+            12398,
+            50873,
+            5,
+            21142
+          ],
+          [
+            980102,
+            15776,
+            4729365,
+            3845,
+            2800
+          ],
+          [
+            156085,
+            343,
+            26786,
+            440574,
+            212
+          ],
+          [
+            106110,
+            24249,
+            43298,
+            1115,
+            43766
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.33234377861135245,
+        "loss": 0.6235878644511104,
+        "miou": 0.41994510450135325,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          10045936,
+          171028,
+          5575051,
+          862265,
+          122936
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 3053.1611596400035,
+      "epoch": 40,
+      "optimizer_steps": 2560,
+      "train_loss": 0.6273719635792077,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8151097297668457,
+        "class_iou": {
+          "Background": 0.7345056734519698,
+          "Building": 0.0858045614227687,
+          "Road": 0.11527335112171357,
+          "Water": 0.42729800663949746,
+          "Woodland": 0.7061318462551863
+        },
+        "confusion": [
+          [
+            7855594,
+            105831,
+            1550467,
+            522945,
+            31592
+          ],
+          [
+            47472,
+            25011,
+            55786,
+            639,
+            7453
+          ],
+          [
+            427350,
+            8719,
+            5255966,
+            39263,
+            590
+          ],
+          [
+            75552,
+            418,
+            39047,
+            508935,
+            48
+          ],
+          [
+            78273,
+            40159,
+            66133,
+            4207,
+            29766
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.33362694135979154,
+        "loss": 0.627156889764592,
+        "miou": 0.41380268777822715,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          8484241,
+          180138,
+          6967399,
+          1075989,
+          69449
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 3416.732760068029,
+      "epoch": 45,
+      "optimizer_steps": 2880,
+      "train_loss": 0.6529980734921992,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8453291058540344,
+        "class_iou": {
+          "Background": 0.7828690611400342,
+          "Building": 0.040488422928588334,
+          "Road": 0.1925890788876343,
+          "Water": 0.40747539760872153,
+          "Woodland": 0.7504835668598536
+        },
+        "confusion": [
+          [
+            8804980,
+            3759,
+            577057,
+            587928,
+            92705
+          ],
+          [
+            69753,
+            5816,
+            30548,
+            2529,
+            27715
+          ],
+          [
+            904568,
+            775,
+            4798318,
+            23766,
+            4461
+          ],
+          [
+            100538,
+            10,
+            16267,
+            506976,
+            209
+          ],
+          [
+            105778,
+            2741,
+            37875,
+            5965,
+            66179
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.34775911657119946,
+        "loss": 0.6005896113347262,
+        "miou": 0.43478110548496635,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          9985617,
+          13101,
+          5460065,
+          1127164,
+          191269
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 3789.396265421994,
+      "epoch": 50,
+      "optimizer_steps": 3200,
+      "train_loss": 0.6007437016814947,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8492685556411743,
+        "class_iou": {
+          "Background": 0.7850301315219406,
+          "Building": 0.050268249529136465,
+          "Road": 0.16646769808300096,
+          "Water": 0.4442487944953134,
+          "Woodland": 0.7479193586088517
+        },
+        "confusion": [
+          [
+            8706412,
+            1440,
+            840130,
+            464596,
+            53851
+          ],
+          [
+            78772,
+            7046,
+            33327,
+            968,
+            16248
+          ],
+          [
+            720371,
+            49,
+            4994687,
+            15602,
+            1179
+          ],
+          [
+            105195,
+            0,
+            26823,
+            491970,
+            12
+          ],
+          [
+            119778,
+            2318,
+            45941,
+            2254,
+            48247
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.3522260251790756,
+        "loss": 0.5960079950746149,
+        "miou": 0.43878684644764865,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          9730528,
+          10853,
+          5940908,
+          975390,
+          119537
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 4159.647719393019,
+      "epoch": 55,
+      "optimizer_steps": 3520,
+      "train_loss": 0.5673282518982887,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8610727190971375,
+        "class_iou": {
+          "Background": 0.8031550679978489,
+          "Building": 0.061787562409381276,
+          "Road": 0.16595417734793755,
+          "Water": 0.4719094131808256,
+          "Woodland": 0.7625036654637182
+        },
+        "confusion": [
+          [
+            8982924,
+            16831,
+            630953,
+            398862,
+            36859
+          ],
+          [
+            78471,
+            10185,
+            29620,
+            276,
+            17809
+          ],
+          [
+            802863,
+            643,
+            4922363,
+            4675,
+            1344
+          ],
+          [
+            115664,
+            35,
+            22871,
+            485356,
+            74
+          ],
+          [
+            121118,
+            10969,
+            40195,
+            681,
+            45575
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.36553870460046567,
+        "loss": 0.5768229115055874,
+        "miou": 0.45306197727994224,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          10101040,
+          38663,
+          5646002,
+          889850,
+          101661
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    },
+    {
+      "elapsed_seconds": 4526.536285743001,
+      "epoch": 60,
+      "optimizer_steps": 3840,
+      "train_loss": 0.6009653774090111,
+      "validation": {
+        "absent_union": [],
+        "accuracy": 0.8260354995727539,
+        "class_iou": {
+          "Background": 0.7623354858773356,
+          "Building": 0.05781104150968859,
+          "Road": 0.13518583784895077,
+          "Water": 0.37412174864614606,
+          "Woodland": 0.715387258597137
+        },
+        "confusion": [
+          [
+            8604210,
+            33684,
+            710065,
+            683149,
+            35321
+          ],
+          [
+            67323,
+            10281,
+            36784,
+            4586,
+            17387
+          ],
+          [
+            945142,
+            395,
+            4673929,
+            111289,
+            1133
+          ],
+          [
+            80644,
+            4,
+            10010,
+            533333,
+            9
+          ],
+          [
+            127107,
+            7394,
+            44678,
+            2536,
+            36823
+          ]
+        ],
+        "examples": 1024,
+        "foreground_miou": 0.32062647165048064,
+        "loss": 0.6212512123165652,
+        "miou": 0.4089682744958516,
+        "pixels": 16777216,
+        "prediction_pixels": [
+          9824426,
+          51758,
+          5475466,
+          1334893,
+          90673
+        ],
+        "truth_pixels": [
+          10066429,
+          136361,
+          5731888,
+          624000,
+          218538
+        ]
+      }
+    }
+  ],
+  "history_sha": "e93186a8f37ba7e6c03e85609ef6628f71f6c6808633c482ffd12d7412586b5e",
+  "initial_common_sha": "b94ef1a841fc48088394908fa71cec30f6f645ee5b23e4956fb8ed17abfae782",
+  "model_config": {
+    "base_channels": 64,
+    "circuit_edge_order": "brickwork",
+    "control": "frozen_quantum",
+    "format": "hq-landcover-native-v1",
+    "image_size": 128,
+    "in_channels": 3,
+    "out_channels": 5,
+    "seed": 77
+  },
+  "optimizer_steps": 3840,
+  "peak_cuda_allocated": 683457024,
+  "plan_sha": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc",
+  "rate": 0.001,
+  "schedule_hashes": [
+    "d2d8acbd9b65577184ddd41d1c8e902cd0152523f5f13ae78b8fb050e8299c06",
+    "fc43fddd9c6fafbd25cfac7b012b04e1fba4c7201b72e5fbfdbad487d1f41f59",
+    "ef124b3e3b1f246f6552c1e01695fd69c68ea7bb8ea8cea9d4dcb08d862802ff",
+    "34ae469a999733910a42cc3e984773749c3e059809f20bcef409e90acbb0feb4",
+    "9cb953cb75f525d9b1c5c6468367cf803e1c83ae2ce299581c2435eb951c127d",
+    "43613c801f1be9874a5724b69921696c5fbb04307fd1d442d7ec72e848544921",
+    "acbb6ec5e628cab7f6740ffdb5e69b0f0de43652887e80e1242c9a1ca976dff7",
+    "7f3d7d0e6e5c35387818538340ac58db15369dc910929c71a3ebf810ef21d020",
+    "90dc347883e36a71017efd9e6dc64b0fe01750fb3212c995b0f7d12cfa4eafeb",
+    "2045f566b17d1428c1421cb1d0d828f939e99c4ec5c7e2608bf5e528e2dac8ef",
+    "8553905fa04454e5c3e53e888076c0d0cf4af7d035c7591d847064760967023d",
+    "67048be9308bd5c764f95152bdb6c95d076683a8f5f8ec2692ae9df5d609ea43",
+    "ed4b7f2421c10e600ec8277ba9b0d653c9337e2b2d7e765ce79a5b259ce6bed0",
+    "8dfb64dfaf1b3757f9a18c91f1343afef2c76b03e6b9e457b8f9dac920dfa5a7",
+    "19a03ae4f0c4628002dd965366f80d9a06881c238f97423da6e84f95d38ec818",
+    "1f20deede39827b7e23e242de984d2df86ae883c8b55d610257fe5e02bd5f5b9",
+    "87a32fd54eaba0dd6a9bb893e8f4fa0e1656ea281ee1e5fefc212f69138cda40",
+    "3f2d5f7ed0affffc0e84e208a4f11ceb574d2cf5a9bb99b5c1533cab3cf0a622",
+    "6a7c66788f68b80bd972558f41ba8558761596d821f00cf6cd6de0085c2de4fc",
+    "8ace4b5c107ad941da84148fab4550d11e6b4eb3eef6f8d159b7ef4edfaa8222",
+    "404dedf4bdf110411c6abf560390af726c4094411f6350b69e065aaf4664efa6",
+    "ff91c3b2d315407f25958eb9f0ad9c4e5b48487594e562c44692075a378d21c5",
+    "87da453981bd6ec32ea96d0307da2516a1994db36661e8584e1b6e1cdbde580f",
+    "350f7a2f4e941e3f0ba4ae387df15097a50fd065be1f1a50de84d5cf7b15fb1c",
+    "29d8ea25b224ea2c4e52b65444029b18e6417f6dfc34ba6ae4c44c5695521d06",
+    "fff7f6f13e66f212dbb913e7699d94013fcc905846aeace49a3ddad394c3a4aa",
+    "670fe6bc6aa555cd9f47d740efaf5707242d2c4db0d2a8e08489efc4f95aa1fb",
+    "bc30f27620e1ec6a63ed86349e9c5164545550d6edf96d6061f36f805b09a5a8",
+    "660f5dd79d3ec12b4a89ccf1655ba3d6ff5b4e725cafa6840a3f7ecb3b8a25d4",
+    "60ccbc25e5ffc67a53f6f94ba2c4253322e38dc07e2300d12514f486ce31f63f",
+    "7e75fe6981d9c3811ebaa984e9cff9e130e059f242037820e139e5e64c7d80cd",
+    "4ca3e60baf87b124e8fabafff8eba5531c7c39b430698ad8cc02146371585b2e",
+    "e1e173ac03493dcaedf8f50af96241fa3109c7dc43ecbc0137b32772dc82f046",
+    "21eb5e124eca09ed8f4222be2d8bc05535f54503103394446184ba89bbf86343",
+    "4efaa666045e0d0d82489d672f90bec82265976273abadb06a6ae4518d9207c6",
+    "c038eb93428162c6489ac88b7b60f126989f38e054fa3969743b5f4566bd501e",
+    "5b60be16cc94ee0028deaed9481938a93ef2135d3eb25f838c0d4b39bae47f04",
+    "b699f797969761cd4b89a2ed69cc6593f8293c4fcbb85bd573fff8dd409ee20e",
+    "cef4f95282e52f52f689771a3b3a91275b1744717e063f85c56e5544ff6aaf4b",
+    "7f1f61aae4873e24b2e3c3f4a8a36c05d05096fdfad923f9d9de8ae2d8b36846",
+    "4d1ed20687e35dc843a8d1f2b4ea8dfc8023954b23e2c24262959277d2f5349f",
+    "9e39124e68c727df9f4825285ff0ed80d1d7df273fc44326dd25d3d943185fe8",
+    "b9ce17324c121bc5f5d461d59438853b53a0d8624cf1b91789f2759c7ccddf0e",
+    "7dcf4517b4c13a3a9342ce1fa23b97d0d5a8730e24f6ba6015469a3fa339fc55",
+    "a4f69a060e70cf9900e606ed47b88f6e9f8559adccfa237b40106333c34fc332",
+    "bd0e2da23f5da52c0b432f4aa44f44d897e8f2069d353b45774d391bfefc7ac0",
+    "719c8e80a1d1b727edaeafab6a6ae311afae0530c87fee67eb921c365e748ae9",
+    "4f533584f3b90367e068c0d69aa0eceed7d3edaa8bd5beda6793ac05f425598c",
+    "55616f40c62ba7043a6e8641b77dfa57df6ba4c58097d016bb7ec960acd5cc5f",
+    "63935904c2a30f983b49fef7fd7a3c77ba51711a5bdffe4b2348951290896df2",
+    "d092fd0fe50cd5dd3551af3652c8393c295632107315a397aa1871d131904b04",
+    "31755872f63984ab3a92d23657e7024c2fc6617af8ac877786f3a9509c8c0b08",
+    "8077bc7c24c4a6313a88a559fac883145f5e148d9447fe7522760874954ceba9",
+    "b8a216865e7862e11a9ec7936fda0722eaba0a1843ec33b71a52df4f70d4995b",
+    "ff5c7dcc7c696fa1ebbede96fc88a9d5e86a546b201aa86244ba19e8fadb19ea",
+    "4e6d98e6efe0462f1adf0d7b99191ea33c1c36af0c49bb046d4510fe9817ba73",
+    "72b8831f9bf04a12150667b8dc81258f62d199949bae347b1ae8dbacfe3df981",
+    "df843689dbafb83583c8221734bf44cac035ee181e5023de8fb87f725322e4c9",
+    "e6e500a79f6f50cef940c92e2f8fe44e5d7314ca9d1965cc2989b72a834b7830",
+    "0553d458c9c992ca9b3c68b0398401e228fb08a3d5e36c5ac5cb80df728092b2"
+  ],
+  "seed": 77,
+  "source": {
+    "docs/LANDCOVER_NATIVE_PROTOCOL.md": "afcb8708829b9a7c63b513cf832ddd203389fecd31dba54c4a528b8e186113f6",
+    "scripts/collect_landcover_native.py": "ea1f89beddb3179697955c87421d6f514b6648da9b72e22f940488f24d96c06c",
+    "scripts/prepare_landcover_native.py": "6c18178eef61b66d391dca359ca9aef699dcd03f6163f7aa1ba72acc8fffecce",
+    "scripts/run_landcover_native.py": "f00990836b025b47976041ef3f5504b102e7a6cdb574b2baac59a049f4270085",
+    "tools/landcover_data.py": "897ea17534d3e717d0477aff426e1833c044b2da3df5a490782b9a4e1505b2ac",
+    "tools/landcover_metrics.py": "af5f60f336401e63c8f8264d0e201b5cdcd75fc82633cefe51ca6244fa1cc56a",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "utilsTorch/hq_landcover.py": "c262aaeaac6d9b56e949fcf0a24c722eab2f85e33dc098eaa15b57a7e696a133",
+    "utilsTorch/landcover_circuit.py": "e0d05a66a7633ff87516fdc862c997ee1a18ba1aa95e69d69b3dbaec7b9f02ae",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+  },
+  "status": "complete",
+  "training_history": [
+    {
+      "elapsed_seconds": 50.03512001701165,
+      "epoch": 0,
+      "optimizer_steps": 0,
+      "train_loss": null
+    },
+    {
+      "elapsed_seconds": 118.55073484702734,
+      "epoch": 1,
+      "optimizer_steps": 64,
+      "train_loss": 0.9808101253584027
+    },
+    {
+      "elapsed_seconds": 185.84406161500374,
+      "epoch": 2,
+      "optimizer_steps": 128,
+      "train_loss": 0.8277661837637424
+    },
+    {
+      "elapsed_seconds": 251.72457393002696,
+      "epoch": 3,
+      "optimizer_steps": 192,
+      "train_loss": 0.776476202532649
+    },
+    {
+      "elapsed_seconds": 318.862004463037,
+      "epoch": 4,
+      "optimizer_steps": 256,
+      "train_loss": 0.7629510685801506
+    },
+    {
+      "elapsed_seconds": 433.36297654302325,
+      "epoch": 5,
+      "optimizer_steps": 320,
+      "train_loss": 0.7574461447075009
+    },
+    {
+      "elapsed_seconds": 500.5667748010019,
+      "epoch": 6,
+      "optimizer_steps": 384,
+      "train_loss": 0.743836110457778
+    },
+    {
+      "elapsed_seconds": 568.570028978982,
+      "epoch": 7,
+      "optimizer_steps": 448,
+      "train_loss": 0.7590928175486624
+    },
+    {
+      "elapsed_seconds": 635.3592888719868,
+      "epoch": 8,
+      "optimizer_steps": 512,
+      "train_loss": 0.7572833793237805
+    },
+    {
+      "elapsed_seconds": 701.915887487994,
+      "epoch": 9,
+      "optimizer_steps": 576,
+      "train_loss": 0.7385635380633175
+    },
+    {
+      "elapsed_seconds": 814.4318604650325,
+      "epoch": 10,
+      "optimizer_steps": 640,
+      "train_loss": 0.7376723545603454
+    },
+    {
+      "elapsed_seconds": 880.9682732910151,
+      "epoch": 11,
+      "optimizer_steps": 704,
+      "train_loss": 0.7124495883472264
+    },
+    {
+      "elapsed_seconds": 945.6092646690086,
+      "epoch": 12,
+      "optimizer_steps": 768,
+      "train_loss": 0.7287462716922164
+    },
+    {
+      "elapsed_seconds": 1013.4893551130081,
+      "epoch": 13,
+      "optimizer_steps": 832,
+      "train_loss": 0.6915166266262531
+    },
+    {
+      "elapsed_seconds": 1081.8392092750291,
+      "epoch": 14,
+      "optimizer_steps": 896,
+      "train_loss": 0.7251735627651215
+    },
+    {
+      "elapsed_seconds": 1195.9716065200046,
+      "epoch": 15,
+      "optimizer_steps": 960,
+      "train_loss": 0.7045982489362359
+    },
+    {
+      "elapsed_seconds": 1260.7884048679844,
+      "epoch": 16,
+      "optimizer_steps": 1024,
+      "train_loss": 0.6726022283546627
+    },
+    {
+      "elapsed_seconds": 1326.288904043031,
+      "epoch": 17,
+      "optimizer_steps": 1088,
+      "train_loss": 0.6768936547450721
+    },
+    {
+      "elapsed_seconds": 1392.845844703028,
+      "epoch": 18,
+      "optimizer_steps": 1152,
+      "train_loss": 0.6586318975314498
+    },
+    {
+      "elapsed_seconds": 1459.0172994880122,
+      "epoch": 19,
+      "optimizer_steps": 1216,
+      "train_loss": 0.7121902569197118
+    },
+    {
+      "elapsed_seconds": 1568.6709147340152,
+      "epoch": 20,
+      "optimizer_steps": 1280,
+      "train_loss": 0.6643612058833241
+    },
+    {
+      "elapsed_seconds": 1633.4402767220163,
+      "epoch": 21,
+      "optimizer_steps": 1344,
+      "train_loss": 0.7259462266229093
+    },
+    {
+      "elapsed_seconds": 1699.4187456530053,
+      "epoch": 22,
+      "optimizer_steps": 1408,
+      "train_loss": 0.6674254136160016
+    },
+    {
+      "elapsed_seconds": 1764.316124495992,
+      "epoch": 23,
+      "optimizer_steps": 1472,
+      "train_loss": 0.669404739048332
+    },
+    {
+      "elapsed_seconds": 1828.7206211999874,
+      "epoch": 24,
+      "optimizer_steps": 1536,
+      "train_loss": 0.6680341814644635
+    },
+    {
+      "elapsed_seconds": 1939.9333654619986,
+      "epoch": 25,
+      "optimizer_steps": 1600,
+      "train_loss": 0.6579653969965875
+    },
+    {
+      "elapsed_seconds": 2006.194663960021,
+      "epoch": 26,
+      "optimizer_steps": 1664,
+      "train_loss": 0.669272867962718
+    },
+    {
+      "elapsed_seconds": 2070.5101879329886,
+      "epoch": 27,
+      "optimizer_steps": 1728,
+      "train_loss": 0.6968310298398137
+    },
+    {
+      "elapsed_seconds": 2135.4584539110074,
+      "epoch": 28,
+      "optimizer_steps": 1792,
+      "train_loss": 0.6455200067721307
+    },
+    {
+      "elapsed_seconds": 2200.8907146219863,
+      "epoch": 29,
+      "optimizer_steps": 1856,
+      "train_loss": 0.6410420876927674
+    },
+    {
+      "elapsed_seconds": 2312.6038763769902,
+      "epoch": 30,
+      "optimizer_steps": 1920,
+      "train_loss": 0.6503600878641009
+    },
+    {
+      "elapsed_seconds": 2377.8320375719923,
+      "epoch": 31,
+      "optimizer_steps": 1984,
+      "train_loss": 0.6922644190490246
+    },
+    {
+      "elapsed_seconds": 2442.059929840034,
+      "epoch": 32,
+      "optimizer_steps": 2048,
+      "train_loss": 0.6565943360328674
+    },
+    {
+      "elapsed_seconds": 2506.0343633859884,
+      "epoch": 33,
+      "optimizer_steps": 2112,
+      "train_loss": 0.6414349558763206
+    },
+    {
+      "elapsed_seconds": 2570.0327365190024,
+      "epoch": 34,
+      "optimizer_steps": 2176,
+      "train_loss": 0.6172073860652745
+    },
+    {
+      "elapsed_seconds": 2683.638261604996,
+      "epoch": 35,
+      "optimizer_steps": 2240,
+      "train_loss": 0.6460309363901615
+    },
+    {
+      "elapsed_seconds": 2749.050805251987,
+      "epoch": 36,
+      "optimizer_steps": 2304,
+      "train_loss": 0.6034437655471265
+    },
+    {
+      "elapsed_seconds": 2817.5053453529836,
+      "epoch": 37,
+      "optimizer_steps": 2368,
+      "train_loss": 0.6349859517067671
+    },
+    {
+      "elapsed_seconds": 2880.128961343027,
+      "epoch": 38,
+      "optimizer_steps": 2432,
+      "train_loss": 0.6065233969129622
+    },
+    {
+      "elapsed_seconds": 2943.5151079419884,
+      "epoch": 39,
+      "optimizer_steps": 2496,
+      "train_loss": 0.6407071715220809
+    },
+    {
+      "elapsed_seconds": 3053.1623469900223,
+      "epoch": 40,
+      "optimizer_steps": 2560,
+      "train_loss": 0.6273719635792077
+    },
+    {
+      "elapsed_seconds": 3117.353791976988,
+      "epoch": 41,
+      "optimizer_steps": 2624,
+      "train_loss": 0.6338730393908918
+    },
+    {
+      "elapsed_seconds": 3181.137606912991,
+      "epoch": 42,
+      "optimizer_steps": 2688,
+      "train_loss": 0.5880154380574822
+    },
+    {
+      "elapsed_seconds": 3244.2062861140002,
+      "epoch": 43,
+      "optimizer_steps": 2752,
+      "train_loss": 0.6665725028142333
+    },
+    {
+      "elapsed_seconds": 3308.2095825430006,
+      "epoch": 44,
+      "optimizer_steps": 2816,
+      "train_loss": 0.6116165025159717
+    },
+    {
+      "elapsed_seconds": 3416.801834843005,
+      "epoch": 45,
+      "optimizer_steps": 2880,
+      "train_loss": 0.6529980734921992
+    },
+    {
+      "elapsed_seconds": 3481.0847475320334,
+      "epoch": 46,
+      "optimizer_steps": 2944,
+      "train_loss": 0.6037596622481942
+    },
+    {
+      "elapsed_seconds": 3544.2062800130225,
+      "epoch": 47,
+      "optimizer_steps": 3008,
+      "train_loss": 0.5904759438708425
+    },
+    {
+      "elapsed_seconds": 3607.660494339012,
+      "epoch": 48,
+      "optimizer_steps": 3072,
+      "train_loss": 0.657098900526762
+    },
+    {
+      "elapsed_seconds": 3674.7551536399988,
+      "epoch": 49,
+      "optimizer_steps": 3136,
+      "train_loss": 0.5999664207920432
+    },
+    {
+      "elapsed_seconds": 3789.468655634031,
+      "epoch": 50,
+      "optimizer_steps": 3200,
+      "train_loss": 0.6007437016814947
+    },
+    {
+      "elapsed_seconds": 3856.0163859290187,
+      "epoch": 51,
+      "optimizer_steps": 3264,
+      "train_loss": 0.6113798175938427
+    },
+    {
+      "elapsed_seconds": 3921.303209403006,
+      "epoch": 52,
+      "optimizer_steps": 3328,
+      "train_loss": 0.5996360504068434
+    },
+    {
+      "elapsed_seconds": 3986.3824788029888,
+      "epoch": 53,
+      "optimizer_steps": 3392,
+      "train_loss": 0.5978919719345868
+    },
+    {
+      "elapsed_seconds": 4051.6639848049963,
+      "epoch": 54,
+      "optimizer_steps": 3456,
+      "train_loss": 0.5931048383936286
+    },
+    {
+      "elapsed_seconds": 4159.7152876930195,
+      "epoch": 55,
+      "optimizer_steps": 3520,
+      "train_loss": 0.5673282518982887
+    },
+    {
+      "elapsed_seconds": 4222.979174145032,
+      "epoch": 56,
+      "optimizer_steps": 3584,
+      "train_loss": 0.6199271525256336
+    },
+    {
+      "elapsed_seconds": 4286.401601625024,
+      "epoch": 57,
+      "optimizer_steps": 3648,
+      "train_loss": 0.6208892595022917
+    },
+    {
+      "elapsed_seconds": 4349.883643915993,
+      "epoch": 58,
+      "optimizer_steps": 3712,
+      "train_loss": 0.5816379906609654
+    },
+    {
+      "elapsed_seconds": 4414.348021833983,
+      "epoch": 59,
+      "optimizer_steps": 3776,
+      "train_loss": 0.5999331995844841
+    },
+    {
+      "elapsed_seconds": 4526.537818821031,
+      "epoch": 60,
+      "optimizer_steps": 3840,
+      "train_loss": 0.6009653774090111
+    }
+  ],
+  "training_history_sha": "aa217fcf5148cf9f3c0668a4a10e55a65d89972ac0c62944d0f4b420672718e0"
+}

@@ -1,0 +1,19 @@
+{
+  "candidates": [
+    {
+      "best_epoch": 60,
+      "best_miou": 0.4637443894588616,
+      "checkpoint_sha": "539c22e52c1d9b6f469edc2e2d4671753af9dd4f4b8191d7ff09d3e4c6336f9f",
+      "rate": 0.001
+    },
+    {
+      "best_epoch": 60,
+      "best_miou": 0.442570103824823,
+      "checkpoint_sha": "54c6025d34852441c6ddfba5af72d82c0ea819564ee221f1a3d08b940234c2ae",
+      "rate": 0.003
+    }
+  ],
+  "plan_sha": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc",
+  "rate": 0.001,
+  "source": "seed42 compact_affine validation only"
+}

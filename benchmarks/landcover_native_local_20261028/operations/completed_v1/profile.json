@@ -1,0 +1,142 @@
+{
+  "actual_optimizer_steps": 3,
+  "arms": {
+    "compact_affine": {
+      "core_change_l2": 0.06433626286875178,
+      "counts": {
+        "bottleneck_total": 2167331,
+        "bottleneck_trainable": 2167331,
+        "core_total": 1568,
+        "core_trainable": 1568,
+        "total": 8155843,
+        "trainable": 8155843
+      },
+      "eval_batch_seconds": 0.023745655023958534,
+      "finite_output": true,
+      "gradients": {
+        "common_l2": 0.1333791851122209,
+        "core_l2": 0.0008606927294705749
+      },
+      "initial_common_sha": "c98bd6ee41eeca5e57a05fae2e9fc73a93c4d0f2b051ac61a7c77d810f48b06d",
+      "peak_cuda_allocated": 683477504,
+      "peak_cuda_reserved": 775946240,
+      "step_seconds": [
+        0.10310424404451624,
+        0.09604325098916888
+      ],
+      "warmup_seconds": 1.3871356869931333
+    },
+    "frozen_quantum": {
+      "core_change_l2": 0.0,
+      "counts": {
+        "bottleneck_total": 2165771,
+        "bottleneck_trainable": 2165763,
+        "core_total": 8,
+        "core_trainable": 0,
+        "total": 8154283,
+        "trainable": 8154275
+      },
+      "eval_batch_seconds": 0.1159715719986707,
+      "finite_output": true,
+      "gradients": {
+        "common_l2": 0.13263027375628997,
+        "core_l2": 0.0
+      },
+      "initial_common_sha": "c98bd6ee41eeca5e57a05fae2e9fc73a93c4d0f2b051ac61a7c77d810f48b06d",
+      "peak_cuda_allocated": 683457024,
+      "peak_cuda_reserved": 796917760,
+      "step_seconds": [
+        1.067910645972006,
+        0.8553903619758785
+      ],
+      "warmup_seconds": 0.9124298950191587
+    },
+    "quantum": {
+      "core_change_l2": 0.003179866836090958,
+      "counts": {
+        "bottleneck_total": 2165771,
+        "bottleneck_trainable": 2165771,
+        "core_total": 8,
+        "core_trainable": 8,
+        "total": 8154283,
+        "trainable": 8154283
+      },
+      "eval_batch_seconds": 0.12478612997801974,
+      "finite_output": true,
+      "gradients": {
+        "common_l2": 0.13263487730462953,
+        "core_l2": 0.0003062572099914173
+      },
+      "initial_common_sha": "c98bd6ee41eeca5e57a05fae2e9fc73a93c4d0f2b051ac61a7c77d810f48b06d",
+      "peak_cuda_allocated": 683458048,
+      "peak_cuda_reserved": 796917760,
+      "step_seconds": [
+        1.264445448992774,
+        0.8933914069784805
+      ],
+      "warmup_seconds": 2.3312109119724482
+    },
+    "zero_bottleneck": {
+      "core_change_l2": 0.0,
+      "counts": {
+        "bottleneck_total": 2165771,
+        "bottleneck_trainable": 0,
+        "core_total": 8,
+        "core_trainable": 0,
+        "total": 8154283,
+        "trainable": 5988512
+      },
+      "eval_batch_seconds": 0.014544038043823093,
+      "finite_output": true,
+      "gradients": {
+        "common_l2": 0.13257602649123024,
+        "core_l2": 0.0
+      },
+      "initial_common_sha": "c98bd6ee41eeca5e57a05fae2e9fc73a93c4d0f2b051ac61a7c77d810f48b06d",
+      "peak_cuda_allocated": 645783552,
+      "peak_cuda_reserved": 754974720,
+      "step_seconds": [
+        0.07861724897520617,
+        0.08033799700206146
+      ],
+      "warmup_seconds": 0.09989421803038567
+    }
+  },
+  "base_channels": 64,
+  "batch_size": 4,
+  "elapsed_seconds": 10.790756429021712,
+  "format": "landcover-native-profile-v1",
+  "runtime": {
+    "cuda": "12.1",
+    "device": "cuda:0",
+    "executable": "/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python",
+    "gpu": "NVIDIA RTX A1000",
+    "gpu_fraction": 0.12,
+    "packages": {
+      "Pillow": "13.0.0",
+      "numpy": "2.4.6",
+      "pennylane": "0.44.1",
+      "rasterio": "1.4.3",
+      "torch": "2.5.1"
+    },
+    "python": "3.11.14 (main, Oct 21 2025, 18:31:21) [GCC 11.2.0]",
+    "threads": 2
+  },
+  "source": {
+    "docs/LANDCOVER_NATIVE_PROTOCOL.md": "afcb8708829b9a7c63b513cf832ddd203389fecd31dba54c4a528b8e186113f6",
+    "scripts/collect_landcover_native.py": "ea1f89beddb3179697955c87421d6f514b6648da9b72e22f940488f24d96c06c",
+    "scripts/prepare_landcover_native.py": "6c18178eef61b66d391dca359ca9aef699dcd03f6163f7aa1ba72acc8fffecce",
+    "scripts/run_landcover_native.py": "f00990836b025b47976041ef3f5504b102e7a6cdb574b2baac59a049f4270085",
+    "tools/landcover_data.py": "897ea17534d3e717d0477aff426e1833c044b2da3df5a490782b9a4e1505b2ac",
+    "tools/landcover_metrics.py": "af5f60f336401e63c8f8264d0e201b5cdcd75fc82633cefe51ca6244fa1cc56a",
+    "utilsTorch/__init__.py": "13e7484e190b4b8e7a55d86c5076bc10909ef63d3e4efc9e11d60ca79f6b7db1",
+    "utilsTorch/hq_direction.py": "27c6c29f1e3c4bf9431c7b32924cf8fdf4c5cc3901cbc693182c7595f62a1a38",
+    "utilsTorch/hq_landcover.py": "c262aaeaac6d9b56e949fcf0a24c722eab2f85e33dc098eaa15b57a7e696a133",
+    "utilsTorch/landcover_circuit.py": "e0d05a66a7633ff87516fdc862c997ee1a18ba1aa95e69d69b3dbaec7b9f02ae",
+    "utilsTorch/unetTorch.py": "db134f731ef7ae09cce6fe1c9acfa08dff5cf9df5d3267cb55e44dbb4f68bacb",
+    "utilsTorch/utilsTorch.py": "d4527e4b73664d6e3beca23565f6d47d49a2e3e7e898caaa4f580162640b0b10"
+  },
+  "status": "passed",
+  "steps": 2,
+  "warmup_steps": 1
+}
