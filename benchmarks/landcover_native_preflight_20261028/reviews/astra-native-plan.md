@@ -1,0 +1,58 @@
+# Astra independent native LandCover.ai plan assessment
+
+Inspected repository base `bf8947ec90adc9857d1027c48bda98692c8a8013`, the HQ direction/control models, quantum edge scheduler, DFC24 execution/decision protocols, and HQ-UNet arXiv:2604.27206v1 (including a direct visual inspection of PDF page 3). This is planning advice, not implementation acceptance or a formal PR review. No training, dataset download, source edit or remote write was performed.
+
+**Recommendation:** run a bounded native-data study. It is scientifically useful because the existing DFC24 results concern a binary adaptation. They neither reproduce nor refute the native-dataset claim. Do not describe the new study as an exact reproduction: the paper does not supply a recoverable complete training/evaluation recipe.
+
+## Fidelity decisions required before fitting
+
+1. **Do not replace already-depthwise convolutions.** `utilsTorch/hq_direction.py` already implements depthwise 3x3 plus pointwise 1x1 DoubleConv blocks, BN/ReLU, transposed-convolution upsampling and ordinary skips.
+2. **Correct the known capacity/depth differences in a new native model.** Figure 1 specifies channels 64,128,256,512,1024 and explicitly draws a fourth MaxPool+convolution block before pre-Q. The current base-eight model has only three convolutional down blocks; its fourth pooling operation is inside the bottleneck. Start with base64 and an explicit fourth depthwise DoubleConv, then adaptive pooling to4x4, three-channel tanh projection and dense32→1024x8x8 reconstruction. Preserve the historical classes, checkpoint contracts and source identities. Profile this actual native architecture before considering a smaller variant.
+3. **Record the paper's internal architectural ambiguity.** Its prose describes replacing the deepest classical block, whereas Figure1 retains that block before the quantum module; skip arrows are not fully shape-consistent. Prefer an explicitly documented Figure1-based encoder with conventional shape-compatible skips from128,64,32,16 resolution. Do not invent an additional residual path around the quantum module. This resolves an ambiguity; it is not evidence of the authors' exact code.
+4. **Audit quantum gate order, not just qubit count.** Figure2 visually places horizontal pairs(1,2) and(3,4) before(2,3). Existing `hqunet_grid_edges` uses(1,2),(2,3),(3,4). Gates sharing a wire need not commute. Check both horizontal and vertical diagram ordering and retain an explicit ordered edge list and independent circuit-output/gradient parity fixture for the chosen native interpretation. Do not silently rewrite the historical circuit or call it exact to the diagram. Preserve16qubits, RX/RY/RZ input encoding, shared row/column filters, X/Z outputs and the full reconstruction. Direct tanh radians versus additional angle scaling is an assumption to state, not a tuning dimension to explore after results.
+5. **Five-class plumbing must be real.** The native factory, config, checkpoint restore, loss, mask loader, confusion matrix and collector must support labels0–4. The current control factory hardcodes two output classes; replacing only its head is an incomplete saved-model contract. Use a distinct native format/version with full architecture metadata.
+
+The architecture/cropping details above are grounded in [HQ-UNet v1](https://arxiv.org/pdf/2604.27206v1). Its reported0.805 mIoU is a reference claim, not a target that legitimizes changing the protocol until matched.
+
+## Minimal preregistered experiment
+
+**Question:** under a declared native-data/capacity recipe, does the trained quantum bottleneck improve validation segmentation relative to equally budgeted matched controls enough to justify expansion?
+
+Use four arms: learned quantum, frozen quantum with input gradients retained, permanently zero reconstructed bottleneck, and compact affine48→32+tanh. Match all non-core initialization, normalization, sampling/augmentation schedules, optimizer steps, batch size, evaluation schedule and checkpoint rule. An ordinary depthwise U-Net is a useful later baseline, but the four matched arms answer the immediate contribution question more directly than unrelated reported literature scores.
+
+Use a fixed pilot population, for example256 official training parent tiles and64 official validation parent tiles, deterministically selected before fitting with retained identities and class coverage. Train on new paired128x128 random crops from the selected512x512 tiles each epoch; use paired D4 augmentation. For validation, evaluate all16 nonoverlapping128x128 crops from each selected parent tile, so selection is deterministic and covers the full selected tile. Do not resize512→128 or mix crops from a parent tile across partitions. Record crop coordinates and augmentation schedules. A reduced population remains a pilot, not the full dataset benchmark.
+
+A concrete first grid is four arms × two rates on seed42, **eight fresh fits**, each60epochs, batch8 and one crop per training parent per epoch:1,920 optimizer steps per fit for256 parents. Evaluate epoch0 and every5epochs, retain full training histories and choose earliest strict best validation mIoU. Adam at0.0003/0.001 is a reasonable declared local choice, not a recovered author setting. Freeze its remaining parameters and an explicit multiclass loss definition before fitting (for example unweighted cross-entropy plus soft Dice averaged across all five classes). Select the rate separately for each arm, breaking exact ties toward the lower rate. This estimates tuned procedures; it does not isolate coefficient trainability at a common learning rate. Publish every candidate.
+
+The number60 is a substantial bounded training allowance, not a convergence guarantee. If a materially larger training population fits the measured allowance, choose it before inspecting fit outcomes and retain the same complete grid. Do not trade16qubits or encoder width for more epochs without creating and labeling a separate reduced-architecture experiment.
+
+## Dataset, split and metric controls
+
+The [original dataset paper](https://openaccess.thecvf.com/content/CVPR2021W/EarthVision/papers/Boguszewski_LandCover.ai_Dataset_for_Automatic_Mapping_of_Buildings_Woodlands_Water_and_CVPRW_2021_paper.pdf) describes shuffled512x512 tiles split70/15/15; this is not an orthophoto-disjoint geographic holdout. Use the supplied split lists for benchmark comparability, validate parent/tile/coordinate membership, and disclose scene overlap rather than claiming geographic independence. Never produce a new random split at the128crop level. A scene-disjoint sensitivity study can be separately preregistered later.
+
+Verify archive/version/hash, label mapping(background0/building1/woodland2/water3/road4), RGB channel order, mask geometry and nearest-neighbor handling. Retain tile hashes and split manifests. Preserve lossless original RGB data for the main pipeline when available; do not silently substitute a JPEG mirror for the stated lossless pipeline. Choose fixed RGB scaling, or estimate normalization solely from training pixels; freeze it across arms. Training-parent coverage/class histograms are useful audits but should not become outcome-dependent resampling.
+
+Accumulate a5x5 integer confusion matrix over all evaluation pixels. Primary metric: macro IoU over five classes including background, with a declared zero-union convention and class-support counts. Also publish each class's IoU, foreground-four-class mean and overall accuracy. Compute pooled IoU from pooled counts, not a mean of crop IoUs. For absent classes, report the undefined/zero-support condition explicitly; do not silently average over a different class set between arms. Require all five ground-truth classes in the frozen evaluation population before scientific fitting. No binary flood metric or AUC should be relabeled native mIoU.
+
+Keep the official test partition unopened for prediction throughout the pilot, selection and expansion decision. Reading archive inventories/split identities is not prediction. Validation performance is exploratory and selected; neither seed42 nor extra seeds on the same validation population create independent data confirmation.
+
+## Compute and expansion rule
+
+First run a bounded resource profile of the exact base64/five-class/fourth-down model for all four arms with batch8, including multiple forward/backward/Adam steps, validation batches and strict checkpoint restoration. Record warm versus steady timings, host/GPU peak memory, quantum/core/input gradients and parameter movement. Enforce6GiB host memory, zero swap and two numerical threads; use an explicit CUDA allocator fraction compatible with the shared8GiB GPU. CPU16q simulation, not nominal GPU size, may dominate.
+
+As a proposed operator allowance, reserve up to6hours for the eight-fit first stage and another6hours only for preregistered expansion; these are limits, not timing predictions. Use measured step/evaluation/checkpoint costs with at least1.5x headroom to decide feasibility before launching. If the complete grid cannot fit, reduce the frozen parent population or defer execution before fitting; never count a timeout-shortened arm as an equal-budget completed fit. Durable intents, failed attempts and all consumed time remain retained.
+
+Expansion is worthwhile only after the whole first-stage grid passes identity/finite-state/checkpoint/count checks and demonstrates actual learning. Preregister a simple learnability screen, such as a classical arm exceeding its epoch-zero validation mIoU by at least0.05; failure means an inconclusive recipe/optimization pilot, not a quantum verdict. For quantum-specific expansion, require its selected validation mIoU to exceed both affine and frozen by at least0.01 and not underperform zero. Those thresholds are practical spending rules, not significance tests.
+
+If this screen passes and the measured budget permits, train seeds77/123 at each arm's seed42-selected rate, producing eight more fits and twelve selected checkpoints overall. Hold the dataset partition/population fixed so seed contrasts vary initialization/crop schedules rather than also changing validation data. Report paired seed differences, all individual results and sample SD. A positive seed42 screen is selection-biased; follow-up seed outcomes must remain visible even if unfavorable. A failed screen can responsibly end the local spending stage with a bounded negative/inconclusive result, but cannot refute the paper or justify a general claim against quantum models.
+
+## Acceptance criteria before review/merge
+
+- Frozen protocol identifies every implementation choice, paper ambiguity and capacity/data deviation.
+- Tests cover five-class masks/loss/confusion arithmetic, absent classes, deterministic crop pairing, parent split boundaries, ordered quantum circuit parity, native state reconstruction and frozen/zero semantics.
+- Actual profile precedes fitting; all arms complete identical declared work with finite states and useful learning diagnostics.
+- Test-prediction and fitting tripwires enforce stage boundaries; no historical source/checkpoint/data mutation.
+- Independent collector recomputes matrices/selection/paired differences from retained records; source/data/runtime/cohort identities are bound.
+- Actual curves and examples are inspected, with failed candidates and resource costs reported. No exact-reproduction, convergence, superiority or spatial-generalization claim exceeds the evidence.
+
+The coordinator should finalize the numerical limits after profiling and pin the protocol before scientific fits. This advice does not authorize my running any of those experiments.
