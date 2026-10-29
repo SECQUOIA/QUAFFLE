@@ -1,0 +1,13 @@
+{
+  "format": "hq-publication-render-v1",
+  "renderer_sha256": "d0f1639d1bbc46ce703f46e79e442dec4252ce5a5fef0c6a5d8085a238313c18",
+  "cache_sha256": "234aa54397f8f06a003206370c8f5c9eea46ce4b89581a4193dc123d16dcc2a9",
+  "cache_inventory_sha256": "05974c73cfa6bf1615a8aa9eb7b33abe1cd927809988668573bf6217798851d6",
+  "plan_sha256": "1831ce4ef26535112fbc108e74a28768f63f556e15089bf82d2a47a07c968fe9",
+  "selection_sha256": "535b53325727cb96be1dc677b69ad5170e8c4ff58453430e6cd690e3a5f3fc7d",
+  "protocol_sha256": "d0f1c1d6294e7ff9c6cead076a62400a8dc83719372fa423bcce319ed3dfc896",
+  "numpy_version": "2.4.6",
+  "matplotlib_version": "3.11.2",
+  "inference_performed": false,
+  "scope": "Descriptive validation illustration with affine-conditioned selection bias"
+}
