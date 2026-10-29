@@ -1,0 +1,53 @@
+{
+  "accuracy": "19/25",
+  "actual_campaign_outputs_read": false,
+  "exact_miou": "509/840",
+  "exact_one_pp_pass": true,
+  "exact_zero_mean_equality_pass": true,
+  "hand_confusion": [
+    [
+      5,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      2,
+      4,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      1,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      2,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      5
+    ]
+  ],
+  "incomplete_pipeline_and_fit_grid_stop_before_any_plan_fit_or_export_read": true,
+  "invalid_boolean_negative_oversized_counts_rejected": true,
+  "lower_lr_tie_selects_001": true,
+  "one_pixel_below_fails": true,
+  "positive_seed_tie_fails": true,
+  "project_helpers_imported": false,
+  "sample_sd_n_minus_1": true,
+  "secondary_foreground_miou": "101/168",
+  "status": "passed"
+}

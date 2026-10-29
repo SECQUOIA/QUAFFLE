@@ -23,3 +23,11 @@ original Astra assessment. It waits for the live training unit, requires the
 complete thirteen-fit grid, then calls the merged collector for twelve selected
 validation replays, two deterministic exports and completed-path integrity checks.
 It launches no fitting, changes no training condition and performs no GitHub writes.
+
+The prospective independent numerical oracle and its hand-computable synthetic
+checks are retained under `numeric_audit/`. They were prepared without opening
+partial campaign outputs. Its actual audit is queued only after both live
+collection-unit termination and successful pipeline completion. It will compare
+all ten CSV tables and all count-derived summaries against all thirteen raw
+fit records and twelve checkpoint replays. Its preparation note and self-check
+log are historical pre-results evidence, not empirical study results.

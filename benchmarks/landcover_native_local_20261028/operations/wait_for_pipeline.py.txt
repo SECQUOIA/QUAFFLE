@@ -1,0 +1,75 @@
+"""Task-local CPU audit queue; no fitting, inference or publication."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import time
+import traceback
+
+ROOT = Path('/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028')
+HERE = ROOT/'numeric_audit'
+STATUS = HERE/'watcher_status.json'
+UNIT = 'quaffle-landcover-collect-20261028-v1.scope'
+ORACLE = HERE/'independent_numeric_audit.py'
+EXPECTED = '42564517355697652f6eaf706098e760ccea38bcdabc14155f322b334b126d7e'
+PYTHON = '/home/bernalde/.gemini/antigravity/brain/1c8d1d6c-6148-446b-a21c-0b9c538c6603/scratch/quaffle-venv/bin/python'
+
+
+def read(path): return json.loads(path.read_text())
+def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def record(payload):
+    temporary = STATUS.with_suffix('.tmp')
+    temporary.write_text(json.dumps(payload, sort_keys=True, indent=2)+'\n')
+    temporary.replace(STATUS)
+
+
+def main():
+    if digest(ORACLE) != EXPECTED:
+        raise RuntimeError('Independent oracle source changed')
+    record(dict(stage='waiting_for_live_collection_unit', unit=UNIT, oracle_sha=EXPECTED))
+    errors = 0
+    while True:
+        observed = subprocess.run(['systemctl','--user','show',UNIT,'-p','ActiveState','--value'],
+                                  capture_output=True,text=True)
+        state = observed.stdout.strip()
+        if state in ('active','activating','deactivating'):
+            errors = 0
+            if time.time() > read(ROOT/'campaign_v1/status.json')['deadline_unix']+3600:
+                raise RuntimeError('Collection unit exceeded the bounded observation horizon')
+            time.sleep(15)
+            continue
+        if state in ('inactive','failed') or (observed.returncode in (1,4) and any(
+                text in observed.stderr.lower() for text in ('not found','could not be found'))):
+            break
+        errors += 1
+        if errors >= 3:
+            raise RuntimeError('Cannot establish authoritative collection unit state')
+        time.sleep(15)
+    if read(ROOT/'pipeline_status.json').get('stage') != 'complete':
+        raise RuntimeError('Collection unit stopped without completed replay/export checks')
+    if digest(ORACLE) != EXPECTED:
+        raise RuntimeError('Independent oracle source changed while waiting')
+    argv=[PYTHON,str(ORACLE),'--task-root',str(ROOT),'--source-root','/tmp/quaffle-landcover-native-20261028',
+          '--output-dir',str(HERE/'completed_v1')]
+    record(dict(stage='auditing_complete_outputs', oracle_sha=EXPECTED, argv=argv))
+    with (HERE/'actual_audit.log').open('x') as log:
+        completed=subprocess.run(argv,cwd='/tmp/quaffle-landcover-native-20261028',env=os.environ.copy(),
+                                 stdout=log,stderr=subprocess.STDOUT)
+    if completed.returncode:
+        raise RuntimeError(f'Independent audit exited {completed.returncode}; retained log requires diagnosis')
+    report=read(HERE/'completed_v1/audit.json')
+    if report['status'] != 'passed':
+        raise RuntimeError('Independent audit did not report success')
+    record(dict(stage='complete', oracle_sha=EXPECTED, audit_sha=digest(HERE/'completed_v1/audit.json'),
+                report_sha=digest(HERE/'completed_v1/REPORT.md'),
+                next_action='Astra empirical-results review and results PR remain pending'))
+
+
+if __name__ == '__main__':
+    if STATUS.exists():
+        raise RuntimeError('Existing audit-queue attempt preserved; explicit diagnosis required')
+    try: main()
+    except BaseException:
+        record(dict(stage='failed', error=traceback.format_exc(), automatic_retry=False))
+        raise
