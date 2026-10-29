@@ -272,13 +272,13 @@ def render(cache_dir,output_dir):
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from matplotlib.patches import Patch
-    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':9,'pdf.fonttype':42,
+    plt.rcParams.update({'font.family':'DejaVu Sans','font.size':8,'pdf.fonttype':42,
                          'svg.hashsalt':'hq-fixed-validation','axes.spines.top':False,'axes.spines.right':False})
     def save(fig,name):
         fig.savefig(out/(name+'.pdf'),metadata={'CreationDate':None,'ModDate':None,'Creator':'HQ frozen-cache renderer'})
         fig.savefig(out/(name+'.png'),dpi=180,metadata={'Software':'HQ frozen-cache renderer'})
         plt.close(fig)
-    fig,axes = plt.subplots(3,2,figsize=(10.4,9.0),sharex=True)
+    fig,axes = plt.subplots(3,2,figsize=(7.2,7.5),sharex=True)
     flat = []
     best_rows = []
     for row in data['histories']:
@@ -299,22 +299,22 @@ def render(cache_dir,output_dir):
             axes[r,col].set(xlim=(-1,61),xlabel='Epoch',ylabel='Training Dice+CE loss' if col == 0 else 'Validation foreground IoU',
                             title=f'Seed {seed}');axes[r,col].grid(alpha=.2)
     handles,labels = axes[0,0].get_legend_handles_labels()
-    fig.legend(handles,labels,loc='lower center',ncol=4,bbox_to_anchor=(.5,.012))
-    fig.suptitle('Fixed-rate HQ controls: 60 epochs, learning rate 0.003',y=.995)
-    fig.tight_layout(rect=(0,.055,1,.975));save(fig,'learning_curves')
+    fig.legend(handles,labels,loc='lower center',ncol=4,bbox_to_anchor=(.5,.012),fontsize=8)
+    fig.suptitle('Fixed-rate HQ controls: 60 epochs, learning rate 0.003',y=.995,fontsize=9)
+    fig.tight_layout(rect=(0,.055,1,.975),h_pad=1.6,w_pad=1.5);save(fig,'learning_curves')
     payload = data['payload']; examples = data['selection']['examples']; displayed = []
-    fig,axes = plt.subplots(4,6,figsize=(12.4,9.5))
+    fig,axes = plt.subplots(4,6,figsize=(7.2,6.8))
     for slot,item in enumerate(examples):
         for ax in axes[slot]:
             ax.set_xticks([]);ax.set_yticks([])
         role = 'lower median' if item['role'] == 'lower_median' else item['role']
-        axes[slot,0].set_ylabel(f"{item['sensor'].upper()} {role}",fontsize=9)
+        axes[slot,0].set_ylabel(f"{item['sensor'].upper()}\n{role}",fontsize=7.5,labelpad=5)
         if item['status'] != 'selected':
-            for ax in axes[slot]: ax.text(.5,.5,'No eligible tile',ha='center',va='center',transform=ax.transAxes,fontsize=8)
+            for ax in axes[slot]: ax.text(.5,.5,'No eligible\ntile',ha='center',va='center',transform=ax.transAxes,fontsize=7)
             continue
         index = item['validation_index']; image = normalized_display(payload['display_inputs'][slot])
         target = payload['targets'][index].astype(bool)
-        axes[slot,0].imshow(image);axes[slot,0].set_xlabel(f'Validation index {index}',fontsize=8)
+        axes[slot,0].imshow(image);axes[slot,0].set_xlabel(f'Validation index {index}',fontsize=7,labelpad=3)
         axes[slot,1].imshow(target,cmap='gray',vmin=0,vmax=1)
         for c,control in enumerate(CONTROLS):
             prediction = payload['predictions'][c,index].astype(bool)
@@ -323,18 +323,21 @@ def render(cache_dir,output_dir):
             overlay[prediction & ~target] = ERROR_COLORS[1]
             overlay[~prediction & target] = ERROR_COLORS[2]
             values = counts(prediction,target)
-            axes[slot,c+2].imshow(overlay);axes[slot,c+2].set_xlabel(f'IoU {iou(values):.3f}',fontsize=8)
+            axes[slot,c+2].imshow(overlay);axes[slot,c+2].set_xlabel(f'IoU {iou(values):.3f}',fontsize=7.5,labelpad=3)
             displayed.append(dict(slot=slot,sensor=item['sensor'],role=item['role'],validation_index=index,
                 global_index=item['global_index'],name=item['name'],control=control,**values,foreground_iou=iou(values)))
-    for ax,title in zip(axes[0],('Normalized input','Ground truth',*LABELS)):
-        ax.set_title(title,fontsize=9)
+    for ax,title in zip(axes[0],('Normalized\ninput','Ground\ntruth',*(label.replace(' ','\n',1) for label in LABELS))):
+        ax.set_title(title,fontsize=7.5,pad=5)
     fig.legend(handles=[Patch(color=color,label=label) for color,label in
         zip(ERROR_COLORS,('True positive','False positive','False negative'))],
-        loc='lower center',ncol=3,bbox_to_anchor=(.5,.045))
-    fig.suptitle('Seed 42 validation: examples selected using affine IoU only',y=.995)
+        loc='lower center',ncol=3,bbox_to_anchor=(.5,.075),fontsize=8)
+    fig.suptitle('Seed 42 validation: examples selected using affine IoU only',y=.985,fontsize=9)
     fig.text(.5,.012,'Affine-conditioned selection emphasizes reference errors; descriptive validation examples, not independent evidence.',
-             ha='center',fontsize=8)
-    fig.tight_layout(rect=(.01,.08,1,.975));save(fig,'qualitative_errors')
+             ha='center',fontsize=7)
+    # Fixed grid spacing reserves actual room for every image's index/IoU
+    # label; automatic aspect-ratio adjustments can otherwise cover them.
+    fig.subplots_adjust(left=.075,right=.995,bottom=.16,top=.89,hspace=.62,wspace=.10)
+    save(fig,'qualitative_errors')
     csv_file(out/'learning_curves.csv',flat);csv_file(out/'best_epochs.csv',best_rows)
     for name,rows in data['metrics'].items(): csv_file(out/(name+'.csv'),rows)
     csv_file(out/'selected_examples.csv',examples,fields=('slot','sensor','role','eligible_count','status','validation_index',
