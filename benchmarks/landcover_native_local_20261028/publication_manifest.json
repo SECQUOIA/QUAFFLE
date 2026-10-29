@@ -1,0 +1,978 @@
+{
+  "all_payload_bytes_preserved": true,
+  "complete": true,
+  "exclusions": [
+    "checkpoint weights and .pt files",
+    "raw image/mask tiles and dataset tree",
+    "download archive",
+    "raw prediction arrays",
+    "lock files",
+    "failed/preflight attempt outputs",
+    "private coordination",
+    "new scientific conclusions, review decisions and publication actions"
+  ],
+  "exported_files": 17,
+  "files": [
+    {
+      "bytes": 4217,
+      "destination": "exports/INTERPRETATION.md",
+      "destination_sha256": "6cff14ee3e43fac9fafc8f78e2cfe86cc16add8ec9f384e9940b424f9c038bfd",
+      "sha256": "6cff14ee3e43fac9fafc8f78e2cfe86cc16add8ec9f384e9940b424f9c038bfd",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/INTERPRETATION.md",
+      "source_sha256": "6cff14ee3e43fac9fafc8f78e2cfe86cc16add8ec9f384e9940b424f9c038bfd"
+    },
+    {
+      "bytes": 638,
+      "destination": "exports/arm_summary.csv",
+      "destination_sha256": "92277d4ed6eb6fd98875170bf8d4b0b02a2bd65d42b13435ac81c9d5f917d3a9",
+      "sha256": "92277d4ed6eb6fd98875170bf8d4b0b02a2bd65d42b13435ac81c9d5f917d3a9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/arm_summary.csv",
+      "source_sha256": "92277d4ed6eb6fd98875170bf8d4b0b02a2bd65d42b13435ac81c9d5f917d3a9"
+    },
+    {
+      "bytes": 1436,
+      "destination": "exports/artifact_sha256.json",
+      "destination_sha256": "848898e297ecc54bfb10aae012c5b83cd99bce6b3a94adc4664e9a0fac64d99c",
+      "sha256": "848898e297ecc54bfb10aae012c5b83cd99bce6b3a94adc4664e9a0fac64d99c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/artifact_sha256.json",
+      "source_sha256": "848898e297ecc54bfb10aae012c5b83cd99bce6b3a94adc4664e9a0fac64d99c"
+    },
+    {
+      "bytes": 5416,
+      "destination": "exports/class_metrics.csv",
+      "destination_sha256": "14dea43be7d716f7fc2d49e27a2afbec8efbd174fdcdfab3caa24315a65cbd23",
+      "sha256": "14dea43be7d716f7fc2d49e27a2afbec8efbd174fdcdfab3caa24315a65cbd23",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/class_metrics.csv",
+      "source_sha256": "14dea43be7d716f7fc2d49e27a2afbec8efbd174fdcdfab3caa24315a65cbd23"
+    },
+    {
+      "bytes": 44392,
+      "destination": "exports/collector_source.py.txt",
+      "destination_sha256": "ea1f89beddb3179697955c87421d6f514b6648da9b72e22f940488f24d96c06c",
+      "sha256": "ea1f89beddb3179697955c87421d6f514b6648da9b72e22f940488f24d96c06c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/collector_source.py.txt",
+      "source_sha256": "ea1f89beddb3179697955c87421d6f514b6648da9b72e22f940488f24d96c06c"
+    },
+    {
+      "bytes": 20559,
+      "destination": "exports/curves.csv",
+      "destination_sha256": "8c95e9247341d16469208e1bb1edeb0701c0817916b81af16cd81e7c28bda4d1",
+      "sha256": "8c95e9247341d16469208e1bb1edeb0701c0817916b81af16cd81e7c28bda4d1",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/curves.csv",
+      "source_sha256": "8c95e9247341d16469208e1bb1edeb0701c0817916b81af16cd81e7c28bda4d1"
+    },
+    {
+      "bytes": 1192,
+      "destination": "exports/fit_costs.csv",
+      "destination_sha256": "9da71750f0d727a2f83d6fbf4b85f382df4f1c6a54231e96b70f3e7de97f14b5",
+      "sha256": "9da71750f0d727a2f83d6fbf4b85f382df4f1c6a54231e96b70f3e7de97f14b5",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/fit_costs.csv",
+      "source_sha256": "9da71750f0d727a2f83d6fbf4b85f382df4f1c6a54231e96b70f3e7de97f14b5"
+    },
+    {
+      "bytes": 1745,
+      "destination": "exports/learning.csv",
+      "destination_sha256": "731d612b1be7c647677074ef550b5b3073a3c633485818d48f786872e161a549",
+      "sha256": "731d612b1be7c647677074ef550b5b3073a3c633485818d48f786872e161a549",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/learning.csv",
+      "source_sha256": "731d612b1be7c647677074ef550b5b3073a3c633485818d48f786872e161a549"
+    },
+    {
+      "bytes": 24647,
+      "destination": "exports/learning_curves.pdf",
+      "destination_sha256": "be9b003810e5050b4c50c860832e4376fad29485288f9ee2eb7ffd70b6682389",
+      "sha256": "be9b003810e5050b4c50c860832e4376fad29485288f9ee2eb7ffd70b6682389",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/learning_curves.pdf",
+      "source_sha256": "be9b003810e5050b4c50c860832e4376fad29485288f9ee2eb7ffd70b6682389"
+    },
+    {
+      "bytes": 177246,
+      "destination": "exports/learning_curves.png",
+      "destination_sha256": "26f5634a19a0c302737df4c75f5c07728537a5a94255b5cbd97974168f44dbd6",
+      "sha256": "26f5634a19a0c302737df4c75f5c07728537a5a94255b5cbd97974168f44dbd6",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/learning_curves.png",
+      "source_sha256": "26f5634a19a0c302737df4c75f5c07728537a5a94255b5cbd97974168f44dbd6"
+    },
+    {
+      "bytes": 702,
+      "destination": "exports/paired.csv",
+      "destination_sha256": "30359462bc18af3769a954340c5fa9a0afc36d0a0e51fa19f083755e0c9fefbc",
+      "sha256": "30359462bc18af3769a954340c5fa9a0afc36d0a0e51fa19f083755e0c9fefbc",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/paired.csv",
+      "source_sha256": "30359462bc18af3769a954340c5fa9a0afc36d0a0e51fa19f083755e0c9fefbc"
+    },
+    {
+      "bytes": 2130,
+      "destination": "exports/per_seed.csv",
+      "destination_sha256": "1d4dab3f215f62816695047bdb9a1a6e3b6a91e6e5a6c0081a8a6acaa46a76f0",
+      "sha256": "1d4dab3f215f62816695047bdb9a1a6e3b6a91e6e5a6c0081a8a6acaa46a76f0",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/per_seed.csv",
+      "source_sha256": "1d4dab3f215f62816695047bdb9a1a6e3b6a91e6e5a6c0081a8a6acaa46a76f0"
+    },
+    {
+      "bytes": 784,
+      "destination": "exports/profile_costs.csv",
+      "destination_sha256": "87da7a7155662f45dbcdc8ebeb0865d7d8e133ad1c9e126024f888a6d851417d",
+      "sha256": "87da7a7155662f45dbcdc8ebeb0865d7d8e133ad1c9e126024f888a6d851417d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/profile_costs.csv",
+      "source_sha256": "87da7a7155662f45dbcdc8ebeb0865d7d8e133ad1c9e126024f888a6d851417d"
+    },
+    {
+      "bytes": 1871,
+      "destination": "exports/provenance.json",
+      "destination_sha256": "20045e70cd7d9bf66321d851c44a3d071a32c223b0abb2e5d9ad16e25f27ab3a",
+      "sha256": "20045e70cd7d9bf66321d851c44a3d071a32c223b0abb2e5d9ad16e25f27ab3a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/provenance.json",
+      "source_sha256": "20045e70cd7d9bf66321d851c44a3d071a32c223b0abb2e5d9ad16e25f27ab3a"
+    },
+    {
+      "bytes": 165,
+      "destination": "exports/rate_candidates.csv",
+      "destination_sha256": "a4d8bd6e88690e852c55952f6e9788c4b06d0ccf39581e959c93599a841c4467",
+      "sha256": "a4d8bd6e88690e852c55952f6e9788c4b06d0ccf39581e959c93599a841c4467",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/rate_candidates.csv",
+      "source_sha256": "a4d8bd6e88690e852c55952f6e9788c4b06d0ccf39581e959c93599a841c4467"
+    },
+    {
+      "bytes": 3017,
+      "destination": "exports/summary.json",
+      "destination_sha256": "d4ab393fe4acf275c9d9544b4d467a316ca84f54e62ab95659daab93743f1bfd",
+      "sha256": "d4ab393fe4acf275c9d9544b4d467a316ca84f54e62ab95659daab93743f1bfd",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/summary.json",
+      "source_sha256": "d4ab393fe4acf275c9d9544b4d467a316ca84f54e62ab95659daab93743f1bfd"
+    },
+    {
+      "bytes": 36618,
+      "destination": "exports/training_curves.csv",
+      "destination_sha256": "3ff4e75c255fae17644852d2adc64ef839e8d718b705185577d6a0cceb18da85",
+      "sha256": "3ff4e75c255fae17644852d2adc64ef839e8d718b705185577d6a0cceb18da85",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a_v1/training_curves.csv",
+      "source_sha256": "3ff4e75c255fae17644852d2adc64ef839e8d718b705185577d6a0cceb18da85"
+    },
+    {
+      "bytes": 17549,
+      "destination": "raw/campaign_v1/plan.json",
+      "destination_sha256": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc",
+      "sha256": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/plan.json",
+      "source_sha256": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc"
+    },
+    {
+      "bytes": 272,
+      "destination": "raw/campaign_v1/status.json",
+      "destination_sha256": "01886b7d0a73bddf6985f76b4259a91b06ddf17ea833c40511ba4db329dbac9e",
+      "sha256": "01886b7d0a73bddf6985f76b4259a91b06ddf17ea833c40511ba4db329dbac9e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/status.json",
+      "source_sha256": "01886b7d0a73bddf6985f76b4259a91b06ddf17ea833c40511ba4db329dbac9e"
+    },
+    {
+      "bytes": 500959,
+      "destination": "raw/campaign_v1/all_fits.json",
+      "destination_sha256": "6b8d40eac1b2022ef781786e6c012f38fbb0d5e7946afeddaf68d095b4c1f322",
+      "sha256": "6b8d40eac1b2022ef781786e6c012f38fbb0d5e7946afeddaf68d095b4c1f322",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/all_fits.json",
+      "source_sha256": "6b8d40eac1b2022ef781786e6c012f38fbb0d5e7946afeddaf68d095b4c1f322"
+    },
+    {
+      "bytes": 552,
+      "destination": "raw/campaign_v1/rate_selection.json",
+      "destination_sha256": "e568b672a52cded11f7491c6361a5b83d68a1f0c335866613de291f2525167e2",
+      "sha256": "e568b672a52cded11f7491c6361a5b83d68a1f0c335866613de291f2525167e2",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/rate_selection.json",
+      "source_sha256": "e568b672a52cded11f7491c6361a5b83d68a1f0c335866613de291f2525167e2"
+    },
+    {
+      "bytes": 35776,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.001/result.json",
+      "destination_sha256": "01a53c06d6930df4788f8669f5aae0af51d3486d63aa78f1910abc3b4b478980",
+      "sha256": "01a53c06d6930df4788f8669f5aae0af51d3486d63aa78f1910abc3b4b478980",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.001/result.json",
+      "source_sha256": "01a53c06d6930df4788f8669f5aae0af51d3486d63aa78f1910abc3b4b478980"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.001/status.json",
+      "destination_sha256": "ec84d699f3aad725e1199b294448e5de65d4f6ab4ce56e689cad580c3e9010f2",
+      "sha256": "ec84d699f3aad725e1199b294448e5de65d4f6ab4ce56e689cad580c3e9010f2",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.001/status.json",
+      "source_sha256": "ec84d699f3aad725e1199b294448e5de65d4f6ab4ce56e689cad580c3e9010f2"
+    },
+    {
+      "bytes": 17976,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.001/history.json",
+      "destination_sha256": "72ce6c735fa702423af22265bfc7077d92fc86ddb5c85f6d594acadcfff2b00e",
+      "sha256": "72ce6c735fa702423af22265bfc7077d92fc86ddb5c85f6d594acadcfff2b00e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.001/history.json",
+      "source_sha256": "72ce6c735fa702423af22265bfc7077d92fc86ddb5c85f6d594acadcfff2b00e"
+    },
+    {
+      "bytes": 8149,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.001/training_history.json",
+      "destination_sha256": "72e6d024cc7679996f7de2ae3b941c75ed3af0a74c3fa0c5cf51977d627c6eba",
+      "sha256": "72e6d024cc7679996f7de2ae3b941c75ed3af0a74c3fa0c5cf51977d627c6eba",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.001/training_history.json",
+      "source_sha256": "72e6d024cc7679996f7de2ae3b941c75ed3af0a74c3fa0c5cf51977d627c6eba"
+    },
+    {
+      "bytes": 35686,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.003/result.json",
+      "destination_sha256": "d84b0a3c8a37464aa2bb03c3f04ad3988995a9ed860ca09df70097f6f936ab28",
+      "sha256": "d84b0a3c8a37464aa2bb03c3f04ad3988995a9ed860ca09df70097f6f936ab28",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.003/result.json",
+      "source_sha256": "d84b0a3c8a37464aa2bb03c3f04ad3988995a9ed860ca09df70097f6f936ab28"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.003/status.json",
+      "destination_sha256": "7c4d2dcbbf5f7785216976b686c499d61aeefe0b0044f9951b886d57e414d28a",
+      "sha256": "7c4d2dcbbf5f7785216976b686c499d61aeefe0b0044f9951b886d57e414d28a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.003/status.json",
+      "source_sha256": "7c4d2dcbbf5f7785216976b686c499d61aeefe0b0044f9951b886d57e414d28a"
+    },
+    {
+      "bytes": 17892,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.003/history.json",
+      "destination_sha256": "7036e202fce4b231d92f3a0152a3d1040d166141b5c7e8fd62f6926828b30b2c",
+      "sha256": "7036e202fce4b231d92f3a0152a3d1040d166141b5c7e8fd62f6926828b30b2c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.003/history.json",
+      "source_sha256": "7036e202fce4b231d92f3a0152a3d1040d166141b5c7e8fd62f6926828b30b2c"
+    },
+    {
+      "bytes": 8144,
+      "destination": "raw/campaign_v1/compact_affine_seed42_lr0.003/training_history.json",
+      "destination_sha256": "90a810acd921e517a2c3dd077000e91c09d2bedb816e9aee22af98343daf028d",
+      "sha256": "90a810acd921e517a2c3dd077000e91c09d2bedb816e9aee22af98343daf028d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed42_lr0.003/training_history.json",
+      "source_sha256": "90a810acd921e517a2c3dd077000e91c09d2bedb816e9aee22af98343daf028d"
+    },
+    {
+      "bytes": 35729,
+      "destination": "raw/campaign_v1/quantum_seed42_lr0.001/result.json",
+      "destination_sha256": "a131fd7754aabec94477af139e9486341eba4e6d19d0e5808691da054abfd4fb",
+      "sha256": "a131fd7754aabec94477af139e9486341eba4e6d19d0e5808691da054abfd4fb",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed42_lr0.001/result.json",
+      "source_sha256": "a131fd7754aabec94477af139e9486341eba4e6d19d0e5808691da054abfd4fb"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/quantum_seed42_lr0.001/status.json",
+      "destination_sha256": "68693581f227c79d76b74917d74a2619fd3cf2c2db503fa12e3f9f2f23590c37",
+      "sha256": "68693581f227c79d76b74917d74a2619fd3cf2c2db503fa12e3f9f2f23590c37",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed42_lr0.001/status.json",
+      "source_sha256": "68693581f227c79d76b74917d74a2619fd3cf2c2db503fa12e3f9f2f23590c37"
+    },
+    {
+      "bytes": 17937,
+      "destination": "raw/campaign_v1/quantum_seed42_lr0.001/history.json",
+      "destination_sha256": "08dbb29c0bbcbcbd31c76b571f938c8f8d8a3a27a258299dc583ba4d0ab6f8c3",
+      "sha256": "08dbb29c0bbcbcbd31c76b571f938c8f8d8a3a27a258299dc583ba4d0ab6f8c3",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed42_lr0.001/history.json",
+      "source_sha256": "08dbb29c0bbcbcbd31c76b571f938c8f8d8a3a27a258299dc583ba4d0ab6f8c3"
+    },
+    {
+      "bytes": 8159,
+      "destination": "raw/campaign_v1/quantum_seed42_lr0.001/training_history.json",
+      "destination_sha256": "3fd45076c8befad291b1f52d587a0ad9b17ba4551f67210f4c78a59277dd8f7f",
+      "sha256": "3fd45076c8befad291b1f52d587a0ad9b17ba4551f67210f4c78a59277dd8f7f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed42_lr0.001/training_history.json",
+      "source_sha256": "3fd45076c8befad291b1f52d587a0ad9b17ba4551f67210f4c78a59277dd8f7f"
+    },
+    {
+      "bytes": 35716,
+      "destination": "raw/campaign_v1/frozen_quantum_seed42_lr0.001/result.json",
+      "destination_sha256": "aee04fedc848f7d2ab6ce25e7384a4deaf72b0cfee015e8c78c547b4e6e5f7a3",
+      "sha256": "aee04fedc848f7d2ab6ce25e7384a4deaf72b0cfee015e8c78c547b4e6e5f7a3",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed42_lr0.001/result.json",
+      "source_sha256": "aee04fedc848f7d2ab6ce25e7384a4deaf72b0cfee015e8c78c547b4e6e5f7a3"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/frozen_quantum_seed42_lr0.001/status.json",
+      "destination_sha256": "efa9e5752317b26b468b21b2c7c43efc831b12af2a936658cea7fc5cf2a2b50c",
+      "sha256": "efa9e5752317b26b468b21b2c7c43efc831b12af2a936658cea7fc5cf2a2b50c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed42_lr0.001/status.json",
+      "source_sha256": "efa9e5752317b26b468b21b2c7c43efc831b12af2a936658cea7fc5cf2a2b50c"
+    },
+    {
+      "bytes": 17949,
+      "destination": "raw/campaign_v1/frozen_quantum_seed42_lr0.001/history.json",
+      "destination_sha256": "da0eceb36e3bd16b381451a042578bf22598215a8706e50ae197be0e71ae1ea4",
+      "sha256": "da0eceb36e3bd16b381451a042578bf22598215a8706e50ae197be0e71ae1ea4",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed42_lr0.001/history.json",
+      "source_sha256": "da0eceb36e3bd16b381451a042578bf22598215a8706e50ae197be0e71ae1ea4"
+    },
+    {
+      "bytes": 8154,
+      "destination": "raw/campaign_v1/frozen_quantum_seed42_lr0.001/training_history.json",
+      "destination_sha256": "7b94b26b15d754c009908c4421a42f01def86a18c43045a68c65c8bc31eb170d",
+      "sha256": "7b94b26b15d754c009908c4421a42f01def86a18c43045a68c65c8bc31eb170d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed42_lr0.001/training_history.json",
+      "source_sha256": "7b94b26b15d754c009908c4421a42f01def86a18c43045a68c65c8bc31eb170d"
+    },
+    {
+      "bytes": 35726,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed42_lr0.001/result.json",
+      "destination_sha256": "5482f57ad5efed50d5b0c662cdfc944370cd6d5284a8664fb8a42c9de06a8d08",
+      "sha256": "5482f57ad5efed50d5b0c662cdfc944370cd6d5284a8664fb8a42c9de06a8d08",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed42_lr0.001/result.json",
+      "source_sha256": "5482f57ad5efed50d5b0c662cdfc944370cd6d5284a8664fb8a42c9de06a8d08"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed42_lr0.001/status.json",
+      "destination_sha256": "8897fe4089b86af7fee71161487ba6cfb10c39343d1e5550ea581855c0aca8f1",
+      "sha256": "8897fe4089b86af7fee71161487ba6cfb10c39343d1e5550ea581855c0aca8f1",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed42_lr0.001/status.json",
+      "source_sha256": "8897fe4089b86af7fee71161487ba6cfb10c39343d1e5550ea581855c0aca8f1"
+    },
+    {
+      "bytes": 17962,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed42_lr0.001/history.json",
+      "destination_sha256": "0825778612c1e091d1b283b6bbc37a0555f650d3e1a852d93df1351ff330ec5d",
+      "sha256": "0825778612c1e091d1b283b6bbc37a0555f650d3e1a852d93df1351ff330ec5d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed42_lr0.001/history.json",
+      "source_sha256": "0825778612c1e091d1b283b6bbc37a0555f650d3e1a852d93df1351ff330ec5d"
+    },
+    {
+      "bytes": 8155,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed42_lr0.001/training_history.json",
+      "destination_sha256": "aa8be2ec74e71fb7f010f30f9046dbdc0eea71153a436d1c10093ee207bc6f7a",
+      "sha256": "aa8be2ec74e71fb7f010f30f9046dbdc0eea71153a436d1c10093ee207bc6f7a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed42_lr0.001/training_history.json",
+      "source_sha256": "aa8be2ec74e71fb7f010f30f9046dbdc0eea71153a436d1c10093ee207bc6f7a"
+    },
+    {
+      "bytes": 35671,
+      "destination": "raw/campaign_v1/compact_affine_seed77_lr0.001/result.json",
+      "destination_sha256": "adf55ecdfbfb80ab0dd2e0f6293d590ab054874dc77a3f808c85a3dfb883b3b3",
+      "sha256": "adf55ecdfbfb80ab0dd2e0f6293d590ab054874dc77a3f808c85a3dfb883b3b3",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed77_lr0.001/result.json",
+      "source_sha256": "adf55ecdfbfb80ab0dd2e0f6293d590ab054874dc77a3f808c85a3dfb883b3b3"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/compact_affine_seed77_lr0.001/status.json",
+      "destination_sha256": "5f40c0b2c61d2993879098d5c6923576a06668efcd85484c42e1e3ee69a07340",
+      "sha256": "5f40c0b2c61d2993879098d5c6923576a06668efcd85484c42e1e3ee69a07340",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed77_lr0.001/status.json",
+      "source_sha256": "5f40c0b2c61d2993879098d5c6923576a06668efcd85484c42e1e3ee69a07340"
+    },
+    {
+      "bytes": 17868,
+      "destination": "raw/campaign_v1/compact_affine_seed77_lr0.001/history.json",
+      "destination_sha256": "9a24903fa29e6bebc2f8e593f2cf850cc02eb6ee29a38cda06bea1e80da0a340",
+      "sha256": "9a24903fa29e6bebc2f8e593f2cf850cc02eb6ee29a38cda06bea1e80da0a340",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed77_lr0.001/history.json",
+      "source_sha256": "9a24903fa29e6bebc2f8e593f2cf850cc02eb6ee29a38cda06bea1e80da0a340"
+    },
+    {
+      "bytes": 8152,
+      "destination": "raw/campaign_v1/compact_affine_seed77_lr0.001/training_history.json",
+      "destination_sha256": "6489f9fd68a643103d900b7f2bc19bb0e56a2e3c902eed8c2f957257655af14d",
+      "sha256": "6489f9fd68a643103d900b7f2bc19bb0e56a2e3c902eed8c2f957257655af14d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed77_lr0.001/training_history.json",
+      "source_sha256": "6489f9fd68a643103d900b7f2bc19bb0e56a2e3c902eed8c2f957257655af14d"
+    },
+    {
+      "bytes": 35619,
+      "destination": "raw/campaign_v1/quantum_seed77_lr0.001/result.json",
+      "destination_sha256": "8ae21ed772f6c28530e61f51faefa16a454bee28c28387b870f638837e18a13a",
+      "sha256": "8ae21ed772f6c28530e61f51faefa16a454bee28c28387b870f638837e18a13a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed77_lr0.001/result.json",
+      "source_sha256": "8ae21ed772f6c28530e61f51faefa16a454bee28c28387b870f638837e18a13a"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/quantum_seed77_lr0.001/status.json",
+      "destination_sha256": "7fb3c14857e5eeda642f6421efa8be79e6ea9ab56a65e43e057276d59395a259",
+      "sha256": "7fb3c14857e5eeda642f6421efa8be79e6ea9ab56a65e43e057276d59395a259",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed77_lr0.001/status.json",
+      "source_sha256": "7fb3c14857e5eeda642f6421efa8be79e6ea9ab56a65e43e057276d59395a259"
+    },
+    {
+      "bytes": 17825,
+      "destination": "raw/campaign_v1/quantum_seed77_lr0.001/history.json",
+      "destination_sha256": "6883c3f2a2dfc2c7929113c3462bd2529b2477c1eb38adaf37b4a6279571e9e9",
+      "sha256": "6883c3f2a2dfc2c7929113c3462bd2529b2477c1eb38adaf37b4a6279571e9e9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed77_lr0.001/history.json",
+      "source_sha256": "6883c3f2a2dfc2c7929113c3462bd2529b2477c1eb38adaf37b4a6279571e9e9"
+    },
+    {
+      "bytes": 8161,
+      "destination": "raw/campaign_v1/quantum_seed77_lr0.001/training_history.json",
+      "destination_sha256": "9c8c32d2b585107a19c6af5e02f668aa03351aafb107269798cc5618c26f25d0",
+      "sha256": "9c8c32d2b585107a19c6af5e02f668aa03351aafb107269798cc5618c26f25d0",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed77_lr0.001/training_history.json",
+      "source_sha256": "9c8c32d2b585107a19c6af5e02f668aa03351aafb107269798cc5618c26f25d0"
+    },
+    {
+      "bytes": 35663,
+      "destination": "raw/campaign_v1/frozen_quantum_seed77_lr0.001/result.json",
+      "destination_sha256": "3c0dd99d7286c3eafcddeb06a0301f6a33993096107afef3ba8f820a4f02c488",
+      "sha256": "3c0dd99d7286c3eafcddeb06a0301f6a33993096107afef3ba8f820a4f02c488",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed77_lr0.001/result.json",
+      "source_sha256": "3c0dd99d7286c3eafcddeb06a0301f6a33993096107afef3ba8f820a4f02c488"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/frozen_quantum_seed77_lr0.001/status.json",
+      "destination_sha256": "c8f916014498fa782afd89405dba566cf7e94f74f7577e13d01b1f0867f38f14",
+      "sha256": "c8f916014498fa782afd89405dba566cf7e94f74f7577e13d01b1f0867f38f14",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed77_lr0.001/status.json",
+      "source_sha256": "c8f916014498fa782afd89405dba566cf7e94f74f7577e13d01b1f0867f38f14"
+    },
+    {
+      "bytes": 17891,
+      "destination": "raw/campaign_v1/frozen_quantum_seed77_lr0.001/history.json",
+      "destination_sha256": "e93186a8f37ba7e6c03e85609ef6628f71f6c6808633c482ffd12d7412586b5e",
+      "sha256": "e93186a8f37ba7e6c03e85609ef6628f71f6c6808633c482ffd12d7412586b5e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed77_lr0.001/history.json",
+      "source_sha256": "e93186a8f37ba7e6c03e85609ef6628f71f6c6808633c482ffd12d7412586b5e"
+    },
+    {
+      "bytes": 8159,
+      "destination": "raw/campaign_v1/frozen_quantum_seed77_lr0.001/training_history.json",
+      "destination_sha256": "aa217fcf5148cf9f3c0668a4a10e55a65d89972ac0c62944d0f4b420672718e0",
+      "sha256": "aa217fcf5148cf9f3c0668a4a10e55a65d89972ac0c62944d0f4b420672718e0",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed77_lr0.001/training_history.json",
+      "source_sha256": "aa217fcf5148cf9f3c0668a4a10e55a65d89972ac0c62944d0f4b420672718e0"
+    },
+    {
+      "bytes": 35490,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed77_lr0.001/result.json",
+      "destination_sha256": "76e98460b830e067fa13fe9d4270a9f38c3bb1f948b00102749656b28c1ebc0e",
+      "sha256": "76e98460b830e067fa13fe9d4270a9f38c3bb1f948b00102749656b28c1ebc0e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed77_lr0.001/result.json",
+      "source_sha256": "76e98460b830e067fa13fe9d4270a9f38c3bb1f948b00102749656b28c1ebc0e"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed77_lr0.001/status.json",
+      "destination_sha256": "3fe107a37760a6c67e4623cc06edac1aa2dc13d4eb2597c2d1c2bfe5e010af30",
+      "sha256": "3fe107a37760a6c67e4623cc06edac1aa2dc13d4eb2597c2d1c2bfe5e010af30",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed77_lr0.001/status.json",
+      "source_sha256": "3fe107a37760a6c67e4623cc06edac1aa2dc13d4eb2597c2d1c2bfe5e010af30"
+    },
+    {
+      "bytes": 17726,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed77_lr0.001/history.json",
+      "destination_sha256": "66b865e98ee067db32997eeda782a33891af425df33a5917acb74f6dec68ca4a",
+      "sha256": "66b865e98ee067db32997eeda782a33891af425df33a5917acb74f6dec68ca4a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed77_lr0.001/history.json",
+      "source_sha256": "66b865e98ee067db32997eeda782a33891af425df33a5917acb74f6dec68ca4a"
+    },
+    {
+      "bytes": 8155,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed77_lr0.001/training_history.json",
+      "destination_sha256": "fd05be386a930ae8da8f6af1fde6014f5b1b42773a45c4062a5c59c181a09c42",
+      "sha256": "fd05be386a930ae8da8f6af1fde6014f5b1b42773a45c4062a5c59c181a09c42",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed77_lr0.001/training_history.json",
+      "source_sha256": "fd05be386a930ae8da8f6af1fde6014f5b1b42773a45c4062a5c59c181a09c42"
+    },
+    {
+      "bytes": 35653,
+      "destination": "raw/campaign_v1/compact_affine_seed123_lr0.001/result.json",
+      "destination_sha256": "436b1e15bfec6349a42d2b2246dca02eb1cf2285e06b5fbc4ef5aa3d4c69a803",
+      "sha256": "436b1e15bfec6349a42d2b2246dca02eb1cf2285e06b5fbc4ef5aa3d4c69a803",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed123_lr0.001/result.json",
+      "source_sha256": "436b1e15bfec6349a42d2b2246dca02eb1cf2285e06b5fbc4ef5aa3d4c69a803"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/compact_affine_seed123_lr0.001/status.json",
+      "destination_sha256": "b75a0f7b1cf2322be6c2f1900eab7d820999abea26db38e8c8956b9eaefc185a",
+      "sha256": "b75a0f7b1cf2322be6c2f1900eab7d820999abea26db38e8c8956b9eaefc185a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed123_lr0.001/status.json",
+      "source_sha256": "b75a0f7b1cf2322be6c2f1900eab7d820999abea26db38e8c8956b9eaefc185a"
+    },
+    {
+      "bytes": 17848,
+      "destination": "raw/campaign_v1/compact_affine_seed123_lr0.001/history.json",
+      "destination_sha256": "59f26654d616c69512071d02e3f1f1e3eb3ed84ecaf75ca632eb58e966e42dc3",
+      "sha256": "59f26654d616c69512071d02e3f1f1e3eb3ed84ecaf75ca632eb58e966e42dc3",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed123_lr0.001/history.json",
+      "source_sha256": "59f26654d616c69512071d02e3f1f1e3eb3ed84ecaf75ca632eb58e966e42dc3"
+    },
+    {
+      "bytes": 8154,
+      "destination": "raw/campaign_v1/compact_affine_seed123_lr0.001/training_history.json",
+      "destination_sha256": "a293a5831630c5c22e8f95575f6c390ec6a5c52061df0ec6daab56cc8cbcc139",
+      "sha256": "a293a5831630c5c22e8f95575f6c390ec6a5c52061df0ec6daab56cc8cbcc139",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/compact_affine_seed123_lr0.001/training_history.json",
+      "source_sha256": "a293a5831630c5c22e8f95575f6c390ec6a5c52061df0ec6daab56cc8cbcc139"
+    },
+    {
+      "bytes": 35628,
+      "destination": "raw/campaign_v1/quantum_seed123_lr0.001/result.json",
+      "destination_sha256": "058024af34f5791fe72a5cf3b803d7f9f99fe88272169a06b72209ea8f1a042f",
+      "sha256": "058024af34f5791fe72a5cf3b803d7f9f99fe88272169a06b72209ea8f1a042f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed123_lr0.001/result.json",
+      "source_sha256": "058024af34f5791fe72a5cf3b803d7f9f99fe88272169a06b72209ea8f1a042f"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/quantum_seed123_lr0.001/status.json",
+      "destination_sha256": "3f2d6a8e8175d475e3c654208b66257d1a5935d5ca742dcd28c97b0801844928",
+      "sha256": "3f2d6a8e8175d475e3c654208b66257d1a5935d5ca742dcd28c97b0801844928",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed123_lr0.001/status.json",
+      "source_sha256": "3f2d6a8e8175d475e3c654208b66257d1a5935d5ca742dcd28c97b0801844928"
+    },
+    {
+      "bytes": 17842,
+      "destination": "raw/campaign_v1/quantum_seed123_lr0.001/history.json",
+      "destination_sha256": "cddb383155df3b592c8545b85a4bd67944fd6e7cc5d89dd3ed98c1aa8bc552ab",
+      "sha256": "cddb383155df3b592c8545b85a4bd67944fd6e7cc5d89dd3ed98c1aa8bc552ab",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed123_lr0.001/history.json",
+      "source_sha256": "cddb383155df3b592c8545b85a4bd67944fd6e7cc5d89dd3ed98c1aa8bc552ab"
+    },
+    {
+      "bytes": 8154,
+      "destination": "raw/campaign_v1/quantum_seed123_lr0.001/training_history.json",
+      "destination_sha256": "b6a2ebea76a24927de4bc7bf8c532ecd40d80bd379f2d8b7e59861a9a0ec2cb8",
+      "sha256": "b6a2ebea76a24927de4bc7bf8c532ecd40d80bd379f2d8b7e59861a9a0ec2cb8",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/quantum_seed123_lr0.001/training_history.json",
+      "source_sha256": "b6a2ebea76a24927de4bc7bf8c532ecd40d80bd379f2d8b7e59861a9a0ec2cb8"
+    },
+    {
+      "bytes": 35632,
+      "destination": "raw/campaign_v1/frozen_quantum_seed123_lr0.001/result.json",
+      "destination_sha256": "9a2ce4d5ab1d43843e5170788fbd15da1efe7c3e62e5aa9f31a0aeee0dd3f8a6",
+      "sha256": "9a2ce4d5ab1d43843e5170788fbd15da1efe7c3e62e5aa9f31a0aeee0dd3f8a6",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed123_lr0.001/result.json",
+      "source_sha256": "9a2ce4d5ab1d43843e5170788fbd15da1efe7c3e62e5aa9f31a0aeee0dd3f8a6"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/frozen_quantum_seed123_lr0.001/status.json",
+      "destination_sha256": "86615fcce4127fc20df1e6a306e5a8d33be601b07feadcd38f8bdf3a36fe3aa8",
+      "sha256": "86615fcce4127fc20df1e6a306e5a8d33be601b07feadcd38f8bdf3a36fe3aa8",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed123_lr0.001/status.json",
+      "source_sha256": "86615fcce4127fc20df1e6a306e5a8d33be601b07feadcd38f8bdf3a36fe3aa8"
+    },
+    {
+      "bytes": 17859,
+      "destination": "raw/campaign_v1/frozen_quantum_seed123_lr0.001/history.json",
+      "destination_sha256": "480191ede1595bab0b29c416f7dddc2f2097091475d9b2ffcefc2c979df58c6a",
+      "sha256": "480191ede1595bab0b29c416f7dddc2f2097091475d9b2ffcefc2c979df58c6a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed123_lr0.001/history.json",
+      "source_sha256": "480191ede1595bab0b29c416f7dddc2f2097091475d9b2ffcefc2c979df58c6a"
+    },
+    {
+      "bytes": 8158,
+      "destination": "raw/campaign_v1/frozen_quantum_seed123_lr0.001/training_history.json",
+      "destination_sha256": "4aaf9fd9ff007f272526ee7126e617ce6a4d1d901083524f5c624d861197ff45",
+      "sha256": "4aaf9fd9ff007f272526ee7126e617ce6a4d1d901083524f5c624d861197ff45",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/frozen_quantum_seed123_lr0.001/training_history.json",
+      "source_sha256": "4aaf9fd9ff007f272526ee7126e617ce6a4d1d901083524f5c624d861197ff45"
+    },
+    {
+      "bytes": 35618,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed123_lr0.001/result.json",
+      "destination_sha256": "1144157b24cddd142d160575ff58cc9295646811121fd3b861efa99d0e62f61d",
+      "sha256": "1144157b24cddd142d160575ff58cc9295646811121fd3b861efa99d0e62f61d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed123_lr0.001/result.json",
+      "source_sha256": "1144157b24cddd142d160575ff58cc9295646811121fd3b861efa99d0e62f61d"
+    },
+    {
+      "bytes": 111,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed123_lr0.001/status.json",
+      "destination_sha256": "0402bef19b3083ea48643961c66d217cf75f53b18f81aebf5e121fb115114a3e",
+      "sha256": "0402bef19b3083ea48643961c66d217cf75f53b18f81aebf5e121fb115114a3e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed123_lr0.001/status.json",
+      "source_sha256": "0402bef19b3083ea48643961c66d217cf75f53b18f81aebf5e121fb115114a3e"
+    },
+    {
+      "bytes": 17852,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed123_lr0.001/history.json",
+      "destination_sha256": "f2dce1241e8e54c714aad9b8993abacf83f72d381087ac9eb61c8e35f1358c92",
+      "sha256": "f2dce1241e8e54c714aad9b8993abacf83f72d381087ac9eb61c8e35f1358c92",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed123_lr0.001/history.json",
+      "source_sha256": "f2dce1241e8e54c714aad9b8993abacf83f72d381087ac9eb61c8e35f1358c92"
+    },
+    {
+      "bytes": 8155,
+      "destination": "raw/campaign_v1/zero_bottleneck_seed123_lr0.001/training_history.json",
+      "destination_sha256": "1cb40d33f3400a1d8a9c249aeb64a487c2db00410bd189fef066d2d482fc6977",
+      "sha256": "1cb40d33f3400a1d8a9c249aeb64a487c2db00410bd189fef066d2d482fc6977",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1/zero_bottleneck_seed123_lr0.001/training_history.json",
+      "source_sha256": "1cb40d33f3400a1d8a9c249aeb64a487c2db00410bd189fef066d2d482fc6977"
+    },
+    {
+      "bytes": 1755,
+      "destination": "raw/replay_v1/plan.json",
+      "destination_sha256": "03249d59dd043e35f51d7c1b508d33ba9a756909736e2cfb78e4bdf226af6b9d",
+      "sha256": "03249d59dd043e35f51d7c1b508d33ba9a756909736e2cfb78e4bdf226af6b9d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/plan.json",
+      "source_sha256": "03249d59dd043e35f51d7c1b508d33ba9a756909736e2cfb78e4bdf226af6b9d"
+    },
+    {
+      "bytes": 19941,
+      "destination": "raw/replay_v1/complete.json",
+      "destination_sha256": "1f65fbf2743e73a004ce72148615402a383cd59fc12614deff6bb3867d3fa9f9",
+      "sha256": "1f65fbf2743e73a004ce72148615402a383cd59fc12614deff6bb3867d3fa9f9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/complete.json",
+      "source_sha256": "1f65fbf2743e73a004ce72148615402a383cd59fc12614deff6bb3867d3fa9f9"
+    },
+    {
+      "bytes": 39436,
+      "destination": "raw/replay_v1/checkpoint_audit.json",
+      "destination_sha256": "fa60e17a4fb72c5d353623f944d10f65c571f26e9c7fa6382dda42240299f25a",
+      "sha256": "fa60e17a4fb72c5d353623f944d10f65c571f26e9c7fa6382dda42240299f25a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/checkpoint_audit.json",
+      "source_sha256": "fa60e17a4fb72c5d353623f944d10f65c571f26e9c7fa6382dda42240299f25a"
+    },
+    {
+      "bytes": 3110,
+      "destination": "raw/replay_v1/artifact_sha256.json",
+      "destination_sha256": "84ccd7e7a61d68d9424c68bf112e5c949d68b1e0f3621eb9ea606e10d5dc746c",
+      "sha256": "84ccd7e7a61d68d9424c68bf112e5c949d68b1e0f3621eb9ea606e10d5dc746c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/artifact_sha256.json",
+      "source_sha256": "84ccd7e7a61d68d9424c68bf112e5c949d68b1e0f3621eb9ea606e10d5dc746c"
+    },
+    {
+      "bytes": 2510,
+      "destination": "raw/replay_v1/intents/compact_affine_seed123_lr0.001.json",
+      "destination_sha256": "af620db5928b5fa4e09ff6fe7f553a8058f6396b1bab93c64e9700b6672ca0e7",
+      "sha256": "af620db5928b5fa4e09ff6fe7f553a8058f6396b1bab93c64e9700b6672ca0e7",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/compact_affine_seed123_lr0.001.json",
+      "source_sha256": "af620db5928b5fa4e09ff6fe7f553a8058f6396b1bab93c64e9700b6672ca0e7"
+    },
+    {
+      "bytes": 2509,
+      "destination": "raw/replay_v1/intents/compact_affine_seed42_lr0.001.json",
+      "destination_sha256": "7cd28e69076ce06e95b48246aada1c99720af036d17b7a2de82c8bc26529ea19",
+      "sha256": "7cd28e69076ce06e95b48246aada1c99720af036d17b7a2de82c8bc26529ea19",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/compact_affine_seed42_lr0.001.json",
+      "source_sha256": "7cd28e69076ce06e95b48246aada1c99720af036d17b7a2de82c8bc26529ea19"
+    },
+    {
+      "bytes": 2509,
+      "destination": "raw/replay_v1/intents/compact_affine_seed77_lr0.001.json",
+      "destination_sha256": "023b540c6e062121b505222c3dc474236d43970c37a9c41401a70f90a0995e23",
+      "sha256": "023b540c6e062121b505222c3dc474236d43970c37a9c41401a70f90a0995e23",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/compact_affine_seed77_lr0.001.json",
+      "source_sha256": "023b540c6e062121b505222c3dc474236d43970c37a9c41401a70f90a0995e23"
+    },
+    {
+      "bytes": 2510,
+      "destination": "raw/replay_v1/intents/frozen_quantum_seed123_lr0.001.json",
+      "destination_sha256": "c018f6918ecf52f22e53bf4b4f00013db24d43e91fd939b555b8d1b6435cd91d",
+      "sha256": "c018f6918ecf52f22e53bf4b4f00013db24d43e91fd939b555b8d1b6435cd91d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/frozen_quantum_seed123_lr0.001.json",
+      "source_sha256": "c018f6918ecf52f22e53bf4b4f00013db24d43e91fd939b555b8d1b6435cd91d"
+    },
+    {
+      "bytes": 2509,
+      "destination": "raw/replay_v1/intents/frozen_quantum_seed42_lr0.001.json",
+      "destination_sha256": "de55c428a6202d8db6bf5d54b43167121a599c023cdd55f21cb162014b4bb48e",
+      "sha256": "de55c428a6202d8db6bf5d54b43167121a599c023cdd55f21cb162014b4bb48e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/frozen_quantum_seed42_lr0.001.json",
+      "source_sha256": "de55c428a6202d8db6bf5d54b43167121a599c023cdd55f21cb162014b4bb48e"
+    },
+    {
+      "bytes": 2509,
+      "destination": "raw/replay_v1/intents/frozen_quantum_seed77_lr0.001.json",
+      "destination_sha256": "9abd20656becb610ad80de86d6bd43c6e6aaf3c4ae52a4bf7c021140f5d06b3f",
+      "sha256": "9abd20656becb610ad80de86d6bd43c6e6aaf3c4ae52a4bf7c021140f5d06b3f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/frozen_quantum_seed77_lr0.001.json",
+      "source_sha256": "9abd20656becb610ad80de86d6bd43c6e6aaf3c4ae52a4bf7c021140f5d06b3f"
+    },
+    {
+      "bytes": 2503,
+      "destination": "raw/replay_v1/intents/quantum_seed123_lr0.001.json",
+      "destination_sha256": "4887bb4f8d4532f34307cc4aff7ee4c18b2c771f3d494922681776c5041bfa65",
+      "sha256": "4887bb4f8d4532f34307cc4aff7ee4c18b2c771f3d494922681776c5041bfa65",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/quantum_seed123_lr0.001.json",
+      "source_sha256": "4887bb4f8d4532f34307cc4aff7ee4c18b2c771f3d494922681776c5041bfa65"
+    },
+    {
+      "bytes": 2502,
+      "destination": "raw/replay_v1/intents/quantum_seed42_lr0.001.json",
+      "destination_sha256": "debc198781b27479ecf3e7ba9ce975553cfd797416e46ac95f4e6ccccac8ef2f",
+      "sha256": "debc198781b27479ecf3e7ba9ce975553cfd797416e46ac95f4e6ccccac8ef2f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/quantum_seed42_lr0.001.json",
+      "source_sha256": "debc198781b27479ecf3e7ba9ce975553cfd797416e46ac95f4e6ccccac8ef2f"
+    },
+    {
+      "bytes": 2502,
+      "destination": "raw/replay_v1/intents/quantum_seed77_lr0.001.json",
+      "destination_sha256": "62b16790e567d07445b10b0fc5525953e6cb91958bea3b1e974a5d44644bbeb9",
+      "sha256": "62b16790e567d07445b10b0fc5525953e6cb91958bea3b1e974a5d44644bbeb9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/quantum_seed77_lr0.001.json",
+      "source_sha256": "62b16790e567d07445b10b0fc5525953e6cb91958bea3b1e974a5d44644bbeb9"
+    },
+    {
+      "bytes": 2511,
+      "destination": "raw/replay_v1/intents/zero_bottleneck_seed123_lr0.001.json",
+      "destination_sha256": "9e3f5c8dd9557ec1ca34cea3b9c2df5544f8841e9f158796a7ff1c9a1cbc67b6",
+      "sha256": "9e3f5c8dd9557ec1ca34cea3b9c2df5544f8841e9f158796a7ff1c9a1cbc67b6",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/zero_bottleneck_seed123_lr0.001.json",
+      "source_sha256": "9e3f5c8dd9557ec1ca34cea3b9c2df5544f8841e9f158796a7ff1c9a1cbc67b6"
+    },
+    {
+      "bytes": 2510,
+      "destination": "raw/replay_v1/intents/zero_bottleneck_seed42_lr0.001.json",
+      "destination_sha256": "4833a391fb9a175223646c875a03167e021f578d178cd454ee620c056cb2a2e6",
+      "sha256": "4833a391fb9a175223646c875a03167e021f578d178cd454ee620c056cb2a2e6",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/zero_bottleneck_seed42_lr0.001.json",
+      "source_sha256": "4833a391fb9a175223646c875a03167e021f578d178cd454ee620c056cb2a2e6"
+    },
+    {
+      "bytes": 2510,
+      "destination": "raw/replay_v1/intents/zero_bottleneck_seed77_lr0.001.json",
+      "destination_sha256": "472b4f4255cdf537227295abda7fc8b850bbf8d4efb2e5f5499ebf620c636660",
+      "sha256": "472b4f4255cdf537227295abda7fc8b850bbf8d4efb2e5f5499ebf620c636660",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/intents/zero_bottleneck_seed77_lr0.001.json",
+      "source_sha256": "472b4f4255cdf537227295abda7fc8b850bbf8d4efb2e5f5499ebf620c636660"
+    },
+    {
+      "bytes": 7462,
+      "destination": "raw/replay_v1/records/compact_affine_seed123_lr0.001.json",
+      "destination_sha256": "2d34edb0ec705fc427ac5520901bfe19e4ac1268419f834320fb6dc5d81c359a",
+      "sha256": "2d34edb0ec705fc427ac5520901bfe19e4ac1268419f834320fb6dc5d81c359a",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/compact_affine_seed123_lr0.001.json",
+      "source_sha256": "2d34edb0ec705fc427ac5520901bfe19e4ac1268419f834320fb6dc5d81c359a"
+    },
+    {
+      "bytes": 7460,
+      "destination": "raw/replay_v1/records/compact_affine_seed42_lr0.001.json",
+      "destination_sha256": "e143d6134cd32e7640c42ee6b5adc23d5109ecec05361a5a6ae8eb596e76def9",
+      "sha256": "e143d6134cd32e7640c42ee6b5adc23d5109ecec05361a5a6ae8eb596e76def9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/compact_affine_seed42_lr0.001.json",
+      "source_sha256": "e143d6134cd32e7640c42ee6b5adc23d5109ecec05361a5a6ae8eb596e76def9"
+    },
+    {
+      "bytes": 7457,
+      "destination": "raw/replay_v1/records/compact_affine_seed77_lr0.001.json",
+      "destination_sha256": "21e4d16e00cc72596cb8d0485c14716524198bf5d8f1f90a8befb13fa191778c",
+      "sha256": "21e4d16e00cc72596cb8d0485c14716524198bf5d8f1f90a8befb13fa191778c",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/compact_affine_seed77_lr0.001.json",
+      "source_sha256": "21e4d16e00cc72596cb8d0485c14716524198bf5d8f1f90a8befb13fa191778c"
+    },
+    {
+      "bytes": 7431,
+      "destination": "raw/replay_v1/records/frozen_quantum_seed123_lr0.001.json",
+      "destination_sha256": "3817887429ce744f90ffdfe3b3a79cf187e66e2062438b8632a494543b59fccb",
+      "sha256": "3817887429ce744f90ffdfe3b3a79cf187e66e2062438b8632a494543b59fccb",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/frozen_quantum_seed123_lr0.001.json",
+      "source_sha256": "3817887429ce744f90ffdfe3b3a79cf187e66e2062438b8632a494543b59fccb"
+    },
+    {
+      "bytes": 7418,
+      "destination": "raw/replay_v1/records/frozen_quantum_seed42_lr0.001.json",
+      "destination_sha256": "92701214297061756c6f56a9d2ae8703c6d4dc2d9e5f0717416a8aa23265efd4",
+      "sha256": "92701214297061756c6f56a9d2ae8703c6d4dc2d9e5f0717416a8aa23265efd4",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/frozen_quantum_seed42_lr0.001.json",
+      "source_sha256": "92701214297061756c6f56a9d2ae8703c6d4dc2d9e5f0717416a8aa23265efd4"
+    },
+    {
+      "bytes": 7423,
+      "destination": "raw/replay_v1/records/frozen_quantum_seed77_lr0.001.json",
+      "destination_sha256": "75db51cf62fdd1c1162cb3f83c3af3d77a1948fa03aecd57eed187fbafe2e3ad",
+      "sha256": "75db51cf62fdd1c1162cb3f83c3af3d77a1948fa03aecd57eed187fbafe2e3ad",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/frozen_quantum_seed77_lr0.001.json",
+      "source_sha256": "75db51cf62fdd1c1162cb3f83c3af3d77a1948fa03aecd57eed187fbafe2e3ad"
+    },
+    {
+      "bytes": 7396,
+      "destination": "raw/replay_v1/records/quantum_seed123_lr0.001.json",
+      "destination_sha256": "e406d19bf79781769c4852179b679c9f463ae17ceb432feb096dfd42cfe0dae1",
+      "sha256": "e406d19bf79781769c4852179b679c9f463ae17ceb432feb096dfd42cfe0dae1",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/quantum_seed123_lr0.001.json",
+      "source_sha256": "e406d19bf79781769c4852179b679c9f463ae17ceb432feb096dfd42cfe0dae1"
+    },
+    {
+      "bytes": 7396,
+      "destination": "raw/replay_v1/records/quantum_seed42_lr0.001.json",
+      "destination_sha256": "2bf60b0fec1e4d5e7fd3ffe30fcda3ec163b6ef557518c4ba3663db34e2e1d6b",
+      "sha256": "2bf60b0fec1e4d5e7fd3ffe30fcda3ec163b6ef557518c4ba3663db34e2e1d6b",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/quantum_seed42_lr0.001.json",
+      "source_sha256": "2bf60b0fec1e4d5e7fd3ffe30fcda3ec163b6ef557518c4ba3663db34e2e1d6b"
+    },
+    {
+      "bytes": 7400,
+      "destination": "raw/replay_v1/records/quantum_seed77_lr0.001.json",
+      "destination_sha256": "faa2d2b142cfe2967953ed60f6b142f759e5be93acccff4f5353a28b0c31fa18",
+      "sha256": "faa2d2b142cfe2967953ed60f6b142f759e5be93acccff4f5353a28b0c31fa18",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/quantum_seed77_lr0.001.json",
+      "source_sha256": "faa2d2b142cfe2967953ed60f6b142f759e5be93acccff4f5353a28b0c31fa18"
+    },
+    {
+      "bytes": 7420,
+      "destination": "raw/replay_v1/records/zero_bottleneck_seed123_lr0.001.json",
+      "destination_sha256": "ee3d9630e6120debca7a9b856d66ca4d5f7c28f6c02440e4b583731e6a1e3b0b",
+      "sha256": "ee3d9630e6120debca7a9b856d66ca4d5f7c28f6c02440e4b583731e6a1e3b0b",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/zero_bottleneck_seed123_lr0.001.json",
+      "source_sha256": "ee3d9630e6120debca7a9b856d66ca4d5f7c28f6c02440e4b583731e6a1e3b0b"
+    },
+    {
+      "bytes": 7413,
+      "destination": "raw/replay_v1/records/zero_bottleneck_seed42_lr0.001.json",
+      "destination_sha256": "7b624c1d39b3b93e84a62255a881cf5fb873fe50c31b2a96b27e8abc5a2b67c1",
+      "sha256": "7b624c1d39b3b93e84a62255a881cf5fb873fe50c31b2a96b27e8abc5a2b67c1",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/zero_bottleneck_seed42_lr0.001.json",
+      "source_sha256": "7b624c1d39b3b93e84a62255a881cf5fb873fe50c31b2a96b27e8abc5a2b67c1"
+    },
+    {
+      "bytes": 7412,
+      "destination": "raw/replay_v1/records/zero_bottleneck_seed77_lr0.001.json",
+      "destination_sha256": "00059c6343c3099ad8723552d3612c6a67b2241568ea2bdda2c70efcfb067266",
+      "sha256": "00059c6343c3099ad8723552d3612c6a67b2241568ea2bdda2c70efcfb067266",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/replay_v1/records/zero_bottleneck_seed77_lr0.001.json",
+      "source_sha256": "00059c6343c3099ad8723552d3612c6a67b2241568ea2bdda2c70efcfb067266"
+    },
+    {
+      "bytes": 281,
+      "destination": "operations/completed_v1/pipeline_status.json",
+      "destination_sha256": "42edd8b15989c725dd06716e72ea67eae445957f53452a631d596016322dcb53",
+      "sha256": "42edd8b15989c725dd06716e72ea67eae445957f53452a631d596016322dcb53",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/pipeline_status.json",
+      "source_sha256": "42edd8b15989c725dd06716e72ea67eae445957f53452a631d596016322dcb53"
+    },
+    {
+      "bytes": 3456,
+      "destination": "operations/completed_v1/pipeline_verification.json",
+      "destination_sha256": "3d12868aa2935b52eb30f14a28f28581b4a1f960f3a163442f8a02c13e0179c2",
+      "sha256": "3d12868aa2935b52eb30f14a28f28581b4a1f960f3a163442f8a02c13e0179c2",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/pipeline_verification.json",
+      "source_sha256": "3d12868aa2935b52eb30f14a28f28581b4a1f960f3a163442f8a02c13e0179c2"
+    },
+    {
+      "bytes": 7227,
+      "destination": "operations/completed_v1/operational_pipeline.py.txt",
+      "destination_sha256": "ccc102b91f5dff123d1f0521cb4ad82840140aaabb940aede26e739255dc8981",
+      "sha256": "ccc102b91f5dff123d1f0521cb4ad82840140aaabb940aede26e739255dc8981",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/operational_pipeline.py",
+      "source_sha256": "ccc102b91f5dff123d1f0521cb4ad82840140aaabb940aede26e739255dc8981"
+    },
+    {
+      "bytes": 265,
+      "destination": "operations/completed_v1/operational_pipeline.log",
+      "destination_sha256": "caf5f82177b2bcac6489f5a09d66cd1bcfbcd7708939b9d0ec5ac85d70c1a2bd",
+      "sha256": "caf5f82177b2bcac6489f5a09d66cd1bcfbcd7708939b9d0ec5ac85d70c1a2bd",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/operational_pipeline.log",
+      "source_sha256": "caf5f82177b2bcac6489f5a09d66cd1bcfbcd7708939b9d0ec5ac85d70c1a2bd"
+    },
+    {
+      "bytes": 114,
+      "destination": "operations/completed_v1/validation_replay.log",
+      "destination_sha256": "796c15a75e7307bea1818959242b50cd4e26e538be82560fb24907b7f29f0879",
+      "sha256": "796c15a75e7307bea1818959242b50cd4e26e538be82560fb24907b7f29f0879",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/validation_replay.log",
+      "source_sha256": "796c15a75e7307bea1818959242b50cd4e26e538be82560fb24907b7f29f0879"
+    },
+    {
+      "bytes": 116,
+      "destination": "operations/completed_v1/export_a.log",
+      "destination_sha256": "49d3f1419e4f24dbe692a6d3a0187f78af492e5087ab78d0013c124b65086126",
+      "sha256": "49d3f1419e4f24dbe692a6d3a0187f78af492e5087ab78d0013c124b65086126",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_a.log",
+      "source_sha256": "49d3f1419e4f24dbe692a6d3a0187f78af492e5087ab78d0013c124b65086126"
+    },
+    {
+      "bytes": 116,
+      "destination": "operations/completed_v1/export_b.log",
+      "destination_sha256": "ffd3cb7852d7c2932e047d0da83aa9fd13ee6c6b9795df5ca2f68fd3b31d89a3",
+      "sha256": "ffd3cb7852d7c2932e047d0da83aa9fd13ee6c6b9795df5ca2f68fd3b31d89a3",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/export_b.log",
+      "source_sha256": "ffd3cb7852d7c2932e047d0da83aa9fd13ee6c6b9795df5ca2f68fd3b31d89a3"
+    },
+    {
+      "bytes": 5067,
+      "destination": "operations/completed_v1/profile.json",
+      "destination_sha256": "dbed3893fec2847d3ef2a4f04c8a8f6709b7ae2da0c852dff456c2d69c51ba0d",
+      "sha256": "dbed3893fec2847d3ef2a4f04c8a8f6709b7ae2da0c852dff456c2d69c51ba0d",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/profile_v2.json",
+      "source_sha256": "dbed3893fec2847d3ef2a4f04c8a8f6709b7ae2da0c852dff456c2d69c51ba0d"
+    },
+    {
+      "bytes": 4329,
+      "destination": "operations/completed_v1/profile.log",
+      "destination_sha256": "3e14bcf924a93f0d6cfdcd7675195ea25e9d51965db9f622335c4afcd094c056",
+      "sha256": "3e14bcf924a93f0d6cfdcd7675195ea25e9d51965db9f622335c4afcd094c056",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/profile_v2.log",
+      "source_sha256": "3e14bcf924a93f0d6cfdcd7675195ea25e9d51965db9f622335c4afcd094c056"
+    },
+    {
+      "bytes": 141900,
+      "destination": "operations/completed_v1/campaign.log",
+      "destination_sha256": "fa26770c74bb862286d2df18cb469bab3ddb499fc0ac7770d0a3022b160dcab4",
+      "sha256": "fa26770c74bb862286d2df18cb469bab3ddb499fc0ac7770d0a3022b160dcab4",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/campaign_v1.log",
+      "source_sha256": "fa26770c74bb862286d2df18cb469bab3ddb499fc0ac7770d0a3022b160dcab4"
+    },
+    {
+      "bytes": 28667,
+      "destination": "numeric_audit/completed_v1/audit.json",
+      "destination_sha256": "03d20bc1a6760d428f19a10dc80362d4140c1b2b019eb28b6094f2926b5d5bfd",
+      "sha256": "03d20bc1a6760d428f19a10dc80362d4140c1b2b019eb28b6094f2926b5d5bfd",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/completed_v1/audit.json",
+      "source_sha256": "03d20bc1a6760d428f19a10dc80362d4140c1b2b019eb28b6094f2926b5d5bfd"
+    },
+    {
+      "bytes": 2457,
+      "destination": "numeric_audit/completed_v1/REPORT.md",
+      "destination_sha256": "47df1f36228f5b2b35d458ab398dba190c79d6f2036dc99c77ee18eb2d21327f",
+      "sha256": "47df1f36228f5b2b35d458ab398dba190c79d6f2036dc99c77ee18eb2d21327f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/completed_v1/REPORT.md",
+      "source_sha256": "47df1f36228f5b2b35d458ab398dba190c79d6f2036dc99c77ee18eb2d21327f"
+    },
+    {
+      "bytes": 42130,
+      "destination": "numeric_audit/completed_v1/independent_numeric_audit.py.txt",
+      "destination_sha256": "42564517355697652f6eaf706098e760ccea38bcdabc14155f322b334b126d7e",
+      "sha256": "42564517355697652f6eaf706098e760ccea38bcdabc14155f322b334b126d7e",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/independent_numeric_audit.py",
+      "source_sha256": "42564517355697652f6eaf706098e760ccea38bcdabc14155f322b334b126d7e"
+    },
+    {
+      "bytes": 3633,
+      "destination": "numeric_audit/completed_v1/wait_for_pipeline.py.txt",
+      "destination_sha256": "6f6071029e96d42b04693d291b20e2fe568236a2279938fc7369cbc931a7183b",
+      "sha256": "6f6071029e96d42b04693d291b20e2fe568236a2279938fc7369cbc931a7183b",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/wait_for_pipeline.py",
+      "source_sha256": "6f6071029e96d42b04693d291b20e2fe568236a2279938fc7369cbc931a7183b"
+    },
+    {
+      "bytes": 358,
+      "destination": "numeric_audit/completed_v1/watcher_status.json",
+      "destination_sha256": "9386efc13d2a8d6b5005fcbcd11f94c49fb201dc557b63b76cbfa705ba406be8",
+      "sha256": "9386efc13d2a8d6b5005fcbcd11f94c49fb201dc557b63b76cbfa705ba406be8",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/watcher_status.json",
+      "source_sha256": "9386efc13d2a8d6b5005fcbcd11f94c49fb201dc557b63b76cbfa705ba406be8"
+    },
+    {
+      "bytes": 190,
+      "destination": "numeric_audit/completed_v1/actual_audit.log",
+      "destination_sha256": "95407f6113354bc8d8a2289c8ae917521167d1fcef7ecd14503cf60df6e500c6",
+      "sha256": "95407f6113354bc8d8a2289c8ae917521167d1fcef7ecd14503cf60df6e500c6",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/actual_audit.log",
+      "source_sha256": "95407f6113354bc8d8a2289c8ae917521167d1fcef7ecd14503cf60df6e500c6"
+    },
+    {
+      "bytes": 110,
+      "destination": "numeric_audit/completed_v1/watcher.log",
+      "destination_sha256": "adcd7c7621e005f5197d397e137d0e2a36ece3f0d2596a00e5ccd127aeeda0c9",
+      "sha256": "adcd7c7621e005f5197d397e137d0e2a36ece3f0d2596a00e5ccd127aeeda0c9",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/numeric_audit/watcher.log",
+      "source_sha256": "adcd7c7621e005f5197d397e137d0e2a36ece3f0d2596a00e5ccd127aeeda0c9"
+    },
+    {
+      "bytes": 15917,
+      "destination": "operations/completed_v1/stage_completed_payload.py.txt",
+      "destination_sha256": "a4dd72586f8036d5be13ad102032a78e4d9895e452728738d75ebfb7e4cbf83f",
+      "sha256": "a4dd72586f8036d5be13ad102032a78e4d9895e452728738d75ebfb7e4cbf83f",
+      "source": "/home/bernalde/repos/QUAFFLE/results/landcover_native_20261028/publication_preparation/stage_completed_payload.py",
+      "source_sha256": "a4dd72586f8036d5be13ad102032a78e4d9895e452728738d75ebfb7e4cbf83f"
+    }
+  ],
+  "fit_records": 13,
+  "format": "landcover-native-publication-staging-v1",
+  "independent_audit_sha256": "03d20bc1a6760d428f19a10dc80362d4140c1b2b019eb28b6094f2926b5d5bfd",
+  "independent_report_sha256": "47df1f36228f5b2b35d458ab398dba190c79d6f2036dc99c77ee18eb2d21327f",
+  "packaging_source_sha256": "a4dd72586f8036d5be13ad102032a78e4d9895e452728738d75ebfb7e4cbf83f",
+  "pipeline_verification_sha256": "3d12868aa2935b52eb30f14a28f28581b4a1f960f3a163442f8a02c13e0179c2",
+  "plan_sha256": "a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc",
+  "selected_validation_replays": 12,
+  "test_predictions": 0
+}

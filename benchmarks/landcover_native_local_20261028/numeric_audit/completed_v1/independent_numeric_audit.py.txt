@@ -1,0 +1,599 @@
+#!/usr/bin/env python3
+"""Independent, metadata-only numeric oracle for the completed native pilot.
+
+No project helpers, Torch, model/checkpoint deserialization, or image libraries
+are imported. Run --selfcheck now; run the actual audit only after authorization
+and the complete operational pipeline. Fraction arithmetic decides the screen.
+"""
+import argparse
+import ast
+import csv
+from fractions import Fraction
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import sys
+
+PLAN_SHA = 'a3cae54c1f575fc46722513c8d274daf96ef4b3fc4635c4a3e051c7f6e1b30fc'
+MANIFEST_SHA = 'da33f9a649513e37add550b05086ee56b4dca5a9973fd79d13ba3caf40f049d1'
+COHORT_SHA = '75af1141692c6f545c7682ff1f487414f32546319d6b558858b12e69c4400ae7'
+CONTROLS = ('compact_affine', 'quantum', 'frozen_quantum', 'zero_bottleneck')
+SEEDS = (42, 77, 123)
+REFERENCES = ('compact_affine', 'frozen_quantum', 'zero_bottleneck')
+CLASS_NAMES = ('Background', 'Building', 'Woodland', 'Water', 'Road')
+TRAIN_COUNTS = [38141961, 517781, 23089583, 4322673, 1036866]
+VAL_COUNTS = [10066429, 136361, 5731888, 624000, 218538]
+CSV_NAMES = ('per_seed', 'class_metrics', 'paired', 'arm_summary', 'curves',
+             'training_curves', 'fit_costs', 'learning', 'rate_candidates', 'profile_costs')
+EXPORT_NAMES = {name+'.csv' for name in CSV_NAMES} | {
+    'summary.json', 'learning_curves.pdf', 'learning_curves.png', 'INTERPRETATION.md',
+    'collector_source.py.txt', 'provenance.json', 'artifact_sha256.json'}
+
+
+class NotComplete(ValueError):
+    pass
+
+
+def need(value, message):
+    if not value:
+        raise ValueError(message)
+
+
+def sha(path):
+    result = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024*1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+
+def bounded_json(path, limit=4*1024*1024):
+    path = Path(path)
+    need(path.is_file() and 0 < path.stat().st_size <= limit, 'Missing/oversized JSON: '+str(path))
+    def unique(pairs):
+        value = {}
+        for key, child in pairs:
+            need(key not in value, 'Duplicate JSON key: '+key)
+            value[key] = child
+        return value
+    def invalid(value):
+        raise ValueError('Nonfinite JSON constant: '+value)
+    value = json.loads(path.read_text(), object_pairs_hook=unique, parse_constant=invalid)
+    budget = [300000]
+    def walk(child, depth):
+        budget[0] -= 1
+        need(budget[0] >= 0 and depth <= 24, 'Oversized/nested JSON structure')
+        if isinstance(child, float):
+            need(math.isfinite(child), 'Nonfinite JSON number')
+        elif isinstance(child, dict):
+            need(len(child) <= 20000, 'Oversized JSON mapping')
+            for item in child.values(): walk(item, depth+1)
+        elif isinstance(child, list):
+            need(len(child) <= 20000, 'Oversized JSON list')
+            for item in child: walk(item, depth+1)
+        elif isinstance(child, str):
+            need(len(child) <= 16384, 'Oversized JSON string')
+        else:
+            need(child is None or type(child) in (bool, int), 'Unsupported JSON value')
+    walk(value, 0)
+    return value
+
+
+def inside(root, relative):
+    need(isinstance(relative, str) and not Path(relative).is_absolute(), 'Expected relative artifact path')
+    path = (root/relative).resolve()
+    need(path != root and path.is_relative_to(root), 'Artifact path escapes its root')
+    return path
+
+
+def close(actual, expected, label):
+    need(type(actual) in (int, float) and math.isfinite(actual), 'Invalid number: '+label)
+    need(math.isclose(actual, expected, rel_tol=1e-13, abs_tol=2e-12),
+         f'Numeric mismatch {label}: {actual!r} != {expected!r}')
+
+
+def compare(actual, expected, label):
+    if type(expected) is float:
+        close(actual, expected, label)
+    elif isinstance(expected, dict):
+        need(isinstance(actual, dict) and set(actual) == set(expected), 'Mapping fields differ: '+label)
+        for key in expected: compare(actual[key], expected[key], label+'/'+key)
+    elif isinstance(expected, list):
+        need(isinstance(actual, list) and len(actual) == len(expected), 'List size differs: '+label)
+        for i, value in enumerate(expected): compare(actual[i], value, f'{label}/{i}')
+    else:
+        need(type(actual) is type(expected) and actual == expected, 'Typed value differs: '+label)
+
+
+def metrics(matrix):
+    need(isinstance(matrix, list) and len(matrix) == 5 and
+         all(isinstance(row, list) and len(row) == 5 for row in matrix), 'Expected a 5x5 confusion matrix')
+    need(all(type(value) is int and 0 <= value < 2**50 for row in matrix for value in row),
+         'Confusion counts must be bounded nonnegative integers')
+    total = sum(sum(row) for row in matrix)
+    need(total > 0, 'Empty confusion matrix')
+    truth = [sum(row) for row in matrix]
+    predicted = [sum(matrix[row][column] for row in range(5)) for column in range(5)]
+    unions = [truth[i]+predicted[i]-matrix[i][i] for i in range(5)]
+    ious = [Fraction(matrix[i][i], unions[i]) if unions[i] else Fraction(0) for i in range(5)]
+    return dict(confusion=matrix, pixels=total, truth_pixels=truth, prediction_pixels=predicted,
+        class_iou=dict(zip(CLASS_NAMES, map(float, ious))),
+        absent_union=[CLASS_NAMES[i] for i in range(5) if unions[i] == 0],
+        miou=float(sum(ious, Fraction())/5), foreground_miou=float(sum(ious[1:], Fraction())/4),
+        accuracy=float(Fraction(sum(matrix[i][i] for i in range(5)), total)),
+        exact_miou=sum(ious, Fraction())/5)
+
+
+def check_observation(observed, label):
+    result = metrics(observed['confusion'])
+    need(result['truth_pixels'] == VAL_COUNTS and result['pixels'] == 64*512*512,
+         'Validation truth/pixel cohort differs: '+label)
+    for key, expected in result.items():
+        if key != 'exact_miou': compare(observed[key], expected, label+'/'+key)
+    need(type(observed['examples']) is int and observed['examples'] == 1024, 'Incomplete validation crops')
+    need(type(observed['loss']) in (int, float) and observed['loss'] >= 0, 'Invalid validation loss')
+    return result
+
+
+def moments(values):
+    need(len(values) >= 2, 'Sample SD needs two observations')
+    mean = math.fsum(values)/len(values)
+    variance = math.fsum((value-mean)**2 for value in values)/(len(values)-1)
+    return mean, math.sqrt(variance)
+
+
+def exact_screen(scores):
+    contrasts = {reference: [scores['quantum', seed]-scores[reference, seed] for seed in SEEDS]
+                 for reference in REFERENCES}
+    threshold = {reference: sum(contrasts[reference], Fraction())/3 >= Fraction(1, 100)
+                 for reference in REFERENCES[:2]}
+    positive = {reference: all(delta > 0 for delta in contrasts[reference]) for reference in REFERENCES[:2]}
+    zero_nonnegative = sum(contrasts['zero_bottleneck'], Fraction()) >= 0
+    return dict(passed=all(threshold.values()) and all(positive.values()) and zero_nonnegative,
+                at_least_one_pp=threshold, all_seeds_positive=positive,
+                zero_mean_nonnegative=zero_nonnegative,
+                exact_mean_differences={key: str(sum(values, Fraction())/3) for key, values in contrasts.items()})
+
+
+def pick_rate(candidates):
+    need(len(candidates) == 2 and [row['rate'] for row in candidates] == [.001, .003], 'Wrong affine tuning candidates')
+    return min(candidates, key=lambda row: (-row['best_miou'], row['rate']))['rate']
+
+
+def fit_name(row):
+    return f"{row['control']}_seed{row['seed']}_lr{row['rate']:g}"
+
+
+def identity(row):
+    need(row['control'] in CONTROLS and type(row['seed']) is int and row['seed'] in SEEDS and
+         type(row['rate']) is float and row['rate'] in (.001, .003), 'Wrong typed fit identity')
+    return row['control'], row['seed'], row['rate']
+
+
+def file_inventory(root, limit=100):
+    files = []
+    for path in root.rglob('*'):
+        if path.is_file():
+            files.append(path)
+            need(len(files) <= limit, 'Unexpected artifact inventory size')
+    files.sort()
+    need(all(path.resolve().is_relative_to(root) for path in files), 'Artifact symlink escapes input root')
+    return {str(path.relative_to(root)): sha(path) for path in files}
+
+
+def check_csv(path, expected):
+    need(path.stat().st_size <= 8*1024*1024 and expected, 'CSV size/expected rows invalid')
+    with path.open(newline='') as stream:
+        rows = list(csv.reader(stream))
+    fields = list(expected[0])
+    need(rows and rows[0] == fields and len(fields) == len(set(fields)), 'CSV header differs: '+path.name)
+    need(len(rows) == len(expected)+1 and len(rows) <= 4097, 'CSV row count differs: '+path.name)
+    for n, (row, want) in enumerate(zip(rows[1:], expected), 1):
+        need(len(row) == len(fields), 'CSV header/row width differs: '+path.name)
+        for field, cell in zip(fields, row):
+            value = want[field]
+            label = f'{path.name}/{n}/{field}'
+            if type(value) is float:
+                need(cell and not any(c.isspace() for c in cell), 'Invalid float CSV cell: '+label)
+                close(float(cell), value, label)
+            else:
+                need(cell == ('' if value is None else str(value)), 'CSV value differs: '+label)
+    return dict(columns=fields, rows=len(expected), all_cells_checked=True)
+
+
+def complete_gate(task):
+    # Deliberately the ONLY two reads before admission; no fits/exports/images.
+    try:
+        pipeline = bounded_json(task/'pipeline_status.json', 64*1024)
+        status = bounded_json(task/'campaign_v1/status.json', 64*1024)
+    except (OSError, ValueError) as error:
+        raise NotComplete('Complete pipeline/campaign prerequisites absent: '+str(error)) from error
+    if not (pipeline.get('stage') == 'complete' and pipeline.get('plan_sha') == PLAN_SHA and
+            status.get('status') == 'complete' and type(status.get('fits')) is int and status.get('fits') == 13
+            and status.get('plan_sha') == PLAN_SHA):
+        raise NotComplete('NOT_COMPLETE: require pipeline stage complete and all 13 completed fits')
+    return pipeline, status
+
+
+def audit(task, source_root):
+    pipeline, campaign_status = complete_gate(task)
+    need(type(campaign_status['test_predictions']) is int and campaign_status['test_predictions'] == 0,
+         'Completed campaign declares test predictions')
+    campaign, replay = task/'campaign_v1', task/'replay_v1'
+    a, b = task/'export_a_v1', task/'export_b_v1'
+    need(sha(campaign/'plan.json') == PLAN_SHA, 'Frozen plan SHA differs')
+    plan = bounded_json(campaign/'plan.json')
+    need(plan['format'] == 'landcover-native-plan-v1' and plan['test_predictions'] == 0, 'Wrong plan/test scope')
+    need(plan['controls'] == list(CONTROLS) and plan['seeds'] == list(SEEDS) and plan['rate_candidates'] == [.001, .003],
+         'Frozen arms/seeds/rates differ')
+    need((plan['epochs'], plan['image_size'], plan['base_channels'], plan['batch_size'], plan['evaluation_every']) ==
+         (60, 128, 64, 4, 5), 'Frozen full dimensions differ')
+    need((plan['training_steps_per_fit'], plan['training_examples_per_fit'], plan['validation_examples_per_evaluation']) ==
+         (3840, 15360, 1024), 'Step/example coverage differs')
+    need(plan['train_class_pixels'] == TRAIN_COUNTS and plan['val_class_pixels'] == VAL_COUNTS, 'Cohort class counts differ')
+    need(plan['dataset_manifest_sha'] == MANIFEST_SHA and sha(task/'dataset/manifest.json') == MANIFEST_SHA,
+         'Prepared dataset metadata binding differs')
+    need(sha(task/'cohort_audit/cohort_audit.json') == COHORT_SHA, 'Independent cohort audit binding differs')
+    cohort = bounded_json(task/'cohort_audit/cohort_audit.json')
+    for split in ('train', 'val'):
+        need(plan[split+'_ids'] == cohort['selected_ids'][split], 'Frozen selected IDs differ: '+split)
+    need(plan['archive']['md5'] == '3268c89070e8734b4e91d531c0617e03' and plan['archive']['sha256'] ==
+         'dd448287ff3a76291f2b159084b8a265f2ba4559bb80b0551fc8c6c0eb149a4b', 'Archive declaration differs')
+    declaration = next(ast.literal_eval(node.value) for node in ast.parse((source_root/'scripts/run_landcover_native.py').read_text()).body
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'SOURCES' for t in node.targets))
+    need(len(declaration) == 12 and set(plan['source']) == set(declaration), 'Source inventory differs')
+    sources_before = {name: sha(inside(source_root, name)) for name in plan['source']}
+    need(sources_before == plan['source'], 'Frozen executable source bytes differ')
+    encoded_profile = (json.dumps(plan['profile'], sort_keys=True, indent=2, allow_nan=False)+'\n').encode()
+    need(hashlib.sha256(encoded_profile).hexdigest() == plan['profile_sha'], 'Embedded actual profile SHA differs')
+    profile = plan['profile']
+    need(profile['source'] == plan['source'] and profile['runtime'] == plan['runtime'] and
+         profile['status'] == 'passed' and profile['format'] == 'landcover-native-profile-v1' and
+         profile['batch_size'] == 4 and profile['base_channels'] == 64 and
+         profile['warmup_steps'] == 1 and profile['steps'] == 2 and profile['actual_optimizer_steps'] == 3 and
+         set(profile['arms']) == set(CONTROLS), 'Actual source/runtime/profile binding differs')
+    need(sha(campaign/'all_fits.json') == campaign_status['all_fits_sha'], 'Complete campaign all-fits SHA differs')
+    fits = bounded_json(campaign/'all_fits.json', 32*1024*1024)
+    need(isinstance(fits, list) and len(fits) == 13 and len({identity(row) for row in fits}) == 13,
+         'Incomplete/duplicate13-fit grid')
+    candidates = [row for row in fits if (row['control'], row['seed']) == ('compact_affine', 42)]
+    chosen = pick_rate(candidates)
+    need(candidates[0]['initial_common_sha'] == candidates[1]['initial_common_sha'] and
+         candidates[0]['schedule_hashes'] == candidates[1]['schedule_hashes'],
+         'Affine rate candidates did not share recorded initialization/data schedules')
+    order = [('compact_affine', 42, .001), ('compact_affine', 42, .003)]
+    order += [(control, seed, chosen) for seed in SEEDS for control in CONTROLS
+              if (control, seed) != ('compact_affine', 42)]
+    need([identity(row) for row in fits] == order, 'Frozen ordered fit grid differs')
+    selection = bounded_json(campaign/'rate_selection.json')
+    compare(selection, dict(rate=chosen, source='seed42 compact_affine validation only',
+        candidates=[{key:row[key] for key in ('rate', 'best_miou', 'best_epoch', 'checkpoint_sha')} for row in candidates],
+        plan_sha=PLAN_SHA), 'common_rate_selection')
+    bound_files = {str((campaign/name).relative_to(task)): sha(campaign/name) for name in
+                   ('plan.json', 'status.json', 'all_fits.json', 'rate_selection.json')}
+    fit_audit = []
+    for row in fits:
+        directory = campaign/fit_name(row)
+        need(bounded_json(directory/'result.json') == row, 'Raw result differs from all_fits')
+        need(bounded_json(directory/'status.json') == dict(status='complete', result_sha=sha(directory/'result.json')),
+             'Fit not completed/bound')
+        need(row['status'] == 'complete' and row['plan_sha'] == PLAN_SHA and row['source'] == sources_before,
+             'Fit status/plan/source differs')
+        for field, name in [('checkpoint_sha', 'best.pt'), ('history_sha', 'history.json'),
+                            ('training_history_sha', 'training_history.json')]:
+            actual = sha(directory/name)
+            need(actual == row[field], 'Actual fit artifact SHA differs: '+name)
+            bound_files[str((directory/name).relative_to(task))] = actual
+        for name in ('result.json', 'status.json'):
+            bound_files[str((directory/name).relative_to(task))] = sha(directory/name)
+        history, training = bounded_json(directory/'history.json'), bounded_json(directory/'training_history.json')
+        need(history == row['history'] and training == row['training_history'], 'Embedded full histories differ')
+        need([point['epoch'] for point in training] == list(range(61)), 'Full training epoch grid differs')
+        need([point['epoch'] for point in history] == list(range(0, 61, 5)), 'Full validation epoch grid differs')
+        for point in training:
+            need(type(point['epoch']) is int and type(point['optimizer_steps']) is int and
+                 point['optimizer_steps'] == point['epoch']*64, 'Training optimizer-step count differs')
+            need(point['train_loss'] is None if point['epoch'] == 0 else
+                 type(point['train_loss']) in (int, float) and point['train_loss'] >= 0, 'Invalid full training loss')
+        for point in history:
+            need(type(point['epoch']) is int and type(point['optimizer_steps']) is int and
+                 point['optimizer_steps'] == point['epoch']*64 and point['train_loss'] == training[point['epoch']]['train_loss'],
+                 'Validation/training step/loss histories disagree')
+            check_observation(point['validation'], fit_name(row)+f"/epoch{point['epoch']}")
+        best = history[0]
+        for point in history[1:]:
+            if point['validation']['miou'] > best['validation']['miou']: best = point
+        need(type(row['best_miou']) in (int, float) and row['best_epoch'] == best['epoch'] and
+             row['best_miou'] == best['validation']['miou'],
+             'Not the first strict best validation checkpoint')
+        need(type(row['best_epoch']) is int and row['best_epoch'] in range(0, 61, 5) and
+             type(row['epochs']) is int and row['epochs'] == 60 and type(row['optimizer_steps']) is int and
+             row['optimizer_steps'] == 3840 and len(row['schedule_hashes']) == 60 and
+             all(re.fullmatch(r'[0-9a-f]{64}', value) for value in row['schedule_hashes']), 'Incomplete training schedule')
+        need(set(row['counts']) == {'total', 'trainable', 'core_total', 'core_trainable',
+             'bottleneck_total', 'bottleneck_trainable'} and
+             all(type(value) is int and value >= 0 for value in row['counts'].values()), 'Invalid typed parameter counts')
+        need(row['counts'] == profile['arms'][row['control']]['counts'], 'Fit/profile parameter counts differ')
+        need(type(row['elapsed_seconds']) in (int, float) and row['elapsed_seconds'] >= 0 and
+             type(row['peak_cuda_allocated']) is int and row['peak_cuda_allocated'] >= 0, 'Invalid fit elapsed/memory metadata')
+        need(row['first_gradients']['common_l2'] > 0, 'No recorded common gradient')
+        if row['control'] in ('quantum', 'compact_affine'):
+            need(row['first_gradients']['core_l2'] > 0 and row['core_change_l2'] > 0, 'Recorded active core did not move')
+        else:
+            need(row['first_gradients']['core_l2'] == row['core_change_l2'] == 0, 'Recorded inactive core moved')
+        need(row['model_config'] == dict(format='hq-landcover-native-v1', control=row['control'], seed=row['seed'],
+            base_channels=64, image_size=128, in_channels=3, out_channels=5, circuit_edge_order='brickwork'), 'Model configuration differs')
+        fit_audit.append(dict(control=row['control'], seed=row['seed'], rate=row['rate'], best_epoch=row['best_epoch'],
+            optimizer_steps=row['optimizer_steps'], checkpoint_sha=row['checkpoint_sha'],
+            epoch0_selected=row['best_epoch'] == 0, late_best=row['best_epoch'] >= 55,
+            selected_at_cap=row['best_epoch'] == 60, initial_to_best_pp=100*(row['best_miou']-history[0]['validation']['miou'])))
+    primary = [row for row in fits if row['rate'] == chosen]
+    need(len(primary) == 12, 'Incomplete primary grid')
+    for seed in SEEDS:
+        paired = [row for row in primary if row['seed'] == seed]
+        need(len({row['initial_common_sha'] for row in paired}) == 1 and
+             all(row['schedule_hashes'] == paired[0]['schedule_hashes'] for row in paired), 'Unpaired initialization/data schedule')
+    replay_before = file_inventory(replay)
+    replay_inventory = bounded_json(replay/'artifact_sha256.json')
+    need({name: value for name, value in replay_before.items() if name != 'artifact_sha256.json'} == replay_inventory,
+         'Actual replay inventory differs')
+    complete, replay_plan = bounded_json(replay/'complete.json'), bounded_json(replay/'plan.json')
+    need(complete['format'] == 'landcover-native-validation-replays-v1' and complete['complete'] is True and
+         complete['plan_sha'] == PLAN_SHA and complete['all_fits_sha'] == campaign_status['all_fits_sha'] and
+         complete['test_predictions'] == 0 and complete['replay_plan'] == replay_plan and not (replay/'failure.json').exists(),
+         'Replay completion binding differs')
+    need(replay_plan['source'] == sources_before and replay_plan['plan_sha'] == PLAN_SHA and
+         replay_plan['collector_sha'] == sources_before['scripts/collect_landcover_native.py'] and
+         replay_plan['dataset_manifest_sha'] == MANIFEST_SHA and replay_plan['test_predictions'] == 0 and
+         replay_plan['downtime_counts'] is True and replay_plan['budget_seconds'] > 0 and
+         replay_plan['deadline_unix'] == replay_plan['started_unix']+replay_plan['budget_seconds'], 'Replay plan/source/deadline differs')
+    checkpoints = bounded_json(replay/'checkpoint_audit.json')
+    need(len(checkpoints) == 12 and complete['checkpoint_audit_sha'] == sha(replay/'checkpoint_audit.json'), 'Strict checkpoint audit binding differs')
+    observed, cached_rows = {}, []
+    expected_names = {fit_name(row)+'.json' for row in primary}
+    need({path.name for path in (replay/'records').glob('*.json')} == expected_names and
+         {path.name for path in (replay/'intents').glob('*.json')} == expected_names, 'Replay/intents grid differs')
+    for row, checkpoint in zip(primary, checkpoints):
+        payload = bounded_json(replay/'records'/(fit_name(row)+'.json'))
+        binding = dict(plan_sha=PLAN_SHA, all_fits_sha=campaign_status['all_fits_sha'],
+            result_sha=sha(campaign/fit_name(row)/'result.json'), checkpoint_sha=row['checkpoint_sha'],
+            history_sha=row['history_sha'], control=row['control'], seed=row['seed'], rate=row['rate'],
+            dataset_manifest_sha=MANIFEST_SHA, val_ids=plan['val_ids'], examples=1024)
+        need(payload['binding'] == binding and bounded_json(replay/'intents'/(fit_name(row)+'.json')) == dict(binding=binding),
+             'Replay record/intent binding differs')
+        need(payload['checkpoint'] == checkpoint and checkpoint['strict_restore'] is True and
+             checkpoint['control'] == row['control'] and checkpoint['seed'] == row['seed'] and
+             checkpoint['checkpoint_sha'] == row['checkpoint_sha'] and checkpoint['counts'] == row['counts'], 'Checkpoint audit identity differs')
+        flags = checkpoint['trainability']
+        core = [value for name, value in flags.items() if name.startswith('bottleneck.core.')]
+        need(core and all(type(value) is bool for value in flags.values()), 'Missing typed core trainability audit')
+        need(all(core) if row['control'] in ('quantum', 'compact_affine') else not any(core), 'Wrong core trainability audit')
+        if row['control'] == 'zero_bottleneck':
+            need(not any(value for name, value in flags.items() if name.startswith('bottleneck.')), 'Zero audit reactivates bottleneck')
+        for key in ('python', 'executable', 'packages', 'threads', 'cuda'):
+            need(payload['runtime'][key] == plan['runtime'][key], 'Replay software runtime differs')
+        arithmetic = check_observation(payload['validation'], fit_name(row)+'/replay')
+        selected = next(point['validation'] for point in row['history'] if point['epoch'] == row['best_epoch'])
+        need(payload['validation']['confusion'] == selected['confusion'], 'Actual replay counts differ from selected checkpoint')
+        observed[row['control'], row['seed']] = arithmetic
+        cached_rows.append(dict(control=row['control'], seed=row['seed'], rate=row['rate'], validation=payload['validation']))
+    need(complete['records'] == cached_rows, 'Replay complete records differ')
+    summary, tables, exact = derived_tables(plan, fits, primary, chosen, observed)
+    export_a = verify_export(a, plan, campaign_status, complete, replay, summary, tables)
+    export_b = verify_export(b, plan, campaign_status, complete, replay, summary, tables)
+    need(export_a == export_b, 'Two complete exports are not whole-file byte identical')
+    verification = bounded_json(task/'pipeline_verification.json')
+    need(sha(task/'pipeline_verification.json') == pipeline['verification_sha'] and
+         verification['plan_sha'] == PLAN_SHA and verification['source'] == sources_before and
+         verification['export_file_sha256'] == export_a and verification['fit_count'] == 13 and
+         verification['selected_replays'] == 12 and verification['test_predictions'] == 0 and
+         all(verification[key] is True for key in ('training_complete', 'export_whole_file_byte_equal',
+            'completed_paths_no_fitting_or_inference', 'campaign_bytes_and_mtimes_unchanged',
+            'replay_bytes_and_mtimes_unchanged', 'within_campaign_deadline')), 'Operational completion verification differs')
+    need({name: sha(task/name) for name in bound_files} == bound_files, 'Raw campaign inputs changed during audit')
+    need(file_inventory(replay) == replay_before and file_inventory(a) == export_a and file_inventory(b) == export_b,
+         'Replay/export bytes changed during audit')
+    need({name: sha(inside(source_root, name)) for name in sources_before} == sources_before and
+         sha(task/'dataset/manifest.json') == MANIFEST_SHA, 'Source/data metadata changed during audit')
+    return dict(status='passed', plan_sha256=PLAN_SHA, dataset_manifest_sha256=MANIFEST_SHA,
+        source_hashes=sources_before, common_rate=chosen, raw_fit_count=13, primary_count=12,
+        checkpoint_files_hashed=13, validation_count_points=169, full_training_history_points=793,
+        optimizer_steps_per_fit=3840, completed_replays=12, csv_checks={key: dict(rows=len(value), columns=list(value[0])) for key, value in tables.items()},
+        recomputed_summary=summary, exact_practical_screen=exact, fit_checkpoint_selection=fit_audit,
+        export_whole_file_byte_equal=True, export_file_sha256=export_a, campaign_artifact_sha256=bound_files,
+        replay_artifact_sha256=replay_before, integer_confusion_orientation='rows truth, columns prediction',
+        statistic_convention='paired per-seed differences before mean; sample SD with n-1; percentage points multiply by 100',
+        float_comparison='2e-12 absolute + 1e-13 relative tolerance for serialized derived float reporting only; screening uses exact Fraction inequalities',
+        test_images_read=0, dataset_images_read=0, models_loaded=0,
+        limits=['No independent checkpoint deserialization/forward inference: actual strict restoration/replay is separately retained.',
+            'Parameter counts are checked for fit/profile/export agreement, not independently reconstructed from a loaded model.',
+            'Validation was used for rate and checkpoint selection; no significance, equivalence, test-score or quantum-advantage claim.'])
+
+
+def derived_tables(plan, fits, primary, chosen, observed):
+    arms, pairs = [], []
+    for control in CONTROLS:
+        row = dict(control=control)
+        for metric in ('miou', 'accuracy', 'foreground_miou'):
+            row[metric+'_mean'], row[metric+'_sd'] = moments([observed[control, seed][metric] for seed in SEEDS])
+        arms.append(row)
+    for reference in REFERENCES:
+        deltas = [100*(observed['quantum', seed]['miou']-observed[reference, seed]['miou']) for seed in SEEDS]
+        mean, sd = moments(deltas)
+        follow_mean, follow_sd = moments(deltas[1:])
+        pairs.append(dict(reference=reference, metric='miou', seed42_pp=deltas[0], seed77_pp=deltas[1], seed123_pp=deltas[2],
+            mean_pp=mean, sample_sd_pp=sd, positive_seeds=sum(value > 0 for value in deltas), calibration_seed42_pp=deltas[0],
+            followup_seeds77_123_mean_pp=follow_mean, followup_seeds77_123_sample_sd_pp=follow_sd))
+    exact = exact_screen({key: value['exact_miou'] for key, value in observed.items()})
+    no_gain = sum(row['best_miou'] <= row['history'][0]['validation']['miou'] for row in primary)
+    late = sum(row['best_epoch'] >= 55 for row in primary)
+    summary = dict(arms=arms, paired=pairs, practical_screen_passed=exact['passed'],
+        screening_scope='Descriptive fixed practical screen, not significance, equivalence or quantum advantage',
+        initial_to_best_nonpositive_count=no_gain, all_arms_no_learning=no_gain == 12, late_best_count=late,
+        horizons_unresolved=late > 0, training_quality='no_observed_learning' if no_gain == 12 else 'learning_observed')
+    tables = {name: [] for name in CSV_NAMES}
+    tables['paired'], tables['arm_summary'] = pairs, arms
+    for row in primary:
+        value = observed[row['control'], row['seed']]
+        base = dict(control=row['control'], seed=row['seed'], rate=row['rate'])
+        tables['per_seed'].append(dict(**base, best_epoch=row['best_epoch'], miou=value['miou'], accuracy=value['accuracy'],
+            foreground_miou=value['foreground_miou'], examples=1024, pixels=16777216,
+            checkpoint_sha=row['checkpoint_sha'], optimizer_steps=3840))
+        for i, name in enumerate(CLASS_NAMES):
+            tp = value['confusion'][i][i]
+            tables['class_metrics'].append(dict(**base, class_id=i, class_name=name, iou=value['class_iou'][name],
+                truth_pixels=value['truth_pixels'][i], prediction_pixels=value['prediction_pixels'][i], tp=tp,
+                fp=value['prediction_pixels'][i]-tp, fn=value['truth_pixels'][i]-tp))
+        for point in row['history']:
+            score = metrics(point['validation']['confusion'])
+            tables['curves'].append(dict(**base, epoch=point['epoch'], optimizer_steps=point['optimizer_steps'],
+                train_loss=point['train_loss'], validation_loss=point['validation']['loss'], miou=score['miou'],
+                accuracy=score['accuracy'], foreground_miou=score['foreground_miou'], selected=point['epoch'] == row['best_epoch']))
+        for point in row['training_history']:
+            tables['training_curves'].append(dict(**base, epoch=point['epoch'], optimizer_steps=point['optimizer_steps'], train_loss=point['train_loss']))
+        initial = metrics(row['history'][0]['validation']['confusion'])['miou']
+        best = metrics(next(point['validation']['confusion'] for point in row['history'] if point['epoch'] == row['best_epoch']))['miou']
+        final = metrics(row['history'][-1]['validation']['confusion'])['miou']
+        before_final = metrics(row['history'][-2]['validation']['confusion'])['miou']
+        tables['learning'].append(dict(**base, initial_miou=initial, best_miou=best, final_miou=final,
+            initial_to_best_pp=100*(best-initial), best_epoch=row['best_epoch'], best_at_cap=row['best_epoch'] == 60,
+            best_at_or_after_55=row['best_epoch'] >= 55, last_interval_improvement_pp=100*(final-before_final)))
+        tables['fit_costs'].append(dict(**base, elapsed_seconds=row['elapsed_seconds'],
+            peak_cuda_allocated=row['peak_cuda_allocated'], **row['counts']))
+    tables['rate_candidates'] = [dict(control=row['control'], seed=row['seed'], rate=row['rate'], best_miou=row['best_miou'],
+        best_epoch=row['best_epoch'], selected_common_rate=row['rate'] == chosen) for row in fits
+        if (row['control'], row['seed']) == ('compact_affine', 42)]
+    for control, arm in plan['profile']['arms'].items():
+        tables['profile_costs'].append(dict(control=control, warmup_seconds=arm['warmup_seconds'],
+            step1_seconds=arm['step_seconds'][0], step2_seconds=arm['step_seconds'][1], eval_batch_seconds=arm['eval_batch_seconds'],
+            peak_cuda_allocated=arm['peak_cuda_allocated'], peak_cuda_reserved=arm['peak_cuda_reserved'], **arm['counts']))
+    return summary, tables, exact
+
+
+def verify_export(root, plan, status, complete, replay, expected_summary, tables):
+    actual = file_inventory(root)
+    need(set(actual) == EXPORT_NAMES and len(actual) == 17, 'Expected exactly17 exported files')
+    need(bounded_json(root/'artifact_sha256.json') == {name: value for name, value in actual.items() if name != 'artifact_sha256.json'},
+         'Declared export SHA inventory differs')
+    compare(bounded_json(root/'summary.json'), expected_summary, root.name+'/summary')
+    for name, rows in tables.items(): check_csv(root/(name+'.csv'), rows)
+    provenance = bounded_json(root/'provenance.json')
+    need(provenance['format'] == 'landcover-native-export-v1' and provenance['plan_sha'] == PLAN_SHA and
+         provenance['collector_sha'] == plan['source']['scripts/collect_landcover_native.py'] and
+         provenance['all_fits_sha'] == status['all_fits_sha'] and provenance['replay_complete_sha'] == sha(replay/'complete.json') and
+         provenance['replay_inventory_sha'] == sha(replay/'artifact_sha256.json') and provenance['source'] == plan['source'] and
+         provenance['inference_performed'] is False and provenance['test_predictions'] == 0, 'Export provenance binding differs')
+    need(sha(root/'collector_source.py.txt') == provenance['collector_sha'], 'Inert collector source differs')
+    return actual
+
+
+def selfcheck():
+    toy = [[5, 1, 0, 0, 0], [2, 4, 0, 0, 0], [0, 0, 3, 1, 0], [0, 0, 1, 2, 1], [0, 0, 0, 0, 5]]
+    value = metrics(toy)
+    need(value['truth_pixels'] == [6, 6, 4, 4, 5] and value['prediction_pixels'] == [7, 5, 4, 3, 6], 'Orientation selfcheck')
+    need(value['exact_miou'] == Fraction(509, 840) and value['accuracy'] == 19/25 and
+         value['foreground_miou'] == float(Fraction(101, 168)), 'Hand-computed metric selfcheck')
+    need(list(value['class_iou'].values()) == [5/8, 4/7, 3/5, 2/5, 5/6], 'Hand-computed class IoUs')
+    empty_classes = [[int(i == j == 0) for j in range(5)] for i in range(5)]
+    need(metrics(empty_classes)['exact_miou'] == Fraction(1, 5), 'Zero-union class convention')
+    need(moments([1., 2., 3.]) == (2., 1.), 'Sample SD n-1 selfcheck')
+    close(moments([2., 3.])[1], math.sqrt(.5), 'Two-followup sample SD')
+    def cycle(diagonal, off_diagonal):
+        return [[diagonal if i == j else off_diagonal if j == (i+1)%5 else 0 for j in range(5)] for i in range(5)]
+    q, reference = cycle(58, 71), cycle(56, 72)
+    need(metrics(q)['exact_miou'] == Fraction(29, 100) and metrics(reference)['exact_miou'] == Fraction(28, 100), 'Exact1pp matrices')
+    scores = {(control, seed): metrics(q if control in ('quantum', 'zero_bottleneck') else reference)['exact_miou']
+              for control in CONTROLS for seed in SEEDS}
+    screen = exact_screen(scores)
+    need(screen['passed'] and screen['zero_mean_nonnegative'], 'Exact1pp plus zero-mean equality must pass')
+    one_pixel = [row[:] for row in q]
+    one_pixel[0][0] -= 1; one_pixel[0][1] += 1
+    lower = metrics(one_pixel)['exact_miou']
+    below = {key: lower if key[0] in ('quantum', 'zero_bottleneck') else value for key, value in scores.items()}
+    need(not exact_screen(below)['passed'] and all(exact_screen(below)['all_seeds_positive'].values())
+         and exact_screen(below)['zero_mean_nonnegative'], 'One-pixel just-below boundary must fail threshold only')
+    # All-positive is independently necessary even when the paired mean exceeds1pp.
+    tie = dict(scores)
+    for seed in (77, 123): tie['compact_affine', seed] = Fraction(27, 100)
+    tie['compact_affine', 42] = tie['quantum', 42]
+    need(exact_screen(tie)['at_least_one_pp']['compact_affine'] and not exact_screen(tie)['passed'], 'One tied seed must fail')
+    need(pick_rate([dict(rate=.001, best_miou=.5), dict(rate=.003, best_miou=.5)]) == .001, 'Lower-LR exact tie')
+    invalid_cases = [True, -1, 2**50]
+    for invalid in invalid_cases:
+        corrupt = [row[:] for row in toy]; corrupt[0][0] = invalid
+        try: metrics(corrupt)
+        except ValueError: pass
+        else: raise AssertionError('Typed/bounded count refusal missing')
+    from unittest.mock import patch
+    for stage, completed_fits in [('waiting_for_live_training_unit', 13), ('complete', 12)]:
+        accesses = []
+        def fake_read(path, limit):
+            accesses.append(str(path))
+            if path.name == 'pipeline_status.json': return dict(stage=stage, plan_sha=PLAN_SHA)
+            if path.name == 'status.json': return dict(status='complete', fits=completed_fits, plan_sha=PLAN_SHA)
+            raise AssertionError('Admission opened a fit/plan/export before completion')
+        with patch.object(sys.modules[__name__], 'bounded_json', side_effect=fake_read):
+            try: audit(Path('/synthetic_numeric_audit_task'), Path('/synthetic_source'))
+            except NotComplete: pass
+            else: raise AssertionError('Incomplete pipeline admission must fail')
+        need(accesses == ['/synthetic_numeric_audit_task/pipeline_status.json',
+                          '/synthetic_numeric_audit_task/campaign_v1/status.json'], 'Read-before-admission guard failed')
+    return dict(status='passed', hand_confusion=toy, exact_miou='509/840', accuracy='19/25',
+        secondary_foreground_miou='101/168', sample_sd_n_minus_1=True, exact_one_pp_pass=True,
+        one_pixel_below_fails=True, exact_zero_mean_equality_pass=True, positive_seed_tie_fails=True,
+        lower_lr_tie_selects_001=True, invalid_boolean_negative_oversized_counts_rejected=True,
+        incomplete_pipeline_and_fit_grid_stop_before_any_plan_fit_or_export_read=True,
+        actual_campaign_outputs_read=False, project_helpers_imported=False)
+
+
+def report(result):
+    lines = ['# Independent completed native LandCover numeric audit', '',
+        'All 13 completed fits, 13 checkpoint byte hashes, 169 validation confusion matrices, 793 full training-history points, 12 selected replays, 10 CSV tables per export and both 17-file exports passed independent metadata/numeric checks. No model, image or test-pixel data was loaded.', '',
+        'The common rate was selected only by the two seed 42 affine candidates, with lower rate on an exact tie: `'+str(result['common_rate'])+'`.', '',
+        '| Arm | Validation mIoU mean | Sample SD | Accuracy mean |', '|---|---:|---:|---:|']
+    for arm in result['recomputed_summary']['arms']:
+        lines.append(f"| {arm['control']} | {arm['miou_mean']:.8f} | {arm['miou_sd']:.8f} | {arm['accuracy_mean']:.8f} |")
+    lines += ['', '| Quantum minus reference | Mean (pp) | Sample SD (pp) | Positive seeds | Seed 42 calibration (pp) | Seeds 77/123 mean (pp) |',
+              '|---|---:|---:|---:|---:|---:|']
+    for row in result['recomputed_summary']['paired']:
+        lines.append(f"| {row['reference']} | {row['mean_pp']:+.6f} | {row['sample_sd_pp']:.6f} | {row['positive_seeds']}/3 | {row['seed42_pp']:+.6f} | {row['followup_seeds77_123_mean_pp']:+.6f} |")
+    lines += ['', 'The exact Fraction practical screen '+('passed' if result['exact_practical_screen']['passed'] else 'did not pass')+
+        '. This is a descriptive prioritization screen, not significance, equivalence or quantum advantage.', '',
+        'Primary learning-quality flags: `'+json.dumps({key: result['recomputed_summary'][key] for key in
+            ('initial_to_best_nonpositive_count', 'all_arms_no_learning', 'late_best_count', 'horizons_unresolved', 'training_quality')}, sort_keys=True)+'`.', '',
+        'mIoU averages all five count-derived class IoUs; foreground mIoU excluding background is secondary. Accuracy is diagonal pixels divided by all pixels. Paired differences precede mean and sample SD (n-1); seed 42 calibration and seeds 77/123 follow-ups remain separate. Exact count fractions decide thresholds; float tolerance applies only to serialized reporting comparisons.', '',
+        'Checkpoint hashing establishes byte identity, not a new forward replay. The retained production collector independently restored/replayed the checkpoints. This oracle did not load weights, models, dataset images or test images. Parameter counts are checked across raw/profile/export records rather than reconstructed from models. Validation served rate/checkpoint selection and is not a geographic or independent-test claim.', '',
+        'Plan SHA256: `'+PLAN_SHA+'`.', 'Audit source SHA256: `'+sha(__file__)+'`.', '']
+    return '\n'.join(lines)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--selfcheck', action='store_true')
+    parser.add_argument('--task-root', type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument('--source-root', type=Path, default=Path('/tmp/quaffle-landcover-native-20261028'))
+    parser.add_argument('--output-dir', type=Path)
+    args = parser.parse_args(argv)
+    if args.selfcheck:
+        print(json.dumps(selfcheck(), sort_keys=True, indent=2)); return 0
+    if args.output_dir is None: parser.error('--output-dir is required for an authorized completed-pipeline audit')
+    task, output = args.task_root.resolve(), args.output_dir.resolve()
+    need(output.is_relative_to(task/'numeric_audit') and output != task/'numeric_audit', 'Output must stay under task numeric_audit/')
+    need(not output.exists() or (output.is_dir() and not any(output.iterdir())), 'Preserve existing audit output')
+    try:
+        result = audit(task, args.source_root.resolve())
+    except NotComplete as error:
+        print(json.dumps(dict(status='NOT_COMPLETE', reason=str(error), actual_audit_started=False)), file=sys.stderr)
+        return 3
+    result['audit_source_sha256'] = sha(__file__)
+    output.mkdir(parents=True, exist_ok=True)
+    (output/'audit.json').write_text(json.dumps(result, sort_keys=True, indent=2, allow_nan=False)+'\n')
+    (output/'REPORT.md').write_text(report(result))
+    print(json.dumps(dict(status='passed', audit_sha256=sha(output/'audit.json'), report_sha256=sha(output/'REPORT.md'))))
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
