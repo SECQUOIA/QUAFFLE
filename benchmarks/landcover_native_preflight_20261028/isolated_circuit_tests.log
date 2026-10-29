@@ -1,0 +1,5 @@
+Running as unit: run-r3e5118b0f55d4db5af1144d126b05523.scope; invocation ID: 5d4f9742cd044e049dd632c1b75d8340
+....Independent PennyLane 16-qubit brickwork: output_max_abs_error=3.1641356201816961e-15, angle_gradient_max_abs_error=8.9164786665207885e-16, weight_gradient_max_abs_error=3.1086244689504383e-15
+.Independent PennyLane 16-qubit sequential: output_max_abs_error=3.1086244689504383e-15, angle_gradient_max_abs_error=1.3322676295501878e-15, weight_gradient_max_abs_error=2.7755575615628914e-15
+.....................................................................
+74 passed in 10.16s

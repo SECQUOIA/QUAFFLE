@@ -1,0 +1,64 @@
+{
+  "archive": {
+    "bytes": 1538212277,
+    "filename": "landcover.ai.v1.zip",
+    "md5": "3268c89070e8734b4e91d531c0617e03",
+    "sha256": "dd448287ff3a76291f2b159084b8a265f2ba4559bb80b0551fc8c6c0eb149a4b"
+  },
+  "class_pixel_counts": {
+    "train": [
+      1134439928,
+      16767238,
+      648714832,
+      126508305,
+      31785377
+    ],
+    "val": [
+      252068991,
+      3843117,
+      132759584,
+      24872688,
+      6410308
+    ]
+  },
+  "format": "landcover-native-preparation-summary-v1",
+  "manifest_sha256": "da33f9a649513e37add550b05086ee56b4dca5a9973fd79d13ba3caf40f049d1",
+  "official_split_counts": {
+    "test": 1602,
+    "train": 7470,
+    "val": 1602
+  },
+  "official_split_files": {
+    "test": {
+      "count": 1602,
+      "member": "test.txt",
+      "sha256": "df381ab217cb7bfd526cca4249bc863cb11d8b99edbe6837b086f513fe9c123f"
+    },
+    "train": {
+      "count": 7470,
+      "member": "train.txt",
+      "sha256": "3db55adca08bb2161448875e7798102a313a9bd4b7a2caf60892293f0ca98450"
+    },
+    "val": {
+      "count": 1602,
+      "member": "val.txt",
+      "sha256": "521d28411921e97602eb619a55058ddb3702a743f9b4c3aefd56130ae122c6ea"
+    }
+  },
+  "parent_counts": {
+    "test": 41,
+    "train": 41,
+    "val": 41
+  },
+  "parents_shared_all_three": 41,
+  "png_files": 18144,
+  "prepared_tiles": 9072,
+  "split_independence": "Official random tile splits can share parent rasters; geographic/event independence is not established.",
+  "split_script": {
+    "coordinate_rule": "row-major k with ceil(source_width/512) columns; increment k even at partial edges",
+    "member": "split.py",
+    "sha256": "15ee4ca9e3fd187957addfa8f0d74ac31bc928a966f76926e11b3c33ea76daa1"
+  },
+  "test_pixel_windows_read": 0,
+  "test_tiles_written": 0
+}

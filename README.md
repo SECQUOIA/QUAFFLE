@@ -107,6 +107,14 @@ use the earlier 60-epoch control histories and fixed-rule validation examples.
 The [fresh HQ SLURM launch guide](docs/HQ_ANVIL_LAUNCH.md) packages separate
 profile, run and collect jobs for Alan's configuration and manual profile acceptance.
 
+The separate [native LandCover.ai protocol](docs/LANDCOVER_NATIVE_PROTOCOL.md)
+tests the five-class task of the HQ-UNet paper with its diagram's full-width
+architecture and paired learned, frozen, compact classical and zero controls.
+It provides checksum-verified data preparation, an exact-model local resource
+profile, a frozen three-seed campaign and validation-only checkpoint collection.
+This capped native-dataset comparison is distinct from the binary DFC24 study
+and from an exact reproduction of the paper's reported test accuracy.
+
 ```bash
 # Centralized
 python centralized_demoTorchClassical.py --dataset optical --seed 17
