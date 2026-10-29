@@ -53,5 +53,8 @@ guarantee. All four real gradient/movement checks and initialization pairing pas
 
 Focused verification: 74 isolated/native/historical model tests (including the
 previously failing historical source audit), 28 data tests, and 40 final
-runner/collector tests pass. The complete suite is being rechecked against
-this final source; its terminal evidence will be retained before merge.
+runner/collector tests pass. The complete suite passed: **874 tests, 22 warnings, 422.14 seconds**, exit zero.
+`full_tests.log` retains the terminal output. Astra’s original initial source
+review at `1ddbf61b8f36cda2fe7402dd79a71310ac98a22c` found no actionable items
+and is retained verbatim in `reviews/astra-source-review-1.md`. Later changes
+retain this review and test evidence; every executable/protocol digest is unchanged.
