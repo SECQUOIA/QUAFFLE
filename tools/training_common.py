@@ -653,9 +653,9 @@ class DihedralAugmentDataset:
         return self
 
     def __getstate__(self):
-        # torch.Generator cannot be pickled, and federated runs send client
-        # datasets to Ray workers by pickling them. Store the generator state
-        # (a uint8 tensor) instead, so the augmentation sequence is unchanged.
+        # Ray serializes client datasets for worker transfer. Store the state
+        # explicitly so this does not depend on the runtime's support for
+        # pickling torch.Generator objects, while preserving the sequence.
         state = self.__dict__.copy()
         state['generator'] = self.generator.get_state()
         return state
