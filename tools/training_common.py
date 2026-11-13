@@ -652,6 +652,21 @@ class DihedralAugmentDataset:
         self.generator.manual_seed(derive_seed(self.seed, 25))
         return self
 
+    def __getstate__(self):
+        # Ray serializes client datasets for worker transfer. Store the state
+        # explicitly so this does not depend on the runtime's support for
+        # pickling torch.Generator objects, while preserving the sequence.
+        state = self.__dict__.copy()
+        state['generator'] = self.generator.get_state()
+        return state
+
+    def __setstate__(self, state):
+        import torch
+        gen_state = state.pop('generator')
+        self.__dict__.update(state)
+        self.generator = torch.Generator()
+        self.generator.set_state(gen_state)
+
     def __len__(self):
         return len(self.dataset)
 
